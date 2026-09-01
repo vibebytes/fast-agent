@@ -1,0 +1,5 @@
+安装 Fast。
+
+完成后：
+• 「应用程序」里会有 Fast
+• 终端里可以直接运行 fast-ink、fast-cli（别名 fast）

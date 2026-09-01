@@ -1,0 +1,6 @@
+packages:
+  - "packages/core/bridge/*"
+  - "packages/core/session-view"
+  - "packages/core/i18n"
+  - "packages/web/ui"
+  - "apps/*"

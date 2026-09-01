@@ -1,0 +1,29 @@
+{
+  "compilerOptions": {
+    "target": "ES2023",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "resolveJsonModule": true,
+    "allowImportingTsExtensions": true,
+    "types": ["node"],
+    "noEmit": true,
+    "baseUrl": ".",
+    "paths": {
+      "@main/*": ["src/main/*"],
+      "@fast-ide/session-view": ["../../packages/core/session-view/src/index.ts"],
+      "@fast-ide/i18n": ["../../packages/core/i18n/src/index.ts"],
+      "@fast-ide/i18n/browser": ["../../packages/core/i18n/src/browser.ts"],
+      "@fast-ide/i18n/locales/*": ["../../packages/core/i18n/locales/*"],
+      "@fastllm/bridge-client": ["../../packages/core/bridge/client/src/index.ts"]
+    }
+  },
+  "include": [
+    "electron.vite.config.ts",
+    "src/main/**/*",
+    "src/preload/**/*",
+    "src/shared/**/*"
+  ]
+}

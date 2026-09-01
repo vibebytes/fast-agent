@@ -1,0 +1,5 @@
+{"type":"todo/write","seq":1,"time":1,"data":{"todos":[{"content":"read the file","status":"in_progress"}]}}
+{"type":"turn/start","seq":2,"time":2,"data":{"turn":2}}
+{"type":"user/message","seq":3,"time":3,"data":{"role":"user","content":[{"type":"text","text":"go"}]}}
+{"type":"assistant/message","seq":4,"time":4,"data":{"turn":2,"step":1,"message":{"role":"assistant","content":[{"type":"text","text":"ok"}]}}}
+{"type":"turn/end","seq":5,"time":5,"data":{"turn":2,"reason":{"kind":"completed"}}}

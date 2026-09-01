@@ -1,0 +1,3 @@
+安装完成。
+
+打开 Fast，或在终端运行 fast-ink、fast-cli（别名 fast）。

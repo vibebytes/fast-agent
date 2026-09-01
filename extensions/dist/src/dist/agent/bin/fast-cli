@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+set -euo pipefail
+root="$(cd "$(dirname "$0")/.." && pwd)"
+# Maven layout: conf/ and extensions/ are siblings of agent/. After place they sit next to bin/.
+# Only retarget conf/extensions — keep -cp on $root/lib (never lift root to the parent).
+conf="$root/conf"
+exts="$root/extensions"
+if [[ ! -d "$conf" && -d "$root/../conf" ]]; then
+  conf="$(cd "$root/../conf" && pwd)"
+  if [[ -d "$root/../extensions" ]]; then
+    exts="$(cd "$root/../extensions" && pwd)"
+  fi
+fi
+exec java --add-opens=java.base/java.nio=ALL-UNNAMED \
+  -Dfast.engines.yaml="$conf/engines.yaml" \
+  -Dfast.extensions.yaml="$conf/extensions.yaml" \
+  -Dfast.extensions="$exts" \
+  -cp "$root/lib/*" \
+  ai.fastllm.agent.cli.CliApp "$@"

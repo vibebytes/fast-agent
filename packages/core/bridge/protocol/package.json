@@ -1,0 +1,33 @@
+{
+  "name": "@fastllm/bridge-protocol",
+  "version": "0.1.0",
+  "description": "Shared Bridge command/event contract between Engine clients (cli-ink, Fast IDE) and fast-cli",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "prepare": "npm run build",
+    "typecheck": "tsc --noEmit",
+		"test": "tsx --test src/protocol.test.ts src/parseNdjson.test.ts src/packageExport.test.ts src/bridgeFixedCommands.test.ts src/slashRoute.test.ts src/extractQuery.test.ts",
+    "prepublishOnly": "npm run build"
+  },
+  "dependencies": {
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@types/node": "^25.9.1",
+    "tsx": "^4.22.3",
+    "typescript": "^6.0.3"
+  },
+  "license": "ISC"
+}

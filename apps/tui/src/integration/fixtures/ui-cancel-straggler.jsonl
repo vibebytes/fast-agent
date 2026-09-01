@@ -1,0 +1,14 @@
+{"direction":"event","payload":{"type":"input_accepted","turnId":"run-1","clientMessageId":"client-e2e"}}
+{"direction":"event","payload":{"type":"reasoning_delta","turnId":"run-1","text":"PRE-CANCEL-THOUGHT: 安装 libreoffice 超时了，换个方案。"}}
+{"direction":"event","payload":{"type":"tool_started","turnId":"run-1","id":"tc-1","tool":"shell","args":{"command":"brew install --cask libreoffice"}}}
+{"direction":"event","payload":{"type":"tool_finished","turnId":"run-1","id":"tc-1","tool":"shell","success":false,"fields":{"status":"timeout"}}}
+{"direction":"event","payload":{"type":"command_result","name":"CancelRun","message":"status=Cancelled","status":"cancelled"}}
+{"direction":"event","payload":{"type":"run_cancelled","runId":"run-1","reason":"cancelled"}}
+{"direction":"event","payload":{"type":"reasoning_delta","text":"GHOST-THOUGHT-1 ·:"}}
+{"direction":"event","payload":{"type":"command_result","name":"CancelRun","message":"status=Cancelled","status":"cancelled"}}
+{"direction":"event","payload":{"type":"reasoning_delta","text":"GHOST-THOUGHT-2 contents."}}
+{"direction":"event","payload":{"type":"command_result","name":"CancelRun","message":"status=Cancelled","status":"cancelled"}}
+{"direction":"event","payload":{"type":"assistant_delta","text":"GHOST-ANSWER input). This way the messages stay small."}}
+{"direction":"event","payload":{"type":"agent_call_started","agentId":"agent-ghost","name":"GHOST-风控员","depth":1,"runId":"run-ghost"}}
+{"direction":"event","payload":{"type":"tool_started","id":"tc-ghost","tool":"shell","args":{"command":"echo ghost"}}}
+{"direction":"event","payload":{"type":"command_result","name":"CancelRun","message":"status=Cancelled","status":"cancelled"}}

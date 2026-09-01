@@ -1,0 +1,7 @@
+{"direction":"event","payload":{"type":"input_accepted","turnId":"turn-e2e","clientMessageId":"client-e2e"}}
+{"direction":"event","payload":{"type":"agent_call_started","sessionId":"session-e2e","turnId":"turn-e2e","eventSeq":1,"agentId":"agent-risk","depth":1,"name":"风控员","runId":"run-r1"}}
+{"direction":"event","payload":{"type":"tool_started","sessionId":"session-e2e","turnId":"turn-e2e","eventSeq":2,"agentId":"agent-risk","depth":1,"agentRunId":"run-r1","id":"tc-r1a","toolCallId":"tc-r1a","tool":"shell","args":{"arg":"x"}}}
+{"direction":"event","payload":{"type":"reasoning_delta","sessionId":"session-e2e","turnId":"turn-e2e","eventSeq":3,"text":"安装超时了，换一种方式。"}}
+{"direction":"event","payload":{"type":"agent_call_finished","sessionId":"session-e2e","turnId":"turn-e2e","eventSeq":4,"agentId":"agent-risk","success":false,"elapsedMs":4900,"toolCalls":0,"runId":"run-r1","detail":"cancelled: parent cancelled"}}
+{"direction":"event","payload":{"type":"run_cancelled","sessionId":"session-e2e","turnId":"turn-e2e","eventSeq":5,"runId":"run-main","reason":"cancelled by user"}}
+{"direction":"event","payload":{"type":"turn_cancelled","turnId":"turn-e2e","reason":"cancelled by user"}}

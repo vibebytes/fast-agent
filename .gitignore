@@ -1,0 +1,94 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+.pnpm-debug.log*
+package-lock.json
+yarn.lock
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# TS / bundler
+dist/
+!extensions/dist/
+!extensions/dist/**
+out/
+target/
+*.tsbuildinfo
+.vite/
+.turbo/
+*.local
+*.map
+
+# pack / electron-builder (build/*.sh)
+staging/
+release/
+apps/desktop/release/
+apps/desktop/out/
+apps/desktop/dist/
+*.app
+*.dmg
+*.pkg
+*.exe
+*.msi
+*.AppImage
+*.blockmap
+*.asar
+*.asar.unpacked
+
+# Generated file icons (apps/desktop/scripts/pack/sync-file-icons.mjs; predev / prebuild)
+apps/desktop/src/renderer/public/file-icons/
+apps/desktop/src/renderer/src/files/fileIconManifest.json
+
+# fetch-engine.sh writes modules/engine/current/
+modules/engine/current/
+modules/engine/jars/
+modules/engine/*.zip
+modules/engine/*.jar
+
+# Env & secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.p12
+*.key
+*.jks
+
+# Logs / crash / debug
+logs/
+*.log
+hs_err_pid*
+replay_pid*
+*.hprof
+.fast/
+
+# Test / coverage
+coverage/
+.nyc_output/
+playwright-report/
+test-results/
+*.lcov
+
+# Local ML model weights (GitHub 100MB cap; fetched by build/mobile.sh)
+apps/mobile/assets/models/**/*.onnx
+
+# OS / editor
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*.orig
+*.rej
+.idea/
+*.iml
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+.history/
+.cache/
+tmp/
+temp/
+.cursor/
+.fast/

@@ -1,0 +1,8 @@
+{"type":"todo/write","seq":1,"time":1,"data":{"todos":[{"content":"read the file","status":"in_progress"},{"content":"write tests","status":"pending"}]}}
+{"type":"turn/start","seq":2,"time":2,"data":{"turn":2}}
+{"type":"compaction/start","seq":3,"time":3,"data":{"compactionId":"cmp-1","turn":null}}
+{"type":"compaction/summary","seq":4,"time":4,"data":{"compactionId":"cmp-1","summary":[{"type":"text","text":"kept the last turn"}],"shadowedRange":{"start":1,"end":2},"shadowedSeqs":[1,2],"shadowedTokenCount":12,"provider":"mock","model":"mock"}}
+{"type":"compaction/end","seq":5,"time":5,"data":{"compactionId":"cmp-1","turn":null}}
+{"type":"compaction/prune","seq":6,"time":6,"data":{"compactionId":"cmp-1"}}
+{"type":"session/title","seq":7,"time":7,"data":{"title":"Fix the parser","messageSeqs":[1],"source":{"kind":"fallback"}}}
+{"type":"goal/change","seq":8,"time":8,"data":{"goalId":"g1"}}

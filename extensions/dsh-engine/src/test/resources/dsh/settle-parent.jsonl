@@ -1,0 +1,5 @@
+{"type":"turn/start","seq":1,"time":1,"data":{"turn":1}}
+{"type":"tool/call","seq":2,"time":2,"data":{"name":"subagent","callId":"c1"}}
+{"type":"turn/end","seq":3,"time":3,"data":{"turn":1,"reason":{"kind":"completed"}}}
+{"type":"user/message","seq":4,"time":100,"data":{"source":{"kind":"subagent-report","form":"relay","senderSessionId":"child-settle-1"}}}
+{"type":"user/message","seq":5,"time":120,"data":{"source":{"kind":"subagent-settled","form":"notice","senderSessionId":"child-settle-1"}}}

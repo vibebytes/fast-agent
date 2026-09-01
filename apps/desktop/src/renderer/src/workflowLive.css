@@ -1,0 +1,121 @@
+/* Live Goal flowchart — execution motion. */
+
+@keyframes wf-breathe {
+	0%,
+	100% {
+		box-shadow:
+			0 0 0 0 rgba(14, 165, 233, 0.15),
+			0 0 0 2px rgba(14, 165, 233, 0.35);
+		transform: scale(1);
+	}
+	50% {
+		box-shadow:
+			0 0 18px 4px rgba(14, 165, 233, 0.55),
+			0 0 0 3px rgba(56, 189, 248, 0.85);
+		transform: scale(1.03);
+	}
+}
+
+@keyframes wf-ring-spin {
+	to {
+		transform: rotate(360deg);
+	}
+}
+
+@keyframes wf-settle {
+	0% {
+		transform: scale(1.06);
+		filter: brightness(1.2);
+	}
+	100% {
+		transform: scale(1);
+		filter: brightness(1);
+	}
+}
+
+@keyframes wf-amber-flash {
+	0%,
+	100% {
+		box-shadow: 0 0 0 0 rgba(245, 158, 11, 0);
+	}
+	40% {
+		box-shadow: 0 0 18px 4px rgba(245, 158, 11, 0.65);
+	}
+}
+
+/* Own keyframes name — do not collide with @xyflow's dashdraw */
+@keyframes wf-dashdraw {
+	from {
+		stroke-dashoffset: 24;
+	}
+	to {
+		stroke-dashoffset: 0;
+	}
+}
+
+.workflow-live .wf-node--running {
+	/* Override Tailwind shadow utilities so the pulse is visible */
+	animation: wf-breathe 1.1s ease-in-out infinite !important;
+	will-change: box-shadow, transform;
+	overflow: visible;
+}
+
+.workflow-live .wf-node--running .wf-running-ring {
+	position: absolute;
+	inset: -5px;
+	border-radius: inherit;
+	pointer-events: none;
+	border: 2px dashed rgb(56 189 248 / 0.95);
+	animation: wf-ring-spin 1.6s linear infinite;
+	opacity: 0.95;
+}
+
+.workflow-live .wf-node--done-settle {
+	animation: wf-settle 220ms ease-out 1;
+}
+
+.workflow-live .wf-node--reject-flash {
+	animation: wf-amber-flash 0.7s ease-out 1;
+}
+
+/*
+ * Active path: force marching dashes.
+ * Targets xyflow edge path; interaction hit-path stays solid.
+ */
+.workflow-live .react-flow__edge.animated path.react-flow__edge-path,
+.workflow-live .react-flow__edge.animated path:not(.react-flow__edge-interaction),
+.workflow-live .react-flow__edge.wf-edge--flow path.react-flow__edge-path,
+.workflow-live .react-flow__edge.wf-edge--flow path:not(.react-flow__edge-interaction) {
+	stroke-dasharray: 8 6 !important;
+	animation: wf-dashdraw 0.55s linear infinite !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	/* Still show dashed active path — only freeze motion */
+	.workflow-live .wf-node--running {
+		animation: none !important;
+		box-shadow:
+			0 0 12px 3px rgba(14, 165, 233, 0.45),
+			0 0 0 2px rgba(56, 189, 248, 0.8) !important;
+	}
+
+	.workflow-live .wf-node--running .wf-running-ring,
+	.workflow-live .wf-node--done-settle,
+	.workflow-live .wf-node--reject-flash,
+	.workflow-live .animate-ping {
+		animation: none !important;
+	}
+
+	.workflow-live .wf-node--running .wf-running-ring {
+		display: none;
+	}
+
+	.workflow-live .react-flow__edge.animated path.react-flow__edge-path,
+	.workflow-live .react-flow__edge.animated path:not(.react-flow__edge-interaction),
+	.workflow-live .react-flow__edge.wf-edge--flow path.react-flow__edge-path,
+	.workflow-live .react-flow__edge.wf-edge--flow path:not(.react-flow__edge-interaction) {
+		animation: none !important;
+		/* Keep dashes as the "this edge is active" signal */
+		stroke-dasharray: 8 6 !important;
+	}
+}

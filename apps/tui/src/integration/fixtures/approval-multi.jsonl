@@ -1,0 +1,19 @@
+{"type":"input_accepted","turnId":"turn_multi","clientMessageId":"client_replay"}
+{"type":"turn_started","turnId":"turn_multi","clientMessageId":"client_replay","text":"Replay multi approval"}
+{"type":"thinking_started","turnId":"turn_multi","turn":1,"maxTurns":50}
+{"type":"reasoning_delta","turnId":"turn_multi","text":"Need to run first shell command, approval required."}
+{"type":"approval_requested","turnId":"turn_multi","id":"approval_multi_1","tool":"shell","description":"Run first replay command","risk":"Shell","context":"printf \"{{E2E_MULTI_STEP_1}}\""}
+{"type":"approval_resolved","turnId":"turn_multi","id":"approval_multi_1","approved":true}
+{"type":"tool_started","turnId":"turn_multi","id":"tool_multi_1","tool":"shell","args":{"command":"printf \"{{E2E_MULTI_STEP_1}}\""}}
+{"type":"tool_output","turnId":"turn_multi","id":"tool_multi_1","tool":"shell","stream":"stdout","text":"{{E2E_MULTI_STEP_1}}"}
+{"type":"tool_finished","turnId":"turn_multi","id":"tool_multi_1","tool":"shell","success":true,"fields":{"exit":"0","duration":"30ms"}}
+{"type":"reasoning_delta","turnId":"turn_multi","text":"Need to run second shell command, approval required."}
+{"type":"approval_requested","turnId":"turn_multi","id":"approval_multi_2","tool":"shell","description":"Run second replay command","risk":"Shell","context":"printf \"{{E2E_MULTI_STEP_2}}\""}
+{"type":"approval_resolved","turnId":"turn_multi","id":"approval_multi_2","approved":true}
+{"type":"tool_started","turnId":"turn_multi","id":"tool_multi_2","tool":"shell","args":{"command":"printf \"{{E2E_MULTI_STEP_2}}\""}}
+{"type":"tool_output","turnId":"turn_multi","id":"tool_multi_2","tool":"shell","stream":"stdout","text":"{{E2E_MULTI_STEP_2}}"}
+{"type":"tool_finished","turnId":"turn_multi","id":"tool_multi_2","tool":"shell","success":true,"fields":{"exit":"0","duration":"30ms"}}
+{"type":"assistant_delta","turnId":"turn_multi","text":"{{E2E_MULTI_STEP_1}}\n{{E2E_MULTI_STEP_2}}\nReplay multi approval complete."}
+{"type":"final_answer","turnId":"turn_multi","text":"{{E2E_MULTI_STEP_1}}\n{{E2E_MULTI_STEP_2}}\nReplay multi approval complete."}
+{"type":"turn_usage","turnId":"turn_multi","turn":1,"tokensUsed":128}
+{"type":"turn_finished","turnId":"turn_multi","success":true}

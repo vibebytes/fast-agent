@@ -1,0 +1,11 @@
+{"type":"turn/start","seq":1,"time":1,"data":{"turn":1}}
+{"type":"user/message","seq":2,"time":2,"data":{"role":"user","content":[{"type":"text","text":"hi"}]}}
+{"type":"assistant/chunk","seq":3,"time":3,"data":{"turn":1,"step":1,"chunk":{"type":"text-delta","index":0,"text":"Hel"}}}
+{"type":"assistant/chunk","seq":4,"time":4,"data":{"turn":1,"step":1,"chunk":{"type":"text-delta","index":0,"text":"lo"}}}
+{"type":"assistant/message","seq":5,"time":5,"data":{"turn":1,"step":1,"message":{"role":"assistant","content":[{"type":"text","text":"Hello"}]}}}
+{"type":"turn/end","seq":6,"time":6,"data":{"turn":1,"reason":{"kind":"completed"}}}
+{"type":"compaction/start","seq":7,"time":7,"data":{"compactionId":"cmp-1","turn":null}}
+{"type":"compaction/summary","seq":8,"time":8,"data":{"compactionId":"cmp-1","summary":[{"type":"text","text":"kept the last turn"}],"shadowedRange":{"start":1,"end":2},"shadowedSeqs":[1,2],"shadowedTokenCount":12,"provider":"mock","model":"mock"}}
+{"type":"compaction/end","seq":9,"time":9,"data":{"compactionId":"cmp-1","turn":null}}
+{"type":"compaction/prune","seq":10,"time":10,"data":{"compactionId":"cmp-1"}}
+{"type":"session/title","seq":11,"time":11,"data":{"title":"Fix the parser","messageSeqs":[2],"source":{"kind":"fallback"}}}

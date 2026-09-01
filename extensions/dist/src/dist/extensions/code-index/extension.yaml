@@ -1,0 +1,8 @@
+id: code-index
+apiVersion: "1"
+hotUnload: true
+uses:
+  events: [WorkspaceBound]
+provides:
+  shards: [code-index]
+  tools: [code-index]

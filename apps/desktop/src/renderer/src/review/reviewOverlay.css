@@ -1,0 +1,56 @@
+/* width must beat Monaco's inline glyph sizing, which no stylesheet selector can outrank */
+.review-glyph-add {
+	width: 3px !important;
+	margin-left: 4px;
+	border-radius: 2px;
+	background: #10b981;
+}
+
+.review-glyph-del {
+	width: 3px !important;
+	margin-left: 4px;
+	border-radius: 2px;
+	background: #ef4444;
+}
+
+.review-glyph-paused {
+	width: 3px !important;
+	margin-left: 4px;
+	border-radius: 2px;
+	background: #f59e0b;
+}
+
+.monaco-editor .view-overlays .review-line-add {
+	background: rgba(16, 185, 129, 0.16);
+}
+
+.dark .monaco-editor .view-overlays .review-line-add {
+	background: rgba(16, 185, 129, 0.22);
+}
+
+.review-del-zone {
+	width: 100%;
+	box-sizing: border-box;
+	background: rgba(239, 68, 68, 0.1);
+	border-left: 3px solid #ef4444;
+	overflow: hidden;
+	font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New',
+		monospace;
+	font-size: 13px;
+	line-height: 20px;
+	color: #b91c1c;
+	opacity: 0.85;
+	pointer-events: none;
+}
+
+.dark .review-del-zone {
+	background: rgba(239, 68, 68, 0.16);
+	color: #fecaca;
+}
+
+.review-del-zone-line {
+	padding: 0 8px;
+	white-space: pre;
+	text-decoration: line-through;
+}
+

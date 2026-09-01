@@ -1,0 +1,9 @@
+{
+  "platforms": ["ios", "android"],
+  "ios": {
+    "modules": ["FastBridgeTlsModule"]
+  },
+  "android": {
+    "modules": ["expo.modules.fastbridgetls.FastBridgeTlsModule"]
+  }
+}

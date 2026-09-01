@@ -1,0 +1,14 @@
+{"direction":"event","payload":{"type":"input_accepted","turnId":"turn-e2e","clientMessageId":"client-e2e"}}
+{"direction":"event","payload":{"type":"agent_call_started","sessionId":"session-e2e","turnId":"turn-e2e","eventSeq":1,"agentId":"agent-data","depth":1,"name":"数据员","runId":"run-d1"}}
+{"direction":"event","payload":{"type":"agent_call_started","sessionId":"session-e2e","turnId":"turn-e2e","eventSeq":2,"agentId":"agent-risk","depth":1,"name":"风控员","runId":"run-r1"}}
+{"direction":"event","payload":{"type":"tool_started","sessionId":"session-e2e","turnId":"turn-e2e","eventSeq":3,"agentId":"agent-data","depth":1,"agentRunId":"run-d1","id":"tc-d1","toolCallId":"tc-d1","tool":"read_file","args":{"arg":"x"}}}
+{"direction":"event","payload":{"type":"tool_started","sessionId":"session-e2e","turnId":"turn-e2e","eventSeq":4,"agentId":"agent-risk","depth":1,"agentRunId":"run-r1","id":"tc-r1","toolCallId":"tc-r1","tool":"grep","args":{"arg":"x"}}}
+{"direction":"event","payload":{"type":"tool_finished","sessionId":"session-e2e","turnId":"turn-e2e","eventSeq":5,"agentId":"agent-risk","depth":1,"agentRunId":"run-r1","id":"tc-r1","toolCallId":"tc-r1","tool":"grep","success":true,"fields":{"output":"","status":"success"}}}
+{"direction":"event","payload":{"type":"tool_finished","sessionId":"session-e2e","turnId":"turn-e2e","eventSeq":6,"agentId":"agent-data","depth":1,"agentRunId":"run-d1","id":"tc-d1","toolCallId":"tc-d1","tool":"read_file","success":true,"fields":{"output":"","status":"success"}}}
+{"direction":"event","payload":{"type":"agent_call_finished","sessionId":"session-e2e","turnId":"turn-e2e","eventSeq":7,"agentId":"agent-data","success":true,"elapsedMs":4900,"toolCalls":1,"runId":"run-d1"}}
+{"direction":"event","payload":{"type":"tool_started","sessionId":"session-e2e","turnId":"turn-e2e","eventSeq":8,"agentId":"agent-risk","depth":1,"agentRunId":"run-r1","id":"tc-r2","toolCallId":"tc-r2","tool":"shell","args":{"arg":"x"}}}
+{"direction":"event","payload":{"type":"tool_finished","sessionId":"session-e2e","turnId":"turn-e2e","eventSeq":9,"agentId":"agent-risk","depth":1,"agentRunId":"run-r1","id":"tc-r2","toolCallId":"tc-r2","tool":"shell","success":true,"fields":{"output":"","status":"success"}}}
+{"direction":"event","payload":{"type":"agent_call_finished","sessionId":"session-e2e","turnId":"turn-e2e","eventSeq":10,"agentId":"agent-risk","success":true,"elapsedMs":4900,"toolCalls":2,"runId":"run-r1"}}
+{"direction":"event","payload":{"type":"final_answer","sessionId":"session-e2e","turnId":"turn-e2e","eventSeq":11,"text":"两个子任务都完成。"}}
+{"direction":"event","payload":{"type":"run_done","sessionId":"session-e2e","turnId":"turn-e2e","eventSeq":12,"runId":"run-main","success":true,"summary":""}}
+{"direction":"event","payload":{"type":"turn_finished","turnId":"turn-e2e","success":true}}

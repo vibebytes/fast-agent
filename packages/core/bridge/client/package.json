@@ -1,0 +1,36 @@
+{
+  "name": "@fastllm/bridge-client",
+  "version": "0.1.0",
+  "description": "Machine-scoped Bridge host client: ensureDaemon, unix NDJSON, Hello/lease",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "prebuild": "npm run build --prefix ../protocol",
+    "typecheck": "tsc --noEmit",
+    "pretypecheck": "npm run build --prefix ../protocol",
+		"test": "tsx --test src/paths.test.ts src/ensureDaemon.test.ts src/unixConnection.test.ts src/wsConnection.test.ts src/tlsPin.test.ts src/probe.test.ts src/BridgeHost.test.ts src/extensions.test.ts",
+    "prepublishOnly": "npm run build"
+  },
+  "dependencies": {
+    "@fastllm/bridge-protocol": "file:../protocol",
+    "ws": "^8.18.3"
+  },
+  "devDependencies": {
+    "@types/node": "^25.9.1",
+    "@types/ws": "^8.18.1",
+    "tsx": "^4.22.3",
+    "typescript": "^6.0.3"
+  },
+  "license": "ISC"
+}

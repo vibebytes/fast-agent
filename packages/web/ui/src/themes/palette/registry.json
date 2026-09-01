@@ -1,0 +1,403 @@
+{
+  "$schema": "https://ui.shadcn.com/schema/registry.json",
+  "name": "paletteui",
+  "homepage": "https://paletteui.xyz",
+  "items": [
+    {
+      "name": "zinc",
+      "type": "registry:theme",
+      "title": "Zinc",
+      "description": "The sensible default. Neutral zinc grays that stay out of the way."
+    },
+    {
+      "name": "slate",
+      "type": "registry:theme",
+      "title": "Slate",
+      "description": "Cool blue-gray undertones. Crisp and technical without being cold."
+    },
+    {
+      "name": "stone",
+      "type": "registry:theme",
+      "title": "Stone",
+      "description": "Warm gray with a sandy undertone. Calm, grounded, approachable."
+    },
+    {
+      "name": "mono",
+      "type": "registry:theme",
+      "title": "Minimal Mono",
+      "description": "Pure grayscale. No color, no distraction. Just typography and whitespace."
+    },
+    {
+      "name": "neo",
+      "type": "registry:theme",
+      "title": "Neo Brutal",
+      "description": "Black and yellow. Hard shadows, thick borders, maximum impact."
+    },
+    {
+      "name": "contrast",
+      "type": "registry:theme",
+      "title": "Contrast",
+      "description": "Pure black and white with a single red accent. Nothing else needed."
+    },
+    {
+      "name": "oxide",
+      "type": "registry:theme",
+      "title": "Oxide",
+      "description": "Rust and iron. Industrial warmth with raw, mechanical confidence."
+    },
+    {
+      "name": "electric",
+      "type": "registry:theme",
+      "title": "Electric",
+      "description": "Neon cyan on dark. Terminal aesthetics meets modern UI."
+    },
+    {
+      "name": "editorial",
+      "type": "registry:theme",
+      "title": "Warm Editorial",
+      "description": "Rich amber tones with typographic elegance. Inspired by luxury print."
+    },
+    {
+      "name": "terra",
+      "type": "registry:theme",
+      "title": "Terra",
+      "description": "Terracotta and olive. Mediterranean warmth grounded in earth."
+    },
+    {
+      "name": "sand",
+      "type": "registry:theme",
+      "title": "Sand",
+      "description": "Desert beige and cream. Soft, quiet, endlessly restful."
+    },
+    {
+      "name": "rose",
+      "type": "registry:theme",
+      "title": "Rose",
+      "description": "Dusty rose and warm mauve. Refined softness with quiet confidence."
+    },
+    {
+      "name": "midnight",
+      "type": "registry:theme",
+      "title": "Midnight",
+      "description": "Deep indigo with luminous accents. Focused and immersive."
+    },
+    {
+      "name": "saas",
+      "type": "registry:theme",
+      "title": "SaaS Blue",
+      "description": "Professional blue. The reliable choice for dashboards and products."
+    },
+    {
+      "name": "ocean",
+      "type": "registry:theme",
+      "title": "Ocean",
+      "description": "Teal and deep sea. Calm depth with bright coral accents."
+    },
+    {
+      "name": "frost",
+      "type": "registry:theme",
+      "title": "Frost",
+      "description": "Ice blue and silver. Light, airy, crystalline clarity."
+    },
+    {
+      "name": "candy",
+      "type": "registry:theme",
+      "title": "Candy",
+      "description": "Vibrant pink and pastels. Joyful, friendly, unapologetically fun."
+    },
+    {
+      "name": "emerald",
+      "type": "registry:theme",
+      "title": "Emerald",
+      "description": "Fresh mint and green. Natural energy that feels alive."
+    },
+    {
+      "name": "sunset",
+      "type": "registry:theme",
+      "title": "Sunset",
+      "description": "Orange to purple gradient vibes. Warm energy fading into cool dusk."
+    },
+    {
+      "name": "spring",
+      "type": "registry:theme",
+      "title": "Spring Bloom",
+      "description": "Soft pinks and fresh greens. New growth, cherry blossoms, morning dew."
+    },
+    {
+      "name": "summer",
+      "type": "registry:theme",
+      "title": "Summer Heat",
+      "description": "Warm oranges and golden yellows. Sunshine, beaches, endless days."
+    },
+    {
+      "name": "autumn",
+      "type": "registry:theme",
+      "title": "Autumn Ember",
+      "description": "Deep burgundy and burnt orange. Falling leaves, warm cider, cozy evenings."
+    },
+    {
+      "name": "winter",
+      "type": "registry:theme",
+      "title": "Winter Night",
+      "description": "Icy blues and silver whites. Frozen lakes, starlit skies, quiet snowfall."
+    },
+    {
+      "name": "nebula",
+      "type": "registry:theme",
+      "title": "Nebula",
+      "description": "Deep purple and magenta. Cosmic dust clouds and stellar nurseries."
+    },
+    {
+      "name": "mars",
+      "type": "registry:theme",
+      "title": "Mars Colony",
+      "description": "Dusty red and iron oxide. Martian landscapes and frontier ambition."
+    },
+    {
+      "name": "aurora",
+      "type": "registry:theme",
+      "title": "Aurora",
+      "description": "Northern lights green and violet. Dancing electrons and polar skies."
+    },
+    {
+      "name": "eclipse",
+      "type": "registry:theme",
+      "title": "Eclipse",
+      "description": "Dark void with golden corona. Total darkness ringed with fire."
+    },
+    {
+      "name": "synthwave",
+      "type": "registry:theme",
+      "title": "Synthwave",
+      "description": "Neon pink and cyan on dark purple. 80s arcade, VHS tracking, laser grids."
+    },
+    {
+      "name": "terminal",
+      "type": "registry:theme",
+      "title": "Terminal",
+      "description": "Green phosphor on black. CRT monitors, command lines, the Matrix."
+    },
+    {
+      "name": "polaroid",
+      "type": "registry:theme",
+      "title": "Polaroid",
+      "description": "Faded cream and warm brown. Vintage film, sun-bleached memories, nostalgia."
+    },
+    {
+      "name": "pixel",
+      "type": "registry:theme",
+      "title": "Pixel",
+      "description": "Bright primaries on dark. 8-bit games, pixel art, chiptune energy."
+    },
+    {
+      "name": "linear",
+      "type": "registry:theme",
+      "title": "Linear",
+      "description": "The iconic Linear violet. Clean product design, focused engineering."
+    },
+    {
+      "name": "stripe",
+      "type": "registry:theme",
+      "title": "Stripe",
+      "description": "Stripe's signature indigo. Clean, trustworthy, payments-grade polish."
+    },
+    {
+      "name": "spotify",
+      "type": "registry:theme",
+      "title": "Spotify",
+      "description": "That unmistakable green on dark. Music, energy, late-night listening."
+    },
+    {
+      "name": "notion",
+      "type": "registry:theme",
+      "title": "Notion",
+      "description": "Warm off-white and soft brown. The calm of a clean workspace."
+    },
+    {
+      "name": "sakura",
+      "type": "registry:theme",
+      "title": "Cherry Blossom",
+      "description": "Soft sakura pink and moss green. Japanese gardens, spring rain, wabi-sabi."
+    },
+    {
+      "name": "lavender",
+      "type": "registry:theme",
+      "title": "Lavender Field",
+      "description": "Soft purple and green-gray. Provencal fields, herbal calm, gentle breezes."
+    },
+    {
+      "name": "reef",
+      "type": "registry:theme",
+      "title": "Coral Reef",
+      "description": "Aqua and coral pink. Tropical waters, living color, marine depth."
+    },
+    {
+      "name": "redwood",
+      "type": "registry:theme",
+      "title": "Redwood",
+      "description": "Deep forest green and bark brown. Ancient trees, morning mist, pine needles."
+    },
+    {
+      "name": "breaking-bad",
+      "type": "registry:theme",
+      "title": "Breaking Bad",
+      "description": "Desert amber and meth blue. Chemistry, danger, Albuquerque sunsets."
+    },
+    {
+      "name": "stranger-things",
+      "type": "registry:theme",
+      "title": "Stranger Things",
+      "description": "Neon red on pitch black. The Upside Down, flickering lights, 80s horror."
+    },
+    {
+      "name": "game-of-thrones",
+      "type": "registry:theme",
+      "title": "Game of Thrones",
+      "description": "Dark steel and blood red. Iron Throne, direwolves, winter is coming."
+    },
+    {
+      "name": "mandalorian",
+      "type": "registry:theme",
+      "title": "The Mandalorian",
+      "description": "Beskar silver and desert sand. This is the way."
+    },
+    {
+      "name": "squid-game",
+      "type": "registry:theme",
+      "title": "Squid Game",
+      "description": "Pink guard suit and teal tracksuit. Deadly games, sharp contrast."
+    },
+    {
+      "name": "wednesday",
+      "type": "registry:theme",
+      "title": "Wednesday",
+      "description": "Gothic black and muted purple. Nevermore Academy, dark elegance."
+    },
+    {
+      "name": "japan",
+      "type": "registry:theme",
+      "title": "Japan",
+      "description": "Clean white and hinomaru red. Minimal, precise, unmistakable."
+    },
+    {
+      "name": "brazil",
+      "type": "registry:theme",
+      "title": "Brazil",
+      "description": "Green, gold, and blue. Tropical energy, carnival spirit, samba."
+    },
+    {
+      "name": "nordic",
+      "type": "registry:theme",
+      "title": "Nordic",
+      "description": "Deep navy blue and clean white. Scandinavian flags, fjords, northern calm."
+    },
+    {
+      "name": "ukraine",
+      "type": "registry:theme",
+      "title": "Ukraine",
+      "description": "Sky blue and golden wheat. Open fields, clear horizons, resilience."
+    },
+    {
+      "name": "italy",
+      "type": "registry:theme",
+      "title": "Italy",
+      "description": "Green, white, and red. La dolce vita, espresso, Roman elegance."
+    },
+    {
+      "name": "india",
+      "type": "registry:theme",
+      "title": "India",
+      "description": "Saffron, white, and deep green. Spice markets, tigers, ancient wisdom."
+    },
+    {
+      "name": "usa",
+      "type": "registry:theme",
+      "title": "USA",
+      "description": "Red, white, and blue. Stars and stripes, bold confidence, American classic."
+    },
+    {
+      "name": "france",
+      "type": "registry:theme",
+      "title": "France",
+      "description": "Bleu, blanc, rouge. Parisian chic, haute couture, refined elegance."
+    },
+    {
+      "name": "germany",
+      "type": "registry:theme",
+      "title": "Germany",
+      "description": "Black, red, and gold. Precision engineering, Bauhaus, structured elegance."
+    },
+    {
+      "name": "israel",
+      "type": "registry:theme",
+      "title": "Israel",
+      "description": "White and blue. Mediterranean clarity, innovation, desert sky."
+    },
+    {
+      "name": "south-korea",
+      "type": "registry:theme",
+      "title": "South Korea",
+      "description": "Red and blue taegeuk on white. K-culture, tech, dynamic balance."
+    },
+    {
+      "name": "mexico",
+      "type": "registry:theme",
+      "title": "Mexico",
+      "description": "Green, white, and red. Aztec spirit, vibrant culture, warm soul."
+    },
+    {
+      "name": "apple",
+      "type": "registry:theme",
+      "title": "Apple",
+      "description": "Clean silver and space gray. Cupertino minimalism, premium restraint."
+    },
+    {
+      "name": "codex",
+      "type": "registry:theme",
+      "title": "Codex",
+      "description": "Paper white workspace, soft gray sidebar plane, and restrained system blue."
+    },
+    {
+      "name": "starbucks",
+      "type": "registry:theme",
+      "title": "Starbucks",
+      "description": "Siren green and warm cream. Coffee shop warmth, morning rituals."
+    },
+    {
+      "name": "mcdonalds",
+      "type": "registry:theme",
+      "title": "McDonald's",
+      "description": "Golden arches yellow and classic red. Fast, bold, universally recognized."
+    },
+    {
+      "name": "coca-cola",
+      "type": "registry:theme",
+      "title": "Coca-Cola",
+      "description": "That iconic red and crisp white. Bold, classic, refreshing since 1886."
+    },
+    {
+      "name": "taco-bell",
+      "type": "registry:theme",
+      "title": "Taco Bell",
+      "description": "Purple and hot pink. Late night energy, bold flavor, think outside the bun."
+    },
+    {
+      "name": "tesla",
+      "type": "registry:theme",
+      "title": "Tesla",
+      "description": "Sleek black and electric red. Future forward, zero emissions, pure engineering."
+    },
+    {
+      "name": "ikea",
+      "type": "registry:theme",
+      "title": "IKEA",
+      "description": "Swedish blue and sunshine yellow. Flat-pack simplicity, democratic design."
+    },
+    {
+      "name": "netflix",
+      "type": "registry:theme",
+      "title": "Netflix",
+      "description": "Deep black and signature red. Binge-worthy, cinematic, addictive."
+    }
+  ]
+}

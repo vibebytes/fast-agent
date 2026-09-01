@@ -1,0 +1,22 @@
+{
+  "name": "@fast-ide/session-view",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+	"scripts": {
+		"build": "tsc -p tsconfig.build.json",
+		"typecheck": "tsc -p tsconfig.json --noEmit",
+		"test": "tsx --test src/*.test.ts && tsx --test src/perf/*.test.ts"
+	},
+  "dependencies": {
+    "@fastllm/bridge-protocol": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.21",
+    "tsx": "^4.19.4",
+    "typescript": "^5.8.3"
+  }
+}

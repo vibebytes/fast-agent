@@ -1,0 +1,27 @@
+{
+	"name": "fast",
+	"private": true,
+	"version": "0.0.1",
+	"description": "Fast monorepo — engine shells (tui / desktop) + shared packages",
+	"packageManager": "pnpm@9.15.0",
+	"pnpm": {
+		"overrides": {
+			"resolve": "1.22.11"
+		}
+	},
+	"scripts": {
+		"build": "pnpm -r build",
+		"typecheck": "pnpm -r typecheck",
+		"test": "pnpm -r test",
+		"check:i18n": "pnpm --dir packages/core/i18n check:parity",
+		"fetch-engine": "./scripts/fetch-engine.sh",
+		"dev:desktop": "./dev/desktop.sh",
+		"dev:desktop:mock": "./dev/desktop.sh --mock",
+		"dev:tui": "./dev/tui.sh",
+		"dev:mobile": "./dev/mobile.sh",
+		"pack": "./build/all.sh",
+		"pack:desktop": "./build/desktop.sh",
+		"pack:cli": "./build/cli.sh",
+		"pack:mobile": "./build/mobile.sh"
+	}
+}

@@ -1,0 +1,6 @@
+{"type":"turn/start","seq":1,"time":1,"data":{"turn":1}}
+{"type":"user/message","seq":2,"time":2,"data":{"role":"user","content":[{"type":"text","text":"hi"}]}}
+{"type":"assistant/message","seq":3,"time":3,"data":{"turn":1,"step":1,"message":{"role":"assistant","content":[{"type":"text","text":"Hello"}]}}}
+{"type":"turn/end","seq":4,"time":4,"data":{"turn":1,"reason":{"kind":"completed"}}}
+{"type":"todo/write","seq":5,"time":5,"data":{"todos":[{"content":"read the file","status":"in_progress"},{"content":"write tests","status":"pending"}]}}
+{"type":"session/title","seq":6,"time":6,"data":{"title":"Fix the parser","messageSeqs":[2],"source":{"kind":"fallback"}}}

@@ -1,0 +1,9 @@
+id: memory
+apiVersion: "1"
+hotUnload: true
+uses:
+  hooks:
+    - { point: messages.beforeModel, mode: I, order: 100 }
+provides:
+  shards: [memory]
+  points: [memory.write.before]

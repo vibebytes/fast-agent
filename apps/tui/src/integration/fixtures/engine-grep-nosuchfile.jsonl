@@ -1,0 +1,6 @@
+{"direction":"event","payload":{"type":"input_accepted","turnId":"turn-e2e","clientMessageId":"client-e2e"}}
+{"direction":"event","payload":{"type":"tool_started","sessionId":"session-e2e","turnId":"turn-e2e","eventSeq":1,"id":"tc-grep","toolCallId":"tc-grep","tool":"grep","args":{"pattern":"class RunEntity","path":"modules/runtime/engine/src/main/scala/ai/fastllm/agent/run/RunEntity.scala"}}}
+{"direction":"event","payload":{"type":"tool_finished","sessionId":"session-e2e","turnId":"turn-e2e","eventSeq":2,"id":"tc-grep","toolCallId":"tc-grep","tool":"grep","success":false,"fields":{"output":"grep failed: NoSuchFileException: /tmp/ws/modules/runtime/engine/src/main/scala/ai/fastllm/agent/run/RunEntity.scala","status":"failed"}}}
+{"direction":"event","payload":{"type":"final_answer","sessionId":"session-e2e","turnId":"turn-e2e","eventSeq":3,"text":"path missing"}}
+{"direction":"event","payload":{"type":"run_done","sessionId":"session-e2e","turnId":"turn-e2e","eventSeq":4,"runId":"run-main","success":true,"summary":""}}
+{"direction":"event","payload":{"type":"turn_finished","turnId":"turn-e2e","success":true}}

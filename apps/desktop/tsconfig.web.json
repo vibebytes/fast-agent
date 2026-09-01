@@ -1,0 +1,33 @@
+{
+  "include": [
+    "src/renderer/src/**/*",
+    "src/shared/**/*"
+  ],
+  "exclude": [
+    "src/renderer/src/**/*.test.ts",
+    "src/shared/**/*.test.ts"
+  ],
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "jsx": "react-jsx",
+    "strict": true,
+    "esModuleInterop": true,
+    "resolveJsonModule": true,
+    "allowImportingTsExtensions": true,
+    "skipLibCheck": true,
+    "noEmit": true,
+    "types": ["vite/client"],
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["src/renderer/src/*"],
+      "@fast-ide/ui/*": ["../../packages/web/ui/src/*"],
+      "@fast-ide/session-view": ["../../packages/core/session-view/src/index.ts"],
+      "@fast-ide/i18n": ["../../packages/core/i18n/src/browser.ts"],
+      "@fast-ide/i18n/locales/*": ["../../packages/core/i18n/locales/*"],
+      "@shared/*": ["src/shared/*"]
+    }
+  }
+}

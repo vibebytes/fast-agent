@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="zh-CN">
+	<head>
+		<meta charset="UTF-8" />
+		<meta
+			http-equiv="Content-Security-Policy"
+			content="default-src 'self'; style-src 'unsafe-inline'; script-src 'self' 'unsafe-inline'"
+		/>
+		<title>Fast Pet</title>
+		<style>
+			html,
+			body {
+				margin: 0;
+				width: 100%;
+				height: 100%;
+				overflow: hidden;
+				background: transparent;
+				user-select: none;
+				-webkit-user-select: none;
+				cursor: grab;
+			}
+			body.is-dragging {
+				cursor: grabbing;
+			}
+			.stage {
+				width: 100%;
+				height: 100%;
+				display: grid;
+				place-items: center;
+			}
+			.pet {
+				width: 88px;
+				height: 88px;
+				animation: bob 2.4s ease-in-out infinite;
+				filter: drop-shadow(0 8px 12px rgba(15, 23, 42, 0.22));
+				transition: transform 120ms ease;
+				pointer-events: none;
+			}
+			body.is-dragging .pet {
+				animation: none;
+			}
+			@keyframes bob {
+				0%,
+				100% {
+					transform: translateY(0);
+				}
+				50% {
+					transform: translateY(-6px);
+				}
+			}
+		</style>
+	</head>
+	<body>
+		<div class="stage" id="pet" title="拖拽移动 · 点击打开 · 右键退出" role="button" aria-label="Fast 宠物">
+			<svg class="pet" viewBox="0 0 96 96" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+				<defs>
+					<linearGradient id="body" x1="18" y1="12" x2="78" y2="78" gradientUnits="userSpaceOnUse">
+						<stop stop-color="#7DD3FC" />
+						<stop offset="1" stop-color="#38BDF8" />
+					</linearGradient>
+				</defs>
+				<rect x="30" y="74" width="10" height="10" rx="3" fill="#0EA5E9" />
+				<rect x="56" y="74" width="10" height="10" rx="3" fill="#0EA5E9" />
+				<path
+					d="M28 62c-10 0-18-8-18-18 0-8 5-15 12-17 2-10 11-17 22-17 9 0 17 5 20 13 2-1 4-1 6-1 9 0 16 7 16 16 0 1 0 2-.2 3.1C91 44 96 50 96 58c0 9-7 16-16 16H28Z"
+					fill="url(#body)"
+				/>
+				<rect x="28" y="36" width="40" height="26" rx="8" fill="#0F172A" />
+				<text
+					x="36"
+					y="54"
+					fill="#7DD3FC"
+					font-family="ui-monospace, SFMono-Regular, Menlo, monospace"
+					font-size="14"
+					font-weight="700"
+				>
+					&gt;_
+				</text>
+			</svg>
+		</div>
+		<script>
+			const root = document.getElementById('pet');
+			const DRAG_THRESHOLD = 4;
+			let dragging = false;
+			let moved = false;
+			let startScreenX = 0;
+			let startScreenY = 0;
+			let offsetX = 0;
+			let offsetY = 0;
+
+			root?.addEventListener('pointerdown', event => {
+				if (event.button !== 0) return;
+				dragging = true;
+				moved = false;
+				startScreenX = event.screenX;
+				startScreenY = event.screenY;
+				offsetX = event.clientX;
+				offsetY = event.clientY;
+				document.body.classList.add('is-dragging');
+				root.setPointerCapture(event.pointerId);
+			});
+
+			root?.addEventListener('pointermove', event => {
+				if (!dragging) return;
+				const dx = event.screenX - startScreenX;
+				const dy = event.screenY - startScreenY;
+				if (!moved && Math.hypot(dx, dy) < DRAG_THRESHOLD) return;
+				moved = true;
+				window.fastIdePet?.moveTo(event.screenX - offsetX, event.screenY - offsetY);
+			});
+
+			function endDrag(event) {
+				if (!dragging) return;
+				dragging = false;
+				document.body.classList.remove('is-dragging');
+				try {
+					root?.releasePointerCapture(event.pointerId);
+				} catch {
+					/* ignore */
+				}
+				if (moved) {
+					window.fastIdePet?.persistPosition();
+					return;
+				}
+				window.fastIdePet?.activate();
+			}
+
+			root?.addEventListener('pointerup', endDrag);
+			root?.addEventListener('pointercancel', endDrag);
+
+			root?.addEventListener('contextmenu', event => {
+				event.preventDefault();
+				dragging = false;
+				moved = false;
+				document.body.classList.remove('is-dragging');
+				window.fastIdePet?.openContextMenu();
+			});
+		</script>
+	</body>
+</html>

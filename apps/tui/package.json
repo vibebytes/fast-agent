@@ -1,0 +1,45 @@
+{
+  "name": "fast-ink",
+  "version": "1.0.0",
+  "type": "module",
+  "bin": {
+    "fast-ink": "./dist/main.js"
+  },
+  "main": "dist/main.js",
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "prebuild": "pnpm --dir ../../packages/core/bridge/protocol run build && pnpm --dir ../../packages/core/bridge/client run build",
+    "dev": "tsx src/main.tsx",
+    "typecheck": "tsc --noEmit",
+    "pretypecheck": "pnpm --dir ../../packages/core/bridge/protocol run build && pnpm --dir ../../packages/core/bridge/client run build",
+    "test": "node scripts/run-tests.mjs",
+    "test:unit": "node scripts/run-tests.mjs unit",
+    "test:e2e": "node scripts/run-tests.mjs e2e",
+    "test:pty": "node scripts/run-tests.mjs pty",
+    "test:unix": "node scripts/run-tests.mjs unix",
+    "test:soak": "tsx --test src/components/inkSoak.soak.tsx"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "@fast-ide/session-view": "workspace:*",
+    "@fastllm/bridge-client": "workspace:*",
+    "@fastllm/bridge-protocol": "workspace:*",
+    "chalk": "^5.6.2",
+    "execa": "^9.6.1",
+    "ink": "npm:@jrichman/ink@7.1.0",
+    "react": "^19.2.6",
+    "string-width": "^8.2.1"
+  },
+  "devDependencies": {
+    "@types/node": "^25.9.1",
+    "@types/react": "^19.2.15",
+    "@xterm/headless": "^6.0.0",
+    "ink-testing-library": "^4.0.0",
+    "node-pty": "^1.1.0",
+    "tsx": "^4.22.3",
+    "typescript": "^6.0.3"
+  }
+}

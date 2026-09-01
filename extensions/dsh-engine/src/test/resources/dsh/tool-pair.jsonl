@@ -1,0 +1,4 @@
+{"type":"turn/start","seq":1,"time":1,"data":{"turn":1}}
+{"type":"tool/call","seq":2,"time":2,"data":{"turn":1,"step":1,"callId":"call-1","name":"bash","arguments":"{\"command\":\"ls\"}"}}
+{"type":"tool/result","seq":3,"time":3,"data":{"turn":1,"step":1,"message":{"role":"user","content":[{"type":"tool-result","toolCallId":"call-1","content":[{"type":"text","text":"a.txt"}]}]}}}
+{"type":"turn/end","seq":4,"time":4,"data":{"turn":1,"reason":{"kind":"completed"}}}

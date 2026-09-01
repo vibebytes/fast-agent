@@ -1,0 +1,2 @@
+{"type":"llm/retry","seq":1,"time":1,"data":{"retryId":"r1","turn":1,"step":1,"provider":"deepseek","mode":"normal","policyKey":"default","retry":1,"maxRetries":3,"delayMs":200,"failure":{"message":"busy","code":"RATE_LIMIT"}}}
+{"type":"llm/retry-started","seq":2,"time":2,"data":{"retryId":"r1","turn":1,"step":1,"retry":1}}

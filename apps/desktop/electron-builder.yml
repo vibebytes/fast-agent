@@ -1,0 +1,47 @@
+appId: ai.fast.ide
+productName: Fast
+copyright: Fast
+asar: true
+npmRebuild: false
+nodeGypRebuild: false
+directories:
+  output: release
+  buildResources: build
+files:
+  - out/**/*
+  - package.json
+  - "!**/node_modules/**"
+extraResources:
+  - from: ../../staging/pack/engine
+    to: engine
+  - from: ../../staging/pack/tui
+    to: tui
+  - from: ../../staging/pack/packages
+    to: packages
+afterPack: ./scripts/pack/afterPack.cjs
+afterAllArtifactBuild: ./scripts/pack/afterAllArtifactBuild.cjs
+mac:
+  icon: icon.icns
+  extendInfo:
+    CFBundleIconName: AppIcon
+  identity: null
+  forceCodeSigning: false
+  target:
+    - pkg
+pkg:
+  scripts: build/pkg-scripts
+  installLocation: /Applications
+  allowAnywhere: false
+  allowCurrentUserHome: false
+  allowRootDirectory: true
+  isRelocatable: false
+  mustClose:
+    - ai.fast.ide
+  welcome: welcome.txt
+  conclusion: conclusion.txt
+linux:
+  target:
+    - dir
+win:
+  target:
+    - dir

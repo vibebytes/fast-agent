@@ -1,0 +1,24 @@
+#!/bin/bash
+# Runs as root after Fast.app is copied. Puts CLI on the default PATH.
+set -euo pipefail
+
+dest="${2:-/Applications}"
+app="${dest%/}/Fast.app"
+if [[ ! -d "$app" ]]; then
+	app="/Applications/Fast.app"
+fi
+bin="$app/Contents/Resources/bin"
+
+if [[ ! -f "$bin/fast-ink" || ! -f "$bin/fast-cli" ]]; then
+	echo "fast: missing CLI shims at $bin" >&2
+	exit 1
+fi
+
+mkdir -p /usr/local/bin
+ln -sfn "$bin/fast-ink" /usr/local/bin/fast-ink
+ln -sfn "$bin/fast-cli" /usr/local/bin/fast-cli
+ln -sfn "$bin/fast-cli" /usr/local/bin/fast
+echo "fast: /usr/local/bin/fast-ink -> $bin/fast-ink"
+echo "fast: /usr/local/bin/fast-cli -> $bin/fast-cli"
+echo "fast: /usr/local/bin/fast -> $bin/fast-cli"
+exit 0

@@ -1,0 +1,7 @@
+{"type":"assistant_delta","sessionId":"s1","eventSeq":1,"text":"）\n\n","unitId":"1:1"}
+{"type":"assistant_delta","sessionId":"s1","eventSeq":2,"text":"🙂","unitId":"1:1"}
+{"type":"assistant_delta","sessionId":"s1","eventSeq":3,"text":" ","unitId":"1:1"}
+{"type":"assistant_delta","sessionId":"s1","eventSeq":4,"text":"","unitId":"1:1"}
+{"type":"assistant_delta","sessionId":"s1","eventSeq":5,"text":"  hi  ","unitId":"1:1"}
+{"type":"checkpoint","sessionId":"s1","eventSeq":6,"unitId":"1:1","content":"）\n\n🙂   hi  "}
+{"type":"run_done","sessionId":"s1","eventSeq":7,"runId":"r1","success":true,"summary":""}

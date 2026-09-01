@@ -1,0 +1,6 @@
+{
+  "name": "fast-bridge-tls",
+  "version": "0.1.0",
+  "description": "TLS certificate fingerprint probe for the fast mobile bridge",
+  "main": "index.js"
+}
