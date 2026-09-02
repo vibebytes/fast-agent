@@ -28,6 +28,7 @@ usage: ./scripts/fetch-engine.sh [--incremental] [--clean] [os] [--] [-h|--help]
   --incremental   default. If current/bin/fast-cli exists, skip Maven.
                   Still ensures Temurin 17 JRE under current/jre/
   --clean         mvn clean package, then rewrite current/ + jre
+  --os os         same as positional os (pack scripts use this form)
   os              darwin-arm64 | darwin-x64 | linux-x64 | linux-arm64 | win32-x64 | all
   --              ignore (pnpm fetch-engine -- --clean)
   -h, --help      print this help
@@ -40,6 +41,15 @@ while [[ $# -gt 0 ]]; do
 	case "$1" in
 		--incremental) mode=incremental; shift ;;
 		--clean) mode=clean; shift ;;
+		--os)
+			[[ $# -ge 2 ]] || { usage >&2; exit 1; }
+			os="$2"
+			shift 2
+			;;
+		--os=*)
+			os="${1#--os=}"
+			shift
+			;;
 		darwin-arm64|darwin-x64|linux-x64|linux-arm64|win32-x64|all)
 			os="$1"; shift ;;
 		--) shift ;;
@@ -55,6 +65,13 @@ while [[ $# -gt 0 ]]; do
 done
 
 if [[ -n "$os" ]]; then
+	case "$os" in
+		darwin-arm64|darwin-x64|linux-x64|linux-arm64|win32-x64|all) ;;
+		*)
+			echo "unknown --os $os (darwin-arm64|darwin-x64|linux-x64|linux-arm64|win32-x64|all)" >&2
+			exit 1
+			;;
+	esac
 	export FAST_DIST_OS="$os"
 fi
 
@@ -104,6 +121,7 @@ place_maven() {
 	if [[ -z "$want" || "$want" == all ]]; then
 		want="$(host_os)"
 	fi
+	# Transitional: slims official rocksdbjni 9.x to one native for $want.
 	"$root/scripts/strip-engine-lib.sh" "$dist/agent/lib" "$want"
 	rm -rf "$dest"
 	mkdir -p "$dest"

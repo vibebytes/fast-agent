@@ -27,6 +27,11 @@
       <type>zip</type>
       <classifier>${engine.os}</classifier>
     </dependency>
+    <!-- Transitional: official 9.x JNI (has osx-arm64). Do not take rocksdbjni from agent-natives 0.3.0. -->
+    <dependency>
+      <groupId>org.rocksdb</groupId>
+      <artifactId>rocksdbjni</artifactId>
+    </dependency>
     <dependency>
       <groupId>ai.fastllm</groupId>
       <artifactId>fast-engine-example</artifactId>
@@ -133,7 +138,7 @@
             <configuration>
               <outputDirectory>${project.build.directory}/dist/agent/lib</outputDirectory>
               <includeScope>runtime</includeScope>
-              <excludeArtifactIds>fast-engine-dsh,fast-engine-example,agent-ext-memory_3,agent-ext-code-index_3,agent-ext-mcp_3,agent-natives,scala3-compiler_3,scala-compiler,scalafmt-core_2.13,json-unit-core,lance-core,arrow-dataset,rocksdbjni</excludeArtifactIds>
+              <excludeArtifactIds>fast-engine-dsh,fast-engine-example,agent-ext-memory_3,agent-ext-code-index_3,agent-ext-mcp_3,agent-natives,scala3-compiler_3,scala-compiler,scalafmt-core_2.13,json-unit-core,lance-core,arrow-dataset</excludeArtifactIds>
               <excludeTypes>zip,test-jar</excludeTypes>
               <excludeClassifiers>sources,javadoc</excludeClassifiers>
               <excludeGroupIds>junit,org.junit,org.scalatest,org.assertj</excludeGroupIds>
@@ -195,6 +200,8 @@
                   <type>zip</type>
                   <classifier>${engine.os}</classifier>
                   <outputDirectory>${project.build.directory}/dist/agent</outputDirectory>
+                  <!-- Transitional: keep rg/treesitter from 0.3.0; drop Intel-only rocksdbjni 6.6.4. -->
+                  <excludes>lib/*rocksdbjni*,lib/org.rocksdb.rocksdbjni*</excludes>
                 </artifactItem>
               </artifactItems>
             </configuration>

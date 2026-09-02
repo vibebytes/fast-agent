@@ -1,6 +1,11 @@
 #!/usr/bin/env bash
 # Drop foreign-OS Netty JNI and leftover fat lance/arrow/rocks after Maven copy.
-# DistNative.slimJni already thins the three JNI jars into agent-natives; this is the leftover pass.
+# DistNative.slimJni already thins lance/arrow into agent-natives; this is the leftover pass.
+#
+# Transitional: rocksdbjni is the official Central fat jar (9.x), not the slim
+# 6.6.4 copy inside agent-natives 0.3.0. keep_rocks must pick one native per
+# --os so Apple Silicon does not load the Intel osx jnilib. Revert to natives
+# zip when a new agent-natives release can ship a per-OS slim 9.x jar.
 set -euo pipefail
 
 lib="${1:-}"
@@ -54,10 +59,13 @@ keep_rocks() {
 		*.so|*.jnilib|*.dll|*.dylib) ;;
 		*) return 0 ;;
 	esac
+	# One glibc/CRT native per product OS. Drop musl and foreign archs.
 	case "$os" in
-		darwin-arm64|darwin-x64)
-			[[ "$base" == librocksdbjni-osx.jnilib || "$base" == *osx-arm64* || \
-			   "$base" == *osx-x64* || ( "$base" == *osx* && "$base" != *linux* ) ]]
+		darwin-arm64) [[ "$base" == *osx-arm64* ]] ;;
+		darwin-x64)
+			[[ "$base" != *arm64* ]] &&
+				[[ "$base" == *osx-x86_64* || "$base" == *osx-x64* ||
+				   "$base" == librocksdbjni-osx.jnilib ]]
 			;;
 		linux-x64) [[ "$base" == librocksdbjni-linux64.so ]] ;;
 		linux-arm64) [[ "$base" == librocksdbjni-linux-aarch64.so ]] ;;
@@ -120,5 +128,18 @@ for jar in "$lib"/*.jar; do
 		strip_zip "$jar" arrow
 	elif [[ "$n" == org.rocksdb.rocksdbjni*.jar || "$n" == rocksdbjni*.jar ]]; then
 		strip_zip "$jar" rocks
+		need=""
+		case "$os" in
+			darwin-arm64) need="osx-arm64" ;;
+			darwin-x64) need="osx-x86_64|osx-x64|librocksdbjni-osx.jnilib" ;;
+			linux-x64) need="librocksdbjni-linux64.so" ;;
+			linux-arm64) need="librocksdbjni-linux-aarch64.so" ;;
+			win32-x64) need="librocksdbjni-win64.dll" ;;
+		esac
+		if [[ -n "$need" ]] && ! zipinfo -1 "$jar" | grep -E '\.(so|jnilib|dll|dylib)$' | grep -Eq "$need"; then
+			echo "rocksdbjni missing native for $os in $n (transitional 9.x strip)" >&2
+			zipinfo -1 "$jar" | grep -E '\.(so|jnilib|dll|dylib)$' >&2 || true
+			exit 1
+		fi
 	fi
 done

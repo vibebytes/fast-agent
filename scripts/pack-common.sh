@@ -90,6 +90,16 @@ mac_unpacked_app() {
 	esac
 }
 
+desktop_version() {
+	node -p "require('$root/apps/desktop/package.json').version"
+}
+
+# Matches electron-builder.yml mac.artifactName: ${productName}-${version}-mac-${arch}.${ext}
+mac_installer() {
+	local ext="$1" cpu="$2"
+	echo "$root/apps/desktop/release/Fast-$(desktop_version)-mac-${cpu}.${ext}"
+}
+
 cli_pack_dir() {
 	echo "$root/release/cli-$(resolved_os)"
 }
@@ -272,6 +282,7 @@ pack_desktop() {
 	ensure_modern_node
 	if [[ "$platform" == darwin ]]; then
 		clear_mac_out "$eos"
+		rm -f "$root/apps/desktop/release/"*-mac-"${cpu}.pkg" "$root/apps/desktop/release/"*-mac-"${cpu}.dmg"
 	fi
 	(
 		cd "$root/apps/desktop"
@@ -290,8 +301,10 @@ pack_desktop() {
 	if [[ "$platform" == darwin ]]; then
 		app="$(mac_unpacked_app "$eos")"
 		[[ -d "$app" ]] || app=""
-		pkg="$(find "$root/apps/desktop/release" -maxdepth 1 -name "*-mac-${cpu}.pkg" -print -quit 2>/dev/null || true)"
-		dmg="$(find "$root/apps/desktop/release" -maxdepth 1 -name "*-mac-${cpu}.dmg" -print -quit 2>/dev/null || true)"
+		pkg="$(mac_installer pkg "$cpu")"
+		dmg="$(mac_installer dmg "$cpu")"
+		[[ -f "$pkg" ]] || pkg=""
+		[[ -f "$dmg" ]] || dmg=""
 		unpacked=""
 	elif [[ "$platform" == linux ]]; then
 		app=""
@@ -325,7 +338,7 @@ pack_desktop() {
 		echo_sized "  pkg" "$pkg"
 		echo "  contains Install Fast.pkg (installs /Applications/Fast.app + /usr/local/bin/{fast-ink,fast-cli,fast})"
 	elif [[ "$platform" == darwin ]]; then
-		echo "electron-builder finished; pkg/dmg not found under apps/desktop/release" >&2
+		echo "electron-builder finished; missing $(mac_installer pkg "$cpu") or $(mac_installer dmg "$cpu")" >&2
 		exit 1
 	elif [[ -n "$unpacked" ]]; then
 		unpacked="$(cd "$unpacked" && pwd)"
@@ -388,8 +401,10 @@ smoke_desktop() {
 	if [[ "$platform" == darwin ]]; then
 		app="$(mac_unpacked_app "$eos")"
 		[[ -d "$app" ]] || app=""
-		pkg="$(find "$root/apps/desktop/release" -maxdepth 1 -name "*-mac-${cpu}.pkg" -print -quit 2>/dev/null || true)"
-		dmg="$(find "$root/apps/desktop/release" -maxdepth 1 -name "*-mac-${cpu}.dmg" -print -quit 2>/dev/null || true)"
+		pkg="$(mac_installer pkg "$cpu")"
+		dmg="$(mac_installer dmg "$cpu")"
+		[[ -f "$pkg" ]] || pkg=""
+		[[ -f "$dmg" ]] || dmg=""
 		unpacked=""
 	elif [[ "$platform" == linux ]]; then
 		app=""
@@ -489,11 +504,11 @@ smoke_desktop() {
 		exit 1
 	}
 	[[ -n "$pkg" && -f "$pkg" ]] || {
-		echo "smoke: missing desktop pkg" >&2
+		echo "smoke: missing $(mac_installer pkg "$cpu")" >&2
 		exit 1
 	}
 	[[ -n "$dmg" && -f "$dmg" ]] || {
-		echo "smoke: missing desktop dmg" >&2
+		echo "smoke: missing $(mac_installer dmg "$cpu")" >&2
 		exit 1
 	}
 	local expand script attach asar asar_js
