@@ -312,10 +312,10 @@ npm 名（暂不改）：`@fastllm/bridge-protocol`、`@fastllm/bridge-client`�
 TUI（`fast-ink`）— 同一引擎，走 unix Bridge。
 
 <p align="center">
-  <img src="docs/screenshots/mobile1.jpg" alt="手机会话" width="24%">
-  <img src="docs/screenshots/mobile2.jpg" alt="手机设置，浅色" width="24%">
-  <img src="docs/screenshots/mobile3.jpg" alt="手机设置，深色" width="24%">
-  <img src="docs/screenshots/mobile4.jpg" alt="手机主题色板" width="24%">
+  <img src="docs/screenshots/mobile1.jpg" width="180" alt="手机会话">
+  <img src="docs/screenshots/mobile2.jpg" width="180" alt="手机设置，浅色">
+  <img src="docs/screenshots/mobile3.jpg" width="180" alt="手机设置，深色">
+  <img src="docs/screenshots/mobile4.jpg" width="180" alt="手机主题色板">
 </p>
 
 手机 — 配套客户端：会话、与桌面 Bridge 配对、主题。

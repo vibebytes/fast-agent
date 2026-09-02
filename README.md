@@ -120,7 +120,7 @@ The pairing token is full access. Do not screenshot or share it. A lost phone is
 | ------- | -------------------------------------- |
 | Node.js | 20.19+ or 22                           |
 | pnpm    | 9 (`packageManager` in `package.json`) |
-| JDK     | 17+ (desktop / TUI engine only)        |
+| JDK     | 17+ on the **pack** machine only (`fetch-engine` / Maven). The engine ships a Temurin 17 JRE |
 | Maven   | 3.x (desktop / TUI engine only)        |
 
 
@@ -295,7 +295,12 @@ Desktop — projects, session, and the local engine.
 
 TUI (`fast-ink`) — same engine over a unix Bridge.
 
-![Mobile session](docs/screenshots/mobile1.jpg)![Mobile settings, light](docs/screenshots/mobile2.jpg)![Mobile settings, dark](docs/screenshots/mobile3.jpg)![Mobile theme palettes](docs/screenshots/mobile4.jpg)
+<p align="center">
+  <img src="docs/screenshots/mobile1.jpg" width="180" alt="Mobile session">
+  <img src="docs/screenshots/mobile2.jpg" width="180" alt="Mobile settings, light">
+  <img src="docs/screenshots/mobile3.jpg" width="180" alt="Mobile settings, dark">
+  <img src="docs/screenshots/mobile4.jpg" width="180" alt="Mobile theme palettes">
+</p>
 
 Mobile — companion client: session, desktop Bridge pairing, and themes.
 
