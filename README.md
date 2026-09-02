@@ -45,18 +45,18 @@ Fast Agent's goal is to be an enterprise-grade, self-improving AI agent with cod
 
 ## Download and install
 
-v0.0.1 pre-release. **macOS** is the primary host. **glibc Linux** (x64 / arm64) is partially tested. **Windows** native is in development. Packs are unsigned.
+v0.0.1 pre-release. **macOS** is the primary host. **Windows** native is in development. Packs are unsigned.
 
 ### Direct download
 
-| Platform | Download | Installation |
-| --- | --- | --- |
-| macOS | [Download DMG](https://github.com/kai2002/fast/releases/latest) | Open the DMG and run `Install Fast.pkg` → `/Applications` + `/usr/local/bin` shims |
-| Linux (glibc, x64 / arm64) | [Download](https://github.com/kai2002/fast/releases/latest) | Unpack the `dir` pack. Partially tested. Alpine / musl is not supported |
-| Windows | — | In development. Use WSL2 and treat it as Linux |
-| Android | [Download APK](https://github.com/kai2002/fast/releases/latest) | `adb install` the companion APK, then pair with desktop |
-| iOS | — | Companion via Expo / from source; pair with desktop |
-| CLI (TUI) | [Download](https://github.com/kai2002/fast/releases/latest) | Unpack `fast-ink` + `fast-cli` (alias `fast`) |
+| Platform | Download | Installation | Test status |
+| --- | --- | --- | --- |
+| macOS | [Download DMG](https://github.com/kai2002/fast/releases/latest) | Open the DMG and run `Install Fast.pkg` → `/Applications` + `/usr/local/bin` shims | Good |
+| Linux (glibc, x64 / arm64) | [Download](https://github.com/kai2002/fast/releases/latest) | Unpack the `dir` pack. Alpine / musl is not supported | Untested |
+| Windows | — | In development. Use WSL2 and treat it as Linux | Untested |
+| Android | [Download APK](https://github.com/kai2002/fast/releases/latest) | `adb install` the companion APK, then pair with desktop | Good |
+| iOS | — | Companion via Expo / from source; pair with desktop | Untested |
+| CLI (TUI) | [Download](https://github.com/kai2002/fast/releases/latest) | Unpack `fast-ink` + `fast-cli` (alias `fast`) | Partial |
 
 How packs are built: [Install from source](#install-from-source).
 

@@ -45,18 +45,18 @@ Fast Agent 的目标是成为企业级、自学习的 AI Agent，并把 coding �
 
 ## 下载与安装
 
-v0.0.1 预发布。**macOS** 是主路径。**glibc Linux**（x64 / arm64）部分测试。**Windows** 原生开发中。安装包未签名。
+v0.0.1 预发布。**macOS** 是主路径。**Windows** 原生开发中。安装包未签名。
 
 ### 直接下载
 
-| 平台 | 下载 | 安装方式 |
-| --- | --- | --- |
-| macOS | [下载 DMG](https://github.com/kai2002/fast/releases/latest) | 打开 DMG，运行 `Install Fast.pkg` → `/Applications` + `/usr/local/bin` shim |
-| Linux（glibc，x64 / arm64） | [下载](https://github.com/kai2002/fast/releases/latest) | 解压 `dir` 包。部分测试。不支持 Alpine / musl |
-| Windows | — | 开发中。请用 WSL2，按 Linux 对待 |
-| Android | [下载 APK](https://github.com/kai2002/fast/releases/latest) | `adb install` 配套 APK，再与桌面配对 |
-| iOS | — | 配套客户端，走 Expo / 源码；与桌面配对 |
-| CLI（TUI） | [下载](https://github.com/kai2002/fast/releases/latest) | 解压 `fast-ink` + `fast-cli`（别名 `fast`） |
+| 平台 | 下载 | 安装方式 | 测试状态 |
+| --- | --- | --- | --- |
+| macOS | [下载 DMG](https://github.com/kai2002/fast/releases/latest) | 打开 DMG，运行 `Install Fast.pkg` → `/Applications` + `/usr/local/bin` shim | 较好 |
+| Linux（glibc，x64 / arm64） | [下载](https://github.com/kai2002/fast/releases/latest) | 解压 `dir` 包。不支持 Alpine / musl | 未测试 |
+| Windows | — | 开发中。请用 WSL2，按 Linux 对待 | 未测试 |
+| Android | [下载 APK](https://github.com/kai2002/fast/releases/latest) | `adb install` 配套 APK，再与桌面配对 | 较好 |
+| iOS | — | 配套客户端，走 Expo / 源码；与桌面配对 | 未测试 |
+| CLI（TUI） | [下载](https://github.com/kai2002/fast/releases/latest) | 解压 `fast-ink` + `fast-cli`（别名 `fast`） | 部分 |
 
 打包方式见 [通过源码安装](#通过源码安装)。
 
