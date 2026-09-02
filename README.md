@@ -37,9 +37,9 @@ v0.0.1 pre-release. **macOS** is the primary host. **Windows** native is in deve
 | Desktop | Windows (x64)         | N/A (unverified)                                                                   | Unpack `win-unpacked` (`Fast.exe`). No installer. In development; WSL2 is the daily path | Untested    | `pnpm pack:desktop -- --clean --os win32-x64`    |
 | Mobile  | Android               | [Download `fast-mobile-*.apk`](https://github.com/kai2002/fast/releases/latest)    | `adb install` the companion APK, then pair with desktop                                  | Good        | `pnpm pack:mobile`                               |
 | Mobile  | iOS                   | N/A (unverified)                                                                   | Companion via Expo / from source (Xcode, macOS). Pair with desktop. No IPA pack          | Untested    | `pnpm --dir apps/mobile ios`                     |
-| CLI     | macOS (Apple Silicon) | N/A (unverified)                                                                   | Unpack `fast-ink` + `fast-cli` (alias `fast`)                                            | Partial     | `pnpm pack:cli -- --clean --os darwin-arm64`     |
+| CLI     | macOS (Apple Silicon) | N/A (unverified)                                                                   | Unpack `fast-cli` (alias `fast`)                                                         | Partial     | `pnpm pack:cli -- --clean --os darwin-arm64`     |
 | CLI     | macOS (Intel)         | N/A (unverified)                                                                   | Same as Apple Silicon. Separate pack                                                     | Untested    | `pnpm pack:cli -- --clean --os darwin-x64`       |
-| CLI     | Linux (glibc x64)     | N/A (unverified)                                                                   | Unpack `fast-ink` + `fast-cli` (alias `fast`). Alpine / musl is not supported            | Untested    | `pnpm pack:cli -- --clean --os linux-x64`        |
+| CLI     | Linux (glibc x64)     | N/A (unverified)                                                                   | Unpack `fast-cli` (alias `fast`). Alpine / musl is not supported            | Untested    | `pnpm pack:cli -- --clean --os linux-x64`        |
 | CLI     | Linux (glibc arm64)   | N/A (unverified)                                                                   | Same as Linux x64. Separate pack                                                         | Untested    | `pnpm pack:cli -- --clean --os linux-arm64`      |
 | CLI     | Windows (x64)         | N/A (unverified)                                                                   | Unpack `cli-win32-x64` (`fast-cli.bat`, alias `fast.bat`). In development                | Untested    | `pnpm pack:cli -- --clean --os win32-x64`        |
 
@@ -143,7 +143,7 @@ What `pnpm pack` writes:
 - **Linux glibc x64** — `linux-unpacked` dir (`--os linux-x64`). Alpine / musl is not supported
 - **Linux glibc arm64** — `linux-arm64-unpacked` dir (`--os linux-arm64`). Separate pack
 - **Windows x64** — `win-unpacked` dir (`--os win32-x64`). No installer. Can pack on macOS; do not run `Fast.exe` there. In development; WSL2 is the daily path
-- **CLI** — `release/cli-darwin-arm64` / `cli-darwin-x64` / `cli-linux-x64` / `cli-linux-arm64` / `cli-win32-x64` (`fast-ink` + `fast-cli`, alias `fast`); `release/cli` → last pack
+- **CLI** — `release/cli-darwin-arm64` / `cli-darwin-x64` / `cli-linux-x64` / `cli-linux-arm64` / `cli-win32-x64` (`fast-cli`, alias `fast`); `release/cli` → last pack
 - **Android** — `release/fast-mobile-*.apk` (`adb install`). No SDK: skip, exit 0
 - **iOS** — no IPA. `pnpm --dir apps/mobile ios` (`expo run:ios`; Xcode, macOS). Daily: `./dev/mobile.sh --ios`
 
@@ -194,7 +194,7 @@ pnpm dev:desktop:mock
 ./dev/desktop.sh --engine
 ```
 
-1. **Develop TUI** — start `fast-ink` against the same `current/`.
+1. **Develop TUI** — start `fast-cli` against the same `current/`.
 
 ```bash
 pnpm dev:tui
@@ -225,7 +225,7 @@ Full list. Packing installers is [1.3 Install from source](#13-install-from-sour
 | `pnpm fetch-engine`            | Maven Central `ai.fastllm` 0.3.0 → `modules/engine/current/`                                                                                                              |
 | `pnpm dev:desktop`             | `./dev/desktop.sh` — Electron against `current/`                                                                                                                          |
 | `pnpm dev:desktop:mock`        | `./dev/desktop.sh --mock` — UI only                                                                                                                                       |
-| `pnpm dev:tui`                 | `./dev/tui.sh` — `fast-ink` against `current/`                                                                                                                            |
+| `pnpm dev:tui`                 | `./dev/tui.sh` — `fast-cli` against `current/`                                                                                                                            |
 | `pnpm dev:mobile`              | `./dev/mobile.sh` — Expo (`--android` / `--ios`)                                                                                                                          |
 | `pnpm pack`                    | CLI + desktop + mobile (`build/all.sh`). `--os` selects arch                                                                                                              |
 | `pnpm pack:desktop`            | Host or `--os` installer. macOS: `Fast-*-mac-arm64.dmg` / `Fast-*-mac-x64.dmg`. Linux: `linux-unpacked` / `linux-arm64-unpacked`. Windows: `win-unpacked` (not universal) |
@@ -249,7 +249,7 @@ Patches and PR rules: [CONTRIBUTING.md](CONTRIBUTING.md). Vulnerabilities: [SECU
 ```text
 fast/
   apps/desktop          Electron → core + web/ui
-  apps/tui              fast-ink → core (no DOM)
+  apps/tui              fast-cli → core (no DOM)
   apps/mobile           Expo companion → core (no web/ui)
   apps/web              reserved; same stack as desktop renderer
   packages/core         no DOM — bridge, session-view, i18n
@@ -293,7 +293,7 @@ Desktop — projects, session, and the local engine.
 
 ![TUI](docs/screenshots/tui.png)
 
-TUI (`fast-ink`) — same engine over a unix Bridge.
+TUI (`fast-cli`) — same engine over a unix Bridge.
 
 <p align="center">
   <img src="docs/screenshots/mobile1.jpg" width="180" alt="Mobile session">

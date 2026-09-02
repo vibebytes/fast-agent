@@ -60,9 +60,9 @@ v0.0.1 预发布。**macOS** 是主路径。**Windows** 原生开发中。安装
 | 桌面 | Windows（x64） | N/A（未验证） | 解压 `win-unpacked`（`Fast.exe`）。没有安装包。开发中；日常请用 WSL2 | 未测试 | `pnpm pack:desktop -- --clean --os win32-x64` |
 | 移动端 | Android | [下载 `fast-mobile-*.apk`](https://github.com/kai2002/fast/releases/latest) | `adb install` 配套 APK，再与桌面配对 | 较好 | `pnpm pack:mobile` |
 | 移动端 | iOS | N/A（未验证） | 配套客户端，走 Expo / 源码（Xcode，macOS）。与桌面配对。没有 IPA | 未测试 | `pnpm --dir apps/mobile ios` |
-| CLI | macOS（Apple Silicon） | N/A（未验证） | 解压 `fast-ink` + `fast-cli`（别名 `fast`） | 部分 | `pnpm pack:cli -- --clean --os darwin-arm64` |
+| CLI | macOS（Apple Silicon） | N/A（未验证） | 解压 `fast-cli`（别名 `fast`） | 部分 | `pnpm pack:cli -- --clean --os darwin-arm64` |
 | CLI | macOS（Intel） | N/A（未验证） | 与 Apple Silicon 相同。独立包 | 未测试 | `pnpm pack:cli -- --clean --os darwin-x64` |
-| CLI | Linux（glibc x64） | N/A（未验证） | 解压 `fast-ink` + `fast-cli`（别名 `fast`）。不支持 Alpine / musl | 未测试 | `pnpm pack:cli -- --clean --os linux-x64` |
+| CLI | Linux（glibc x64） | N/A（未验证） | 解压 `fast-cli`（别名 `fast`）。不支持 Alpine / musl | 未测试 | `pnpm pack:cli -- --clean --os linux-x64` |
 | CLI | Linux（glibc arm64） | N/A（未验证） | 与 Linux x64 相同。独立包 | 未测试 | `pnpm pack:cli -- --clean --os linux-arm64` |
 | CLI | Windows（x64） | N/A（未验证） | 解压 `cli-win32-x64`（`fast-cli.bat`，别名 `fast.bat`）。开发中 | 未测试 | `pnpm pack:cli -- --clean --os win32-x64` |
 
@@ -161,7 +161,7 @@ pnpm pack                  # 桌面 + CLI + 手机，JS/引擎只 stage 一次
 - **Linux glibc x64** — `linux-unpacked`（`--os linux-x64`）。不支持 Alpine / musl
 - **Linux glibc arm64** — `linux-arm64-unpacked`（`--os linux-arm64`）。独立包
 - **Windows x64** — `win-unpacked`（`--os win32-x64`）。没有安装包。可在 macOS 上打，不要在那里跑 `Fast.exe`。开发中；日常请用 WSL2
-- **CLI** — `release/cli-darwin-arm64` / `cli-darwin-x64` / `cli-linux-x64` / `cli-linux-arm64` / `cli-win32-x64`（`fast-ink` + `fast-cli`，别名 `fast`）；`release/cli` → 最近一次产物
+- **CLI** — `release/cli-darwin-arm64` / `cli-darwin-x64` / `cli-linux-x64` / `cli-linux-arm64` / `cli-win32-x64`（`fast-cli`，别名 `fast`）；`release/cli` → 最近一次产物
 - **Android** — `release/fast-mobile-*.apk`（`adb install`）。没有 SDK：跳过，exit 0
 - **iOS** — 没有 IPA。`pnpm --dir apps/mobile ios`（`expo run:ios`；Xcode，macOS）。日常：`./dev/mobile.sh --ios`
 
@@ -212,7 +212,7 @@ pnpm dev:desktop:mock
 ./dev/desktop.sh --engine
 ```
 
-3. **开发 TUI** — 对同一份 `current/` 启动 `fast-ink`。
+3. **开发 TUI** — 对同一份 `current/` 启动 `fast-cli`。
 
 ```bash
 pnpm dev:tui
@@ -242,7 +242,7 @@ pnpm fetch-engine -- --clean
 | `pnpm fetch-engine`            | Maven Central `ai.fastllm` 0.3.0 → `modules/engine/current/` |
 | `pnpm dev:desktop`             | `./dev/desktop.sh` — Electron 对 `current/`                  |
 | `pnpm dev:desktop:mock`        | `./dev/desktop.sh --mock` — 仅 UI                            |
-| `pnpm dev:tui`                 | `./dev/tui.sh` — `fast-ink` 对 `current/`                    |
+| `pnpm dev:tui`                 | `./dev/tui.sh` — `fast-cli` 对 `current/`                    |
 | `pnpm dev:mobile`              | `./dev/mobile.sh` — Expo（`--android` / `--ios`）            |
 | `pnpm pack`                    | CLI + 桌面 + 手机（`build/all.sh`）。`--os` 选架构           |
 | `pnpm pack:desktop`            | 本机或 `--os` 安装包。macOS：`Fast-*-mac-arm64.dmg` / `Fast-*-mac-x64.dmg`。Linux：`linux-unpacked` / `linux-arm64-unpacked`。Windows：`win-unpacked`（不是 universal） |
@@ -265,7 +265,7 @@ pnpm typecheck
 ```text
 fast/
   apps/desktop          Electron → core + web/ui
-  apps/tui              fast-ink → core（无 DOM）
+  apps/tui              fast-cli → core（无 DOM）
   apps/mobile           Expo 配套 → core（不 import web/ui）
   apps/web              预留；与桌面 renderer 同一套
   packages/core         无 DOM — bridge、session-view、i18n
@@ -309,7 +309,7 @@ npm 名（暂不改）：`@fastllm/bridge-protocol`、`@fastllm/bridge-client`�
 
 ![TUI](docs/screenshots/tui.png)
 
-TUI（`fast-ink`）— 同一引擎，走 unix Bridge。
+TUI（`fast-cli`）— 同一引擎，走 unix Bridge。
 
 <p align="center">
   <img src="docs/screenshots/mobile1.jpg" width="180" alt="手机会话">
