@@ -1,7 +1,7 @@
 {
 	"name": "@fast-ide/desktop",
 	"private": true,
-	"version": "0.0.1",
+	"version": "0.3.1",
 	"description": "Fast Electron desktop shell",
 	"type": "module",
 	"main": "./out/main/index.js",
