@@ -51,9 +51,9 @@ You can get help in the WeChat group or on Discord.
 
 
 
-| WeChat                                      | Discord                                         |
-| ------------------------------------------- | ----------------------------------------------- |
-| ![WeChat group](docs/community/weichat.jpg) | [Join Fast Agent](https://discord.gg/HXeK9QV57) |
+| WeChat | Discord |
+| :---: | :---: |
+| <img src="docs/community/weichat.jpg" width="180" alt="WeChat group"> | [Join Fast Agent](https://discord.gg/HXeK9QV57) |
 
 
 
@@ -311,9 +311,9 @@ Use whichever channel you prefer for usage questions, development, and project u
 
 
 
-| WeChat                                      |
-| ------------------------------------------- |
-| ![WeChat group](docs/community/weichat.jpg) |
+| WeChat |
+| :---: |
+| <img src="docs/community/weichat.jpg" width="180" alt="WeChat group"> |
 
 
 Discord: [Join Fast Agent](https://discord.gg/HXeK9QV57)

@@ -74,7 +74,7 @@ v0.0.1 预发布。**macOS** 是主路径。**Windows** 原生开发中。安装
 
 | 微信群 | Discord |
 | :---: | :---: |
-| <img src="docs/community/weichat.jpg" width="220" alt="微信群二维码"> | [加入 Fast Agent](https://discord.gg/HXeK9QV57) |
+| <img src="docs/community/weichat.jpg" width="180" alt="微信群二维码"> | [加入 Fast Agent](https://discord.gg/HXeK9QV57) |
 
 </div>
 
@@ -328,7 +328,7 @@ TUI（`fast-ink`）— 同一引擎，走 unix Bridge。
 
 | 微信群 |
 | :---: |
-| <img src="docs/community/weichat.jpg" width="220" alt="微信群二维码"> |
+| <img src="docs/community/weichat.jpg" width="180" alt="微信群二维码"> |
 
 Discord：[加入 Fast Agent](https://discord.gg/HXeK9QV57)
 
