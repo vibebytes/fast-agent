@@ -1,19 +1,28 @@
 #!/usr/bin/env bash
-# Assemble modules/engine/current from Maven Central (ai.fastllm 0.3.0).
+# Assemble modules/engine/current from Maven Central (versions in extensions/pom.xml).
 # No agent/ source tree. Needs JDK + Maven only.
 set -euo pipefail
 
 root="$(cd "$(dirname "$0")/.." && pwd)"
 # shellcheck source=engine-bin.sh
 source "$root/scripts/engine-bin.sh"
+pom="$root/extensions/pom.xml"
+pom_prop() {
+	local v
+	v="$(sed -n "s/.*<$1>\\([^<]*\\)<\\/$1>.*/\\1/p" "$pom" | head -n1)"
+	[[ -n "$v" ]] || { echo "missing <$1> in $pom" >&2; exit 1; }
+	printf '%s' "$v"
+}
+agent_ver="$(pom_prop agent.version)"
+natives_ver="$(pom_prop agent-natives.version)"
 os=""
 mode=incremental
 
 usage() {
-	cat <<'EOF'
+	cat <<EOF
 usage: ./scripts/fetch-engine.sh [--incremental] [--clean] [os] [--] [-h|--help]
 
-  Maven Central ai.fastllm 0.3.0 → modules/engine/current
+  Maven Central ai.fastllm ${agent_ver} (natives ${natives_ver}) → modules/engine/current
   No agent/ checkout.
 
   --incremental   default. If current/bin/fast-cli exists, skip (print a line).
@@ -91,7 +100,7 @@ place_maven() {
 	echo "engine at $dest/bin/fast-cli (alias: fast)"
 }
 
-echo "Maven ai.fastllm 0.3.0 from Central → modules/engine/current"
+echo "Maven ai.fastllm ${agent_ver} (natives ${natives_ver}) from Central → modules/engine/current"
 mvn_s=(-s "$root/extensions/.mvn/settings.xml" -U)
 mvn_goal=(package)
 if [[ "$mode" == clean ]]; then

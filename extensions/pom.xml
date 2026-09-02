@@ -12,10 +12,11 @@
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <scala.binary.version>3</scala.binary.version>
     <scala.version>3.7.0</scala.version>
-    <!-- Maven Central ai.fastllm 0.3.0 (not ~/.m2 publishEngineM2). -->
-    <agent-engine-api.version>0.3.0</agent-engine-api.version>
-    <agent-runtime.version>0.3.0</agent-runtime.version>
-    <agent.version>0.3.0</agent.version>
+    <!-- Central jars 0.3.1; natives zip stays 0.3.0 (not published with the rest). -->
+    <agent-engine-api.version>0.3.1</agent-engine-api.version>
+    <agent-runtime.version>0.3.1</agent-runtime.version>
+    <agent.version>0.3.1</agent.version>
+    <agent-natives.version>0.3.0</agent-natives.version>
   </properties>
   <repositories>
     <repository>

@@ -23,7 +23,7 @@
     <dependency>
       <groupId>ai.fastllm</groupId>
       <artifactId>agent-natives</artifactId>
-      <version>${agent.version}</version>
+      <version>${agent-natives.version}</version>
       <type>zip</type>
       <classifier>${engine.os}</classifier>
     </dependency>
@@ -191,7 +191,7 @@
                 <artifactItem>
                   <groupId>ai.fastllm</groupId>
                   <artifactId>agent-natives</artifactId>
-                  <version>${agent.version}</version>
+                  <version>${agent-natives.version}</version>
                   <type>zip</type>
                   <classifier>${engine.os}</classifier>
                   <outputDirectory>${project.build.directory}/dist/agent</outputDirectory>
