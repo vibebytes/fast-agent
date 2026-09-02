@@ -138,6 +138,8 @@ test('catalogFromProviders keeps only enabled provider × enabled model', () => 
 	assert.equal(entries.length, 2);
 	assert.equal(entries[0]?.id, 'deepseek/deepseek-v4-pro');
 	assert.equal(entries[0]?.display, 'DeepSeek V4 Pro');
+	assert.equal(entries[0]?.providerId, 'deepseek');
+	assert.equal(entries[0]?.providerName, 'DeepSeek');
 	assert.equal(entries[0]?.current, true);
 	assert.equal(entries[1]?.id, 'openrouter/openai/gpt-5.6-terra');
 	assert.equal(entries[1]?.display, 'GPT-5.6 Terra');

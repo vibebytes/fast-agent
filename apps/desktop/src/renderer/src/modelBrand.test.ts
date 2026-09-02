@@ -27,6 +27,11 @@ test('getProviderBrand recognizes major AI model providers', () => {
 	const fallback = getProviderBrand('custom-engine');
 	assert.equal(fallback.name, 'Custom-engine');
 	assert.equal(fallback.shortName, 'CU');
+
+	const customWire = getProviderBrand('custom-openai', 'vitebyte');
+	assert.equal(customWire.name, 'vitebyte');
+	assert.equal(customWire.shortName, 'VI');
+	assert.notEqual(customWire.name, 'OpenAI');
 });
 
 test('getModelCapabilityBadges identifies thinking, fast, and flagship capabilities', () => {

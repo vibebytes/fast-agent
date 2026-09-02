@@ -79,6 +79,13 @@ function getProviderBrandStyle(id: string, name: string) {
 			initial: 'CL'
 		};
 	}
+	if (lower.includes('custom-openai') || lower.includes('custom-anthropic')) {
+		return {
+			iconBg: 'bg-muted text-muted-foreground border border-border/60',
+			badge: name,
+			initial: name.slice(0, 2).toUpperCase() || 'AI'
+		};
+	}
 	if (lower.includes('openai') || lower.includes('gpt')) {
 		return {
 			iconBg: 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/25',

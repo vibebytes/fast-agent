@@ -35,6 +35,8 @@ export function catalogFromProviders(
 				display,
 				aliases,
 				current: cur.length > 0 && keys.includes(cur),
+				providerId: p.id,
+				providerName: p.name.trim() || p.id,
 				supportsThinking: m.supportsThinking === true,
 				supportedEfforts: m.supportedEfforts ?? [],
 				...(m.defaultEffort ? {defaultEffort: m.defaultEffort} : {})

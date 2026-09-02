@@ -53,7 +53,8 @@ import {Notice as DshNotice} from './dsh/composer/Notice';
 import {useDshModels} from './dsh/composer/models';
 import {refreshDshSkills, useDshSkills} from './dsh/skills/skills';
 import type {MentionChip, ModelCatalogEntry, SlashCatalogEntry} from './env';
-import {getProviderBrand, getModelCapabilityBadges} from './modelBrand';
+import {getModelCapabilityBadges} from './modelBrand';
+import {catalogProvider, groupCatalogEntries} from './catalogGroup';
 import {
 	atSuggestPrefix,
 	atQuery,
@@ -85,65 +86,6 @@ import {helpNoticeText} from './helpNoticeText';
 import {composerModelLabel, concreteModelDisplay, isUnresolvedModelDisplay} from '../../shared/defaultModel';
 import {matchCatalogEntry, sameModelRef} from '../../shared/modelMatch';
 import {enginePickerKinds, type EngineKindName} from './enginePicker';
-
-const PROVIDER_DISPLAY_NAMES: Record<string, string> = {
-	openrouter: 'OpenRouter',
-	deepseek: 'DeepSeek',
-	anthropic: 'Anthropic',
-	openai: 'OpenAI',
-	zhipu: '智谱 GLM',
-	moonshot: 'Moonshot',
-	volcesark: '火山引擎',
-	volcengine: '火山引擎',
-	ollama: 'Ollama',
-	local: 'Local'
-};
-
-function formatProviderTitle(key: string): string {
-	const k = key.toLowerCase().trim();
-	if (PROVIDER_DISPLAY_NAMES[k]) return PROVIDER_DISPLAY_NAMES[k];
-	if (!key || key === 'default') return 'Other';
-	return key.charAt(0).toUpperCase() + key.slice(1);
-}
-
-function parseCatalogEntry(entry: ModelCatalogEntry) {
-	const idParts = entry.id.split('/');
-	const providerKey = idParts.length > 1 ? idParts[0]! : 'default';
-	const fromId = idParts.length > 1 ? idParts.slice(1).join('/') : entry.id;
-	const cleanName =
-		entry.display && !entry.display.includes('/') ? entry.display : fromId;
-	return {providerKey, cleanName};
-}
-
-type CatalogGroup = {
-	providerKey: string;
-	providerLabel: string;
-	items: Array<{
-		entry: ModelCatalogEntry;
-		cleanName: string;
-	}>;
-};
-
-function groupCatalogEntries(entries: ModelCatalogEntry[]): CatalogGroup[] {
-	const map = new Map<string, Array<{ entry: ModelCatalogEntry; cleanName: string }>>();
-	for (const entry of entries) {
-		const { providerKey, cleanName } = parseCatalogEntry(entry);
-		const list = map.get(providerKey) ?? [];
-		list.push({ entry, cleanName });
-		map.set(providerKey, list);
-	}
-
-	const groups: CatalogGroup[] = [];
-	for (const [providerKey, items] of map.entries()) {
-		const brand = getProviderBrand(providerKey);
-		groups.push({
-			providerKey,
-			providerLabel: brand.name,
-			items
-		});
-	}
-	return groups;
-}
 
 /** System blue accent (CONTEXT: #007AFF / #0A84FF). */
 const SYSTEM_BLUE = 'text-[#007AFF] dark:text-[#0A84FF]';
@@ -529,11 +471,11 @@ export const DialogueComposer = memo(function DialogueComposer({
 			(!optimisticModelId ? modelCatalog.find(e => e.current) : undefined),
 		[modelCatalog, effectiveModel, optimisticModelId, modelDisplay]
 	);
-	const activeProviderKey = useMemo(() => {
-		if (!activeModelEntry) return 'default';
-		return parseCatalogEntry(activeModelEntry).providerKey;
-	}, [activeModelEntry]);
-	const activeBrand = useMemo(() => getProviderBrand(activeProviderKey), [activeProviderKey]);
+	const activeProvider = useMemo(
+		() => (activeModelEntry ? catalogProvider(activeModelEntry) : undefined),
+		[activeModelEntry]
+	);
+	const activeBrand = activeProvider?.brand;
 	const supportedEfforts = activeModelEntry?.supportedEfforts ?? [];
 	const supportsThinking = activeModelEntry?.supportsThinking === true;
 	const modelButtonFull = useMemo(() => {
@@ -594,12 +536,12 @@ export const DialogueComposer = memo(function DialogueComposer({
 		if (!modelSearch.trim()) return modelCatalog;
 		const q = modelSearch.trim().toLowerCase();
 		return modelCatalog.filter(entry => {
-			const {providerKey, cleanName} = parseCatalogEntry(entry);
-			const brand = getProviderBrand(providerKey);
+			const {cleanName, providerLabel, brand} = catalogProvider(entry);
 			return (
 				cleanName.toLowerCase().includes(q) ||
 				entry.display.toLowerCase().includes(q) ||
 				entry.id.toLowerCase().includes(q) ||
+				providerLabel.toLowerCase().includes(q) ||
 				brand.name.toLowerCase().includes(q) ||
 				brand.shortName.toLowerCase().includes(q) ||
 				entry.aliases.some(a => a.toLowerCase().includes(q))
@@ -1240,7 +1182,12 @@ export const DialogueComposer = memo(function DialogueComposer({
 											if (!modelPopOpen) void openModelPicker();
 										}}
 									>
-										<span className={cn('size-2 rounded-full shrink-0', activeBrand.dotBg)} />
+										<span
+											className={cn(
+												'size-2 rounded-full shrink-0',
+												activeBrand?.dotBg ?? 'bg-muted-foreground'
+											)}
+										/>
 										<span className="truncate">{modelButtonLabel}</span>
 										<ChevronDown
 											className={cn(
@@ -1328,7 +1275,7 @@ export const DialogueComposer = memo(function DialogueComposer({
 											</div>
 										) : (
 											groupedCatalog.map(group => {
-												const brand = getProviderBrand(group.providerKey);
+												const brand = catalogProvider(group.items[0]!.entry).brand;
 												return (
 													<div key={group.providerKey} className="space-y-1">
 														<div className="flex items-center justify-between px-2.5 py-1 text-[11px] font-semibold text-muted-foreground">

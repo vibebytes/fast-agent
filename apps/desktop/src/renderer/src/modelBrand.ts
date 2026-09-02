@@ -109,8 +109,32 @@ const PROVIDER_BRANDS: Record<string, Omit<ProviderBrandInfo, 'key'>> = {
 	}
 };
 
+function isCustomWire(key: string): boolean {
+	const k = key.toLowerCase().trim();
+	return (
+		k === 'custom-openai' ||
+		k === 'custom-anthropic' ||
+		/^custom-openai-\d+$/.test(k) ||
+		/^custom-anthropic-\d+$/.test(k)
+	);
+}
+
 export function getProviderBrand(providerKeyOrId: string, customName?: string): ProviderBrandInfo {
-	const lower = `${providerKeyOrId} ${customName || ''}`.toLowerCase().trim();
+	const key = providerKeyOrId.trim();
+	if (isCustomWire(key)) {
+		const fallbackName = customName?.trim() || 'Custom';
+		return {
+			key,
+			name: fallbackName,
+			shortName: fallbackName.slice(0, 2).toUpperCase() || 'CU',
+			iconBg: 'bg-muted/70 text-muted-foreground border border-border/60',
+			dotBg: 'bg-muted-foreground',
+			badgeClass: 'bg-muted/50 text-muted-foreground border-border/40',
+			glowBg: 'from-muted/20 to-transparent'
+		};
+	}
+
+	const lower = `${key} ${customName || ''}`.toLowerCase().trim();
 
 	if (lower.includes('deepseek')) return {key: 'deepseek', ...PROVIDER_BRANDS.deepseek};
 	if (lower.includes('anthropic') || lower.includes('claude')) return {key: 'anthropic', ...PROVIDER_BRANDS.anthropic};

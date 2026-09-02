@@ -85,6 +85,10 @@ export type ModelCatalogEntry = {
 	display: string;
 	aliases: string[];
 	current: boolean;
+	/** Settings provider row id (`model_provider.id`). Composer groups by this. */
+	providerId?: string;
+	/** Settings provider display name. */
+	providerName?: string;
 	/** From models.yaml capability resolve; omit/false → hide Thinking. */
 	supportsThinking?: boolean;
 	/** Wire effort ladder; empty → hide Effort menu. */
