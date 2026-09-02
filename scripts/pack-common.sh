@@ -100,6 +100,12 @@ mac_installer() {
 	echo "$root/apps/desktop/release/Fast-$(desktop_version)-mac-${cpu}.${ext}"
 }
 
+# Matches electron-builder.yml win.artifactName: ${productName}-${version}-win-${arch}.${ext}
+win_installer() {
+	local cpu="$1"
+	echo "$root/apps/desktop/release/Fast-$(desktop_version)-win-${cpu}.exe"
+}
+
 cli_pack_dir() {
 	echo "$root/release/cli-$(resolved_os)"
 }
@@ -126,6 +132,46 @@ linux_unpacked_dir() {
 		linux-arm64) echo "$root/apps/desktop/release/linux-arm64-unpacked" ;;
 		linux-x64) echo "$root/apps/desktop/release/linux-unpacked" ;;
 		*) echo "" ;;
+	esac
+}
+
+# electron-builder --win nsis still writes this unpacked tree.
+win_unpacked_dir() {
+	echo "$root/apps/desktop/release/win-unpacked"
+}
+
+# One layout per --os. Leftover Fast.app / Fast-0.0.1.dmg / *unpacked from
+# another pack must never be considered. pack_desktop and smoke_desktop both
+# call this so they cannot drift.
+desktop_out() {
+	local eos="${1:-}"
+	local platform cpu
+	DESKTOP_APP=""
+	DESKTOP_PKG=""
+	DESKTOP_DMG=""
+	DESKTOP_UNPACKED=""
+	DESKTOP_EXE=""
+	platform="$(electron_platform "$eos")"
+	cpu="$(electron_cpu "$eos")"
+	case "$platform" in
+		darwin)
+			DESKTOP_APP="$(mac_unpacked_app "$eos")"
+			[[ -d "$DESKTOP_APP" ]] || DESKTOP_APP=""
+			DESKTOP_PKG="$(mac_installer pkg "$cpu")"
+			DESKTOP_DMG="$(mac_installer dmg "$cpu")"
+			[[ -f "$DESKTOP_PKG" ]] || DESKTOP_PKG=""
+			[[ -f "$DESKTOP_DMG" ]] || DESKTOP_DMG=""
+			;;
+		linux)
+			DESKTOP_UNPACKED="$(linux_unpacked_dir "$eos")"
+			[[ -d "$DESKTOP_UNPACKED" ]] || DESKTOP_UNPACKED=""
+			;;
+		win)
+			DESKTOP_UNPACKED="$(win_unpacked_dir)"
+			[[ -d "$DESKTOP_UNPACKED" ]] || DESKTOP_UNPACKED=""
+			DESKTOP_EXE="$(win_installer "$cpu")"
+			[[ -f "$DESKTOP_EXE" ]] || DESKTOP_EXE=""
+			;;
 	esac
 }
 
@@ -283,6 +329,8 @@ pack_desktop() {
 	if [[ "$platform" == darwin ]]; then
 		clear_mac_out "$eos"
 		rm -f "$root/apps/desktop/release/"*-mac-"${cpu}.pkg" "$root/apps/desktop/release/"*-mac-"${cpu}.dmg"
+	elif [[ "$platform" == win ]]; then
+		rm -f "$root/apps/desktop/release/"*-win-"${cpu}.exe"
 	fi
 	(
 		cd "$root/apps/desktop"
@@ -294,31 +342,21 @@ pack_desktop() {
 		case "$platform" in
 			darwin) CSC_IDENTITY_AUTO_DISCOVERY=false pnpm exec electron-builder --config electron-builder.yml --mac pkg "--$cpu" ;;
 			linux) CSC_IDENTITY_AUTO_DISCOVERY=false pnpm exec electron-builder --config electron-builder.yml --linux dir "--$cpu" ;;
-			win) CSC_IDENTITY_AUTO_DISCOVERY=false pnpm exec electron-builder --config electron-builder.yml --win dir ;;
+			win) CSC_IDENTITY_AUTO_DISCOVERY=false pnpm exec electron-builder --config electron-builder.yml --win nsis "--$cpu" ;;
 		esac
 	)
-	local app pkg dmg unpacked res
+	local app pkg dmg unpacked exe res
+	desktop_out "$eos"
+	app="$DESKTOP_APP"
+	pkg="$DESKTOP_PKG"
+	dmg="$DESKTOP_DMG"
+	unpacked="$DESKTOP_UNPACKED"
+	exe="$DESKTOP_EXE"
 	if [[ "$platform" == darwin ]]; then
-		app="$(mac_unpacked_app "$eos")"
-		[[ -d "$app" ]] || app=""
-		pkg="$(mac_installer pkg "$cpu")"
-		dmg="$(mac_installer dmg "$cpu")"
-		[[ -f "$pkg" ]] || pkg=""
-		[[ -f "$dmg" ]] || dmg=""
-		unpacked=""
-	elif [[ "$platform" == linux ]]; then
-		app=""
-		pkg=""
-		dmg=""
-		unpacked="$(linux_unpacked_dir "$eos")"
-		[[ -d "$unpacked" ]] || unpacked=""
-	else
-		app="$(find "$root/apps/desktop/release" -name 'Fast.app' -type d -print -quit 2>/dev/null || true)"
-		pkg="$(find "$root/apps/desktop/release" -maxdepth 1 -name '*.pkg' -print -quit 2>/dev/null || true)"
-		dmg="$(find "$root/apps/desktop/release" -maxdepth 1 -name '*.dmg' -print -quit 2>/dev/null || true)"
-		unpacked="$(find "$root/apps/desktop/release" -maxdepth 1 -type d -name '*unpacked' -print -quit 2>/dev/null || true)"
-	fi
-	if [[ -n "$app" ]]; then
+		[[ -n "$app" && -n "$pkg" && -n "$dmg" ]] || {
+			echo "electron-builder finished; missing $(mac_unpacked_app "$eos") or $(mac_installer pkg "$cpu") or $(mac_installer dmg "$cpu")" >&2
+			exit 1
+		}
 		app="$(cd "$app" && pwd)"
 		res="$app/Contents/Resources"
 		echo_sized "Desktop app ->" "$app"
@@ -327,8 +365,6 @@ pack_desktop() {
 		if [[ -d "$res/engine/jre" ]]; then
 			echo_sized "  jre" "$res/engine/jre"
 		fi
-	fi
-	if [[ -n "$pkg" && -n "$dmg" ]]; then
 		pkg="$(cd "$(dirname "$pkg")" && pwd)/$(basename "$pkg")"
 		dmg="$(cd "$(dirname "$dmg")" && pwd)/$(basename "$dmg")"
 		mkdir -p "$root/release"
@@ -337,19 +373,32 @@ pack_desktop() {
 		echo_sized "Installer ->" "$dmg"
 		echo_sized "  pkg" "$pkg"
 		echo "  contains Install Fast.pkg (installs /Applications/Fast.app + /usr/local/bin/{fast-ink,fast-cli,fast})"
-	elif [[ "$platform" == darwin ]]; then
-		echo "electron-builder finished; missing $(mac_installer pkg "$cpu") or $(mac_installer dmg "$cpu")" >&2
-		exit 1
-	elif [[ -n "$unpacked" ]]; then
-		unpacked="$(cd "$unpacked" && pwd)"
-		echo_sized "Desktop dir ->" "$unpacked"
-		echo "  engine $unpacked/resources/engine/bin/fast-cli"
-		if [[ -d "$unpacked/resources/engine/jre" ]]; then
-			echo_sized "  jre" "$unpacked/resources/engine/jre"
+		return
+	fi
+	[[ -n "$unpacked" ]] || {
+		if [[ "$platform" == linux ]]; then
+			echo "electron-builder finished; missing $(linux_unpacked_dir "$eos")" >&2
+		else
+			echo "electron-builder finished; missing $(win_unpacked_dir)" >&2
 		fi
-	else
-		echo "electron-builder finished; no Fast.app / unpacked dir under apps/desktop/release" >&2
 		exit 1
+	}
+	unpacked="$(cd "$unpacked" && pwd)"
+	echo_sized "Desktop dir ->" "$unpacked"
+	echo "  engine $unpacked/resources/engine/bin/fast-cli"
+	if [[ -d "$unpacked/resources/engine/jre" ]]; then
+		echo_sized "  jre" "$unpacked/resources/engine/jre"
+	fi
+	if [[ "$platform" == win ]]; then
+		[[ -n "$exe" ]] || {
+			echo "electron-builder finished; missing $(win_installer "$cpu")" >&2
+			exit 1
+		}
+		exe="$(cd "$(dirname "$exe")" && pwd)/$(basename "$exe")"
+		mkdir -p "$root/release"
+		ln -sfn "$exe" "$root/release/$(basename "$exe")"
+		echo_sized "Installer ->" "$exe"
+		echo "  NSIS setup (installs Fast.exe + user PATH resources\\bin\\{fast,fast-cli,fast-ink})"
 	fi
 }
 
@@ -394,67 +443,81 @@ smoke_cli() {
 }
 
 smoke_desktop() {
-	local app pkg dmg unpacked eos platform cpu
+	local app pkg dmg unpacked exe eos platform cpu engine_os
 	eos="$(resolved_os)" || exit 1
 	platform="$(electron_platform "$eos")"
 	cpu="$(electron_cpu "$eos")"
-	if [[ "$platform" == darwin ]]; then
-		app="$(mac_unpacked_app "$eos")"
-		[[ -d "$app" ]] || app=""
-		pkg="$(mac_installer pkg "$cpu")"
-		dmg="$(mac_installer dmg "$cpu")"
-		[[ -f "$pkg" ]] || pkg=""
-		[[ -f "$dmg" ]] || dmg=""
-		unpacked=""
-	elif [[ "$platform" == linux ]]; then
-		app=""
-		pkg=""
-		dmg=""
-		unpacked="$(linux_unpacked_dir "$eos")"
-		[[ -d "$unpacked" ]] || unpacked=""
-	else
-		app="$(find "$root/apps/desktop/release" -name 'Fast.app' -type d -print -quit 2>/dev/null || true)"
-		pkg="$(find "$root/apps/desktop/release" -maxdepth 1 -name '*.pkg' -print -quit 2>/dev/null || true)"
-		dmg="$(find "$root/apps/desktop/release" -maxdepth 1 -name '*.dmg' -print -quit 2>/dev/null || true)"
-		unpacked="$(find "$root/apps/desktop/release" -maxdepth 1 -type d -name '*unpacked' -print -quit 2>/dev/null || true)"
-	fi
-	if [[ -z "$app" ]]; then
-		if [[ -n "$unpacked" ]] && {
-			[[ -f "$unpacked/resources/engine/bin/fast-cli" ]] ||
-				[[ -f "$unpacked/resources/engine/bin/fast-cli.bat" ]]
-		}; then
-			if [[ -f "$unpacked/Fast.exe" ]]; then
-				[[ -f "$unpacked/resources/bin/fast.bat" && -f "$unpacked/resources/bin/fast-cli.bat" ]] || {
-					echo "smoke: Windows dir missing resources/bin/fast.bat + fast-cli.bat" >&2
-					exit 1
-				}
+	desktop_out "$eos"
+	app="$DESKTOP_APP"
+	pkg="$DESKTOP_PKG"
+	dmg="$DESKTOP_DMG"
+	unpacked="$DESKTOP_UNPACKED"
+	exe="$DESKTOP_EXE"
+	if [[ "$platform" != darwin ]]; then
+		[[ -n "$unpacked" ]] || {
+			if [[ "$platform" == linux ]]; then
+				echo "smoke: missing $(linux_unpacked_dir "$eos") for $eos" >&2
+			else
+				echo "smoke: missing $(win_unpacked_dir) for $eos" >&2
 			fi
-			engine_jre_ok "$unpacked/resources/engine" "$eos" || {
-				echo "smoke: missing bundled JRE in $unpacked" >&2
+			exit 1
+		}
+		if [[ ! -f "$unpacked/resources/engine/bin/fast-cli" && ! -f "$unpacked/resources/engine/bin/fast-cli.bat" ]]; then
+			echo "smoke: packaged engine missing in $unpacked" >&2
+			exit 1
+		fi
+		engine_os="$(tr -d '[:space:]' <"$unpacked/resources/engine/.fast-os" 2>/dev/null || true)"
+		[[ "$engine_os" == "$eos" ]] || {
+			echo "smoke: $unpacked engine is ${engine_os:-unknown}; expected $eos" >&2
+			exit 1
+		}
+		if [[ -f "$unpacked/Fast.exe" ]]; then
+			[[ -f "$unpacked/resources/bin/fast.bat" && -f "$unpacked/resources/bin/fast-cli.bat" ]] || {
+				echo "smoke: Windows dir missing resources/bin/fast.bat + fast-cli.bat" >&2
 				exit 1
 			}
-			if [[ -f "$unpacked/resources/engine/bin/fast-cli" ]]; then
-				grep -q 'jre/bin/java' "$unpacked/resources/engine/bin/fast-cli" || {
-					echo "smoke: packaged fast-cli does not exec bundled jre" >&2
-					exit 1
-				}
-			fi
-			[[ -s "$unpacked/resources/engine/.fast-engine-id" ]] || {
-				echo "smoke: missing $unpacked/resources/engine/.fast-engine-id" >&2
+		fi
+		engine_jre_ok "$unpacked/resources/engine" "$eos" || {
+			echo "smoke: missing bundled JRE in $unpacked" >&2
+			exit 1
+		}
+		if [[ -f "$unpacked/resources/engine/bin/fast-cli" ]]; then
+			grep -q 'jre/bin/java' "$unpacked/resources/engine/bin/fast-cli" || {
+				echo "smoke: packaged fast-cli does not exec bundled jre" >&2
 				exit 1
 			}
-			echo_sized "Desktop smoke ok (dir)" "$unpacked"
+		fi
+		[[ -s "$unpacked/resources/engine/.fast-engine-id" ]] || {
+			echo "smoke: missing $unpacked/resources/engine/.fast-engine-id" >&2
+			exit 1
+		}
+		if [[ "$platform" == win ]]; then
+			[[ -n "$exe" && -f "$exe" ]] || {
+				echo "smoke: missing $(win_installer "$cpu") for $eos" >&2
+				exit 1
+			}
+			local nsis_info
+			nsis_info="$(file "$exe" 2>/dev/null || true)"
+			[[ "$nsis_info" == *PE32* || "$nsis_info" == *Nullsoft* || "$nsis_info" == *NSIS* ]] || {
+				echo "smoke: $exe is not an NSIS installer ($nsis_info)" >&2
+				exit 1
+			}
+			echo_sized "Desktop smoke ok" "$exe"
 			return
 		fi
-		echo "desktop smoke skipped (no Fast.app)"
+		echo_sized "Desktop smoke ok (dir)" "$unpacked"
 		return
 	fi
+	[[ -n "$app" && -n "$pkg" && -n "$dmg" ]] || {
+		echo "smoke: missing $(mac_unpacked_app "$eos") or $(mac_installer pkg "$cpu") or $(mac_installer dmg "$cpu")" >&2
+		exit 1
+	}
 	local res="$app/Contents/Resources"
+	local bin_info
 	[[ -f "$res/engine/bin/fast-cli" ]] || {
 		echo "smoke: packaged engine missing" >&2
 		exit 1
 	}
-	local engine_os bin_info
 	engine_os="$(tr -d '[:space:]' <"$res/engine/.fast-os" 2>/dev/null || true)"
 	[[ "$engine_os" == "$eos" ]] || {
 		echo "smoke: packaged engine is ${engine_os:-unknown}; expected $eos" >&2

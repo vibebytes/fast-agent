@@ -1,5 +1,5 @@
 # Add pack bin (fast-cli / fast / fast-ink) to the current user's PATH.
-# Desktop dir pack has no installer — run this after unpack.
+# Desktop NSIS installer writes PATH; this is CLI / repair / dir-only.
 #   powershell -ExecutionPolicy Bypass -File scripts/install-path-shims.ps1 -Src release\cli\bin
 param(
 	[Parameter(Mandatory = $true)][string]$Src,

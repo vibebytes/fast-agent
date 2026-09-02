@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Dev / repair / independent CLI only.
 # macOS desktop: pkg postinstall writes /usr/local/bin.
-# Windows: no installer — this adds the pack bin to the user PATH.
+# Windows NSIS installer writes user PATH; this is CLI / repair / dir-only.
 set -euo pipefail
 
 src="${1:-}"

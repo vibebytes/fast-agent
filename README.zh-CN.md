@@ -52,7 +52,7 @@ v0.3.1 预发布。**macOS** 是主路径。**Windows** 原生开发中。安装
 | 桌面 | macOS（Intel） | [下载 `Fast-*-mac-x64.dmg`](https://github.com/kai2002/fast-agent/releases) | 与 Apple Silicon 相同。独立包，不是 universal | 未测试 | `pnpm pack:desktop -- --clean --os darwin-x64` |
 | 桌面 | Linux（glibc x64） | N/A（未验证） | 解压 `linux-unpacked`。不支持 Alpine / musl | 未测试 | `pnpm pack:desktop -- --clean --os linux-x64` |
 | 桌面 | Linux（glibc arm64） | N/A（未验证） | 解压 `linux-arm64-unpacked`。独立包，不是 universal | 未测试 | `pnpm pack:desktop -- --clean --os linux-arm64` |
-| 桌面 | Windows（x64） | N/A（未验证） | 解压 `win-unpacked`（`Fast.exe`）。没有安装包。开发中；日常请用 WSL2 | 未测试 | `pnpm pack:desktop -- --clean --os win32-x64` |
+| 桌面 | Windows（x64） | N/A（未验证） | 运行 `Fast-*-win-x64.exe`（NSIS）→ Fast.exe + 用户 PATH shim。未签名。开发中 | 未测试 | `pnpm pack:desktop -- --clean --os win32-x64` |
 | 移动端 | Android | [下载 `fast-mobile-*.apk`](https://github.com/kai2002/fast-agent/releases) | `adb install` 配套 APK，再与桌面配对 | 较好 | `pnpm pack:mobile` |
 | 移动端 | iOS | N/A（未验证） | 配套客户端，走 Expo / 源码（Xcode，macOS）。与桌面配对。没有 IPA | 未测试 | `pnpm --dir apps/mobile ios` |
 | CLI | macOS（Apple Silicon） | N/A（未验证） | 解压 `fast-cli`（别名 `fast`） | 部分 | `pnpm pack:cli -- --clean --os darwin-arm64` |
@@ -155,7 +155,7 @@ pnpm pack                  # 桌面 + CLI + 手机，JS/引擎只 stage 一次
 - **macOS Intel** — 未签名 `Fast-*-mac-x64.dmg`（安装方式相同）。独立包
 - **Linux glibc x64** — `linux-unpacked`（`--os linux-x64`）。不支持 Alpine / musl
 - **Linux glibc arm64** — `linux-arm64-unpacked`（`--os linux-arm64`）。独立包
-- **Windows x64** — `win-unpacked`（`--os win32-x64`）。没有安装包。可在 macOS 上打，不要在那里跑 `Fast.exe`。开发中；日常请用 WSL2
+- **Windows x64** — 未签名 NSIS `Fast-*-win-x64.exe`（`--os win32-x64`；同时写出 `win-unpacked`）。安装时写入用户 PATH shim。可在 macOS 上打，不要在那里跑安装包或 `Fast.exe`。开发中；日常请用 WSL2
 - **CLI** — `release/cli-darwin-arm64` / `cli-darwin-x64` / `cli-linux-x64` / `cli-linux-arm64` / `cli-win32-x64`（`fast-cli`，别名 `fast`）；`release/cli` → 最近一次产物
 - **Android** — `release/fast-mobile-*.apk`（`adb install`）。没有 SDK：跳过，exit 0
 - **iOS** — 没有 IPA。`pnpm --dir apps/mobile ios`（`expo run:ios`；Xcode，macOS）。日常：`./dev/mobile.sh --ios`
@@ -169,7 +169,7 @@ pnpm pack:desktop -- --clean --os darwin-x64   # Intel
 pnpm pack:desktop -- --os darwin-both          # 两个 mac 包（每轮 --clean）
 pnpm pack:desktop -- --clean --os linux-x64    # Linux glibc x64（dir）
 pnpm pack:desktop -- --clean --os linux-arm64  # Linux glibc arm64（dir）
-pnpm pack:desktop -- --clean --os win32-x64    # Windows x64（dir）
+pnpm pack:desktop -- --clean --os win32-x64    # Windows x64（NSIS）
 pnpm pack:cli -- --os darwin-arm64             # release/cli-darwin-arm64
 pnpm pack:cli -- --os darwin-x64               # release/cli-darwin-x64
 pnpm pack:cli -- --os linux-x64                # release/cli-linux-x64
@@ -240,7 +240,7 @@ pnpm fetch-engine -- --clean
 | `pnpm dev:tui`                 | `./dev/tui.sh` — `fast-cli` 对 `current/`                    |
 | `pnpm dev:mobile`              | `./dev/mobile.sh` — Expo（`--android` / `--ios`）            |
 | `pnpm pack`                    | CLI + 桌面 + 手机（`build/all.sh`）。`--os` 选架构           |
-| `pnpm pack:desktop`            | 本机或 `--os` 安装包。macOS：`Fast-*-mac-arm64.dmg` / `Fast-*-mac-x64.dmg`。Linux：`linux-unpacked` / `linux-arm64-unpacked`。Windows：`win-unpacked`（不是 universal） |
+| `pnpm pack:desktop`            | 本机或 `--os` 安装包。macOS：`Fast-*-mac-arm64.dmg` / `Fast-*-mac-x64.dmg`。Linux：`linux-unpacked` / `linux-arm64-unpacked`。Windows：`Fast-*-win-x64.exe`（不是 universal） |
 | `pnpm pack:cli`                | 可挪走的 `cli-darwin-arm64` / `cli-darwin-x64` / `cli-linux-x64` / `cli-linux-arm64` / `cli-win32-x64`（`release/cli` → 最近一次） |
 | `pnpm pack:mobile`             | Android APK；缺 JDK/SDK 则跳过（exit 0）                     |
 | `pnpm build`                   | 编译 TypeScript 包 — 不是 `build/*.sh`                       |

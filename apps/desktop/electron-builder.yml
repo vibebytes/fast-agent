@@ -44,5 +44,14 @@ linux:
   target:
     - dir
 win:
+  artifactName: ${productName}-${version}-win-${arch}.${ext}
   target:
-    - dir
+    - nsis
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: Fast
+  include: installer.nsh
