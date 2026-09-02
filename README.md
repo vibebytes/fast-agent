@@ -292,9 +292,10 @@ Desktop — projects, session, and the local engine.
 TUI (`fast-ink`) — same engine over a unix Bridge.
 
 <p align="center">
-  <img src="docs/screenshots/mobile1.jpg" alt="Mobile session" width="32%">
-  <img src="docs/screenshots/mobile2.jpg" alt="Mobile settings, light" width="32%">
-  <img src="docs/screenshots/mobile3.jpg" alt="Mobile settings, dark" width="32%">
+  <img src="docs/screenshots/mobile1.jpg" alt="Mobile session" width="24%">
+  <img src="docs/screenshots/mobile2.jpg" alt="Mobile settings, light" width="24%">
+  <img src="docs/screenshots/mobile3.jpg" alt="Mobile settings, dark" width="24%">
+  <img src="docs/screenshots/mobile4.jpg" alt="Mobile theme palettes" width="24%">
 </p>
 
 Mobile — companion client: session, desktop Bridge pairing, and themes.
