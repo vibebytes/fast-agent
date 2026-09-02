@@ -89,7 +89,7 @@ pnpm check:i18n
 
 TUI unix e2e walks up to `modules/engine/current/bin/fast-cli`. Linux: `LANG=C.UTF-8` if the TUI shows tofu instead of CJK.
 
-`pnpm build` compiles TypeScript packages. It is not `build/*.sh`. Packing: `pnpm pack:cli -- --incremental` (default is incremental). Incremental does **not** check OS; a Darwin `current/` on Linux fails at runtime — use `--clean`.
+`pnpm build` compiles TypeScript packages. It is not `build/*.sh`. Packing: `pnpm pack:cli -- --incremental` (default is incremental). Incremental reuses `current/` only when `.fast-os` matches; mismatch fails — use `--clean`. Desktop and CLI are single-arch packs, not universal: `--os darwin-arm64` / `darwin-x64` / `linux-x64` / `linux-arm64` / `win32-x64`. CLI writes `release/cli-<os>` (`cli-darwin-arm64` / `cli-darwin-x64` / `cli-linux-x64` / `cli-linux-arm64` / `cli-win32-x64`); `release/cli` → last pack. `--os darwin-both` runs both mac packs (each pass `--clean`). Linux / Windows desktop is a `dir` (`linux-unpacked` / `linux-arm64-unpacked` / `win-unpacked`). Alpine / musl is not supported. Windows native is in development; a Mac can emit the dir but must not run `Fast.exe`.
 
 ---
 

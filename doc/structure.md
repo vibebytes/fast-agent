@@ -55,9 +55,9 @@ fast/
 
 ## Installers (sources sit side by side; artifacts merge)
 
-- **Desktop** — `staging/pack` engine + TUI → `extraResources`; `Resources/bin` are in-app shims.
-- **Distribution** — dmg contains `Install Fast.pkg`; the pkg installs the App to `/Applications` and links `/usr/local/bin`.
-- **Standalone CLI** — the same `staging/pack`, no Electron (`release/cli`).
+- **Desktop** — `staging/pack` engine + TUI → `extraResources`; `Resources/bin` are in-app shims. Engine natives and the Electron binary share `--os`.
+- **Distribution** — one dmg per mac arch (`Fast-*-mac-arm64.dmg` / `Fast-*-mac-x64.dmg`). Each contains `Install Fast.pkg` → `/Applications` + `/usr/local/bin`. Linux / Windows is a `dir` (`linux-unpacked` / `linux-arm64-unpacked` / `win-unpacked`). Not universal.
+- **Standalone CLI** — the same `staging/pack`, no Electron. One tree per arch (`release/cli-darwin-arm64` / `cli-darwin-x64` / `cli-linux-x64` / `cli-linux-arm64` / `cli-win32-x64`); `release/cli` → last pack.
 - **DSH process** — vendor `@deepseek-ai/dsh` release (optional), not a git submodule.
 
 ## engine ↔ dsh

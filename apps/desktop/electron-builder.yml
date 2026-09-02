@@ -22,6 +22,7 @@ afterPack: ./scripts/pack/afterPack.cjs
 afterAllArtifactBuild: ./scripts/pack/afterAllArtifactBuild.cjs
 mac:
   icon: icon.icns
+  artifactName: ${productName}-${version}-mac-${arch}.${ext}
   extendInfo:
     CFBundleIconName: AppIcon
   identity: null

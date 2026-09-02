@@ -1,38 +1,14 @@
-<div align="center">
-  <img src="docs/hero.png?v=5" alt="Fast Agent — An enterprise-grade, self-improving AI agent with coding as a first-class citizen." width="100%">
-</div>
+![Fast Agent — An enterprise-grade, self-improving AI agent with coding as a first-class citizen.](docs/hero.png?v=5)
 
-<p align="center">
-  <strong>An enterprise-grade, self-improving AI agent with coding as a first-class citizen.</strong>
-</p>
+**An enterprise-grade, self-improving AI agent with coding as a first-class citizen.**
 
-<p align="center">
-  <a href="#1-download-and-install"><img alt="User Guide" src="https://img.shields.io/badge/📘_USER_GUIDE-v0.0.1_·_ENGLISH-2563eb?style=for-the-badge"></a>
-</p>
+![User Guide](https://img.shields.io/badge/📘_USER_GUIDE-v0.0.1_·_ENGLISH-2563eb?style=for-the-badge)
 
-<p align="center">
-  <img alt="Release" src="https://img.shields.io/badge/release-v0.0.1-blue">
-  <a href="LICENSE"><img alt="License" src="https://img.shields.io/badge/license-Apache%202.0-brightgreen"></a>
-  <img alt="Platforms" src="https://img.shields.io/badge/platforms-macOS%20%7C%20Linux%20%7C%20Windows%20%7C%20Android%20%7C%20iOS-informational">
-  <img alt="Node" src="https://img.shields.io/badge/node-20.19%2B%20%7C%2022-339933">
-  <a href="https://discord.gg/HXeK9QV57"><img alt="Discord" src="https://img.shields.io/badge/Discord-5865F2?logo=discord&logoColor=white"></a>
-</p>
+![Release](https://img.shields.io/badge/release-v0.0.1-blue)![License](https://img.shields.io/badge/license-Apache%202.0-brightgreen)![Platforms](https://img.shields.io/badge/platforms-macOS%20%7C%20Linux%20%7C%20Windows%20%7C%20Android%20%7C%20iOS-informational)![Node](https://img.shields.io/badge/node-20.19%2B%20%7C%2022-339933)![Discord](https://img.shields.io/badge/Discord-5865F2?logo=discord&logoColor=white)
 
-<p align="center"><a href="README.md">English</a> | <a href="README.zh-CN.md">中文</a></p>
+[English](README.md) | [中文](README.zh-CN.md)
 
-<p align="center">
-  <a href="#1-download-and-install">1. Download</a> ·
-  <a href="#11-direct-download">1.1 Packs</a> ·
-  <a href="#12-how-to-use-the-mobile-client-experimental-under-active-development">1.2 Mobile</a> ·
-  <a href="#13-install-from-source">1.3 Source</a> ·
-  <a href="#2-development">2. Development</a> ·
-  <a href="#21-quick-start">2.1 Quick start</a> ·
-  <a href="#3-screenshots">3. Screenshots</a> ·
-  <a href="#4-community">4. Community</a> ·
-  <a href="CONTRIBUTING.md">Contributing</a> ·
-  <a href="SECURITY.md">Security</a> ·
-  <a href="#5-license">5. License</a>
-</p>
+[1. Download](#1-download-and-install) · [1.1 Packs](#11-direct-download) · [1.2 Mobile](#12-how-to-use-the-mobile-client-experimental-under-active-development) · [1.3 Source](#13-install-from-source) · [2. Development](#2-development) · [2.1 Quick start](#21-quick-start) · [3. Screenshots](#3-screenshots) · [4. Community](#4-community) · [Contributing](CONTRIBUTING.md) · [Security](SECURITY.md) · [5. License](#5-license)
 
 Fast Agent's goal is to be an enterprise-grade, self-improving AI agent with coding as a first-class citizen.
 
@@ -51,26 +27,36 @@ v0.0.1 pre-release. **macOS** is the primary host. **Windows** native is in deve
 
 ### 1.1 Direct download
 
-| Platform | Download | Installation | Test status |
-| --- | --- | --- | --- |
-| macOS | [Download DMG](https://github.com/kai2002/fast/releases/latest) | Open the DMG and run `Install Fast.pkg` → `/Applications` + `/usr/local/bin` shims | Good |
-| Linux (glibc, x64 / arm64) | [Download](https://github.com/kai2002/fast/releases/latest) | Unpack the `dir` pack. Alpine / musl is not supported | Untested |
-| Windows | — | In development. Use WSL2 and treat it as Linux | Untested |
-| Android | [Download APK](https://github.com/kai2002/fast/releases/latest) | `adb install` the companion APK, then pair with desktop | Good |
-| iOS | — | Companion via Expo / from source; pair with desktop | Untested |
-| CLI (TUI) | [Download](https://github.com/kai2002/fast/releases/latest) | Unpack `fast-ink` + `fast-cli` (alias `fast`) | Partial |
+
+| Type    | Platform              | Download                                                                           | Installation                                                                             | Test status | Build command                                    |
+| ------- | --------------------- | ---------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- | ----------- | ------------------------------------------------ |
+| Desktop | macOS (Apple Silicon) | [Download `Fast-*-mac-arm64.dmg`](https://github.com/kai2002/fast/releases/latest) | Open the DMG and run `Install Fast.pkg` → `/Applications` + `/usr/local/bin` shims       | Good        | `pnpm pack:desktop -- --clean --os darwin-arm64` |
+| Desktop | macOS (Intel)         | [Download `Fast-*-mac-x64.dmg`](https://github.com/kai2002/fast/releases/latest)   | Same as Apple Silicon. Separate pack — not universal                                     | Good        | `pnpm pack:desktop -- --clean --os darwin-x64`   |
+| Desktop | Linux (glibc x64)     | N/A (unverified)                                                                   | Unpack `linux-unpacked`. Alpine / musl is not supported                                  | Untested    | `pnpm pack:desktop -- --clean --os linux-x64`    |
+| Desktop | Linux (glibc arm64)   | N/A (unverified)                                                                   | Unpack `linux-arm64-unpacked`. Separate pack — not universal                             | Untested    | `pnpm pack:desktop -- --clean --os linux-arm64`  |
+| Desktop | Windows (x64)         | N/A (unverified)                                                                   | Unpack `win-unpacked` (`Fast.exe`). No installer. In development; WSL2 is the daily path | Untested    | `pnpm pack:desktop -- --clean --os win32-x64`    |
+| Mobile  | Android               | N/A (unverified)                                                                   | `adb install` the companion APK, then pair with desktop                                  | Good        | `pnpm pack:mobile`                               |
+| Mobile  | iOS                   | N/A (unverified)                                                                   | Companion via Expo / from source (Xcode, macOS). Pair with desktop. No IPA pack          | Untested    | `pnpm --dir apps/mobile ios`                     |
+| CLI     | macOS (Apple Silicon) | N/A (unverified)                                                                   | Unpack `fast-ink` + `fast-cli` (alias `fast`)                                            | Partial     | `pnpm pack:cli -- --clean --os darwin-arm64`     |
+| CLI     | macOS (Intel)         | N/A (unverified)                                                                   | Same as Apple Silicon. Separate pack                                                     | Untested    | `pnpm pack:cli -- --clean --os darwin-x64`       |
+| CLI     | Linux (glibc x64)     | N/A (unverified)                                                                   | Unpack `fast-ink` + `fast-cli` (alias `fast`). Alpine / musl is not supported            | Untested    | `pnpm pack:cli -- --clean --os linux-x64`        |
+| CLI     | Linux (glibc arm64)   | N/A (unverified)                                                                   | Same as Linux x64. Separate pack                                                         | Untested    | `pnpm pack:cli -- --clean --os linux-arm64`      |
+| CLI     | Windows (x64)         | N/A (unverified)                                                                   | Unpack `cli-win32-x64` (`fast-cli.bat`, alias `fast.bat`). In development                | Untested    | `pnpm pack:cli -- --clean --os win32-x64`        |
+
 
 How packs are built: [1.3 Install from source](#13-install-from-source).
 
 You can get help in the WeChat group or on Discord.
 
-<div align="center">
 
-| WeChat | Discord |
-| :---: | :---: |
-| <img src="docs/community/weichat.jpg" width="220" alt="WeChat group"> | [Join Fast Agent](https://discord.gg/HXeK9QV57) |
 
-</div>
+
+| WeChat                                      | Discord                                         |
+| ------------------------------------------- | ----------------------------------------------- |
+| ![WeChat group](docs/community/weichat.jpg) | [Join Fast Agent](https://discord.gg/HXeK9QV57) |
+
+
+
 
 ### 1.2 How to use the mobile client (experimental, under active development)
 
@@ -89,7 +75,7 @@ FAST_MOBILE_BRIDGE_TOKEN='your-secret' /Applications/Fast.app/Contents/MacOS/Fas
 
 From source: prefix the same variable on `pnpm dev:desktop`. Optional: `FAST_MOBILE_BRIDGE_PORT`.
 
-3. **Pair.** Desktop → Settings → Servers → Mobile pairing. On the phone: Settings → Scan to pair. You can paste the URL and token instead of scanning.
+1. **Pair.** Desktop → Settings → Servers → Mobile pairing. On the phone: Settings → Scan to pair. You can paste the URL and token instead of scanning.
 
 Guest Wi-Fi / client isolation, or a firewall blocking `8787`, will fail the connect. Desktop must stay running.
 
@@ -104,20 +90,20 @@ pnpm fetch-engine                          # host OS
 pnpm fetch-engine -- --clean linux-x64     # Linux x64 tree (or linux-arm64)
 ```
 
-2. **Upload** `modules/engine/current/` to the server. The server needs **JDK 17+**.
-3. **Start the CLI** so it listens on the public interface. Non-loopback binds speak `wss` (TLS; auto-minted cert if you omit `--wss-cert` / `--wss-key`):
+1. **Upload** `modules/engine/current/` to the server. The server needs **JDK 17+**.
+2. **Start the CLI** so it listens on the public interface. Non-loopback binds speak `wss` (TLS; auto-minted cert if you omit `--wss-cert` / `--wss-key`):
 
 ```bash
 ./bin/fast-cli engine --mode bridge --transport unix --wss 0.0.0.0:1979
 ```
 
-4. **Read the token** on the server. Token goes in `Hello.authToken`, not in the URL:
+1. **Read the token** on the server. Token goes in `Hello.authToken`, not in the URL:
 
 ```bash
 cat ~/.fast/run/bridge.token
 ```
 
-5. **Connect from the phone.** Settings → add server URL and token. URL is `wss://<host>:1979/bridge`. The client confirms the TLS fingerprint on its own.
+1. **Connect from the phone.** Settings → add server URL and token. URL is `wss://<host>:1979/bridge`. The client confirms the TLS fingerprint on its own.
 
 Open `1979` (or the port you chose) on the host firewall / security group. Optional: `--wss-cert` / `--wss-key` for your own cert.
 
@@ -129,12 +115,14 @@ The pairing token is full access. Do not screenshot or share it. A lost phone is
 
 ### 1.3 Install from source
 
+
 | Need    | Version                                |
 | ------- | -------------------------------------- |
 | Node.js | 20.19+ or 22                           |
 | pnpm    | 9 (`packageManager` in `package.json`) |
 | JDK     | 17+ (desktop / TUI engine only)        |
 | Maven   | 3.x (desktop / TUI engine only)        |
+
 
 Linux also needs a compiler toolchain for `node-pty` (`build-essential`), GTK/NSS for Electron, and `lsof` / `procps`. Mobile extras (Android SDK, Xcode) only if you run the phone app.
 
@@ -146,26 +134,40 @@ pnpm fetch-engine          # Maven Central → modules/engine/current/
 pnpm pack                  # desktop + CLI + mobile, one JS/engine stage
 ```
 
-That is the main path. Incremental is the default (reuse `current/` if present; it does **not** check OS — use `--clean` after switching host). Do not copy `current/` between machines.
+That is the main path. Incremental is the default: reuse `current/` if `.fast-os` matches. Mismatch fails — use `--clean`. Do not copy `current/` between machines. Engine natives and the Electron binary share `--os`. Not a universal binary.
 
 What `pnpm pack` writes:
 
-- **macOS** — unsigned pkg inside a dmg (`Install Fast.pkg` → `/Applications` + `/usr/local/bin` shims)
-- **Linux** — `dir` unpack (partially tested). Alpine / musl is not supported
-- **Windows** — in development; use WSL2
-- **CLI** — `release/cli` (`fast-ink` + `fast-cli`, alias `fast`)
+- **macOS Apple Silicon** — unsigned `Fast-*-mac-arm64.dmg` (`Install Fast.pkg` → `/Applications` + `/usr/local/bin` shims)
+- **macOS Intel** — unsigned `Fast-*-mac-x64.dmg` (same install). Separate pack
+- **Linux glibc x64** — `linux-unpacked` dir (`--os linux-x64`). Alpine / musl is not supported
+- **Linux glibc arm64** — `linux-arm64-unpacked` dir (`--os linux-arm64`). Separate pack
+- **Windows x64** — `win-unpacked` dir (`--os win32-x64`). No installer. Can pack on macOS; do not run `Fast.exe` there. In development; WSL2 is the daily path
+- **CLI** — `release/cli-darwin-arm64` / `cli-darwin-x64` / `cli-linux-x64` / `cli-linux-arm64` / `cli-win32-x64` (`fast-ink` + `fast-cli`, alias `fast`); `release/cli` → last pack
 - **Android** — `release/fast-mobile-*.apk` (`adb install`). No SDK: skip, exit 0
+- **iOS** — no IPA. `pnpm --dir apps/mobile ios` (`expo run:ios`; Xcode, macOS). Daily: `./dev/mobile.sh --ios`
 
 One product, or a clean rebuild:
 
 ```bash
-pnpm pack:desktop          # host installer only
-pnpm pack:cli              # release/cli only
-pnpm pack:mobile           # APK only
-pnpm pack -- --clean       # refetch engine and restage
+pnpm pack:desktop                              # host installer only
+pnpm pack:desktop -- --clean --os darwin-arm64 # Apple Silicon
+pnpm pack:desktop -- --clean --os darwin-x64   # Intel
+pnpm pack:desktop -- --os darwin-both          # both mac packs (each pass --clean)
+pnpm pack:desktop -- --clean --os linux-x64    # Linux glibc x64 (dir)
+pnpm pack:desktop -- --clean --os linux-arm64  # Linux glibc arm64 (dir)
+pnpm pack:desktop -- --clean --os win32-x64    # Windows x64 (dir)
+pnpm pack:cli -- --os darwin-arm64             # release/cli-darwin-arm64
+pnpm pack:cli -- --os darwin-x64               # release/cli-darwin-x64
+pnpm pack:cli -- --os linux-x64                # release/cli-linux-x64
+pnpm pack:cli -- --os linux-arm64              # release/cli-linux-arm64
+pnpm pack:cli -- --os win32-x64                # release/cli-win32-x64
+pnpm pack:mobile                               # APK only
+pnpm --dir apps/mobile ios                     # iOS (Xcode; no IPA)
+pnpm pack -- --clean                           # refetch engine and restage
 ```
 
-`./build/all.sh` is the same as `pnpm pack`. Each `build/*.sh` has `--help`. Daily `dev/` commands: [2. Development](#2-development).
+`./build/all.sh` is the same as `pnpm pack` (`--os` works there too). Each `build/*.sh` has `--help`. Cross-arch smoke checks `file` and `.fast-os`; do not launch the foreign-arch `.app`, Linux dir, or `Fast.exe`. Daily `dev/` commands: [2. Development](#2-development).
 
 ## 2. Development
 
@@ -184,7 +186,7 @@ pnpm install
 pnpm fetch-engine
 ```
 
-2. **Develop desktop** — start Electron against `current/`. `--mock` is the UI without the engine. `--engine` downloads `current/` first if it is missing.
+1. **Develop desktop** — start Electron against `current/`. `--mock` is the UI without the engine. `--engine` downloads `current/` first if it is missing.
 
 ```bash
 pnpm dev:desktop
@@ -192,14 +194,14 @@ pnpm dev:desktop:mock
 ./dev/desktop.sh --engine
 ```
 
-3. **Develop TUI** — start `fast-ink` against the same `current/`.
+1. **Develop TUI** — start `fast-ink` against the same `current/`.
 
 ```bash
 pnpm dev:tui
 ./dev/tui.sh --engine
 ```
 
-4. **Develop mobile** — start Expo / Metro. Add `--android` or `--ios` to open a device.
+1. **Develop mobile** — start Expo / Metro. Add `--android` or `--ios` to open a device.
 
 ```bash
 pnpm dev:mobile
@@ -207,7 +209,7 @@ pnpm dev:mobile
 ./dev/mobile.sh --ios
 ```
 
-5. **Refresh the engine** — only after you switch OS, or if `current/` is the wrong architecture.
+1. **Refresh the engine** — only after you switch OS, or if `current/` is the wrong architecture.
 
 ```bash
 pnpm fetch-engine -- --clean
@@ -217,19 +219,21 @@ pnpm fetch-engine -- --clean
 
 Full list. Packing installers is [1.3 Install from source](#13-install-from-source); here you usually run `dev:*`, then tests.
 
-| Script                         | What it does                                                 |
-| ------------------------------ | ------------------------------------------------------------ |
-| `pnpm fetch-engine`            | Maven Central `ai.fastllm` 0.3.0 → `modules/engine/current/` |
-| `pnpm dev:desktop`             | `./dev/desktop.sh` — Electron against `current/`             |
-| `pnpm dev:desktop:mock`        | `./dev/desktop.sh --mock` — UI only                          |
-| `pnpm dev:tui`                 | `./dev/tui.sh` — `fast-ink` against `current/`               |
-| `pnpm dev:mobile`              | `./dev/mobile.sh` — Expo (`--android` / `--ios`)             |
-| `pnpm pack`                    | CLI + desktop + mobile (`build/all.sh`, one JS/engine stage) |
-| `pnpm pack:desktop`            | Host installer: macOS pkg/dmg; Linux `dir` (partial); Windows in development |
-| `pnpm pack:cli`                | Relocatable `release/cli` (engine + TUI, no Electron)        |
-| `pnpm pack:mobile`             | Android APK; skips (exit 0) if JDK/SDK missing               |
-| `pnpm build`                   | Compile TypeScript packages — not `build/*.sh`               |
-| `pnpm test` / `pnpm typecheck` | Workspace tests / types                                      |
+
+| Script                         | What it does                                                                                                                                                              |
+| ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `pnpm fetch-engine`            | Maven Central `ai.fastllm` 0.3.0 → `modules/engine/current/`                                                                                                              |
+| `pnpm dev:desktop`             | `./dev/desktop.sh` — Electron against `current/`                                                                                                                          |
+| `pnpm dev:desktop:mock`        | `./dev/desktop.sh --mock` — UI only                                                                                                                                       |
+| `pnpm dev:tui`                 | `./dev/tui.sh` — `fast-ink` against `current/`                                                                                                                            |
+| `pnpm dev:mobile`              | `./dev/mobile.sh` — Expo (`--android` / `--ios`)                                                                                                                          |
+| `pnpm pack`                    | CLI + desktop + mobile (`build/all.sh`). `--os` selects arch                                                                                                              |
+| `pnpm pack:desktop`            | Host or `--os` installer. macOS: `Fast-*-mac-arm64.dmg` / `Fast-*-mac-x64.dmg`. Linux: `linux-unpacked` / `linux-arm64-unpacked`. Windows: `win-unpacked` (not universal) |
+| `pnpm pack:cli`                | Relocatable `cli-darwin-arm64` / `cli-darwin-x64` / `cli-linux-x64` / `cli-linux-arm64` / `cli-win32-x64` (`release/cli` → last)                                          |
+| `pnpm pack:mobile`             | Android APK; skips (exit 0) if JDK/SDK missing                                                                                                                            |
+| `pnpm build`                   | Compile TypeScript packages — not `build/*.sh`                                                                                                                            |
+| `pnpm test` / `pnpm typecheck` | Workspace tests / types                                                                                                                                                   |
+
 
 Before a PR, run tests and types. TUI unix e2e walks up to `current/bin/fast-cli`. On Linux, set `LANG=C.UTF-8` if the TUI shows tofu instead of CJK.
 
@@ -291,12 +295,7 @@ Desktop — projects, session, and the local engine.
 
 TUI (`fast-ink`) — same engine over a unix Bridge.
 
-<p align="center">
-  <img src="docs/screenshots/mobile1.jpg" alt="Mobile session" width="24%">
-  <img src="docs/screenshots/mobile2.jpg" alt="Mobile settings, light" width="24%">
-  <img src="docs/screenshots/mobile3.jpg" alt="Mobile settings, dark" width="24%">
-  <img src="docs/screenshots/mobile4.jpg" alt="Mobile theme palettes" width="24%">
-</p>
+![Mobile session](docs/screenshots/mobile1.jpg)![Mobile settings, light](docs/screenshots/mobile2.jpg)![Mobile settings, dark](docs/screenshots/mobile3.jpg)![Mobile theme palettes](docs/screenshots/mobile4.jpg)
 
 Mobile — companion client: session, desktop Bridge pairing, and themes.
 
@@ -304,15 +303,17 @@ Mobile — companion client: session, desktop Bridge pairing, and themes.
 
 Use whichever channel you prefer for usage questions, development, and project updates.
 
-<div align="center">
 
-| WeChat |
-| :---: |
-| <img src="docs/community/weichat.jpg" width="220" alt="WeChat group"> |
+
+
+| WeChat                                      |
+| ------------------------------------------- |
+| ![WeChat group](docs/community/weichat.jpg) |
+
 
 Discord: [Join Fast Agent](https://discord.gg/HXeK9QV57)
 
-</div>
+
 
 ## 5. License
 

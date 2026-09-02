@@ -51,14 +51,20 @@ v0.0.1 预发布。**macOS** 是主路径。**Windows** 原生开发中。安装
 
 ### 1.1 直接下载
 
-| 平台 | 下载 | 安装方式 | 测试状态 |
-| --- | --- | --- | --- |
-| macOS | [下载 DMG](https://github.com/kai2002/fast/releases/latest) | 打开 DMG，运行 `Install Fast.pkg` → `/Applications` + `/usr/local/bin` shim | 较好 |
-| Linux（glibc，x64 / arm64） | [下载](https://github.com/kai2002/fast/releases/latest) | 解压 `dir` 包。不支持 Alpine / musl | 未测试 |
-| Windows | — | 开发中。请用 WSL2，按 Linux 对待 | 未测试 |
-| Android | [下载 APK](https://github.com/kai2002/fast/releases/latest) | `adb install` 配套 APK，再与桌面配对 | 较好 |
-| iOS | — | 配套客户端，走 Expo / 源码；与桌面配对 | 未测试 |
-| CLI（TUI） | [下载](https://github.com/kai2002/fast/releases/latest) | 解压 `fast-ink` + `fast-cli`（别名 `fast`） | 部分 |
+| 类型 | 平台 | 下载 | 安装方式 | 测试状态 | 构建命令 |
+| --- | --- | --- | --- | --- | --- |
+| 桌面 | macOS（Apple Silicon） | [下载 `Fast-*-mac-arm64.dmg`](https://github.com/kai2002/fast/releases/latest) | 打开 DMG，运行 `Install Fast.pkg` → `/Applications` + `/usr/local/bin` shim | 较好 | `pnpm pack:desktop -- --clean --os darwin-arm64` |
+| 桌面 | macOS（Intel） | [下载 `Fast-*-mac-x64.dmg`](https://github.com/kai2002/fast/releases/latest) | 与 Apple Silicon 相同。独立包，不是 universal | 未测试 | `pnpm pack:desktop -- --clean --os darwin-x64` |
+| 桌面 | Linux（glibc x64） | N/A（未验证） | 解压 `linux-unpacked`。不支持 Alpine / musl | 未测试 | `pnpm pack:desktop -- --clean --os linux-x64` |
+| 桌面 | Linux（glibc arm64） | N/A（未验证） | 解压 `linux-arm64-unpacked`。独立包，不是 universal | 未测试 | `pnpm pack:desktop -- --clean --os linux-arm64` |
+| 桌面 | Windows（x64） | N/A（未验证） | 解压 `win-unpacked`（`Fast.exe`）。没有安装包。开发中；日常请用 WSL2 | 未测试 | `pnpm pack:desktop -- --clean --os win32-x64` |
+| 移动端 | Android | N/A（未验证） | `adb install` 配套 APK，再与桌面配对 | 较好 | `pnpm pack:mobile` |
+| 移动端 | iOS | N/A（未验证） | 配套客户端，走 Expo / 源码（Xcode，macOS）。与桌面配对。没有 IPA | 未测试 | `pnpm --dir apps/mobile ios` |
+| CLI | macOS（Apple Silicon） | N/A（未验证） | 解压 `fast-ink` + `fast-cli`（别名 `fast`） | 部分 | `pnpm pack:cli -- --clean --os darwin-arm64` |
+| CLI | macOS（Intel） | N/A（未验证） | 与 Apple Silicon 相同。独立包 | 未测试 | `pnpm pack:cli -- --clean --os darwin-x64` |
+| CLI | Linux（glibc x64） | N/A（未验证） | 解压 `fast-ink` + `fast-cli`（别名 `fast`）。不支持 Alpine / musl | 未测试 | `pnpm pack:cli -- --clean --os linux-x64` |
+| CLI | Linux（glibc arm64） | N/A（未验证） | 与 Linux x64 相同。独立包 | 未测试 | `pnpm pack:cli -- --clean --os linux-arm64` |
+| CLI | Windows（x64） | N/A（未验证） | 解压 `cli-win32-x64`（`fast-cli.bat`，别名 `fast.bat`）。开发中 | 未测试 | `pnpm pack:cli -- --clean --os win32-x64` |
 
 打包方式见 [1.3 通过源码安装](#13-通过源码安装)。
 
@@ -146,26 +152,40 @@ pnpm fetch-engine          # Maven Central → modules/engine/current/
 pnpm pack                  # 桌面 + CLI + 手机，JS/引擎只 stage 一次
 ```
 
-这是主路径。默认为增量（已有 `current/` 就复用；**不检查 OS** — 换主机后用 `--clean`）。不要在机器之间拷贝 `current/`。
+这是主路径。默认为增量：`.fast-os` 一致才复用 `current/`，不一致则失败 — 用 `--clean`。不要在机器之间拷贝 `current/`。引擎 native 与 Electron 二进制共用 `--os`。不是 universal。
 
 `pnpm pack` 的产物：
 
-- **macOS** — dmg 里未签名 pkg（`Install Fast.pkg` → `/Applications` + `/usr/local/bin` shim）
-- **Linux** — 解压 `dir`（部分测试）。不支持 Alpine / musl
-- **Windows** — 开发中；请用 WSL2
-- **CLI** — `release/cli`（`fast-ink` + `fast-cli`，别名 `fast`）
+- **macOS Apple Silicon** — 未签名 `Fast-*-mac-arm64.dmg`（`Install Fast.pkg` → `/Applications` + `/usr/local/bin` shim）
+- **macOS Intel** — 未签名 `Fast-*-mac-x64.dmg`（安装方式相同）。独立包
+- **Linux glibc x64** — `linux-unpacked`（`--os linux-x64`）。不支持 Alpine / musl
+- **Linux glibc arm64** — `linux-arm64-unpacked`（`--os linux-arm64`）。独立包
+- **Windows x64** — `win-unpacked`（`--os win32-x64`）。没有安装包。可在 macOS 上打，不要在那里跑 `Fast.exe`。开发中；日常请用 WSL2
+- **CLI** — `release/cli-darwin-arm64` / `cli-darwin-x64` / `cli-linux-x64` / `cli-linux-arm64` / `cli-win32-x64`（`fast-ink` + `fast-cli`，别名 `fast`）；`release/cli` → 最近一次产物
 - **Android** — `release/fast-mobile-*.apk`（`adb install`）。没有 SDK：跳过，exit 0
+- **iOS** — 没有 IPA。`pnpm --dir apps/mobile ios`（`expo run:ios`；Xcode，macOS）。日常：`./dev/mobile.sh --ios`
 
 只打一个产品，或干净重打：
 
 ```bash
-pnpm pack:desktop          # 只打本机安装包
-pnpm pack:cli              # 只打 release/cli
-pnpm pack:mobile           # 只打 APK
-pnpm pack -- --clean       # 重新拉引擎并 restage
+pnpm pack:desktop                              # 只打本机安装包
+pnpm pack:desktop -- --clean --os darwin-arm64 # Apple Silicon
+pnpm pack:desktop -- --clean --os darwin-x64   # Intel
+pnpm pack:desktop -- --os darwin-both          # 两个 mac 包（每轮 --clean）
+pnpm pack:desktop -- --clean --os linux-x64    # Linux glibc x64（dir）
+pnpm pack:desktop -- --clean --os linux-arm64  # Linux glibc arm64（dir）
+pnpm pack:desktop -- --clean --os win32-x64    # Windows x64（dir）
+pnpm pack:cli -- --os darwin-arm64             # release/cli-darwin-arm64
+pnpm pack:cli -- --os darwin-x64               # release/cli-darwin-x64
+pnpm pack:cli -- --os linux-x64                # release/cli-linux-x64
+pnpm pack:cli -- --os linux-arm64              # release/cli-linux-arm64
+pnpm pack:cli -- --os win32-x64                # release/cli-win32-x64
+pnpm pack:mobile                               # 只打 APK
+pnpm --dir apps/mobile ios                     # iOS（Xcode；没有 IPA）
+pnpm pack -- --clean                           # 重新拉引擎并 restage
 ```
 
-`./build/all.sh` 与 `pnpm pack` 等价。每个 `build/*.sh` 都有 `--help`。日常 `dev/` 命令见 [2. 开发](#2-开发)。
+`./build/all.sh` 与 `pnpm pack` 等价（同样支持 `--os`）。每个 `build/*.sh` 都有 `--help`。跨架构打包的 smoke 只检查 `file` 和 `.fast-os`，不要启动另一架构的 `.app`、Linux dir 或 `Fast.exe`。日常 `dev/` 命令见 [2. 开发](#2-开发)。
 
 ## 2. 开发
 
@@ -224,9 +244,9 @@ pnpm fetch-engine -- --clean
 | `pnpm dev:desktop:mock`        | `./dev/desktop.sh --mock` — 仅 UI                            |
 | `pnpm dev:tui`                 | `./dev/tui.sh` — `fast-ink` 对 `current/`                    |
 | `pnpm dev:mobile`              | `./dev/mobile.sh` — Expo（`--android` / `--ios`）            |
-| `pnpm pack`                    | CLI + 桌面 + 手机（`build/all.sh`，JS/引擎只 stage 一次）    |
-| `pnpm pack:desktop`            | 本机安装包：macOS pkg/dmg；Linux `dir`（部分测试）；Windows 开发中 |
-| `pnpm pack:cli`                | 可挪走的 `release/cli`（引擎 + TUI，无 Electron）            |
+| `pnpm pack`                    | CLI + 桌面 + 手机（`build/all.sh`）。`--os` 选架构           |
+| `pnpm pack:desktop`            | 本机或 `--os` 安装包。macOS：`Fast-*-mac-arm64.dmg` / `Fast-*-mac-x64.dmg`。Linux：`linux-unpacked` / `linux-arm64-unpacked`。Windows：`win-unpacked`（不是 universal） |
+| `pnpm pack:cli`                | 可挪走的 `cli-darwin-arm64` / `cli-darwin-x64` / `cli-linux-x64` / `cli-linux-arm64` / `cli-win32-x64`（`release/cli` → 最近一次） |
 | `pnpm pack:mobile`             | Android APK；缺 JDK/SDK 则跳过（exit 0）                     |
 | `pnpm build`                   | 编译 TypeScript 包 — 不是 `build/*.sh`                       |
 | `pnpm test` / `pnpm typecheck` | 工作区测试 / 类型检查                                        |

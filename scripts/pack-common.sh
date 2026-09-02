@@ -55,9 +55,21 @@ canonical_engine_os() {
 		windows|win32) echo win32-x64 ;;
 		darwin-arm64|darwin-x64|linux-x64|linux-arm64|win32-x64) echo "$id" ;;
 		*)
-			echo "unknown --os $id (darwin|linux|windows|darwin-arm64|darwin-x64|linux-x64|linux-arm64|win32-x64)" >&2
+			echo "unknown --os $id (darwin|linux|windows|darwin-arm64|darwin-x64|darwin-both|linux-x64|linux-arm64|win32-x64)" >&2
 			return 1
 			;;
+	esac
+}
+
+# One concrete engine/Electron id. Empty FAST_BUILD_OS → host.
+resolved_os() {
+	canonical_engine_os "${FAST_BUILD_OS:-}"
+}
+
+electron_cpu() {
+	case "${1:-}" in
+		*-arm64) echo arm64 ;;
+		*) echo x64 ;;
 	esac
 }
 
@@ -68,6 +80,49 @@ electron_platform() {
 		win32-*) echo win ;;
 		*) echo darwin ;;
 	esac
+}
+
+mac_unpacked_app() {
+	case "${1:-}" in
+		darwin-arm64) echo "$root/apps/desktop/release/mac-arm64/Fast.app" ;;
+		darwin-x64) echo "$root/apps/desktop/release/mac/Fast.app" ;;
+		*) echo "" ;;
+	esac
+}
+
+cli_pack_dir() {
+	echo "$root/release/cli-$(resolved_os)"
+}
+
+linux_unpacked_dir() {
+	case "${1:-}" in
+		linux-arm64) echo "$root/apps/desktop/release/linux-arm64-unpacked" ;;
+		linux-x64) echo "$root/apps/desktop/release/linux-unpacked" ;;
+		*) echo "" ;;
+	esac
+}
+
+# Run $1 once per pack target. darwin-both → arm64 then x64, each pass --clean.
+for_each_pack_os() {
+	local fn="$1"
+	local saved_os="${FAST_BUILD_OS:-}"
+	local saved_mode="${FAST_BUILD_MODE:-incremental}"
+	local targets=()
+	local t
+	if [[ "$saved_os" == darwin-both ]]; then
+		targets=(darwin-arm64 darwin-x64)
+	else
+		targets=("$saved_os")
+	fi
+	for t in "${targets[@]}"; do
+		FAST_BUILD_OS="$t"
+		if [[ "$saved_os" == darwin-both ]]; then
+			FAST_BUILD_MODE=clean
+		fi
+		"$fn"
+	done
+	FAST_BUILD_OS="$saved_os"
+	FAST_BUILD_MODE="$saved_mode"
 }
 
 node_at_least_2019() {
@@ -99,14 +154,12 @@ ensure_engine() {
 	local dest="$root/modules/engine/current"
 	local marker="$dest/.fast-os"
 	local want="" have="" cli=""
-	if [[ -n "${FAST_BUILD_OS:-}" ]]; then
-		want="$(canonical_engine_os "$FAST_BUILD_OS")" || exit 1
-	fi
+	want="$(resolved_os)" || exit 1
 	if engine_cli_path "$dest" >/dev/null && [[ "${FAST_BUILD_MODE:-incremental}" != clean ]]; then
 		normalize_engine_bin "$dest"
 		cli="$(engine_cli_path "$dest")"
 		have="$(cat "$marker" 2>/dev/null || true)"
-		if [[ -n "$want" && -n "$have" && "$have" != "$want" ]]; then
+		if [[ -n "$have" && "$have" != "$want" ]]; then
 			echo "modules/engine/current is $have; --os $want needs --clean" >&2
 			exit 1
 		fi
@@ -119,9 +172,7 @@ ensure_engine() {
 	else
 		fetch_args+=(--incremental)
 	fi
-	if [[ -n "$want" ]]; then
-		fetch_args+=("$want")
-	fi
+	fetch_args+=("$want")
 	"$root/scripts/fetch-engine.sh" "${fetch_args[@]}"
 }
 
@@ -140,31 +191,42 @@ stage() {
 }
 
 pack_cli() {
-	local dest="$root/release/cli"
+	local dest link
+	dest="$(cli_pack_dir)"
+	link="$root/release/cli"
 	rm -rf "$dest"
 	mkdir -p "$dest"
 	cp -R "$root/staging/pack/." "$dest/"
 	chmod +x "$dest/bin/fast-cli" "$dest/bin/fast" "$dest/bin/fast-ink" "$dest/engine/bin/fast-cli" 2>/dev/null || true
+	mkdir -p "$root/release"
+	rm -rf "$link"
+	ln -sfn "$(basename "$dest")" "$link"
 	echo "CLI pack -> $dest"
 	echo "  $dest/bin/fast-ink"
 	echo "  $dest/bin/fast-cli"
 	echo "  $dest/bin/fast"
+	echo "  $link -> $(basename "$dest")"
 }
 
 clear_mac_out() {
-	local dir="$root/apps/desktop/release/mac"
+	local eos="${1:-}"
+	local dir bak
+	case "$eos" in
+		darwin-arm64) dir="$root/apps/desktop/release/mac-arm64" ;;
+		*) dir="$root/apps/desktop/release/mac" ;;
+	esac
 	[[ -e "$dir" ]] || return 0
 	chmod -R u+w "$dir" 2>/dev/null || true
 	if rm -rf "$dir" 2>/dev/null; then
 		return 0
 	fi
-	local bak="$root/apps/desktop/release/mac.bak.$$"
+	bak="${dir}.bak.$$"
 	if mv "$dir" "$bak" 2>/dev/null; then
-		echo "release/mac in use; moved aside -> $bak"
+		echo "$dir in use; moved aside -> $bak"
 		rm -rf "$bak" 2>/dev/null || echo "leave $bak (quit Fast.app to delete)"
 		return 0
 	fi
-	echo "cannot clear $dir (quit Fast.app launched from release/mac)" >&2
+	echo "cannot clear $dir (quit Fast.app launched from that folder)" >&2
 	lsof +D "$dir" 2>/dev/null | awk 'NR==1 || /Fast|java|Electron/' | head -20 >&2 || true
 	exit 1
 }
@@ -179,16 +241,13 @@ pack_desktop() {
 		export ELECTRON_MIRROR=https://npmmirror.com/mirrors/electron/
 		export npm_config_electron_mirror=https://npmmirror.com/mirrors/electron/
 	fi
-	local eos platform
-	if [[ -n "${FAST_BUILD_OS:-}" ]]; then
-		eos="$(canonical_engine_os "$FAST_BUILD_OS")" || exit 1
-	else
-		eos="$(host_os)"
-	fi
+	local eos platform cpu
+	eos="$(resolved_os)" || exit 1
 	platform="$(electron_platform "$eos")"
+	cpu="$(electron_cpu "$eos")"
 	ensure_modern_node
 	if [[ "$platform" == darwin ]]; then
-		clear_mac_out
+		clear_mac_out "$eos"
 	fi
 	(
 		cd "$root/apps/desktop"
@@ -198,16 +257,30 @@ pack_desktop() {
 		pnpm exec electron-vite build
 		node scripts/pack/vendor-npm.mjs
 		case "$platform" in
-			darwin) CSC_IDENTITY_AUTO_DISCOVERY=false pnpm exec electron-builder --config electron-builder.yml --mac pkg ;;
-			linux) CSC_IDENTITY_AUTO_DISCOVERY=false pnpm exec electron-builder --config electron-builder.yml --linux dir ;;
+			darwin) CSC_IDENTITY_AUTO_DISCOVERY=false pnpm exec electron-builder --config electron-builder.yml --mac pkg "--$cpu" ;;
+			linux) CSC_IDENTITY_AUTO_DISCOVERY=false pnpm exec electron-builder --config electron-builder.yml --linux dir "--$cpu" ;;
 			win) CSC_IDENTITY_AUTO_DISCOVERY=false pnpm exec electron-builder --config electron-builder.yml --win dir ;;
 		esac
 	)
 	local app pkg dmg unpacked res
-	app="$(find "$root/apps/desktop/release" -name 'Fast.app' -type d -print -quit 2>/dev/null || true)"
-	pkg="$(find "$root/apps/desktop/release" -maxdepth 1 -name '*.pkg' -print -quit 2>/dev/null || true)"
-	dmg="$(find "$root/apps/desktop/release" -maxdepth 1 -name '*.dmg' -print -quit 2>/dev/null || true)"
-	unpacked="$(find "$root/apps/desktop/release" -maxdepth 1 -type d -name '*unpacked' -print -quit 2>/dev/null || true)"
+	if [[ "$platform" == darwin ]]; then
+		app="$(mac_unpacked_app "$eos")"
+		[[ -d "$app" ]] || app=""
+		pkg="$(find "$root/apps/desktop/release" -maxdepth 1 -name "*-mac-${cpu}.pkg" -print -quit 2>/dev/null || true)"
+		dmg="$(find "$root/apps/desktop/release" -maxdepth 1 -name "*-mac-${cpu}.dmg" -print -quit 2>/dev/null || true)"
+		unpacked=""
+	elif [[ "$platform" == linux ]]; then
+		app=""
+		pkg=""
+		dmg=""
+		unpacked="$(linux_unpacked_dir "$eos")"
+		[[ -d "$unpacked" ]] || unpacked=""
+	else
+		app="$(find "$root/apps/desktop/release" -name 'Fast.app' -type d -print -quit 2>/dev/null || true)"
+		pkg="$(find "$root/apps/desktop/release" -maxdepth 1 -name '*.pkg' -print -quit 2>/dev/null || true)"
+		dmg="$(find "$root/apps/desktop/release" -maxdepth 1 -name '*.dmg' -print -quit 2>/dev/null || true)"
+		unpacked="$(find "$root/apps/desktop/release" -maxdepth 1 -type d -name '*unpacked' -print -quit 2>/dev/null || true)"
+	fi
 	if [[ -n "$app" ]]; then
 		app="$(cd "$app" && pwd)"
 		res="$app/Contents/Resources"
@@ -237,7 +310,8 @@ pack_desktop() {
 }
 
 smoke_cli() {
-	local dest="$root/release/cli"
+	local dest engine_os
+	dest="$(cli_pack_dir)"
 	[[ -x "$dest/bin/fast-cli" || -f "$dest/bin/fast-cli" ]] || {
 		echo "smoke: missing $dest/bin/fast-cli" >&2
 		exit 1
@@ -254,16 +328,38 @@ smoke_cli() {
 		echo "smoke: staged session-view not linked" >&2
 		exit 1
 	}
+	engine_os="$(tr -d '[:space:]' <"$dest/engine/.fast-os" 2>/dev/null || true)"
+	[[ "$engine_os" == "$(resolved_os)" ]] || {
+		echo "smoke: $dest engine is ${engine_os:-unknown}; expected $(resolved_os)" >&2
+		exit 1
+	}
 	(cd "$dest/tui" && node --input-type=module -e "import '@fast-ide/session-view'; import '@fastllm/bridge-client'")
-	echo "CLI smoke ok"
+	echo "CLI smoke ok ($dest)"
 }
 
 smoke_desktop() {
-	local app pkg dmg unpacked
-	app="$(find "$root/apps/desktop/release" -name 'Fast.app' -type d -print -quit 2>/dev/null || true)"
-	pkg="$(find "$root/apps/desktop/release" -maxdepth 1 -name '*.pkg' -print -quit 2>/dev/null || true)"
-	dmg="$(find "$root/apps/desktop/release" -maxdepth 1 -name '*.dmg' -print -quit 2>/dev/null || true)"
-	unpacked="$(find "$root/apps/desktop/release" -maxdepth 1 -type d -name '*unpacked' -print -quit 2>/dev/null || true)"
+	local app pkg dmg unpacked eos platform cpu
+	eos="$(resolved_os)" || exit 1
+	platform="$(electron_platform "$eos")"
+	cpu="$(electron_cpu "$eos")"
+	if [[ "$platform" == darwin ]]; then
+		app="$(mac_unpacked_app "$eos")"
+		[[ -d "$app" ]] || app=""
+		pkg="$(find "$root/apps/desktop/release" -maxdepth 1 -name "*-mac-${cpu}.pkg" -print -quit 2>/dev/null || true)"
+		dmg="$(find "$root/apps/desktop/release" -maxdepth 1 -name "*-mac-${cpu}.dmg" -print -quit 2>/dev/null || true)"
+		unpacked=""
+	elif [[ "$platform" == linux ]]; then
+		app=""
+		pkg=""
+		dmg=""
+		unpacked="$(linux_unpacked_dir "$eos")"
+		[[ -d "$unpacked" ]] || unpacked=""
+	else
+		app="$(find "$root/apps/desktop/release" -name 'Fast.app' -type d -print -quit 2>/dev/null || true)"
+		pkg="$(find "$root/apps/desktop/release" -maxdepth 1 -name '*.pkg' -print -quit 2>/dev/null || true)"
+		dmg="$(find "$root/apps/desktop/release" -maxdepth 1 -name '*.dmg' -print -quit 2>/dev/null || true)"
+		unpacked="$(find "$root/apps/desktop/release" -maxdepth 1 -type d -name '*unpacked' -print -quit 2>/dev/null || true)"
+	fi
 	if [[ -z "$app" ]]; then
 		if [[ -n "$unpacked" ]] && {
 			[[ -f "$unpacked/resources/engine/bin/fast-cli" ]] ||
@@ -286,6 +382,27 @@ smoke_desktop() {
 		echo "smoke: packaged engine missing" >&2
 		exit 1
 	}
+	local engine_os bin_info
+	engine_os="$(tr -d '[:space:]' <"$res/engine/.fast-os" 2>/dev/null || true)"
+	[[ "$engine_os" == "$eos" ]] || {
+		echo "smoke: packaged engine is ${engine_os:-unknown}; expected $eos" >&2
+		exit 1
+	}
+	bin_info="$(file "$app/Contents/MacOS/Fast" 2>/dev/null || true)"
+	case "$eos" in
+		darwin-arm64)
+			[[ "$bin_info" == *arm64* ]] || {
+				echo "smoke: Fast.app is not arm64 ($bin_info)" >&2
+				exit 1
+			}
+			;;
+		darwin-x64)
+			[[ "$bin_info" == *x86_64* ]] || {
+				echo "smoke: Fast.app is not x86_64 ($bin_info)" >&2
+				exit 1
+			}
+			;;
+	esac
 	[[ -x "$res/bin/fast-ink" || -f "$res/bin/fast-ink" ]] || {
 		echo "smoke: packaged fast-ink shim missing" >&2
 		exit 1
