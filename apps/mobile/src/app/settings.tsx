@@ -1,9 +1,10 @@
 import { LOCALE_NATIVE_NAME, SUPPORTED, type LocalePref } from '@fast-ide/i18n/browser';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Alert, Modal, Pressable, ScrollView, TextInput, View, Text } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 
+import { formatCopy } from '@/bridge/copy';
 import { parsePairingPayload } from '@/bridge/pairing';
 import { bridgeStore } from '@/bridge/store';
 import { loadBridgeConfig, type SavedServer } from '@/bridge/config';
@@ -29,9 +30,21 @@ export default function SettingsScreen() {
   const [servers, setServers] = useState<SavedServer[]>([]);
   const [activeServerId, setActiveServerId] = useState<string | null>(null);
 
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [newUrl, setNewUrl] = useState('');
   const [newToken, setNewToken] = useState('');
   const [newLabel, setNewLabel] = useState('');
+  const [newFingerprint, setNewFingerprint] = useState('');
+  const [testing, setTesting] = useState(false);
+  const shownPendingFp = useRef<string | null>(null);
+
+  const clearDraft = () => {
+    setEditingId(null);
+    setNewUrl('');
+    setNewToken('');
+    setNewLabel('');
+    setNewFingerprint('');
+  };
 
   const refreshServers = async () => {
     const config = await loadBridgeConfig();
@@ -42,6 +55,36 @@ export default function SettingsScreen() {
   useEffect(() => {
     refreshServers();
   }, [snapshot.connection]);
+
+  useEffect(() => {
+    const pending = snapshot.pendingFingerprint;
+    if (!pending) {
+      shownPendingFp.current = null;
+      return;
+    }
+    const key = `${pending.serverId}:${pending.fingerprint}`;
+    if (shownPendingFp.current === key) return;
+    shownPendingFp.current = key;
+    Alert.alert(
+      alertT('mobile.settings.fingerprintTitle'),
+      alertT('mobile.pairing.confirmFingerprint', { fingerprint: pending.fingerprint }),
+      [
+        {
+          text: alertT('mobile.settings.rejectFingerprint'),
+          style: 'cancel',
+          onPress: () => {
+            void bridgeStore.confirmFingerprint(false);
+          }
+        },
+        {
+          text: alertT('mobile.settings.saveFingerprint'),
+          onPress: () => {
+            void bridgeStore.confirmFingerprint(true).then(refreshServers);
+          }
+        }
+      ]
+    );
+  }, [snapshot.pendingFingerprint]);
 
   const handleBarCodeScanned = async ({ data }: { data: string }) => {
     setScannerOpen(false);
@@ -72,32 +115,132 @@ export default function SettingsScreen() {
     setScannerOpen(true);
   };
 
+  const draft = () => ({
+    serverUrl: newUrl.trim(),
+    token: newToken.trim(),
+    fingerprint: newFingerprint.trim() || undefined
+  });
+
+  const persistServer = async (fingerprint?: string) => {
+    await bridgeStore.saveServer({
+      id: editingId ?? `srv-${Date.now()}`,
+      serverUrl: newUrl.trim(),
+      token: newToken.trim(),
+      label: newLabel.trim(),
+      fingerprint: fingerprint ?? (newFingerprint.trim() || undefined)
+    });
+    clearDraft();
+    setShowAddServer(false);
+    await refreshServers();
+  };
+
+  const askFingerprint = (fingerprint: string, onSave: () => void) => {
+    Alert.alert(
+      alertT('mobile.settings.fingerprintTitle'),
+      alertT('mobile.pairing.confirmFingerprint', { fingerprint }),
+      [
+        { text: alertT('mobile.settings.rejectFingerprint'), style: 'cancel' },
+        { text: alertT('mobile.settings.saveFingerprint'), onPress: onSave }
+      ]
+    );
+  };
+
+  const handleTest = async () => {
+    if (!newUrl.trim() || !newToken.trim()) {
+      Alert.alert(alertT('mobile.settings.fillTitle'), alertT('mobile.settings.fillBody'));
+      return;
+    }
+    setTesting(true);
+    try {
+      const result = await bridgeStore.testConnection(draft());
+      if (result.detail.code === 'confirmFingerprint' && result.fingerprint) {
+        askFingerprint(result.fingerprint, () => {
+          setNewFingerprint(result.fingerprint ?? '');
+          Alert.alert(alertT('mobile.settings.fingerprintSaved'), result.fingerprint);
+        });
+        return;
+      }
+      Alert.alert(
+        alertT(result.ok ? 'mobile.settings.testOkTitle' : 'mobile.settings.testFailTitle'),
+        formatCopy(alertT, result.detail)
+      );
+    } finally {
+      setTesting(false);
+    }
+  };
+
+  const handleTestServer = async (server: SavedServer) => {
+    setTesting(true);
+    try {
+      const result = await bridgeStore.testConnection(server);
+      if (result.detail.code === 'confirmFingerprint' && result.fingerprint) {
+        askFingerprint(result.fingerprint, () => {
+          void bridgeStore
+            .saveServer({...server, fingerprint: result.fingerprint})
+            .then(refreshServers);
+        });
+        return;
+      }
+      Alert.alert(
+        alertT(result.ok ? 'mobile.settings.testOkTitle' : 'mobile.settings.testFailTitle'),
+        formatCopy(alertT, result.detail)
+      );
+    } finally {
+      setTesting(false);
+    }
+  };
+
   const handleManualAdd = async () => {
     if (!newUrl.trim() || !newToken.trim()) {
       Alert.alert(alertT('mobile.settings.fillTitle'), alertT('mobile.settings.fillBody'));
       return;
     }
-    await bridgeStore.saveServer({
-      id: `srv-${Date.now()}`,
-      serverUrl: newUrl.trim(),
-      token: newToken.trim(),
-      label: newLabel.trim()
-    });
-    setNewUrl('');
-    setNewToken('');
-    setNewLabel('');
-    setShowAddServer(false);
-    await refreshServers();
+    setTesting(true);
+    try {
+      const result = await bridgeStore.testConnection(draft());
+      if (result.detail.code === 'confirmFingerprint' && result.fingerprint) {
+        askFingerprint(result.fingerprint, () => {
+          void persistServer(result.fingerprint);
+        });
+        return;
+      }
+      if (!result.ok) {
+        Alert.alert(alertT('mobile.settings.testFailTitle'), formatCopy(alertT, result.detail));
+        return;
+      }
+      await persistServer();
+    } finally {
+      setTesting(false);
+    }
   };
 
   const handleDeleteServer = async (id: string) => {
+    if (editingId === id) {
+      clearDraft();
+      setShowAddServer(false);
+    }
     await bridgeStore.deleteServer(id);
     await refreshServers();
   };
 
-  const handleSelectServer = async (id: string) => {
-    await bridgeStore.setActiveServer(id);
+  const handleOpenServer = async (server: SavedServer) => {
+    setEditingId(server.id);
+    setNewLabel(server.label);
+    setNewUrl(server.serverUrl);
+    setNewToken(server.token);
+    setNewFingerprint(server.fingerprint ?? '');
+    setShowAddServer(true);
+    await bridgeStore.setActiveServer(server.id);
     await refreshServers();
+  };
+
+  const toggleManualForm = () => {
+    if (showAddServer && !editingId) {
+      setShowAddServer(false);
+      return;
+    }
+    clearDraft();
+    setShowAddServer(true);
   };
 
   const isConnected = snapshot.connection === 'open';
@@ -153,12 +296,15 @@ export default function SettingsScreen() {
                 <View className="mt-4 gap-2 border-t border-border/50 pt-3">
                   {servers.map((server) => {
                     const isSelected = server.id === activeServerId;
+                    const isEditing = server.id === editingId;
                     return (
                       <Pressable
                         key={server.id}
-                        onPress={() => handleSelectServer(server.id)}
+                        onPress={() => {
+                          void handleOpenServer(server);
+                        }}
                         className={`flex-row items-center justify-between rounded-2xl p-3.5 transition-all ${
-                          isSelected
+                          isEditing || isSelected
                             ? 'border border-primary/60 bg-primary/10 shadow-xs'
                             : 'border border-border/50 bg-surface-secondary/40'
                         } active:scale-[0.985]`}
@@ -170,9 +316,29 @@ export default function SettingsScreen() {
                           <Text numberOfLines={1} className="mt-0.5 font-mono text-[11px] text-muted">
                             {server.serverUrl}
                           </Text>
+                          {server.fingerprint ? (
+                            <Text numberOfLines={1} className="mt-0.5 font-mono text-[10px] text-muted">
+                              {t('mobile.settings.fingerprintPinned')} · {server.fingerprint}
+                            </Text>
+                          ) : (
+                            <Text className="mt-0.5 text-[10px] text-warning">{t('mobile.settings.fingerprintMissing')}</Text>
+                          )}
                         </View>
                         <View className="flex-row items-center gap-2">
-                          {isSelected ? (
+                          <Pressable
+                            onPress={() => {
+                              void handleTestServer(server);
+                            }}
+                            disabled={testing}
+                            className="rounded-full border border-border px-2.5 py-1 active:bg-surface-secondary"
+                          >
+                            <Text className="text-[10px] font-semibold text-foreground">{t('mobile.settings.testConnection')}</Text>
+                          </Pressable>
+                          {isEditing ? (
+                            <View className="rounded-full bg-primary px-2.5 py-0.5">
+                              <Text className="text-[10px] font-bold text-primary-foreground">{t('mobile.settings.editing')}</Text>
+                            </View>
+                          ) : isSelected ? (
                             <View className="rounded-full bg-primary px-2.5 py-0.5">
                               <Text className="text-[10px] font-bold text-primary-foreground">{t('mobile.settings.active')}</Text>
                             </View>
@@ -191,18 +357,25 @@ export default function SettingsScreen() {
               ) : null}
 
               <Pressable
-                onPress={() => {
-                  setShowAddServer(!showAddServer);
-                }}
+                onPress={toggleManualForm}
                 className="mt-3.5 items-center justify-center py-1 active:opacity-75"
               >
                 <Text className="text-xs font-semibold text-primary">
-                  {showAddServer ? t('mobile.settings.collapseManual') : t('mobile.settings.addManual')}
+                  {showAddServer
+                    ? editingId
+                      ? t('mobile.settings.cancelEdit')
+                      : t('mobile.settings.collapseManual')
+                    : t('mobile.settings.addManual')}
                 </Text>
               </Pressable>
 
               {showAddServer ? (
                 <View className="mt-3 gap-2.5 rounded-2xl border border-border bg-surface-secondary/50 p-3.5">
+                  {editingId ? (
+                    <Text className="px-0.5 text-[11px] font-semibold text-primary">
+                      {t('mobile.settings.editingServer')}
+                    </Text>
+                  ) : null}
                   <TextInput
                     value={newLabel}
                     onChangeText={setNewLabel}
@@ -226,11 +399,35 @@ export default function SettingsScreen() {
                     autoCapitalize="none"
                     className="rounded-xl border border-border bg-surface px-3 py-2.5 text-xs font-mono text-foreground"
                   />
+                  <TextInput
+                    value={newFingerprint}
+                    onChangeText={setNewFingerprint}
+                    placeholder={t('mobile.settings.fingerprintPlaceholder')}
+                    placeholderTextColor={vars['--muted']}
+                    autoCapitalize="none"
+                    className="rounded-xl border border-border bg-surface px-3 py-2.5 text-xs font-mono text-foreground"
+                  />
                   <Pressable
-                    onPress={handleManualAdd}
-                    className="mt-1 items-center justify-center rounded-xl bg-primary py-2.5 active:scale-95 shadow-sm"
+                    onPress={() => {
+                      void handleTest();
+                    }}
+                    disabled={testing}
+                    className="mt-1 items-center justify-center rounded-xl border border-border bg-surface py-3 active:scale-95"
                   >
-                    <Text className="text-xs font-semibold text-primary-foreground">{t('mobile.settings.saveConnect')}</Text>
+                    <Text className="text-sm font-semibold text-foreground">
+                      {testing ? t('mobile.settings.testing') : t('mobile.settings.testConnection')}
+                    </Text>
+                  </Pressable>
+                  <Pressable
+                    onPress={() => {
+                      void handleManualAdd();
+                    }}
+                    disabled={testing}
+                    className="items-center justify-center rounded-xl bg-primary py-3 active:scale-95 shadow-sm"
+                  >
+                    <Text className="text-sm font-semibold text-primary-foreground">
+                      {editingId ? t('mobile.settings.saveEdit') : t('mobile.settings.saveConnect')}
+                    </Text>
                   </Pressable>
                 </View>
               ) : null}
