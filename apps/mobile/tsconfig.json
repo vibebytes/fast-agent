@@ -2,6 +2,8 @@
   "extends": "expo/tsconfig.base",
   "compilerOptions": {
     "strict": true,
+    // Metro consumes @fast-ide/i18n TypeScript sources; those files import './foo.ts'.
+    "allowImportingTsExtensions": true,
     "types": ["uniwind/types"],
     "paths": {
       "@/*": [

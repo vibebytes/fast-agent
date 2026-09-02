@@ -1,22 +1,16 @@
 import { router } from 'expo-router';
 import { Button, Surface, Text } from 'heroui-native';
 import { useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Pressable, View } from 'react-native';
 
 import { bridgeStore } from '@/bridge/store';
 import { useBridgeStart, useBridgeSnapshot } from '@/bridge/useBridge';
 import { ChatView } from '@/components/chat-view';
-
-const CONNECTION_LABEL: Record<string, string> = {
-  idle: '未连接',
-  connecting: '连接中…',
-  hello: '握手中…',
-  open: '已连接',
-  closed: '已断开，重连中…',
-  rejected: '被拒绝（检查 token）'
-};
+import { connectionLabel } from '@/components/connection';
 
 export default function ChatScreen() {
+  const { t } = useTranslation();
   useBridgeStart();
   const snapshot = useBridgeSnapshot();
 
@@ -30,15 +24,18 @@ export default function ChatScreen() {
     <View className="flex-1 bg-background pt-2">
       <View className="flex-row items-center justify-between px-4 pb-2">
         <Text className="text-xs text-muted">
-          {CONNECTION_LABEL[snapshot.connection] ?? snapshot.connection}
+          {connectionLabel(t, snapshot.connection)}
         </Text>
         <View className="flex-row gap-3">
-          <PressableText label="新建" onPress={() => {
-            void bridgeStore.createSession().then((id) => {
-              if (id) router.push(`/session/${id}`);
-            });
-          }} />
-          <PressableText label="历史" onPress={() => router.push('/history')} />
+          <PressableText
+            label={t('mobile.index.new')}
+            onPress={() => {
+              void bridgeStore.createSession().then((id) => {
+                if (id) router.push(`/session/${id}`);
+              });
+            }}
+          />
+          <PressableText label={t('mobile.tabs.history')} onPress={() => router.push('/history')} />
         </View>
       </View>
       {currentId ? (
@@ -46,7 +43,7 @@ export default function ChatScreen() {
       ) : (
         <Surface className="mx-4 items-center gap-3 rounded-2xl p-6">
           <Text className="text-center text-muted">
-            {snapshot.connection === 'open' ? '还没有会话，新建一个吧。' : '连接桌面端后开始对话。'}
+            {snapshot.connection === 'open' ? t('mobile.index.emptyOpen') : t('mobile.index.emptyClosed')}
           </Text>
           {snapshot.connection === 'open' ? (
             <Button
@@ -57,11 +54,11 @@ export default function ChatScreen() {
                 });
               }}
             >
-              新建会话
+              {t('mobile.index.newSession')}
             </Button>
           ) : (
             <Button variant="secondary" onPress={() => router.push('/settings')}>
-              去设置
+              {t('mobile.index.goSettings')}
             </Button>
           )}
         </Surface>

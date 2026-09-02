@@ -1,6 +1,8 @@
 import { useCallback, useRef, useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 
+import { useTranslation } from 'react-i18next';
+
 import { Glyph } from '@/components/glyphs';
 import { useThemeVars } from '@/theme/theme-context';
 
@@ -10,6 +12,7 @@ interface VoiceInputProps {
 }
 
 export function VoiceButton({ onSend, disabled }: VoiceInputProps) {
+  const { t } = useTranslation();
   const vars = useThemeVars();
   const [listening, setListening] = useState(false);
   const recognitionRef = useRef<any>(null);
@@ -21,7 +24,7 @@ export function VoiceButton({ onSend, disabled }: VoiceInputProps) {
       (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
 
     if (!SpeechRecognition) {
-      alert('当前浏览器不支持语音识别功能，请在支持的浏览器（如 Chrome）中重试。');
+      alert(t('mobile.voice.webUnsupported'));
       return;
     }
 
@@ -55,7 +58,7 @@ export function VoiceButton({ onSend, disabled }: VoiceInputProps) {
     } catch {
       setListening(false);
     }
-  }, [disabled, onSend]);
+  }, [disabled, onSend, t]);
 
   const stopListening = useCallback(() => {
     if (recognitionRef.current) {
@@ -73,7 +76,7 @@ export function VoiceButton({ onSend, disabled }: VoiceInputProps) {
       onPress={listening ? stopListening : startListening}
       disabled={disabled}
       accessibilityRole="button"
-      accessibilityLabel="语音输入"
+      accessibilityLabel={t('mobile.voice.a11y')}
       className={`h-[44px] w-[44px] items-center justify-center rounded-2xl ${
         listening ? 'bg-primary' : 'bg-surface-secondary'
       } active:scale-95 active:opacity-75 disabled:opacity-40`}

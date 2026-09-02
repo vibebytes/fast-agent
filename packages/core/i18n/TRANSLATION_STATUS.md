@@ -1,7 +1,7 @@
 # Translation status (ship gate)
 
-Source of truth: `locales/en.json` (536 keys).  
-Parity: `pnpm check:i18n` (presence, non-empty, placeholder parity).
+Source of truth: `locales/en.json` (1504 keys, including `mobile.*`).  
+Parity: `pnpm check:i18n` (presence, non-empty, placeholder parity). `mobile.*` is complete in all 10 locales. Desktop P2 gaps (`settings.pages.servers.*` and similar) predate this catalog and still fail the script.
 
 | Locale | Status | Notes |
 |--------|--------|-------|
@@ -23,4 +23,4 @@ Parity: `pnpm check:i18n` (presence, non-empty, placeholder parity).
 - [x] Placeholders preserved exactly (`{{detail}}`, `{{seconds}}`, …)
 - [x] Workflow complete: zh-CN → P1 → P2
 
-Last verified: 2026-08-04
+Last verified: 2026-09-02

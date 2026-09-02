@@ -33,6 +33,7 @@
     },
     "plugins": [
       "expo-router",
+      "expo-localization",
       [
         "expo-splash-screen",
         {
@@ -44,8 +45,8 @@
       [
         "expo-speech-recognition",
         {
-          "microphonePermission": "允许 Fast Mobile 使用麦克风进行语音输入",
-          "speechRecognitionPermission": "允许 Fast Mobile 识别你的语音内容"
+          "microphonePermission": "Allow Fast Mobile to use the microphone for voice input",
+          "speechRecognitionPermission": "Allow Fast Mobile to recognize your speech"
         }
       ]
     ],

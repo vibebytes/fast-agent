@@ -7,6 +7,7 @@ import {
   type TranscriptEntry
 } from '@fast-ide/session-view';
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   Alert,
   Clipboard,
@@ -40,24 +41,35 @@ type ToolLike = {
   statusNote?: string;
 };
 
-function getToolCategory(toolName: string): { icon: string; label: string } {
+type ToolCat = 'shell' | 'file' | 'search' | 'git' | 'agent' | 'system';
+
+const TOOL_COPY: Record<ToolCat, string> = {
+  shell: 'mobile.chat.toolShell',
+  file: 'mobile.chat.toolFile',
+  search: 'mobile.chat.toolSearch',
+  git: 'mobile.chat.toolGit',
+  agent: 'mobile.chat.toolAgent',
+  system: 'mobile.chat.toolSystem'
+};
+
+function getToolCategory(toolName: string): { icon: string; cat: ToolCat } {
   const name = toolName.toLowerCase();
   if (name.includes('shell') || name.includes('bash') || name.includes('terminal') || name.includes('exec')) {
-    return { icon: '⚡', label: '终端命令' };
+    return { icon: '⚡', cat: 'shell' };
   }
   if (name.includes('edit') || name.includes('write') || name.includes('delete') || name.includes('patch')) {
-    return { icon: '📝', label: '文件变更' };
+    return { icon: '📝', cat: 'file' };
   }
   if (name.includes('read') || name.includes('grep') || name.includes('glob') || name.includes('find') || name.includes('search')) {
-    return { icon: '🔍', label: '代码检索' };
+    return { icon: '🔍', cat: 'search' };
   }
   if (name.includes('git')) {
-    return { icon: '🌿', label: '版本管理' };
+    return { icon: '🌿', cat: 'git' };
   }
   if (name.includes('agent') || name.includes('skill') || name.includes('goal')) {
-    return { icon: '🤖', label: '智能体协作' };
+    return { icon: '🤖', cat: 'agent' };
   }
-  return { icon: '⚙️', label: '系统工具' };
+  return { icon: '⚙️', cat: 'system' };
 }
 
 function diffTextOf(tool: ToolLike): string | undefined {
@@ -100,6 +112,7 @@ function FullSheet({
   onClose: () => void;
   children: React.ReactNode;
 }) {
+  const { t } = useTranslation();
   return (
     <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
       <View className="flex-1 bg-background pt-10">
@@ -118,7 +131,7 @@ function FullSheet({
             onPress={onClose}
             className="rounded-xl bg-surface-secondary px-3.5 py-1.5 active:opacity-75"
           >
-            <Text className="text-xs font-semibold text-foreground">完成</Text>
+            <Text className="text-xs font-semibold text-foreground">{t('mobile.chat.done')}</Text>
           </Pressable>
         </GlassHeader>
         <ScrollView horizontal className="flex-1">
@@ -144,11 +157,13 @@ function toolHint(tool: ToolLike): string {
 }
 
 function ToolDetailSheet({ tool, onClose }: { tool: ToolLike | null; onClose: () => void }) {
+  const { t } = useTranslation();
   const diffText = tool ? diffTextOf(tool) : undefined;
   const lines = useMemo(() => (diffText ? parseDiffWithLineNumbers(diffText) : []), [diffText]);
   const stats = countDiffStats(diffText);
   if (!tool) return null;
-  const { icon, label } = getToolCategory(tool.tool);
+  const { icon, cat } = getToolCategory(tool.tool);
+  const label = t(TOOL_COPY[cat]);
   return (
     <FullSheet
       visible
@@ -159,7 +174,7 @@ function ToolDetailSheet({ tool, onClose }: { tool: ToolLike | null; onClose: ()
       {diffText ? (
         <View className="overflow-hidden rounded-xl border border-border bg-surface">
           <View className="flex-row items-center justify-between border-b border-border bg-surface-secondary px-3 py-2">
-            <Text className="text-xs font-semibold text-muted">代码差异对比</Text>
+            <Text className="text-xs font-semibold text-muted">{t('mobile.chat.diffTitle')}</Text>
             <View className="flex-row gap-2">
               <Text className="text-xs font-mono font-bold text-success">+{stats.add}</Text>
               <Text className="text-xs font-mono font-bold text-destructive">-{stats.del}</Text>
@@ -174,7 +189,7 @@ function ToolDetailSheet({ tool, onClose }: { tool: ToolLike | null; onClose: ()
       ) : (
         <View className="rounded-xl border border-border bg-surface p-3.5">
           <Text className="font-mono text-xs leading-5 text-foreground" selectable>
-            {tool.output || toolHint(tool) || '该步骤执行完成，无额外返回。'}
+            {tool.output || toolHint(tool) || t('mobile.chat.stepEmpty')}
           </Text>
         </View>
       )}
@@ -183,6 +198,7 @@ function ToolDetailSheet({ tool, onClose }: { tool: ToolLike | null; onClose: ()
 }
 
 function AgentToolPipeline({ tools }: { tools: ToolLike[] }) {
+  const { t } = useTranslation();
   const vars = useThemeVars();
   const anyRunning = tools.some((t) => t.status === 'running');
   const [open, setOpen] = useState(anyRunning);
@@ -221,15 +237,15 @@ function AgentToolPipeline({ tools }: { tools: ToolLike[] }) {
           )}
           <Text numberOfLines={1} className="text-xs font-semibold text-foreground">
             {anyRunning
-              ? `Agent 执行流水线 · 正在处理 (${successCount + 1}/${tools.length})`
-              : `执行完成 · 共 ${tools.length} 个步骤`}
+              ? t('mobile.chat.pipelineRunning', { current: successCount + 1, total: tools.length })
+              : t('mobile.chat.pipelineDone', { count: tools.length })}
           </Text>
         </View>
 
         <View className="flex-row items-center gap-1.5">
           {errorCount > 0 ? (
             <View className="rounded-md bg-destructive/15 px-1.5 py-0.5">
-              <Text className="text-[10px] font-bold text-destructive">{errorCount} 异常</Text>
+              <Text className="text-[10px] font-bold text-destructive">{t('mobile.chat.errorCount', { count: errorCount })}</Text>
             </View>
           ) : null}
           <Glyph
@@ -312,6 +328,7 @@ function AgentToolPipeline({ tools }: { tools: ToolLike[] }) {
 }
 
 function ReasoningBox({ reasoning, isStreaming }: { reasoning: string; isStreaming: boolean }) {
+  const { t } = useTranslation();
   const vars = useThemeVars();
   const [open, setOpen] = useState(false);
 
@@ -328,7 +345,7 @@ function ReasoningBox({ reasoning, isStreaming }: { reasoning: string; isStreami
             <Glyph name="sparkles" size={13} color={vars['--muted']} />
           )}
           <Text className="text-xs font-medium text-muted">
-            {isStreaming ? '正在深度思考…' : '深度思考过程'}
+            {isStreaming ? t('mobile.chat.thinkingLive') : t('mobile.chat.thinkingDone')}
           </Text>
         </View>
         <Glyph name={open ? 'chevron-down' : 'chevron-right'} size={13} color={vars['--muted']} />
@@ -345,6 +362,7 @@ function ReasoningBox({ reasoning, isStreaming }: { reasoning: string; isStreami
 }
 
 function MessageActionBar({ text }: { text?: string }) {
+  const { t } = useTranslation();
   const vars = useThemeVars();
   const [copied, setCopied] = useState(false);
 
@@ -362,13 +380,14 @@ function MessageActionBar({ text }: { text?: string }) {
         onPress={handleCopy}
         className="flex-row items-center gap-1 rounded-lg bg-surface-secondary/70 px-2 py-1 active:opacity-75"
       >
-        <Text className="text-[10px] text-muted">{copied ? '✓ 已复制' : '📋 复制'}</Text>
+        <Text className="text-[10px] text-muted">{copied ? t('mobile.chat.copied') : t('mobile.chat.copy')}</Text>
       </Pressable>
     </View>
   );
 }
 
 function EntryBubble({ entry }: { entry: TranscriptEntry }) {
+  const { t } = useTranslation();
   const isUser = entry.role === 'user';
   const tools = entry.tools ?? [];
   const isStreaming = entry.status === 'streaming';
@@ -404,14 +423,14 @@ function EntryBubble({ entry }: { entry: TranscriptEntry }) {
       {isStreaming && !entry.text && tools.length === 0 && !entry.reasoning ? (
         <View className="flex-row items-center gap-2 py-1">
           <View className="h-2 w-2 animate-ping rounded-full bg-primary" />
-          <Text className="text-xs text-muted">Agent 正在准备响应…</Text>
+          <Text className="text-xs text-muted">{t('mobile.chat.preparing')}</Text>
         </View>
       ) : null}
 
       {isStreaming && entry.text ? (
         <View className="mt-1.5 flex-row items-center gap-1.5">
           <View className="h-3.5 w-[2px] animate-pulse rounded-full bg-primary" />
-          <Text className="text-[10px] font-medium text-muted">正在生成…</Text>
+          <Text className="text-[10px] font-medium text-muted">{t('mobile.chat.generating')}</Text>
         </View>
       ) : null}
 
@@ -439,20 +458,21 @@ function RunSheet({
   const gate = record ? composerGate(record.transcript, true) : null;
   const liveProcs = record?.transcript.liveProcs ?? [];
   const [interruptText, setInterruptText] = useState('');
+  const { t } = useTranslation();
 
   return (
     <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
       <View className="flex-1 bg-background px-4 pt-12">
         <GlassHeader className="flex-row items-center justify-between rounded-2xl px-4 py-3">
-          <Text className="text-lg font-semibold text-foreground">运行控制台</Text>
+          <Text className="text-lg font-semibold text-foreground">{t('mobile.chat.consoleTitle')}</Text>
           <Pressable onPress={onClose} className="rounded-xl bg-surface px-3 py-1.5 active:opacity-75">
-            <Text className="text-xs font-semibold text-foreground">关闭</Text>
+            <Text className="text-xs font-semibold text-foreground">{t('shell.common.close')}</Text>
           </Pressable>
         </GlassHeader>
 
         <View className="mt-4 rounded-2xl border border-border bg-surface p-4 shadow-sm">
           <View className="flex-row items-center justify-between">
-            <Text className="text-sm font-semibold text-foreground">当前运行状态</Text>
+            <Text className="text-sm font-semibold text-foreground">{t('mobile.chat.runStatus')}</Text>
             <View className="flex-row items-center gap-1.5">
               <View
                 className={`h-2.5 w-2.5 rounded-full ${
@@ -464,7 +484,11 @@ function RunSheet({
                 }`}
               />
               <Text className="text-xs font-medium text-muted">
-                {gate?.runState === 'running' ? '正在执行任务' : gate?.runState === 'stopping' ? '正在停止' : '空闲中'}
+                {gate?.runState === 'running'
+                  ? t('mobile.chat.runRunning')
+                  : gate?.runState === 'stopping'
+                    ? t('mobile.chat.runStopping')
+                    : t('mobile.chat.runIdle')}
               </Text>
             </View>
           </View>
@@ -474,14 +498,14 @@ function RunSheet({
               onPress={() => bridgeStore.cancelRun(sessionId, record.transcript.activeRunId!)}
               className="mt-3.5 items-center justify-center rounded-xl bg-destructive py-2.5 active:opacity-80"
             >
-              <Text className="text-sm font-semibold text-destructive-foreground">立即中止执行</Text>
+              <Text className="text-sm font-semibold text-destructive-foreground">{t('mobile.chat.abortNow')}</Text>
             </Pressable>
           ) : null}
         </View>
 
         {liveProcs.length > 0 ? (
           <View className="mt-3 rounded-2xl border border-border bg-surface p-4 shadow-sm">
-            <Text className="text-sm font-semibold text-foreground">活跃后台进程 ({liveProcs.length})</Text>
+            <Text className="text-sm font-semibold text-foreground">{t('mobile.chat.liveProcs', { count: liveProcs.length })}</Text>
             {liveProcs.map((proc) => (
               <View
                 key={proc.procId}
@@ -494,7 +518,7 @@ function RunSheet({
                   onPress={() => bridgeStore.killProc(sessionId, proc.procId)}
                   className="ml-2 rounded-lg bg-destructive/15 px-2.5 py-1 active:opacity-75"
                 >
-                  <Text className="text-xs font-semibold text-destructive">终止</Text>
+                  <Text className="text-xs font-semibold text-destructive">{t('mobile.chat.kill')}</Text>
                 </Pressable>
               </View>
             ))}
@@ -502,11 +526,11 @@ function RunSheet({
         ) : null}
 
         <View className="mt-3 rounded-2xl border border-border bg-surface p-4 shadow-sm">
-          <Text className="text-sm font-semibold text-foreground">即时插话与纠偏</Text>
+          <Text className="text-sm font-semibold text-foreground">{t('mobile.chat.interruptTitle')}</Text>
           <TextInput
             value={interruptText}
             onChangeText={setInterruptText}
-            placeholder="输入纠偏要求或新指令…"
+            placeholder={t('mobile.chat.interruptPlaceholder')}
             placeholderTextColor={vars['--muted']}
             multiline
             className="mt-2.5 min-h-[72px] rounded-xl border border-border bg-surface-secondary px-3.5 py-2.5 text-sm text-foreground"
@@ -521,12 +545,12 @@ function RunSheet({
             disabled={!interruptText.trim()}
             className="mt-3 items-center justify-center rounded-xl bg-primary py-2.5 active:opacity-80 disabled:opacity-40"
           >
-            <Text className="text-sm font-semibold text-primary-foreground">打断并纠正</Text>
+            <Text className="text-sm font-semibold text-primary-foreground">{t('mobile.chat.interruptSubmit')}</Text>
           </Pressable>
         </View>
 
         <View className="mt-3 flex-1">
-          <Text className="px-1 text-sm font-semibold text-foreground">追问队列</Text>
+          <Text className="px-1 text-sm font-semibold text-foreground">{t('mobile.chat.followUpTitle')}</Text>
           <View className="mt-2 flex-1">
             <FollowUpsBar sessionId={sessionId} />
           </View>
@@ -537,6 +561,7 @@ function RunSheet({
 }
 
 function Composer({ sessionId }: { sessionId: string }) {
+  const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const vars = useThemeVars();
   const snapshot = useBridgeSnapshot();
@@ -587,19 +612,19 @@ function Composer({ sessionId }: { sessionId: string }) {
 
       {offline ? (
         <View className="flex-row items-center gap-1.5 bg-warning/10 px-4 py-2">
-          <Text className="text-xs text-warning">未连接到桌面端，输入已锁定。请前往「设置」检查连接。</Text>
+          <Text className="text-xs text-warning">{t('mobile.chat.lockedDisconnected')}</Text>
         </View>
       ) : null}
 
       {locked && !offline ? (
         <View className="flex-row items-center gap-1.5 bg-warning/10 px-4 py-2">
-          <Text className="text-xs text-warning">请先响应上方的授权或选择选项，输入已锁定。</Text>
+          <Text className="text-xs text-warning">{t('mobile.chat.lockedDecision')}</Text>
         </View>
       ) : null}
 
       {queued ? (
         <View className="flex-row items-center gap-1.5 bg-primary/10 px-4 py-1.5">
-          <Text className="text-xs font-medium text-primary">已加入执行队列，将在当前轮次结束后自动触发。</Text>
+          <Text className="text-xs font-medium text-primary">{t('mobile.chat.queued')}</Text>
         </View>
       ) : null}
 
@@ -611,7 +636,7 @@ function Composer({ sessionId }: { sessionId: string }) {
           >
             <View className="h-2 w-2 animate-ping rounded-full bg-primary" />
             <Text className="text-xs font-semibold text-primary">
-              {gate?.runState === 'stopping' ? '正在停止执行…' : 'Agent 正在执行自主决策…'}
+              {gate?.runState === 'stopping' ? t('mobile.chat.agentStopping') : t('mobile.chat.agentRunning')}
             </Text>
           </Pressable>
           <View className="flex-row items-center gap-2">
@@ -620,14 +645,14 @@ function Composer({ sessionId }: { sessionId: string }) {
                 onPress={() => bridgeStore.cancelRun(sessionId, record.transcript.activeRunId!)}
                 className="rounded-lg bg-destructive/20 px-2 py-0.5 active:opacity-70"
               >
-                <Text className="text-[11px] font-bold text-destructive">停止</Text>
+                <Text className="text-[11px] font-bold text-destructive">{t('shell.common.stop')}</Text>
               </Pressable>
             ) : null}
             <Pressable
               onPress={() => setRunSheet(true)}
               className="flex-row items-center gap-0.5 rounded-lg bg-surface/80 px-2 py-0.5 active:opacity-70"
             >
-              <Text className="text-[11px] font-medium text-foreground">控制台</Text>
+              <Text className="text-[11px] font-medium text-foreground">{t('mobile.chat.console')}</Text>
               <Glyph name="chevron-right" size={10} color={vars['--foreground']} />
             </Pressable>
           </View>
@@ -642,7 +667,7 @@ function Composer({ sessionId }: { sessionId: string }) {
         <TextInput
           value={text}
           onChangeText={setText}
-          placeholder={locked ? '输入已锁定' : '输入指令或消息…'}
+          placeholder={locked ? t('mobile.chat.placeholderLocked') : t('mobile.chat.placeholder')}
           placeholderTextColor={vars['--muted']}
           editable={!locked}
           multiline
@@ -655,7 +680,7 @@ function Composer({ sessionId }: { sessionId: string }) {
           <Pressable
             onPress={() => setRunSheet(true)}
             accessibilityRole="button"
-            accessibilityLabel="查看运行状态"
+            accessibilityLabel={t('mobile.chat.runA11y')}
             className={`h-[44px] min-w-[54px] flex-row items-center justify-center gap-1.5 rounded-2xl border px-3.5 shadow-sm active:scale-95 ${
               gate?.runState === 'stopping'
                 ? 'border-warning/40 bg-warning/10'
@@ -672,7 +697,7 @@ function Composer({ sessionId }: { sessionId: string }) {
                 gate?.runState === 'stopping' ? 'text-warning' : 'text-primary'
               }`}
             >
-              {gate?.runState === 'stopping' ? '停止中' : '运行中'}
+              {gate?.runState === 'stopping' ? t('mobile.chat.stopping') : t('mobile.chat.running')}
             </Text>
           </Pressable>
         ) : (
@@ -680,10 +705,10 @@ function Composer({ sessionId }: { sessionId: string }) {
             onPress={submit}
             disabled={locked || !text.trim()}
             accessibilityRole="button"
-            accessibilityLabel="发送消息"
+            accessibilityLabel={t('mobile.chat.sendA11y')}
             className="h-[44px] min-w-[54px] items-center justify-center rounded-2xl bg-default px-3.5 shadow-sm active:scale-95 active:opacity-80 disabled:opacity-30"
           >
-            <Text className="text-sm font-semibold text-default-foreground">发送</Text>
+            <Text className="text-sm font-semibold text-default-foreground">{t('shell.common.send')}</Text>
           </Pressable>
         )}
       </View>
@@ -692,6 +717,7 @@ function Composer({ sessionId }: { sessionId: string }) {
 }
 
 export function ChatView({ sessionId }: { sessionId: string }) {
+  const { t } = useTranslation();
   const snapshot = useBridgeSnapshot();
   const record = snapshot.records[sessionId];
   const entries = record?.transcript.entries ?? [];
@@ -728,19 +754,19 @@ export function ChatView({ sessionId }: { sessionId: string }) {
             <View className="items-center justify-center py-24">
               <View className="h-2.5 w-2.5 animate-ping rounded-full bg-primary" />
               <Text className="mt-4 text-xs text-muted">
-                {snapshot.connection === 'open' ? '正在加载会话记录…' : '正在连接桌面端…'}
+                {snapshot.connection === 'open' ? t('mobile.chat.loadingTranscript') : t('mobile.chat.connectingDesktop')}
               </Text>
             </View>
           ) : entries.length === 0 ? (
             <View className="items-center justify-center py-24">
-              <Text className="text-xs text-muted">暂无消息，发送第一条消息开始对话</Text>
+              <Text className="text-xs text-muted">{t('mobile.chat.emptyMessages')}</Text>
             </View>
           ) : null
         }
         ListHeaderComponent={
           hasMoreOlder ? (
             <Pressable onPress={() => bridgeStore.loadOlder(sessionId)} className="items-center py-3">
-              <Text className="text-xs font-medium text-primary">加载更早的历史消息…</Text>
+              <Text className="text-xs font-medium text-primary">{t('mobile.chat.loadOlder')}</Text>
             </Pressable>
           ) : null
         }
@@ -754,6 +780,7 @@ export function ChatView({ sessionId }: { sessionId: string }) {
 }
 
 function ApprovalSlot({ sessionId }: { sessionId: string }) {
+  const { t } = useTranslation();
   const snapshot = useBridgeSnapshot();
   const approvals = snapshot.records[sessionId]?.transcript.approvals ?? [];
   if (approvals.length === 0) return null;
@@ -767,7 +794,7 @@ function ApprovalSlot({ sessionId }: { sessionId: string }) {
           <View className="flex-row items-center justify-between">
             <View className="flex-row items-center gap-2">
               <View className="h-2.5 w-2.5 rounded-full bg-warning" />
-              <Text className="text-sm font-semibold text-foreground">请求授权执行：{approval.tool}</Text>
+              <Text className="text-sm font-semibold text-foreground">{t('mobile.chat.approvalTitle', { tool: approval.tool })}</Text>
             </View>
             {approvals.length > 1 ? (
               <Text className="text-xs font-mono text-warning">
@@ -781,20 +808,20 @@ function ApprovalSlot({ sessionId }: { sessionId: string }) {
             </Text>
           ) : null}
           {approval.risk ? (
-            <Text className="mt-2 text-xs font-medium text-warning">风险提示：{approval.risk}</Text>
+            <Text className="mt-2 text-xs font-medium text-warning">{t('mobile.chat.approvalRisk', { risk: approval.risk })}</Text>
           ) : null}
           <View className="mt-3.5 flex-row gap-2.5">
             <Pressable
               onPress={() => bridgeStore.decideApproval(sessionId, approval.id, true)}
               className="flex-1 items-center justify-center rounded-xl bg-success py-2.5 shadow-sm active:scale-95"
             >
-              <Text className="text-sm font-semibold text-success-foreground">批准并执行</Text>
+              <Text className="text-sm font-semibold text-success-foreground">{t('mobile.chat.approve')}</Text>
             </Pressable>
             <Pressable
               onPress={() => bridgeStore.decideApproval(sessionId, approval.id, false)}
               className="flex-1 items-center justify-center rounded-xl bg-surface-secondary py-2.5 border border-border active:scale-95"
             >
-              <Text className="text-sm font-semibold text-foreground">拒绝</Text>
+              <Text className="text-sm font-semibold text-foreground">{t('mobile.chat.deny')}</Text>
             </Pressable>
           </View>
         </View>
@@ -804,6 +831,7 @@ function ApprovalSlot({ sessionId }: { sessionId: string }) {
 }
 
 function QuestionSlot({ sessionId }: { sessionId: string }) {
+  const { t } = useTranslation();
   const vars = useThemeVars();
   const snapshot = useBridgeSnapshot();
   const [custom, setCustom] = useState('');
@@ -839,7 +867,7 @@ function QuestionSlot({ sessionId }: { sessionId: string }) {
               <TextInput
                 value={custom}
                 onChangeText={setCustom}
-                placeholder="输入自定义选项…"
+                placeholder={t('mobile.chat.customOption')}
                 placeholderTextColor={vars['--muted']}
                 className="flex-1 rounded-xl border border-border bg-surface-secondary px-3.5 py-2 text-sm text-foreground"
               />
@@ -851,7 +879,7 @@ function QuestionSlot({ sessionId }: { sessionId: string }) {
                 }}
                 className="items-center justify-center rounded-xl bg-default px-4 active:scale-95"
               >
-                <Text className="text-sm font-semibold text-default-foreground">提交</Text>
+                <Text className="text-sm font-semibold text-default-foreground">{t('shell.common.submit')}</Text>
               </Pressable>
             </View>
           ) : null}
@@ -862,6 +890,7 @@ function QuestionSlot({ sessionId }: { sessionId: string }) {
 }
 
 function FollowUpsBar({ sessionId }: { sessionId: string }) {
+  const { t } = useTranslation();
   const snapshot = useBridgeSnapshot();
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editText, setEditText] = useState('');
@@ -871,10 +900,10 @@ function FollowUpsBar({ sessionId }: { sessionId: string }) {
     <View className="border-t border-border bg-surface/50 px-3.5 py-2.5">
       <View className="flex-row items-center justify-between">
         <Text className="text-xs font-semibold text-muted">
-          追问排队 {followUps.paused ? '（已暂停）' : ''}
+          {followUps.paused ? t('mobile.chat.queuePaused') : t('mobile.chat.queueActive')}
         </Text>
         <Pressable onPress={() => bridgeStore.followUpPause(sessionId, !followUps.paused)}>
-          <Text className="text-xs font-semibold text-primary">{followUps.paused ? '恢复执行' : '暂停队列'}</Text>
+          <Text className="text-xs font-semibold text-primary">{followUps.paused ? t('mobile.chat.resumeQueue') : t('mobile.chat.pauseQueue')}</Text>
         </Pressable>
       </View>
       {followUps.items.map((item: FollowUpItem, index: number) => (
@@ -896,7 +925,7 @@ function FollowUpsBar({ sessionId }: { sessionId: string }) {
                   setEditingId(null);
                 }}
               >
-                <Text className="text-xs font-bold text-primary">保存</Text>
+                <Text className="text-xs font-bold text-primary">{t('shell.common.save')}</Text>
               </Pressable>
             </View>
           ) : (
@@ -920,7 +949,7 @@ function FollowUpsBar({ sessionId }: { sessionId: string }) {
                 }}
                 className="ml-2 px-1.5 py-0.5"
               >
-                <Text className="text-xs text-muted">编辑</Text>
+                <Text className="text-xs text-muted">{t('mobile.chat.edit')}</Text>
               </Pressable>
               <Pressable onPress={() => bridgeStore.followUpRemove(sessionId, item.id)} className="ml-1 px-1.5 py-0.5">
                 <Text className="text-xs text-muted">✕</Text>

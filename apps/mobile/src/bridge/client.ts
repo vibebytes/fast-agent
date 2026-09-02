@@ -2,6 +2,8 @@ import type {BridgeCommand, BridgeEvent} from '@fastllm/bridge-protocol';
 import {bridgeEventSchema} from '@fastllm/bridge-protocol';
 
 import type {ClientConfig} from './config';
+import type { Copy } from './copy';
+import { rawError } from './copy';
 import {bridgeUrlIssue, normalizeBridgeUrl} from './pairing';
 import {openPinnedSocket, type PinnedWire} from './pinned-socket';
 import {probeTlsFingerprint} from './tls-pinning';
@@ -12,7 +14,7 @@ const HEARTBEAT_MS = 15_000;
 const BACKOFF_MS = [1_000, 2_000, 5_000, 10_000];
 
 type Handlers = {
-  onState: (state: ConnectionState, detail?: string) => void;
+  onState: (state: ConnectionState, detail?: Copy) => void;
   onEvent: (event: BridgeEvent) => void;
   onOpen?: () => void;
   onUnpinnedFingerprint?: (fingerprint: string) => void;
@@ -69,7 +71,7 @@ export class BridgeClient {
       }
       if (!fingerprint) {
         this.handlers.onUnpinnedFingerprint?.(probe.fingerprint);
-        this.setState('rejected', '需要确认服务器证书指纹');
+        this.setState('rejected', { code: 'confirmFingerprint' });
         return;
       }
       await this.openPinned(serverUrl, fingerprint);
@@ -109,7 +111,7 @@ export class BridgeClient {
         authToken: this.config.token || undefined
       });
     } catch (error) {
-      this.setState('closed', error instanceof Error ? error.message : '无法连接');
+      this.setState('closed', rawError(error));
       this.scheduleReconnect();
     }
   }
@@ -165,7 +167,14 @@ export class BridgeClient {
       return;
     }
     if (event.type === 'HelloReject') {
-      this.setState('rejected', event.message || event.code);
+      this.setState(
+        'rejected',
+        event.message
+          ? { code: 'raw', text: event.message }
+          : event.code
+            ? { code: 'raw', text: event.code }
+            : { code: 'helloReject' }
+      );
       this.close();
       return;
     }
@@ -209,7 +218,7 @@ export class BridgeClient {
     }, delay);
   }
 
-  private setState(state: ConnectionState, detail?: string) {
+  private setState(state: ConnectionState, detail?: Copy) {
     this.state = state;
     this.handlers.onState(state, detail);
   }

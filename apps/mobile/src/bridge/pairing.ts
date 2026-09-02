@@ -1,3 +1,5 @@
+import type { Copy } from './copy';
+
 export type PairingPayload = {
   serverUrl: string;
   token: string;
@@ -15,13 +17,13 @@ export function normalizeBridgeUrl(raw: string): string {
   return `${mapped}://${rest}`;
 }
 
-export function bridgeUrlIssue(url: string): string | null {
-  if (!/^(ws|wss):\/\//i.test(url)) return '地址必须以 ws:// 或 wss:// 开头（注意是 wss，不是 wws）';
+export function bridgeUrlIssue(url: string): Copy | null {
+  if (!/^(ws|wss):\/\//i.test(url)) return { code: 'urlScheme' };
   try {
     // URL() only accepts http(s); map so we still catch host/port garbage.
     new URL(url.replace(/^wss:/i, 'https:').replace(/^ws:/i, 'http:'));
   } catch {
-    return '地址格式无效';
+    return { code: 'urlInvalid' };
   }
   return null;
 }

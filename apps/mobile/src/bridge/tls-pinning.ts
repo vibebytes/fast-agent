@@ -1,4 +1,7 @@
-export type TlsProbe = {ok: true; fingerprint: string} | {ok: false; detail: string};
+import type { Copy } from './copy';
+import { rawError } from './copy';
+
+export type TlsProbe = {ok: true; fingerprint: string} | {ok: false; detail: Copy};
 
 type NativeProbe = (url: string, expected: string | null) => Promise<string>;
 
@@ -30,14 +33,14 @@ export async function probeTlsFingerprint(serverUrl: string, expected: string | 
     return {
       ok: false,
       detail: loadError
-        ? `TLS 指纹模块不可用：${loadError}`
-        : 'TLS指纹校验需要 Dev Client（当前壳没有 FastBridgeTls）'
+        ? { code: 'tlsModuleError', message: loadError }
+        : { code: 'tlsModuleMissing' }
     };
   }
   try {
     const fingerprint = await probe(serverUrl.replace(/^wss:/, 'https:'), expected);
     return {ok: true, fingerprint};
   } catch (error) {
-    return {ok: false, detail: error instanceof Error ? error.message : String(error)};
+    return {ok: false, detail: rawError(error)};
   }
 }

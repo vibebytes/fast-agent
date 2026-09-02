@@ -5,6 +5,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 import '../global.css';
 import AppTabs from '@/components/app-tabs';
+import { LocaleProvider } from '@/i18n/locale-context';
 import { ensureVoiceEngine } from '@/lib/voice-engine';
 import { FastThemeScope, ThemeModeProvider } from '@/theme/theme-context';
 
@@ -19,9 +20,11 @@ export default function TabLayout() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <HeroUINativeProvider>
         <ThemeModeProvider>
-          <FastThemeScope>
-            <AppTabs />
-          </FastThemeScope>
+          <LocaleProvider>
+            <FastThemeScope>
+              <AppTabs />
+            </FastThemeScope>
+          </LocaleProvider>
         </ThemeModeProvider>
       </HeroUINativeProvider>
     </GestureHandlerRootView>

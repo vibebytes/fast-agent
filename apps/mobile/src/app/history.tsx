@@ -2,6 +2,7 @@ import { FlashList } from '@shopify/flash-list';
 import { composerGate } from '@fast-ide/session-view';
 import { useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 
 import { bridgeStore, type SessionSummary } from '@/bridge/store';
@@ -23,13 +24,6 @@ function bucketOf(lastModified: string): Bucket {
   return 'older';
 }
 
-const BUCKET_LABEL: Record<Bucket, string> = {
-  today: '今天',
-  yesterday: '昨天',
-  week: '最近 7 天',
-  older: '更早之前'
-};
-
 function formatTime(lastModified: string): string {
   const d = new Date(lastModified);
   if (isNaN(d.getTime())) return '';
@@ -37,6 +31,7 @@ function formatTime(lastModified: string): string {
 }
 
 export default function HistoryScreen() {
+  const { t } = useTranslation();
   const vars = useThemeVars();
   const router = useRouter();
   const snapshot = useBridgeSnapshot();
@@ -78,12 +73,12 @@ export default function HistoryScreen() {
       <ConnectionBanner />
       <GlassHeader className="flex-row items-center justify-between border-b border-border/70 px-4 py-3.5">
         <View>
-          <Text className="text-xl font-bold tracking-tight text-foreground">会话历史</Text>
-          <Text className="text-[11px] font-medium text-muted">共 {sessions.length} 个对话上下文</Text>
+          <Text className="text-xl font-bold tracking-tight text-foreground">{t('mobile.history.title')}</Text>
+          <Text className="text-[11px] font-medium text-muted">{t('mobile.history.count', { count: sessions.length })}</Text>
         </View>
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel="新建会话"
+          accessibilityLabel={t('mobile.history.newSessionA11y')}
           onPress={async () => {
             const sid = await bridgeStore.createSession();
             if (sid) {
@@ -93,7 +88,7 @@ export default function HistoryScreen() {
           className="flex-row items-center gap-1.5 rounded-full bg-primary px-3.5 py-2 shadow-sm active:scale-95 active:opacity-85"
         >
           <Glyph name="plus" size={14} color={vars['--primary-foreground']} />
-          <Text className="text-xs font-semibold text-primary-foreground">新会话</Text>
+          <Text className="text-xs font-semibold text-primary-foreground">{t('mobile.history.newSession')}</Text>
         </Pressable>
       </GlassHeader>
 
@@ -117,7 +112,7 @@ export default function HistoryScreen() {
                     selectedProject === 'all' ? 'text-primary-foreground' : 'text-muted'
                   }`}
                 >
-                  全部 ({sessions.length})
+                  {t('mobile.history.allCount', { count: sessions.length })}
                 </Text>
               </Pressable>
               {projects.map((p) => {
@@ -157,7 +152,7 @@ export default function HistoryScreen() {
               <View className="mb-2.5 flex-row items-center gap-1.5 px-1">
                 <View className="h-1.5 w-1.5 rounded-full bg-primary/70" />
                 <Text className="text-[11px] font-bold uppercase tracking-wider text-muted">
-                  {BUCKET_LABEL[bucket]} · {items.length}
+                  {t(`mobile.history.${bucket}`)} · {items.length}
                 </Text>
               </View>
               <View className="gap-2.5">
@@ -181,7 +176,7 @@ export default function HistoryScreen() {
           <View className="items-center justify-center py-24">
             <View className="h-2.5 w-2.5 animate-ping rounded-full bg-primary" />
             <Text className="mt-4 text-xs text-muted">
-              {snapshot.connection === 'open' ? '正在加载会话列表…' : '正在连接桌面端…'}
+              {snapshot.connection === 'open' ? t('mobile.history.loadingList') : t('mobile.history.connectingDesktop')}
             </Text>
           </View>
         ) : list.length === 0 ? (
@@ -189,8 +184,8 @@ export default function HistoryScreen() {
             <View className="h-16 w-16 items-center justify-center rounded-3xl border border-border/60 bg-surface shadow-sm">
               <Glyph name="history" size={28} color={vars['--muted']} />
             </View>
-            <Text className="mt-4 text-base font-semibold text-foreground">暂无历史会话</Text>
-            <Text className="mt-1 text-xs text-muted">点击右上角「新会话」开启对话体验</Text>
+            <Text className="mt-4 text-base font-semibold text-foreground">{t('mobile.history.emptyTitle')}</Text>
+            <Text className="mt-1 text-xs text-muted">{t('mobile.history.emptyBody')}</Text>
           </View>
         ) : (
           <View className="h-10" />
@@ -211,6 +206,7 @@ function SessionCard({
   running: boolean;
   onOpen: () => void;
 }) {
+  const { t } = useTranslation();
   return (
     <Pressable
       accessibilityRole="button"
@@ -227,11 +223,11 @@ function SessionCard({
             {running ? (
               <View className="flex-row items-center gap-1 rounded-full bg-success/15 px-2 py-0.5">
                 <View className="h-1.5 w-1.5 animate-ping rounded-full bg-success" />
-                <Text className="text-[10px] font-bold text-success">进行中</Text>
+                <Text className="text-[10px] font-bold text-success">{t('mobile.history.running')}</Text>
               </View>
             ) : null}
             <Text numberOfLines={1} className="flex-1 text-[15px] font-semibold text-foreground tracking-tight">
-              {session.title || '无标题会话'}
+              {session.title || t('shell.common.unnamed')}
             </Text>
           </View>
           {session.summary ? (
@@ -250,7 +246,7 @@ function SessionCard({
             </View>
           ) : null}
           <Text className="text-[11px] font-medium text-muted">
-            {session.messageCount ? `${session.messageCount} 条消息` : '暂无消息'}
+            {session.messageCount ? t('mobile.history.messageCount', { count: session.messageCount }) : t('mobile.history.noMessages')}
           </Text>
         </View>
         <Text className="text-[11px] font-mono text-muted">{formatTime(session.lastModified)}</Text>

@@ -1,24 +1,27 @@
+import { useTranslation } from 'react-i18next';
 import { Text, View } from 'react-native';
 
+import type { ConnectionState } from '@/bridge/client';
+import { formatCopy, type Translate } from '@/bridge/copy';
 import { useBridgeSnapshot } from '@/bridge/useBridge';
 
-const LABELS: Record<string, string> = {
-  idle: '未连接',
-  connecting: '连接中…',
-  reconnecting: '重连中…',
-  rejected: '认证被拒绝',
-  closed: '连接已断开'
-};
+export function connectionLabel(t: Translate, state: ConnectionState): string {
+  return state === 'rejected'
+    ? t('mobile.connection.rejectedAuth')
+    : t(`mobile.connection.${state}`, { defaultValue: state });
+}
 
 export function ConnectionBanner() {
+  const { t } = useTranslation();
   const snapshot = useBridgeSnapshot();
   if (snapshot.connection === 'open') return null;
-  const label = LABELS[snapshot.connection] ?? snapshot.connection;
+  const label = connectionLabel(t, snapshot.connection);
+  const detail = snapshot.connectionDetail ? formatCopy(t, snapshot.connectionDetail) : '';
   return (
     <View className="bg-warning/15 px-3 py-1.5">
       <Text className="text-center text-[11px] text-warning">
         {label}
-        {snapshot.connectionDetail ? ` · ${snapshot.connectionDetail}` : ''}
+        {detail ? ` · ${detail}` : ''}
       </Text>
     </View>
   );

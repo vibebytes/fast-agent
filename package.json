@@ -13,7 +13,7 @@
 		"build": "pnpm -r build",
 		"typecheck": "pnpm -r typecheck",
 		"test": "pnpm -r test",
-		"check:i18n": "pnpm --dir packages/core/i18n check:parity",
+		"check:i18n": "pnpm --dir packages/core/i18n check",
 		"fetch-engine": "./scripts/fetch-engine.sh",
 		"dev:desktop": "./dev/desktop.sh",
 		"dev:desktop:mock": "./dev/desktop.sh --mock",

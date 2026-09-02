@@ -21,6 +21,8 @@ import {
   View
 } from 'react-native';
 
+import { useTranslation } from 'react-i18next';
+
 import { Glyph } from '@/components/glyphs';
 import { ensureVoiceEngine, transcribeFile } from '@/lib/voice-engine';
 import { FastThemeScope, useThemeMode, useThemeVars } from '@/theme/theme-context';
@@ -32,7 +34,13 @@ interface VoiceInputProps {
 
 interface VoiceError {
   code: string;
-  message: string;
+  message?: string;
+}
+
+function voiceErrorCopy(t: (key: string) => string, error: VoiceError): string {
+  if (error.code === 'not-allowed') return t('mobile.voice.micDenied');
+  if (error.code === 'emptyRecording') return t('mobile.voice.emptyRecording');
+  return error.message?.trim() || t('mobile.voice.problem');
 }
 
 type Phase = 'idle' | 'loading' | 'listening' | 'transcribing';
@@ -133,6 +141,7 @@ function WaveformVisualizer({ metering, active, color }: { metering: number; act
 }
 
 export function VoiceButton({ onSend, disabled }: VoiceInputProps) {
+  const { t } = useTranslation();
   const { scheme } = useThemeMode();
   const vars = useThemeVars();
   const [active, setActive] = useState(false);
@@ -180,7 +189,7 @@ export function VoiceButton({ onSend, disabled }: VoiceInputProps) {
       const perm = await requestRecordingPermissionsAsync();
       if (!perm.granted) {
         errorRef.current = 'not-allowed';
-        setError({ code: 'not-allowed', message: '麦克风权限被拒绝，请在系统设置中允许' });
+        setError({ code: 'not-allowed' });
         setPhaseSafe('idle');
         return;
       }
@@ -202,7 +211,10 @@ export function VoiceButton({ onSend, disabled }: VoiceInputProps) {
     try {
       await recorder.stop();
       const uri = recorder.uri;
-      if (!uri) throw new Error('录音为空');
+      if (!uri) {
+        setError({ code: 'emptyRecording' });
+        return;
+      }
       const text = await transcribeFile(uri);
       if (text) {
         const next = transcriptRef.current ? transcriptRef.current + text : text;
@@ -293,16 +305,17 @@ export function VoiceButton({ onSend, disabled }: VoiceInputProps) {
     setTranscript('');
   };
 
-  const statusText = error ? '识别出现问题'
+  const statusText = error
+    ? voiceErrorCopy(t, error)
     : phase === 'loading'
-      ? '正在准备…'
+      ? t('mobile.voice.preparing')
       : phase === 'listening'
-        ? '正在聆听…'
+        ? t('mobile.voice.listening')
         : phase === 'transcribing'
-          ? '识别中…'
+          ? t('mobile.voice.recognizing')
           : transcript.trim()
-            ? '可直接编辑'
-            : '未检测到语音';
+            ? t('mobile.voice.editable')
+            : t('mobile.voice.noSpeech');
 
   return (
     <>
@@ -327,7 +340,7 @@ export function VoiceButton({ onSend, disabled }: VoiceInputProps) {
           delayLongPress={350}
           disabled={disabled}
           accessibilityRole="button"
-          accessibilityLabel="语音输入，长按开始"
+          accessibilityLabel={t('mobile.voice.holdA11y')}
           className="h-[44px] w-[44px] items-center justify-center rounded-2xl bg-surface-secondary active:opacity-75 disabled:opacity-40"
         >
           <Glyph name="mic" color={vars['--foreground']} size={20} />
@@ -337,7 +350,7 @@ export function VoiceButton({ onSend, disabled }: VoiceInputProps) {
           <View pointerEvents="none" className="absolute bottom-full left-0 mb-2">
             <View className="rounded-xl bg-foreground px-3 py-1.5 shadow-lg">
               <Text numberOfLines={1} className="text-xs font-medium text-background">
-                长按开始语音输入
+                {t('mobile.voice.holdHint')}
               </Text>
             </View>
           </View>
@@ -350,7 +363,7 @@ export function VoiceButton({ onSend, disabled }: VoiceInputProps) {
             behavior={Platform.OS === 'ios' ? 'padding' : undefined}
             className="flex-1 justify-end bg-black/60"
           >
-            <Pressable className="flex-1" onPress={closePanel} accessibilityLabel="关闭语音输入" />
+            <Pressable className="flex-1" onPress={closePanel} accessibilityLabel={t('mobile.voice.closeInputA11y')} />
             <BlurView
               intensity={Platform.OS === 'ios' ? 95 : 100}
               tint={scheme === 'dark' ? 'dark' : 'light'}
@@ -375,7 +388,7 @@ export function VoiceButton({ onSend, disabled }: VoiceInputProps) {
                 </View>
                 <Pressable
                   onPress={closePanel}
-                  accessibilityLabel="关闭"
+                  accessibilityLabel={t('shell.common.close')}
                   className="h-8 w-8 items-center justify-center rounded-full active:bg-surface-secondary"
                 >
                   <Glyph name="cross" size={13} color={vars['--muted']} />
@@ -391,21 +404,21 @@ export function VoiceButton({ onSend, disabled }: VoiceInputProps) {
               {error ? (
                 <View className="mb-2.5 flex-row items-center justify-between rounded-2xl bg-destructive/10 px-3.5 py-2.5">
                   <Text numberOfLines={2} className="flex-1 text-xs leading-4 text-destructive">
-                    {error.message}
+                    {voiceErrorCopy(t, error)}
                   </Text>
                   {error.code === 'not-allowed' ? (
                     <Pressable
                       onPress={() => void Linking.openSettings()}
                       className="ml-2.5 rounded-full bg-destructive/15 px-3 py-1.5 active:opacity-70"
                     >
-                      <Text className="text-xs font-semibold text-destructive">去设置</Text>
+                      <Text className="text-xs font-semibold text-destructive">{t('mobile.voice.goSettings')}</Text>
                     </Pressable>
                   ) : (
                     <Pressable
                       onPress={() => void startListening()}
                       className="ml-2.5 rounded-full bg-destructive/15 px-3 py-1.5 active:opacity-70"
                     >
-                      <Text className="text-xs font-semibold text-destructive">重试</Text>
+                      <Text className="text-xs font-semibold text-destructive">{t('shell.common.retry')}</Text>
                     </Pressable>
                   )}
                 </View>
@@ -417,7 +430,7 @@ export function VoiceButton({ onSend, disabled }: VoiceInputProps) {
                   setTranscript(t);
                   transcriptRef.current = t;
                 }}
-                placeholder="识别结果会出现在这里，可直接编辑"
+                placeholder={t('mobile.voice.placeholder')}
                 placeholderTextColor={vars['--muted']}
                 multiline
                 textAlignVertical="top"
@@ -429,32 +442,32 @@ export function VoiceButton({ onSend, disabled }: VoiceInputProps) {
                   {phase === 'listening' ? (
                     <Pressable
                       onPress={toggleListening}
-                      accessibilityLabel="停止录音"
+                      accessibilityLabel={t('mobile.voice.stopRecordA11y')}
                       className="h-9 flex-row items-center gap-2 rounded-full bg-default px-4 active:opacity-80"
                     >
                       <View className="h-2.5 w-2.5 rounded-[2px] bg-default-foreground" />
-                      <Text className="text-xs font-semibold text-default-foreground">停止</Text>
+                      <Text className="text-xs font-semibold text-default-foreground">{t('shell.common.stop')}</Text>
                     </Pressable>
                   ) : (
                     <>
                       <Pressable
                         onPress={toggleListening}
-                        accessibilityLabel={transcript.trim() ? '继续语音输入' : '开始语音输入'}
+                        accessibilityLabel={transcript.trim() ? t('mobile.voice.continueA11y') : t('mobile.voice.startA11y')}
                         disabled={phase === 'loading' || phase === 'transcribing'}
                         className="h-9 flex-row items-center gap-1.5 rounded-full bg-surface-secondary px-4 active:opacity-70 disabled:opacity-40"
                       >
                         <Glyph name="mic" size={13} color={vars['--foreground']} />
                         <Text className="text-xs font-semibold text-foreground">
-                          {transcript.trim() ? '继续说话' : '说话'}
+                          {transcript.trim() ? t('mobile.voice.continueSpeak') : t('mobile.voice.speak')}
                         </Text>
                       </Pressable>
                       {transcript.trim() ? (
                         <Pressable
                           onPress={handleClear}
-                          accessibilityLabel="清空文本"
+                          accessibilityLabel={t('mobile.voice.clearA11y')}
                           className="h-9 items-center justify-center rounded-full px-3 active:opacity-60"
                         >
-                          <Text className="text-xs font-medium text-muted">清空</Text>
+                          <Text className="text-xs font-medium text-muted">{t('mobile.voice.clear')}</Text>
                         </Pressable>
                       ) : null}
                     </>
@@ -465,7 +478,7 @@ export function VoiceButton({ onSend, disabled }: VoiceInputProps) {
                   disabled={!transcript.trim() || phase === 'listening' || phase === 'transcribing'}
                   className="h-11 min-w-[96px] items-center justify-center rounded-2xl bg-default px-5 shadow-sm active:scale-95 active:opacity-80 disabled:opacity-30"
                 >
-                  <Text className="text-sm font-semibold text-default-foreground">发送</Text>
+                  <Text className="text-sm font-semibold text-default-foreground">{t('shell.common.send')}</Text>
                 </Pressable>
               </View>
             </BlurView>

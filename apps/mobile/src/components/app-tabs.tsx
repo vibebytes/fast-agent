@@ -1,11 +1,13 @@
 import { BlurView } from 'expo-blur';
 import { Tabs } from 'expo-router';
+import { useTranslation } from 'react-i18next';
 import { Platform, StyleSheet, View } from 'react-native';
 
 import { Glyph, type GlyphName } from '@/components/glyphs';
 import { useThemeMode, useThemeVars } from '@/theme/theme-context';
 
 export default function AppTabs() {
+  const { t } = useTranslation();
   const { scheme } = useThemeMode();
   const vars = useThemeVars();
   const ios = Platform.OS === 'ios';
@@ -44,10 +46,10 @@ export default function AppTabs() {
           )
       }}
     >
-      <Tabs.Screen name="index" options={{ title: '对话', tabBarIcon: tabIcon('chat') }} />
-      <Tabs.Screen name="history" options={{ title: '历史', tabBarIcon: tabIcon('history') }} />
-      <Tabs.Screen name="settings" options={{ title: '设置', tabBarIcon: tabIcon('settings') }} />
-      <Tabs.Screen name="session/[id]" options={{ href: null, headerShown: true, title: '会话' }} />
+      <Tabs.Screen name="index" options={{ title: t('mobile.tabs.chat'), tabBarIcon: tabIcon('chat') }} />
+      <Tabs.Screen name="history" options={{ title: t('mobile.tabs.history'), tabBarIcon: tabIcon('history') }} />
+      <Tabs.Screen name="settings" options={{ title: t('mobile.tabs.settings'), tabBarIcon: tabIcon('settings') }} />
+      <Tabs.Screen name="session/[id]" options={{ href: null, headerShown: true, title: t('mobile.tabs.session') }} />
     </Tabs>
   );
 }

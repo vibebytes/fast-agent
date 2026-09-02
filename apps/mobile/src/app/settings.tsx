@@ -1,4 +1,6 @@
+import { LOCALE_NATIVE_NAME, SUPPORTED, type LocalePref } from '@fast-ide/i18n/browser';
 import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Alert, Modal, Pressable, ScrollView, TextInput, View, Text } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 
@@ -9,17 +11,21 @@ import { useBridgeSnapshot } from '@/bridge/useBridge';
 import { ConnectionBanner } from '@/components/connection';
 import { GlassHeader } from '@/components/glass-header';
 import { Glyph } from '@/components/glyphs';
+import { useLocalePrefs } from '@/i18n/locale-context';
+import { t as alertT } from '@/i18n/t';
 import { PALETTES } from '@/theme/palettes';
 import { useThemeMode, useThemeVars } from '@/theme/theme-context';
 
 export default function SettingsScreen() {
+  const { t } = useTranslation();
   const vars = useThemeVars();
   const { mode, setMode, paletteId, setPaletteId } = useThemeMode();
+  const { localePref, setLocalePref } = useLocalePrefs();
   const snapshot = useBridgeSnapshot();
   const [permission, requestPermission] = useCameraPermissions();
   const [scannerOpen, setScannerOpen] = useState(false);
   const [showAddServer, setShowAddServer] = useState(false);
-  
+
   const [servers, setServers] = useState<SavedServer[]>([]);
   const [activeServerId, setActiveServerId] = useState<string | null>(null);
 
@@ -45,21 +51,21 @@ export default function SettingsScreen() {
         id: `srv-${Date.now()}`,
         serverUrl: parsedPayload.serverUrl,
         token: parsedPayload.token,
-        label: '扫码配对服务器',
+        label: '',
         fingerprint: parsedPayload.fingerprint ?? undefined
       });
       await refreshServers();
-      Alert.alert('配对成功', `已添加服务器：${parsedPayload.serverUrl}`);
+      Alert.alert(alertT('mobile.settings.pairSuccessTitle'), alertT('mobile.settings.pairSuccessBody', { url: parsedPayload.serverUrl }));
       return;
     }
-    Alert.alert('配对失败', '无法识别该二维码，请使用桌面端生成的有效配对码。');
+    Alert.alert(alertT('mobile.settings.pairFailTitle'), alertT('mobile.settings.pairFailBody'));
   };
 
   const openScanner = async () => {
     if (!permission?.granted) {
       const res = await requestPermission();
       if (!res.granted) {
-        Alert.alert('需要权限', '请在系统设置中允许使用相机以扫描配对二维码。');
+        Alert.alert(alertT('mobile.settings.cameraTitle'), alertT('mobile.settings.cameraBody'));
         return;
       }
     }
@@ -68,14 +74,14 @@ export default function SettingsScreen() {
 
   const handleManualAdd = async () => {
     if (!newUrl.trim() || !newToken.trim()) {
-      Alert.alert('提示', '请完整填写服务器地址和访问令牌');
+      Alert.alert(alertT('mobile.settings.fillTitle'), alertT('mobile.settings.fillBody'));
       return;
     }
     await bridgeStore.saveServer({
       id: `srv-${Date.now()}`,
       serverUrl: newUrl.trim(),
       token: newToken.trim(),
-      label: newLabel.trim() || '手动添加'
+      label: newLabel.trim()
     });
     setNewUrl('');
     setNewToken('');
@@ -95,22 +101,22 @@ export default function SettingsScreen() {
   };
 
   const isConnected = snapshot.connection === 'open';
+  const languageOptions: LocalePref[] = ['system', ...SUPPORTED];
 
   return (
     <View className="flex-1 bg-background">
       <ConnectionBanner />
       <GlassHeader className="flex-row items-center justify-between border-b border-border/70 px-4 py-3.5">
         <View>
-          <Text className="text-xl font-bold tracking-tight text-foreground">偏好设置</Text>
-          <Text className="text-[11px] font-medium text-muted">服务连接与视觉定制</Text>
+          <Text className="text-xl font-bold tracking-tight text-foreground">{t('mobile.settings.title')}</Text>
+          <Text className="text-[11px] font-medium text-muted">{t('mobile.settings.subtitle')}</Text>
         </View>
       </GlassHeader>
 
       <ScrollView className="flex-1 px-4 pt-4" showsVerticalScrollIndicator={false}>
-        {/* Section 1: Server & Bridge */}
         <View className="mb-6">
           <Text className="mb-2 px-1 text-[11px] font-bold uppercase tracking-wider text-muted">
-            桌面端服务连接 (Bridge)
+            {t('mobile.settings.bridge')}
           </Text>
           <View className="overflow-hidden rounded-3xl border border-border/80 bg-surface shadow-sm">
             <View className="p-4">
@@ -126,10 +132,10 @@ export default function SettingsScreen() {
                   </View>
                   <View>
                     <Text className="text-sm font-bold text-foreground">
-                      {servers.find((s) => s.id === activeServerId)?.label || '未选择活动服务器'}
+                      {servers.find((s) => s.id === activeServerId)?.label.trim() || t('mobile.settings.noActiveServer')}
                     </Text>
                     <Text className="text-xs text-muted">
-                      {isConnected ? '实时同步已就绪' : '未连接到服务'}
+                      {isConnected ? t('mobile.settings.syncReady') : t('mobile.settings.notConnected')}
                     </Text>
                   </View>
                 </View>
@@ -139,11 +145,10 @@ export default function SettingsScreen() {
                   className="flex-row items-center gap-1.5 rounded-full bg-primary px-3.5 py-2 active:scale-95 shadow-sm"
                 >
                   <Glyph name="sparkles" size={13} color={vars['--primary-foreground']} />
-                  <Text className="text-xs font-semibold text-primary-foreground">扫码配对</Text>
+                  <Text className="text-xs font-semibold text-primary-foreground">{t('mobile.settings.scanPair')}</Text>
                 </Pressable>
               </View>
 
-              {/* Server List */}
               {servers.length > 0 ? (
                 <View className="mt-4 gap-2 border-t border-border/50 pt-3">
                   {servers.map((server) => {
@@ -159,7 +164,9 @@ export default function SettingsScreen() {
                         } active:scale-[0.985]`}
                       >
                         <View className="flex-1 pr-2">
-                          <Text className="text-xs font-bold text-foreground">{server.label}</Text>
+                          <Text className="text-xs font-bold text-foreground">
+                            {server.label.trim() || t('mobile.settings.unnamedServer')}
+                          </Text>
                           <Text numberOfLines={1} className="mt-0.5 font-mono text-[11px] text-muted">
                             {server.serverUrl}
                           </Text>
@@ -167,7 +174,7 @@ export default function SettingsScreen() {
                         <View className="flex-row items-center gap-2">
                           {isSelected ? (
                             <View className="rounded-full bg-primary px-2.5 py-0.5">
-                              <Text className="text-[10px] font-bold text-primary-foreground">活跃</Text>
+                              <Text className="text-[10px] font-bold text-primary-foreground">{t('mobile.settings.active')}</Text>
                             </View>
                           ) : null}
                           <Pressable
@@ -183,7 +190,6 @@ export default function SettingsScreen() {
                 </View>
               ) : null}
 
-              {/* Add Manual Form Toggle */}
               <Pressable
                 onPress={() => {
                   setShowAddServer(!showAddServer);
@@ -191,7 +197,7 @@ export default function SettingsScreen() {
                 className="mt-3.5 items-center justify-center py-1 active:opacity-75"
               >
                 <Text className="text-xs font-semibold text-primary">
-                  {showAddServer ? '收起手动配置' : '+ 手动配置服务器地址与 Token'}
+                  {showAddServer ? t('mobile.settings.collapseManual') : t('mobile.settings.addManual')}
                 </Text>
               </Pressable>
 
@@ -200,14 +206,14 @@ export default function SettingsScreen() {
                   <TextInput
                     value={newLabel}
                     onChangeText={setNewLabel}
-                    placeholder="服务器备注 (如：MacBook Pro)"
+                    placeholder={t('mobile.settings.labelPlaceholder')}
                     placeholderTextColor={vars['--muted']}
                     className="rounded-xl border border-border bg-surface px-3 py-2.5 text-xs text-foreground"
                   />
                   <TextInput
                     value={newUrl}
                     onChangeText={setNewUrl}
-                    placeholder="WebSocket 地址 (如：ws://192.168.1.5:4040/ws)"
+                    placeholder={t('mobile.settings.urlPlaceholder')}
                     placeholderTextColor={vars['--muted']}
                     autoCapitalize="none"
                     className="rounded-xl border border-border bg-surface px-3 py-2.5 text-xs font-mono text-foreground"
@@ -215,7 +221,7 @@ export default function SettingsScreen() {
                   <TextInput
                     value={newToken}
                     onChangeText={setNewToken}
-                    placeholder="安全访问令牌 (Token)"
+                    placeholder={t('mobile.settings.tokenPlaceholder')}
                     placeholderTextColor={vars['--muted']}
                     autoCapitalize="none"
                     className="rounded-xl border border-border bg-surface px-3 py-2.5 text-xs font-mono text-foreground"
@@ -224,7 +230,7 @@ export default function SettingsScreen() {
                     onPress={handleManualAdd}
                     className="mt-1 items-center justify-center rounded-xl bg-primary py-2.5 active:scale-95 shadow-sm"
                   >
-                    <Text className="text-xs font-semibold text-primary-foreground">保存并连接</Text>
+                    <Text className="text-xs font-semibold text-primary-foreground">{t('mobile.settings.saveConnect')}</Text>
                   </Pressable>
                 </View>
               ) : null}
@@ -232,19 +238,18 @@ export default function SettingsScreen() {
           </View>
         </View>
 
-        {/* Section 2: Appearance & Mode */}
         <View className="mb-6">
           <Text className="mb-2 px-1 text-[11px] font-bold uppercase tracking-wider text-muted">
-            显示模式 (Appearance)
+            {t('settings.general.appearance')}
           </Text>
           <View className="overflow-hidden rounded-3xl border border-border/80 bg-surface p-2 shadow-sm">
             <View className="flex-row gap-1.5 bg-surface-secondary/60 p-1 rounded-2xl border border-border/40">
               {(
                 [
-                  { id: 'system', label: '跟随系统' },
-                  { id: 'light', label: '浅色' },
-                  { id: 'dark', label: '深色' }
-                ] as const
+                  { id: 'system' as const, label: t('settings.common.system') },
+                  { id: 'light' as const, label: t('mobile.settings.themeLight') },
+                  { id: 'dark' as const, label: t('mobile.settings.themeDark') }
+                ]
               ).map((item) => {
                 const active = mode === item.id;
                 return (
@@ -271,10 +276,38 @@ export default function SettingsScreen() {
           </View>
         </View>
 
-        {/* Section 3: Palette Selector */}
+        <View className="mb-6">
+          <Text className="mb-2 px-1 text-[11px] font-bold uppercase tracking-wider text-muted">
+            {t('settings.general.language')}
+          </Text>
+          <Text className="mb-2 px-1 text-[11px] text-muted">{t('settings.general.languageDescription')}</Text>
+          <View className="overflow-hidden rounded-3xl border border-border/80 bg-surface p-2 shadow-sm">
+            <View className="gap-1">
+              {languageOptions.map((code) => {
+                const active = localePref === code;
+                const label = code === 'system' ? t('settings.languageSystem') : LOCALE_NATIVE_NAME[code];
+                return (
+                  <Pressable
+                    key={code}
+                    onPress={() => setLocalePref(code)}
+                    className={`flex-row items-center justify-between rounded-2xl px-3.5 py-3 ${
+                      active ? 'bg-primary/10 border border-primary/60' : 'border border-transparent'
+                    } active:scale-[0.99]`}
+                  >
+                    <Text className={`text-sm font-semibold ${active ? 'text-primary' : 'text-foreground'}`}>
+                      {label}
+                    </Text>
+                    {active ? <Glyph name="check" size={14} color={vars['--primary']} /> : null}
+                  </Pressable>
+                );
+              })}
+            </View>
+          </View>
+        </View>
+
         <View className="mb-8">
           <Text className="mb-2 px-1 text-[11px] font-bold uppercase tracking-wider text-muted">
-            配色主题 (Theme Palettes)
+            {t('mobile.settings.palettes')}
           </Text>
           <View className="overflow-hidden rounded-3xl border border-border/80 bg-surface p-3.5 shadow-sm">
             <View className="flex-row flex-wrap gap-2.5">
@@ -308,7 +341,6 @@ export default function SettingsScreen() {
                       ) : null}
                     </View>
 
-                    {/* Rich Color Swatches Palette Preview */}
                     <View className="flex-row items-center gap-1.5 rounded-xl bg-surface/60 p-1.5 border border-border/40">
                       {swatches.map((color, idx) => (
                         <View
@@ -328,16 +360,15 @@ export default function SettingsScreen() {
         <View className="h-10" />
       </ScrollView>
 
-      {/* QR Scanner Modal */}
       <Modal visible={scannerOpen} animationType="slide" onRequestClose={() => setScannerOpen(false)}>
         <View className="flex-1 bg-black">
           <View className="flex-row items-center justify-between px-4 pt-12 pb-4">
-            <Text className="text-lg font-bold text-white">扫描配对二维码</Text>
+            <Text className="text-lg font-bold text-white">{t('mobile.settings.scanTitle')}</Text>
             <Pressable
               onPress={() => setScannerOpen(false)}
               className="rounded-full bg-white/20 px-3.5 py-1.5 active:opacity-75"
             >
-              <Text className="text-xs font-semibold text-white">取消</Text>
+              <Text className="text-xs font-semibold text-white">{t('shell.common.cancel')}</Text>
             </Pressable>
           </View>
 
@@ -354,7 +385,7 @@ export default function SettingsScreen() {
 
           <View className="p-6 items-center">
             <Text className="text-center text-xs text-white/70">
-              请对准桌面端设置或控制台生成的配对二维码
+              {t('mobile.settings.scanHint')}
             </Text>
           </View>
         </View>

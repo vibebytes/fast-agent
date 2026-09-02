@@ -21,6 +21,8 @@ import {
   type SavedServer
 } from './config';
 import {applyCodeChangeEvent, createCodeChangesState, type CodeChangesState} from './codeChanges';
+import type { Copy } from './copy';
+import { rawError } from './copy';
 import {bridgeUrlIssue, normalizeBridgeUrl} from './pairing';
 import {openPinnedSocket} from './pinned-socket';
 import {probeTlsFingerprint} from './tls-pinning';
@@ -58,7 +60,7 @@ export type SessionRecord = {
 
 export type StoreSnapshot = {
   connection: ConnectionState;
-  connectionDetail: string | null;
+  connectionDetail: Copy | null;
   projectId: string | null;
   projects: ProjectSummary[];
   sessions: SessionSummary[];
@@ -229,14 +231,16 @@ class BridgeStore {
     }
   }
 
-  async testConnection(server: {serverUrl: string; token: string; fingerprint?: string}): Promise<{ok: boolean; detail: string; fingerprint?: string}> {
+  async testConnection(server: {serverUrl: string; token: string; fingerprint?: string}): Promise<{ok: boolean; detail: Copy; fingerprint?: string}> {
     const serverUrl = normalizeBridgeUrl(server.serverUrl);
     const issue = bridgeUrlIssue(serverUrl);
     if (issue) return {ok: false, detail: issue};
     if (serverUrl.startsWith('wss://')) {
       const probe = await probeTlsFingerprint(serverUrl, server.fingerprint ?? null);
       if (!probe.ok) return {ok: false, detail: probe.detail};
-      if (!server.fingerprint) return {ok: false, detail: `需要确认证书指纹：${probe.fingerprint}`, fingerprint: probe.fingerprint};
+      if (!server.fingerprint) {
+        return {ok: false, detail: { code: 'confirmFingerprint', fingerprint: probe.fingerprint }, fingerprint: probe.fingerprint};
+      }
       return this.testPinned(serverUrl, server.token, server.fingerprint);
     }
     return this.testPlain(serverUrl, server.token);
@@ -255,22 +259,24 @@ class BridgeStore {
 
   private finishHello(
     data: string,
-    finish: (ok: boolean, detail: string) => void
+    finish: (ok: boolean, detail: Copy) => void
   ): void {
     try {
       const event = JSON.parse(data) as {type?: string; message?: string};
-      if (event.type === 'HelloOk') finish(true, '连接成功');
-      else if (event.type === 'HelloReject') finish(false, event.message || '被拒绝');
+      if (event.type === 'HelloOk') finish(true, { code: 'helloOk' });
+      else if (event.type === 'HelloReject') {
+        finish(false, event.message ? { code: 'raw', text: event.message } : { code: 'helloReject' });
+      }
     } catch {
       // ignore
     }
   }
 
-  private async testPinned(serverUrl: string, token: string, fingerprint: string): Promise<{ok: boolean; detail: string}> {
+  private async testPinned(serverUrl: string, token: string, fingerprint: string): Promise<{ok: boolean; detail: Copy}> {
     return new Promise((resolve) => {
       let settled = false;
       let wire: {close: () => void} | null = null;
-      const finish = (ok: boolean, detail: string) => {
+      const finish = (ok: boolean, detail: Copy) => {
         if (settled) return;
         settled = true;
         clearTimeout(timer);
@@ -281,28 +287,28 @@ class BridgeStore {
         }
         resolve({ok, detail});
       };
-      const timer = setTimeout(() => finish(false, '连接超时'), 8000);
+      const timer = setTimeout(() => finish(false, { code: 'timeout' }), 8000);
       void openPinnedSocket(serverUrl, fingerprint, {
         onOpen: () => undefined,
         onMessage: (data) => this.finishHello(data, finish),
-        onError: () => finish(false, '无法连接'),
+        onError: () => finish(false, { code: 'cannotConnect' }),
         onClose: () => {
-          if (!settled) finish(false, '无法连接');
+          if (!settled) finish(false, { code: 'cannotConnect' });
         }
       })
         .then((opened) => {
           wire = opened;
-          if (!opened.send(this.helloLine(token))) finish(false, '无法连接');
+          if (!opened.send(this.helloLine(token))) finish(false, { code: 'cannotConnect' });
         })
-        .catch((error) => finish(false, error instanceof Error ? error.message : '无法连接'));
+        .catch((error) => finish(false, rawError(error)));
     });
   }
 
-  private testPlain(serverUrl: string, token: string): Promise<{ok: boolean; detail: string}> {
+  private testPlain(serverUrl: string, token: string): Promise<{ok: boolean; detail: Copy}> {
     return new Promise((resolve) => {
       let settled = false;
       let socket: WebSocket;
-      const finish = (ok: boolean, detail: string) => {
+      const finish = (ok: boolean, detail: Copy) => {
         if (settled) return;
         settled = true;
         clearTimeout(timer);
@@ -316,16 +322,16 @@ class BridgeStore {
       try {
         socket = new WebSocket(serverUrl);
       } catch (error) {
-        return resolve({ok: false, detail: error instanceof Error ? error.message : '无法连接'});
+        return resolve({ok: false, detail: rawError(error)});
       }
-      const timer = setTimeout(() => finish(false, '连接超时'), 8000);
+      const timer = setTimeout(() => finish(false, { code: 'timeout' }), 8000);
       socket.onopen = () => {
         socket.send(this.helloLine(token));
       };
       socket.onmessage = (raw) => {
         if (typeof raw.data === 'string') this.finishHello(raw.data, finish);
       };
-      socket.onerror = () => finish(false, '无法连接');
+      socket.onerror = () => finish(false, { code: 'cannotConnect' });
     });
   }
 
@@ -355,7 +361,7 @@ class BridgeStore {
     this.sendAttach(sessionId);
   }
 
-  createSession(title = '新会话'): Promise<string | null> {
+  createSession(title?: string): Promise<string | null> {
     const projectId = this.snapshot.projectId;
     if (!projectId || this.snapshot.connection !== 'open') return Promise.resolve(null);
     const project = this.snapshot.projects.find((p) => p.id === projectId);
@@ -363,8 +369,8 @@ class BridgeStore {
     const sent = this.send({
       type: 'CreateSession',
       projectId,
-      title,
       taskId,
+      ...(title?.trim() ? {title: title.trim()} : {}),
       ...(project?.workspaceId ? {workspaceId: project.workspaceId} : {})
     });
     if (!sent) return Promise.resolve(null);
@@ -399,7 +405,7 @@ class BridgeStore {
     }
     this.prependSession({
       id: sessionId,
-      title: event.title?.trim() || '新会话',
+      title: event.title?.trim() || '',
       summary: null,
       lastModified: new Date().toISOString(),
       messageCount: 0,
@@ -585,7 +591,7 @@ class BridgeStore {
       for (const project of projects) {
         sessionsByProject[project.id] = Object.values(event.sessionsByProjectId[project.id] ?? {}).map((s) => ({
           id: s.id,
-          title: s.title ?? 'Untitled',
+          title: s.title ?? '',
           summary: null,
           lastModified: s.updatedAt ?? '',
           messageCount: 0,
@@ -612,7 +618,7 @@ class BridgeStore {
     if (event.type === 'sessions_list') {
       const incoming = event.sessions.map((s) => ({
         id: s.id,
-        title: s.title?.trim() || s.summary?.trim() || 'Untitled',
+        title: s.title?.trim() || s.summary?.trim() || '',
         summary: s.summary?.trim() || null,
         lastModified: s.lastModified,
         messageCount: s.messageCount,

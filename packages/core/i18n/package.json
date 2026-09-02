@@ -11,7 +11,9 @@
   "scripts": {
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "tsx --test src/*.test.ts",
-    "check:parity": "node scripts/check-catalog-parity.mjs"
+    "check": "node scripts/check-all.mjs",
+    "check:parity": "node scripts/check-catalog-parity.mjs",
+    "check:refs": "node scripts/check-key-refs.mjs"
   },
   "dependencies": {
     "i18next": "^25.0.0"
