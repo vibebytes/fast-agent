@@ -48,12 +48,12 @@ v0.3.1 预发布。**macOS** 是主路径。**Windows** 原生开发中。安装
 
 | 类型 | 平台 | 下载 | 安装方式 | 测试状态 | 构建命令 |
 | --- | --- | --- | --- | --- | --- |
-| 桌面 | macOS（Apple Silicon） | [下载 `Fast-*-mac-arm64.dmg`](https://github.com/kai2002/fast/releases/latest) | 打开 DMG，运行 `Install Fast.pkg` → `/Applications` + `/usr/local/bin` shim | 较好 | `pnpm pack:desktop -- --clean --os darwin-arm64` |
-| 桌面 | macOS（Intel） | [下载 `Fast-*-mac-x64.dmg`](https://github.com/kai2002/fast/releases/latest) | 与 Apple Silicon 相同。独立包，不是 universal | 未测试 | `pnpm pack:desktop -- --clean --os darwin-x64` |
+| 桌面 | macOS（Apple Silicon） | [下载 `Fast-*-mac-arm64.dmg`](https://github.com/kai2002/fast-agent/releases) | 打开 DMG，运行 `Install Fast.pkg` → `/Applications` + `/usr/local/bin` shim | 较好 | `pnpm pack:desktop -- --clean --os darwin-arm64` |
+| 桌面 | macOS（Intel） | [下载 `Fast-*-mac-x64.dmg`](https://github.com/kai2002/fast-agent/releases) | 与 Apple Silicon 相同。独立包，不是 universal | 未测试 | `pnpm pack:desktop -- --clean --os darwin-x64` |
 | 桌面 | Linux（glibc x64） | N/A（未验证） | 解压 `linux-unpacked`。不支持 Alpine / musl | 未测试 | `pnpm pack:desktop -- --clean --os linux-x64` |
 | 桌面 | Linux（glibc arm64） | N/A（未验证） | 解压 `linux-arm64-unpacked`。独立包，不是 universal | 未测试 | `pnpm pack:desktop -- --clean --os linux-arm64` |
 | 桌面 | Windows（x64） | N/A（未验证） | 解压 `win-unpacked`（`Fast.exe`）。没有安装包。开发中；日常请用 WSL2 | 未测试 | `pnpm pack:desktop -- --clean --os win32-x64` |
-| 移动端 | Android | [下载 `fast-mobile-*.apk`](https://github.com/kai2002/fast/releases/latest) | `adb install` 配套 APK，再与桌面配对 | 较好 | `pnpm pack:mobile` |
+| 移动端 | Android | [下载 `fast-mobile-*.apk`](https://github.com/kai2002/fast-agent/releases) | `adb install` 配套 APK，再与桌面配对 | 较好 | `pnpm pack:mobile` |
 | 移动端 | iOS | N/A（未验证） | 配套客户端，走 Expo / 源码（Xcode，macOS）。与桌面配对。没有 IPA | 未测试 | `pnpm --dir apps/mobile ios` |
 | CLI | macOS（Apple Silicon） | N/A（未验证） | 解压 `fast-cli`（别名 `fast`） | 部分 | `pnpm pack:cli -- --clean --os darwin-arm64` |
 | CLI | macOS（Intel） | N/A（未验证） | 与 Apple Silicon 相同。独立包 | 未测试 | `pnpm pack:cli -- --clean --os darwin-x64` |
@@ -140,8 +140,8 @@ cat ~/.fast/run/bridge.token
 Linux 还需要编译 `node-pty` 的工具链（`build-essential`）、Electron 用的 GTK/NSS，以及 `lsof` / `procps`。手机额外依赖（Android SDK、Xcode）只在跑 App 时需要。
 
 ```bash
-git clone https://github.com/kai2002/fast.git
-cd fast
+git clone https://github.com/kai2002/fast-agent.git
+cd fast-agent
 pnpm install
 pnpm fetch-engine          # Maven Central → modules/engine/current/
 pnpm pack                  # 桌面 + CLI + 手机，JS/引擎只 stage 一次
@@ -193,8 +193,8 @@ pnpm pack -- --clean                           # 重新拉引擎并 restage
 1. **准备环境** — 克隆仓库、安装 JS 依赖，并把本机引擎下载到 `modules/engine/current/`。这份只能在当前系统用，不要从另一台机器拷过来。只改手机可以不做 `fetch-engine`。
 
 ```bash
-git clone https://github.com/kai2002/fast.git
-cd fast
+git clone https://github.com/kai2002/fast-agent.git
+cd fast-agent
 pnpm install
 pnpm fetch-engine
 ```

@@ -28,12 +28,12 @@ v0.3.1 pre-release. **macOS** is the primary host. **Windows** native is in deve
 
 | Type    | Platform              | Download                                                                           | Installation                                                                             | Test status | Build command                                    |
 | ------- | --------------------- | ---------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- | ----------- | ------------------------------------------------ |
-| Desktop | macOS (Apple Silicon) | [Download `Fast-*-mac-arm64.dmg`](https://github.com/kai2002/fast/releases/latest) | Open the DMG and run `Install Fast.pkg` → `/Applications` + `/usr/local/bin` shims       | Good        | `pnpm pack:desktop -- --clean --os darwin-arm64` |
-| Desktop | macOS (Intel)         | [Download `Fast-*-mac-x64.dmg`](https://github.com/kai2002/fast/releases/latest)   | Same as Apple Silicon. Separate pack — not universal                                     | Good        | `pnpm pack:desktop -- --clean --os darwin-x64`   |
+| Desktop | macOS (Apple Silicon) | [Download `Fast-*-mac-arm64.dmg`](https://github.com/kai2002/fast-agent/releases) | Open the DMG and run `Install Fast.pkg` → `/Applications` + `/usr/local/bin` shims       | Good        | `pnpm pack:desktop -- --clean --os darwin-arm64` |
+| Desktop | macOS (Intel)         | [Download `Fast-*-mac-x64.dmg`](https://github.com/kai2002/fast-agent/releases)   | Same as Apple Silicon. Separate pack — not universal                                     | Good        | `pnpm pack:desktop -- --clean --os darwin-x64`   |
 | Desktop | Linux (glibc x64)     | N/A (unverified)                                                                   | Unpack `linux-unpacked`. Alpine / musl is not supported                                  | Untested    | `pnpm pack:desktop -- --clean --os linux-x64`    |
 | Desktop | Linux (glibc arm64)   | N/A (unverified)                                                                   | Unpack `linux-arm64-unpacked`. Separate pack — not universal                             | Untested    | `pnpm pack:desktop -- --clean --os linux-arm64`  |
 | Desktop | Windows (x64)         | N/A (unverified)                                                                   | Unpack `win-unpacked` (`Fast.exe`). No installer. In development; WSL2 is the daily path | Untested    | `pnpm pack:desktop -- --clean --os win32-x64`    |
-| Mobile  | Android               | [Download `fast-mobile-*.apk`](https://github.com/kai2002/fast/releases/latest)    | `adb install` the companion APK, then pair with desktop                                  | Good        | `pnpm pack:mobile`                               |
+| Mobile  | Android               | [Download `fast-mobile-*.apk`](https://github.com/kai2002/fast-agent/releases)    | `adb install` the companion APK, then pair with desktop                                  | Good        | `pnpm pack:mobile`                               |
 | Mobile  | iOS                   | N/A (unverified)                                                                   | Companion via Expo / from source (Xcode, macOS). Pair with desktop. No IPA pack          | Untested    | `pnpm --dir apps/mobile ios`                     |
 | CLI     | macOS (Apple Silicon) | N/A (unverified)                                                                   | Unpack `fast-cli` (alias `fast`)                                                         | Partial     | `pnpm pack:cli -- --clean --os darwin-arm64`     |
 | CLI     | macOS (Intel)         | N/A (unverified)                                                                   | Same as Apple Silicon. Separate pack                                                     | Untested    | `pnpm pack:cli -- --clean --os darwin-x64`       |
@@ -125,8 +125,8 @@ The pairing token is full access. Do not screenshot or share it. A lost phone is
 Linux also needs a compiler toolchain for `node-pty` (`build-essential`), GTK/NSS for Electron, and `lsof` / `procps`. Mobile extras (Android SDK, Xcode) only if you run the phone app.
 
 ```bash
-git clone https://github.com/kai2002/fast.git
-cd fast
+git clone https://github.com/kai2002/fast-agent.git
+cd fast-agent
 pnpm install
 pnpm fetch-engine          # Maven Central → modules/engine/current/
 pnpm pack                  # desktop + CLI + mobile, one JS/engine stage
@@ -178,8 +178,8 @@ pnpm pack -- --clean                           # refetch engine and restage
 1. **Prepare the environment** — clone, install JS dependencies, download the local engine into `modules/engine/current/`. That engine only works on the OS you fetched it on; do not copy the folder from another machine. Skip `fetch-engine` if you only change mobile.
 
 ```bash
-git clone https://github.com/kai2002/fast.git
-cd fast
+git clone https://github.com/kai2002/fast-agent.git
+cd fast-agent
 pnpm install
 pnpm fetch-engine
 ```
