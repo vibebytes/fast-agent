@@ -144,4 +144,11 @@ if [[ -z "$zip" || ! -f "$zip" ]]; then
 	exit 1
 fi
 echo "place $zip"
-exec "$root/scripts/place-engine.sh" "$zip"
+"$root/scripts/place-engine.sh" "$zip"
+want="${FAST_DIST_OS:-}"
+if [[ -z "$want" || "$want" == all ]]; then
+	want="$(tr -d '[:space:]' <"$root/modules/engine/current/.fast-os" 2>/dev/null || true)"
+fi
+[[ -n "$want" && "$want" != all ]] || want="$(host_os)"
+"$root/scripts/ensure-engine-jre.sh" "$root/modules/engine/current" "$want"
+"$root/scripts/patch-engine-java.sh" "$root/modules/engine/current"

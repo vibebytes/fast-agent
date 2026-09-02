@@ -110,7 +110,7 @@ pnpm fetch-engine                          # 当前主机 OS
 pnpm fetch-engine -- --clean linux-x64     # 打 Linux x64 包（或 linux-arm64）
 ```
 
-2. **上传** `modules/engine/current/` 到服务器。服务器需要 **JDK 17+**。
+2. **上传** `modules/engine/current/` 到服务器（内含 Temurin 17 JRE）。服务器不需要系统 JDK。
 3. **启动 CLI**，让它听公网口。非 loopback 走 `wss`（TLS；不写 `--wss-cert` / `--wss-key` 会自动签发）：
 
 ```bash
@@ -139,7 +139,7 @@ cat ~/.fast/run/bridge.token
 | ------- | ---------------------------------------- |
 | Node.js | 20.19+ 或 22                             |
 | pnpm    | 9（`package.json` 里的 `packageManager`） |
-| JDK     | 17+（仅桌面 / TUI 引擎）                 |
+| JDK     | 17+ 只需 **打包机**（`fetch-engine` / Maven）。引擎自带 Temurin 17 JRE |
 | Maven   | 3.x（仅桌面 / TUI 引擎）                 |
 
 Linux 还需要编译 `node-pty` 的工具链（`build-essential`）、Electron 用的 GTK/NSS，以及 `lsof` / `procps`。手机额外依赖（Android SDK、Xcode）只在跑 App 时需要。
@@ -152,7 +152,7 @@ pnpm fetch-engine          # Maven Central → modules/engine/current/
 pnpm pack                  # 桌面 + CLI + 手机，JS/引擎只 stage 一次
 ```
 
-这是主路径。默认为增量：`.fast-os` 一致才复用 `current/`，不一致则失败 — 用 `--clean`。不要在机器之间拷贝 `current/`。引擎 native 与 Electron 二进制共用 `--os`。不是 universal。
+这是主路径。默认为增量：`.fast-os` 一致才复用 `current/`，不一致则失败 — 用 `--clean`。不要在机器之间拷贝 `current/`。引擎 native 与 Electron 二进制共用 `--os`。不是 universal。桌面和 CLI 包自带 JRE，安装后不需要系统 JDK。
 
 `pnpm pack` 的产物：
 

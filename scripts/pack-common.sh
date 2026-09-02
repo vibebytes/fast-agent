@@ -163,6 +163,10 @@ ensure_engine() {
 			echo "modules/engine/current is $have; --os $want needs --clean" >&2
 			exit 1
 		fi
+		if ! engine_jre_ok "$dest" "$want"; then
+			"$root/scripts/ensure-engine-jre.sh" "$dest" "$want"
+		fi
+		"$root/scripts/patch-engine-java.sh" "$dest"
 		echo "engine already at $cli"
 		return
 	fi
@@ -333,6 +337,14 @@ smoke_cli() {
 		echo "smoke: $dest engine is ${engine_os:-unknown}; expected $(resolved_os)" >&2
 		exit 1
 	}
+	engine_jre_ok "$dest/engine" "$(resolved_os)" || {
+		echo "smoke: missing bundled JRE at $dest/engine/jre (expected temurin-17-$(resolved_os))" >&2
+		exit 1
+	}
+	grep -q 'jre/bin/java' "$dest/engine/bin/fast-cli" || {
+		echo "smoke: $dest/engine/bin/fast-cli does not exec bundled jre" >&2
+		exit 1
+	}
 	(cd "$dest/tui" && node --input-type=module -e "import '@fast-ide/session-view'; import '@fastllm/bridge-client'")
 	echo "CLI smoke ok ($dest)"
 }
@@ -371,6 +383,16 @@ smoke_desktop() {
 					exit 1
 				}
 			fi
+			engine_jre_ok "$unpacked/resources/engine" "$eos" || {
+				echo "smoke: missing bundled JRE in $unpacked" >&2
+				exit 1
+			}
+			if [[ -f "$unpacked/resources/engine/bin/fast-cli" ]]; then
+				grep -q 'jre/bin/java' "$unpacked/resources/engine/bin/fast-cli" || {
+					echo "smoke: packaged fast-cli does not exec bundled jre" >&2
+					exit 1
+				}
+			fi
 			echo "Desktop smoke ok (dir $unpacked)"
 			return
 		fi
@@ -386,6 +408,14 @@ smoke_desktop() {
 	engine_os="$(tr -d '[:space:]' <"$res/engine/.fast-os" 2>/dev/null || true)"
 	[[ "$engine_os" == "$eos" ]] || {
 		echo "smoke: packaged engine is ${engine_os:-unknown}; expected $eos" >&2
+		exit 1
+	}
+	engine_jre_ok "$res/engine" "$eos" || {
+		echo "smoke: missing bundled JRE at $res/engine/jre" >&2
+		exit 1
+	}
+	grep -q 'jre/bin/java' "$res/engine/bin/fast-cli" || {
+		echo "smoke: packaged fast-cli does not exec bundled jre" >&2
 		exit 1
 	}
 	bin_info="$(file "$app/Contents/MacOS/Fast" 2>/dev/null || true)"

@@ -58,7 +58,7 @@ Official hosts: **macOS** and **glibc Linux**. Alpine / musl is not supported. N
 | --- | --- |
 | Node.js | 20.19+ or 22 |
 | pnpm | 9 (`packageManager` in `package.json`) |
-| JDK | 17+ (desktop / TUI engine) |
+| JDK | 17+ to **fetch/pack** the engine only. `current/jre` is a Temurin 17 JRE |
 | Maven | 3.x (desktop / TUI engine) |
 
 Linux also needs a compiler toolchain for `node-pty` (`build-essential`), GTK/NSS for Electron, and `lsof` / `procps`.

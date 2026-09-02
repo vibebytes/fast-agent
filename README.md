@@ -90,7 +90,7 @@ pnpm fetch-engine                          # host OS
 pnpm fetch-engine -- --clean linux-x64     # Linux x64 tree (or linux-arm64)
 ```
 
-1. **Upload** `modules/engine/current/` to the server. The server needs **JDK 17+**.
+1. **Upload** `modules/engine/current/` to the server (includes a Temurin 17 JRE). The server does not need a system JDK.
 2. **Start the CLI** so it listens on the public interface. Non-loopback binds speak `wss` (TLS; auto-minted cert if you omit `--wss-cert` / `--wss-key`):
 
 ```bash
@@ -134,7 +134,7 @@ pnpm fetch-engine          # Maven Central → modules/engine/current/
 pnpm pack                  # desktop + CLI + mobile, one JS/engine stage
 ```
 
-That is the main path. Incremental is the default: reuse `current/` if `.fast-os` matches. Mismatch fails — use `--clean`. Do not copy `current/` between machines. Engine natives and the Electron binary share `--os`. Not a universal binary.
+That is the main path. Incremental is the default: reuse `current/` if `.fast-os` matches. Mismatch fails — use `--clean`. Do not copy `current/` between machines. Engine natives and the Electron binary share `--os`. Not a universal binary. Desktop and CLI packs include the JRE; installing the app does not require a system JDK.
 
 What `pnpm pack` writes:
 

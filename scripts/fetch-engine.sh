@@ -25,9 +25,9 @@ usage: ./scripts/fetch-engine.sh [--incremental] [--clean] [os] [--] [-h|--help]
   Maven Central ai.fastllm ${agent_ver} (natives ${natives_ver}) → modules/engine/current
   No agent/ checkout.
 
-  --incremental   default. If current/bin/fast-cli exists, skip (print a line).
-                  Otherwise mvn package (no clean) and write current/
-  --clean         mvn clean package, then rewrite current/
+  --incremental   default. If current/bin/fast-cli exists, skip Maven.
+                  Still ensures Temurin 17 JRE under current/jre/
+  --clean         mvn clean package, then rewrite current/ + jre
   os              darwin-arm64 | darwin-x64 | linux-x64 | linux-arm64 | win32-x64 | all
   --              ignore (pnpm fetch-engine -- --clean)
   -h, --help      print this help
@@ -59,12 +59,6 @@ if [[ -n "$os" ]]; then
 fi
 
 cur="$root/modules/engine/current"
-if [[ "$mode" == incremental ]] && engine_cli_path "$cur" >/dev/null; then
-	normalize_engine_bin "$cur"
-	echo "modules/engine/current exists; --clean to refresh"
-	chmod +x "$(engine_cli_path "$cur")" 2>/dev/null || true
-	exit 0
-fi
 
 host_os() {
 	local sys arch
@@ -77,6 +71,27 @@ host_os() {
 		*) echo darwin-arm64 ;;
 	esac
 }
+
+bind_jre() {
+	local dest="${1:-$cur}"
+	local want="${2:-}"
+	if [[ -z "$want" || "$want" == all ]]; then
+		want="$(tr -d '[:space:]' <"$dest/.fast-os" 2>/dev/null || true)"
+	fi
+	if [[ -z "$want" || "$want" == all ]]; then
+		want="$(host_os)"
+	fi
+	"$root/scripts/ensure-engine-jre.sh" "$dest" "$want"
+	"$root/scripts/patch-engine-java.sh" "$dest"
+}
+
+if [[ "$mode" == incremental ]] && engine_cli_path "$cur" >/dev/null; then
+	normalize_engine_bin "$cur"
+	echo "modules/engine/current exists; --clean to refresh"
+	chmod +x "$(engine_cli_path "$cur")" 2>/dev/null || true
+	bind_jre "$cur" "${FAST_DIST_OS:-}"
+	exit 0
+fi
 
 place_maven() {
 	local dist="$root/extensions/dist/target/dist"
@@ -97,6 +112,7 @@ place_maven() {
 	chmod +x "$dest/native/ripgrep"/rg-* 2>/dev/null || true
 	printf '%s\n' "$want" >"$dest/.fast-os"
 	"$root/scripts/place-engine.sh" --overlay-only
+	bind_jre "$dest" "$want"
 	echo "engine at $dest/bin/fast-cli (alias: fast)"
 }
 

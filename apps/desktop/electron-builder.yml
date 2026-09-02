@@ -30,7 +30,7 @@ mac:
   target:
     - pkg
 pkg:
-  scripts: build/pkg-scripts
+  scripts: pkg-scripts
   installLocation: /Applications
   allowAnywhere: false
   allowCurrentUserHome: false

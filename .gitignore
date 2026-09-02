@@ -43,6 +43,7 @@ apps/desktop/src/renderer/src/files/fileIconManifest.json
 
 # fetch-engine.sh writes modules/engine/current/
 modules/engine/current/
+modules/engine/.jre-cache/
 modules/engine/jars/
 modules/engine/*.zip
 modules/engine/*.jar
