@@ -7,14 +7,9 @@
 </p>
 
 <p align="center">
-  <a href="#1-下载与安装"><img alt="用户指南" src="https://img.shields.io/badge/📙_用户指南-v0.0.1_·_中文-ea580c?style=for-the-badge"></a>
-</p>
-
-<p align="center">
-  <img alt="Release" src="https://img.shields.io/badge/release-v0.0.1-blue">
+  <img alt="Release" src="https://img.shields.io/badge/release-v0.3.1-blue">
   <a href="LICENSE"><img alt="License" src="https://img.shields.io/badge/license-Apache%202.0-brightgreen"></a>
   <img alt="Platforms" src="https://img.shields.io/badge/platforms-macOS%20%7C%20Linux%20%7C%20Windows%20%7C%20Android%20%7C%20iOS-informational">
-  <img alt="Node" src="https://img.shields.io/badge/node-20.19%2B%20%7C%2022-339933">
   <a href="https://discord.gg/HXeK9QV57"><img alt="Discord" src="https://img.shields.io/badge/Discord-5865F2?logo=discord&logoColor=white"></a>
 </p>
 
@@ -43,11 +38,11 @@ Fast Agent 的目标是成为企业级、自学习的 AI Agent，并把 coding �
 - **Agent 原生** – 所有组件都是 Agent，自主协作、高度可组合。
 
 > [!IMPORTANT]
-> Fast Agent **仍在开发中**（v0.0.1）。本机引擎可以改你的工作区并执行 shell。请审阅每一条审批，预期会有破坏性变更，不要把未签名安装包当作生产发行。软件按 [Apache 2.0](LICENSE) 按现状提供。
+> Fast Agent **仍在开发中**（v0.3.1）。本机引擎可以改你的工作区并执行 shell。请审阅每一条审批，预期会有破坏性变更，不要把未签名安装包当作生产发行。软件按 [Apache 2.0](LICENSE) 按现状提供。
 
 ## 1. 下载与安装
 
-v0.0.1 预发布。**macOS** 是主路径。**Windows** 原生开发中。安装包未签名。
+v0.3.1 预发布。**macOS** 是主路径。**Windows** 原生开发中。安装包未签名。
 
 ### 1.1 直接下载
 

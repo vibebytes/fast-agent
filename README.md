@@ -2,9 +2,7 @@
 
 **An enterprise-grade, self-improving AI agent with coding as a first-class citizen.**
 
-![User Guide](https://img.shields.io/badge/📘_USER_GUIDE-v0.0.1_·_ENGLISH-2563eb?style=for-the-badge)
-
-![Release](https://img.shields.io/badge/release-v0.0.1-blue)![License](https://img.shields.io/badge/license-Apache%202.0-brightgreen)![Platforms](https://img.shields.io/badge/platforms-macOS%20%7C%20Linux%20%7C%20Windows%20%7C%20Android%20%7C%20iOS-informational)![Node](https://img.shields.io/badge/node-20.19%2B%20%7C%2022-339933)![Discord](https://img.shields.io/badge/Discord-5865F2?logo=discord&logoColor=white)
+![Release](https://img.shields.io/badge/release-v0.3.1-blue)![License](https://img.shields.io/badge/license-Apache%202.0-brightgreen)![Platforms](https://img.shields.io/badge/platforms-macOS%20%7C%20Linux%20%7C%20Windows%20%7C%20Android%20%7C%20iOS-informational)![Discord](https://img.shields.io/badge/Discord-5865F2?logo=discord&logoColor=white)
 
 [English](README.md) | [中文](README.zh-CN.md)
 
@@ -19,11 +17,11 @@ Fast Agent's goal is to be an enterprise-grade, self-improving AI agent with cod
 - **Agent-native** – all components are agents, autonomously collaborating and highly composable.
 
 > [!IMPORTANT]
-> Fast Agent is **under active development** (v0.0.1). The local engine can edit your workspace and run shell. Review every approval, expect breaking changes, and do not treat unsigned packs as a production release. Software is provided as-is under [Apache 2.0](LICENSE).
+> Fast Agent is **under active development** (v0.3.1). The local engine can edit your workspace and run shell. Review every approval, expect breaking changes, and do not treat unsigned packs as a production release. Software is provided as-is under [Apache 2.0](LICENSE).
 
 ## 1. Download and install
 
-v0.0.1 pre-release. **macOS** is the primary host. **Windows** native is in development. Packs are unsigned.
+v0.3.1 pre-release. **macOS** is the primary host. **Windows** native is in development. Packs are unsigned.
 
 ### 1.1 Direct download
 
