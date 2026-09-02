@@ -58,7 +58,7 @@ v0.0.1 预发布。**macOS** 是主路径。**Windows** 原生开发中。安装
 | 桌面 | Linux（glibc x64） | N/A（未验证） | 解压 `linux-unpacked`。不支持 Alpine / musl | 未测试 | `pnpm pack:desktop -- --clean --os linux-x64` |
 | 桌面 | Linux（glibc arm64） | N/A（未验证） | 解压 `linux-arm64-unpacked`。独立包，不是 universal | 未测试 | `pnpm pack:desktop -- --clean --os linux-arm64` |
 | 桌面 | Windows（x64） | N/A（未验证） | 解压 `win-unpacked`（`Fast.exe`）。没有安装包。开发中；日常请用 WSL2 | 未测试 | `pnpm pack:desktop -- --clean --os win32-x64` |
-| 移动端 | Android | N/A（未验证） | `adb install` 配套 APK，再与桌面配对 | 较好 | `pnpm pack:mobile` |
+| 移动端 | Android | [下载 `fast-mobile-*.apk`](https://github.com/kai2002/fast/releases/latest) | `adb install` 配套 APK，再与桌面配对 | 较好 | `pnpm pack:mobile` |
 | 移动端 | iOS | N/A（未验证） | 配套客户端，走 Expo / 源码（Xcode，macOS）。与桌面配对。没有 IPA | 未测试 | `pnpm --dir apps/mobile ios` |
 | CLI | macOS（Apple Silicon） | N/A（未验证） | 解压 `fast-ink` + `fast-cli`（别名 `fast`） | 部分 | `pnpm pack:cli -- --clean --os darwin-arm64` |
 | CLI | macOS（Intel） | N/A（未验证） | 与 Apple Silicon 相同。独立包 | 未测试 | `pnpm pack:cli -- --clean --os darwin-x64` |
