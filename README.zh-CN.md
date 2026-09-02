@@ -7,7 +7,7 @@
 </p>
 
 <p align="center">
-  <a href="#下载与安装"><img alt="用户指南" src="https://img.shields.io/badge/📙_用户指南-v0.0.1_·_中文-ea580c?style=for-the-badge"></a>
+  <a href="#1-下载与安装"><img alt="用户指南" src="https://img.shields.io/badge/📙_用户指南-v0.0.1_·_中文-ea580c?style=for-the-badge"></a>
 </p>
 
 <p align="center">
@@ -21,16 +21,17 @@
 <p align="center"><a href="README.md">English</a> | <a href="README.zh-CN.md">中文</a></p>
 
 <p align="center">
-  <a href="#直接下载">下载</a> ·
-  <a href="#怎么使用移动客户端实验性高频开发中">移动客户端</a> ·
-  <a href="#通过源码安装">源码安装</a> ·
-  <a href="#开发">开发</a> ·
-  <a href="#快速开始">快速开始</a> ·
-  <a href="#截图">截图</a> ·
+  <a href="#1-下载与安装">1. 下载</a> ·
+  <a href="#11-直接下载">1.1 安装包</a> ·
+  <a href="#12-怎么使用移动客户端实验性高频开发中">1.2 移动客户端</a> ·
+  <a href="#13-通过源码安装">1.3 源码</a> ·
+  <a href="#2-开发">2. 开发</a> ·
+  <a href="#21-快速开始">2.1 快速开始</a> ·
+  <a href="#3-截图">3. 截图</a> ·
+  <a href="#4-社区">4. 社区</a> ·
   <a href="CONTRIBUTING.md">Contributing</a> ·
-  <a href="#社区">社区</a> ·
   <a href="SECURITY.md">Security</a> ·
-  <a href="#许可证">许可证</a>
+  <a href="#5-许可证">5. 许可证</a>
 </p>
 
 Fast Agent 的目标是成为企业级、自学习的 AI Agent，并把 coding 作为一等公民。
@@ -44,11 +45,11 @@ Fast Agent 的目标是成为企业级、自学习的 AI Agent，并把 coding �
 > [!IMPORTANT]
 > Fast Agent **仍在开发中**（v0.0.1）。本机引擎可以改你的工作区并执行 shell。请审阅每一条审批，预期会有破坏性变更，不要把未签名安装包当作生产发行。软件按 [Apache 2.0](LICENSE) 按现状提供。
 
-## 下载与安装
+## 1. 下载与安装
 
 v0.0.1 预发布。**macOS** 是主路径。**Windows** 原生开发中。安装包未签名。
 
-### 直接下载
+### 1.1 直接下载
 
 | 平台 | 下载 | 安装方式 | 测试状态 |
 | --- | --- | --- | --- |
@@ -59,17 +60,27 @@ v0.0.1 预发布。**macOS** 是主路径。**Windows** 原生开发中。安装
 | iOS | — | 配套客户端，走 Expo / 源码；与桌面配对 | 未测试 |
 | CLI（TUI） | [下载](https://github.com/kai2002/fast/releases/latest) | 解压 `fast-ink` + `fast-cli`（别名 `fast`） | 部分 |
 
-打包方式见 [通过源码安装](#通过源码安装)。
+打包方式见 [1.3 通过源码安装](#13-通过源码安装)。
 
-### 怎么使用移动客户端（实验性，高频开发中）
+你可以通过微信群或 Discord 获得帮助。
+
+<div align="center">
+
+| 微信群 | Discord |
+| :---: | :---: |
+| <img src="docs/community/weichat.jpg" width="220" alt="微信群二维码"> | [加入 Fast Agent](https://discord.gg/HXeK9QV57) |
+
+</div>
+
+### 1.2 怎么使用移动客户端（实验性，高频开发中）
 
 手机是遥控器。不在手机上起引擎，不改文件。先装 App（Android：`adb install` 同一发行里的 APK；iOS：走 Expo / 源码，未测试），再选一种连法。
 
-#### 局域网（桌面）
+#### 1.2.1 局域网（桌面）
 
 手机连本机已经在跑的桌面 Fast，同一局域网。
 
-1. **先装桌面**（[直接下载](#直接下载)）。macOS 是主路径。
+1. **先装桌面**（[1.1 直接下载](#11-直接下载)）。macOS 是主路径。
 2. **打开局域网桥接**，再启动桌面。必须带 token。默认端口 `8787`：
 
 ```bash
@@ -82,7 +93,7 @@ FAST_MOBILE_BRIDGE_TOKEN='your-secret' /Applications/Fast.app/Contents/MacOS/Fas
 
 访客 Wi-Fi / 客户端隔离，或防火墙挡住 `8787`，都会连不上。桌面必须一直开着。
 
-#### 公网（远程 CLI）
+#### 1.2.2 公网（远程 CLI）
 
 手机直连远程 Linux / macOS 上的 `fast-cli`，不经过本机桌面。
 
@@ -110,13 +121,13 @@ cat ~/.fast/run/bridge.token
 
 在主机防火墙 / 安全组放行 `1979`（或你改的端口）。自备证书用 `--wss-cert` / `--wss-key`。
 
-#### 连上之后
+#### 1.2.3 连上之后
 
 对话 Tab 是最近会话；历史列出会话；会话里可发消息、审批、打断。主题和语言只存在手机上。
 
 配对 token 等于全部权限，不要截图或外传。手机丢了就当 token 泄露 — 换 token 再配对。详见 [SECURITY.md](SECURITY.md)。
 
-### 通过源码安装
+### 1.3 通过源码安装
 
 | 需要    | 版本                                     |
 | ------- | ---------------------------------------- |
@@ -154,13 +165,13 @@ pnpm pack:mobile           # 只打 APK
 pnpm pack -- --clean       # 重新拉引擎并 restage
 ```
 
-`./build/all.sh` 与 `pnpm pack` 等价。每个 `build/*.sh` 都有 `--help`。日常 `dev/` 命令见 [开发](#开发)。
+`./build/all.sh` 与 `pnpm pack` 等价。每个 `build/*.sh` 都有 `--help`。日常 `dev/` 命令见 [2. 开发](#2-开发)。
 
-## 开发
+## 2. 开发
 
 `pnpm` 脚本调用 `dev/` 和 `build/` 下的文件，两种写法等价。每个脚本都有 `--help`。
 
-### 快速开始
+### 2.1 快速开始
 
 `pnpm dev:*` 和 `./dev/*.sh` 是一回事。第 1 步做完后，只跑你正在改的那一层。
 
@@ -202,9 +213,9 @@ pnpm dev:mobile
 pnpm fetch-engine -- --clean
 ```
 
-### 命令
+### 2.2 命令
 
-完整列表。打安装包走 [通过源码安装](#通过源码安装)；这里日常是 `dev:*`，然后跑测试。
+完整列表。打安装包走 [1.3 通过源码安装](#13-通过源码安装)；这里日常是 `dev:*`，然后跑测试。
 
 | 脚本                           | 作用                                                         |
 | ------------------------------ | ------------------------------------------------------------ |
@@ -229,7 +240,7 @@ pnpm typecheck
 
 补丁与 PR：[CONTRIBUTING.md](CONTRIBUTING.md)。漏洞：[SECURITY.md](SECURITY.md)（私下 advisory，不要开公开 issue）。这两份目前是英文。
 
-### 代码结构
+### 2.3 代码结构
 
 ```text
 fast/
@@ -270,7 +281,7 @@ npm 名（暂不改）：`@fastllm/bridge-protocol`、`@fastllm/bridge-client`�
 
 更多：[doc/structure.md](doc/structure.md)、[modules/engine/README.md](modules/engine/README.md)。
 
-## 截图
+## 3. 截图
 
 ![Desktop](docs/screenshots/desktop.png)
 
@@ -288,7 +299,7 @@ TUI（`fast-ink`）— 同一引擎，走 unix Bridge。
 
 手机 — 配套客户端：会话、与桌面 Bridge 配对、主题。
 
-## 社区
+## 4. 社区
 
 选一个常用渠道讨论使用、开发和进展。
 
@@ -302,6 +313,6 @@ Discord：[加入 Fast Agent](https://discord.gg/HXeK9QV57)
 
 </div>
 
-## 许可证
+## 5. 许可证
 
 [Apache License 2.0](LICENSE)

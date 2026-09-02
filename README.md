@@ -7,7 +7,7 @@
 </p>
 
 <p align="center">
-  <a href="#download-and-install"><img alt="User Guide" src="https://img.shields.io/badge/📘_USER_GUIDE-v0.0.1_·_ENGLISH-2563eb?style=for-the-badge"></a>
+  <a href="#1-download-and-install"><img alt="User Guide" src="https://img.shields.io/badge/📘_USER_GUIDE-v0.0.1_·_ENGLISH-2563eb?style=for-the-badge"></a>
 </p>
 
 <p align="center">
@@ -21,16 +21,17 @@
 <p align="center"><a href="README.md">English</a> | <a href="README.zh-CN.md">中文</a></p>
 
 <p align="center">
-  <a href="#direct-download">Download</a> ·
-  <a href="#how-to-use-the-mobile-client-experimental-under-active-development">Mobile</a> ·
-  <a href="#install-from-source">From source</a> ·
-  <a href="#development">Development</a> ·
-  <a href="#quick-start">Quick Start</a> ·
-  <a href="#screenshots">Screenshots</a> ·
+  <a href="#1-download-and-install">1. Download</a> ·
+  <a href="#11-direct-download">1.1 Packs</a> ·
+  <a href="#12-how-to-use-the-mobile-client-experimental-under-active-development">1.2 Mobile</a> ·
+  <a href="#13-install-from-source">1.3 Source</a> ·
+  <a href="#2-development">2. Development</a> ·
+  <a href="#21-quick-start">2.1 Quick start</a> ·
+  <a href="#3-screenshots">3. Screenshots</a> ·
+  <a href="#4-community">4. Community</a> ·
   <a href="CONTRIBUTING.md">Contributing</a> ·
-  <a href="#community">Community</a> ·
   <a href="SECURITY.md">Security</a> ·
-  <a href="#license">License</a>
+  <a href="#5-license">5. License</a>
 </p>
 
 Fast Agent's goal is to be an enterprise-grade, self-improving AI agent with coding as a first-class citizen.
@@ -44,11 +45,11 @@ Fast Agent's goal is to be an enterprise-grade, self-improving AI agent with cod
 > [!IMPORTANT]
 > Fast Agent is **under active development** (v0.0.1). The local engine can edit your workspace and run shell. Review every approval, expect breaking changes, and do not treat unsigned packs as a production release. Software is provided as-is under [Apache 2.0](LICENSE).
 
-## Download and install
+## 1. Download and install
 
 v0.0.1 pre-release. **macOS** is the primary host. **Windows** native is in development. Packs are unsigned.
 
-### Direct download
+### 1.1 Direct download
 
 | Platform | Download | Installation | Test status |
 | --- | --- | --- | --- |
@@ -59,17 +60,27 @@ v0.0.1 pre-release. **macOS** is the primary host. **Windows** native is in deve
 | iOS | — | Companion via Expo / from source; pair with desktop | Untested |
 | CLI (TUI) | [Download](https://github.com/kai2002/fast/releases/latest) | Unpack `fast-ink` + `fast-cli` (alias `fast`) | Partial |
 
-How packs are built: [Install from source](#install-from-source).
+How packs are built: [1.3 Install from source](#13-install-from-source).
 
-### How to use the mobile client (experimental, under active development)
+You can get help in the WeChat group or on Discord.
+
+<div align="center">
+
+| WeChat | Discord |
+| :---: | :---: |
+| <img src="docs/community/weichat.jpg" width="220" alt="WeChat group"> | [Join Fast Agent](https://discord.gg/HXeK9QV57) |
+
+</div>
+
+### 1.2 How to use the mobile client (experimental, under active development)
 
 The phone is a companion. It does not start an engine or edit files on the phone. Install the app first (Android: `adb install` the APK from the same release; iOS: Expo / from source, untested). Then pick a mode.
 
-#### LAN (desktop)
+#### 1.2.1 LAN (desktop)
 
 The phone talks to a desktop Fast that is already running, on the same LAN.
 
-1. **Install desktop** on the computer ([Direct download](#direct-download)). macOS is the primary host.
+1. **Install desktop** on the computer ([1.1 Direct download](#11-direct-download)). macOS is the primary host.
 2. **Turn on the LAN bridge**, then start desktop. A token is required. Default port is `8787`:
 
 ```bash
@@ -82,7 +93,7 @@ From source: prefix the same variable on `pnpm dev:desktop`. Optional: `FAST_MOB
 
 Guest Wi-Fi / client isolation, or a firewall blocking `8787`, will fail the connect. Desktop must stay running.
 
-#### Public network (remote CLI)
+#### 1.2.2 Public network (remote CLI)
 
 The phone talks to `fast-cli` on a remote Linux or macOS server. No desktop in the path.
 
@@ -110,13 +121,13 @@ cat ~/.fast/run/bridge.token
 
 Open `1979` (or the port you chose) on the host firewall / security group. Optional: `--wss-cert` / `--wss-key` for your own cert.
 
-#### After you are connected
+#### 1.2.3 After you are connected
 
 Chat is the latest session. History lists sessions. A session can send, approve, and interrupt. Theme and language stay on the phone.
 
 The pairing token is full access. Do not screenshot or share it. A lost phone is a leaked token — rotate the token and pair again. More: [SECURITY.md](SECURITY.md).
 
-### Install from source
+### 1.3 Install from source
 
 | Need    | Version                                |
 | ------- | -------------------------------------- |
@@ -154,13 +165,13 @@ pnpm pack:mobile           # APK only
 pnpm pack -- --clean       # refetch engine and restage
 ```
 
-`./build/all.sh` is the same as `pnpm pack`. Each `build/*.sh` has `--help`. Daily `dev/` commands: [Development](#development).
+`./build/all.sh` is the same as `pnpm pack`. Each `build/*.sh` has `--help`. Daily `dev/` commands: [2. Development](#2-development).
 
-## Development
+## 2. Development
 
 `pnpm` scripts call the files under `dev/` and `build/`. You can use either. Each script has `--help`.
 
-### Quick start
+### 2.1 Quick start
 
 `pnpm dev:*` and `./dev/*.sh` are the same. After step 1, run only the step for the code you are changing.
 
@@ -202,9 +213,9 @@ pnpm dev:mobile
 pnpm fetch-engine -- --clean
 ```
 
-### Commands
+### 2.2 Commands
 
-Full list. Packing installers is [Install from source](#install-from-source); here you usually run `dev:*`, then tests.
+Full list. Packing installers is [1.3 Install from source](#13-install-from-source); here you usually run `dev:*`, then tests.
 
 | Script                         | What it does                                                 |
 | ------------------------------ | ------------------------------------------------------------ |
@@ -229,7 +240,7 @@ pnpm typecheck
 
 Patches and PR rules: [CONTRIBUTING.md](CONTRIBUTING.md). Vulnerabilities: [SECURITY.md](SECURITY.md) (private advisory, not a public issue).
 
-### Code structure
+### 2.3 Code structure
 
 ```text
 fast/
@@ -270,7 +281,7 @@ npm names (unchanged for now): `@fastllm/bridge-protocol`, `@fastllm/bridge-clie
 
 More: [doc/structure.md](doc/structure.md), [modules/engine/README.md](modules/engine/README.md).
 
-## Screenshots
+## 3. Screenshots
 
 ![Desktop](docs/screenshots/desktop.png)
 
@@ -288,7 +299,7 @@ TUI (`fast-ink`) — same engine over a unix Bridge.
 
 Mobile — companion client: session, desktop Bridge pairing, and themes.
 
-## Community
+## 4. Community
 
 Use whichever channel you prefer for usage questions, development, and project updates.
 
@@ -302,6 +313,6 @@ Discord: [Join Fast Agent](https://discord.gg/HXeK9QV57)
 
 </div>
 
-## License
+## 5. License
 
 [Apache License 2.0](LICENSE)
