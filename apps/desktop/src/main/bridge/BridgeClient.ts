@@ -31,6 +31,7 @@ export type BridgeStartOptions = Pick<
 > & {
 	remote?: RemoteBridgeConnectionOptions;
 	clientId?: string;
+	wantEngineId?: string;
 };
 
 const defaultSpawn: SpawnFn = (command, args, spawnOptions) =>
@@ -108,7 +109,8 @@ export class BridgeClient {
 					clientId: this.clientId,
 					cwd: launchOptions.remote ? undefined : workspaceRoot,
 					env,
-					remote: launchOptions.remote
+					remote: launchOptions.remote,
+					wantEngineId: launchOptions.wantEngineId ?? env.FAST_WANT_ENGINE_ID
 				},
 				{
 					onEvent: event => {
@@ -134,6 +136,7 @@ export class BridgeClient {
 			);
 		} catch (error) {
 			if (this.host === host) {
+				host.stop();
 				this.host = undefined;
 			}
 			if (!isCurrent()) {
@@ -244,6 +247,17 @@ export class BridgeClient {
 			this.handlers?.onError(error instanceof Error ? error.message : String(error));
 			return false;
 		}
+	}
+
+	async stopLocal(): Promise<void> {
+		this.generation += 1;
+		this.handlers = undefined;
+		if (this.host) {
+			await this.host.stopLocal();
+			this.host = undefined;
+			return;
+		}
+		this.stop();
 	}
 
 	stop(): void {

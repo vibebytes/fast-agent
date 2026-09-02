@@ -37,7 +37,7 @@ import type {
 	HostDirResult,
 	HostDirCreateResult
 } from '@fast-ide/session-view';
-import type {RemoteBridgeConnectionOptions} from '@fastllm/bridge-client';
+import {stopOwnedLocal, type RemoteBridgeConnectionOptions} from '@fastllm/bridge-client';
 import {BridgeClient} from './BridgeClient.js';
 import {CONNECT_DEADLINE_MS, LOCAL_EDGE_ID, edgeCapabilities, type EdgeCapabilities} from '../remoteEdges.js';
 import {isReservedDefaultFolder, sameRemotePath} from './remotePaths.js';
@@ -438,7 +438,8 @@ export class WorkspaceHub {
 				{
 					sessionMode: 'continue',
 					remote,
-					clientId: this.createClientId()
+					clientId: this.createClientId(),
+					wantEngineId: process.env.FAST_WANT_ENGINE_ID
 				}
 			);
 		} catch (error) {
@@ -1064,6 +1065,24 @@ export class WorkspaceHub {
 			this.activeProjectId = (next as string | null) ?? null;
 		}
 		return true;
+	}
+
+	async stopOwnedEngine(): Promise<void> {
+		this.shuttingDown = true;
+		if (this.rebindTimer) {
+			clearTimeout(this.rebindTimer);
+			this.rebindTimer = null;
+		}
+		if (this.rebindResetTimer) {
+			clearTimeout(this.rebindResetTimer);
+			this.rebindResetTimer = null;
+		}
+		if (this.bridge) {
+			await this.bridge.stopLocal();
+			this.bridge = null;
+		}
+		await stopOwnedLocal();
+		this.closeAll();
 	}
 
 	closeAll(): void {
@@ -3728,7 +3747,8 @@ export class WorkspaceHub {
 				{
 					sessionMode: 'continue',
 					remote,
-					clientId: this.createClientId()
+					clientId: this.createClientId(),
+					wantEngineId: process.env.FAST_WANT_ENGINE_ID
 				}
 			)
 		)

@@ -33,7 +33,21 @@ for (const [label, file] of [
 
 rmSync(dest, {recursive: true, force: true});
 mkdirSync(dest, {recursive: true});
-cpSync(engineSrc, path.join(dest, 'engine'), {recursive: true});
+const engineDest = path.join(dest, 'engine');
+cpSync(engineSrc, engineDest, {recursive: true});
+
+function stampEngineId(engineDir) {
+	const pom = readFileSync(path.join(root, 'extensions', 'pom.xml'), 'utf8');
+	const ver = pom.match(/<agent\.version>([^<]+)<\/agent\.version>/)?.[1]?.trim() || 'unknown';
+	const jreFile = path.join(engineDir, '.fast-jre');
+	const jre = existsSync(jreFile) ? readFileSync(jreFile, 'utf8').trim() : 'no-jre';
+	const packedAt = new Date().toISOString();
+	const id = `${ver} ${jre} ${packedAt}`;
+	writeFileSync(path.join(engineDir, '.fast-engine-id'), `${id}\n`);
+	console.log(`engine id ${id}`);
+}
+
+stampEngineId(engineDest);
 
 function writePkg(dir, json) {
 	mkdirSync(dir, {recursive: true});

@@ -7,3 +7,5 @@ pnpm fetch-engine -- --clean
 ```
 
 Dev escape if you must use a system JDK: `FAST_USE_SYSTEM_JAVA=1`. Packaged trees must keep `jre/`.
+
+`pnpm pack` stamps `engine/.fast-engine-id` as `<agent.version> <jre-mark> <UTC ISO>` (new timestamp each stage). The launcher exports it as `FAST_ENGINE_ID` so `HelloOk.engineId` can match the pack.

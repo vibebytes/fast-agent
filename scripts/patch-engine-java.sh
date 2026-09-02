@@ -34,6 +34,9 @@ else
 	export JAVA_HOME="$root/jre"
 	export PATH="$JAVA_HOME/bin:$PATH"
 fi
+if [[ -f "$root/.fast-engine-id" ]]; then
+	export FAST_ENGINE_ID="$(tr -d '\n' <"$root/.fast-engine-id")"
+fi
 exec "$java" --add-opens=java.base/java.nio=ALL-UNNAMED \
 	-Dfast.engines.yaml="$conf/engines.yaml" \
 	-Dfast.extensions.yaml="$conf/extensions.yaml" \
@@ -64,6 +67,9 @@ if "%FAST_USE_SYSTEM_JAVA%"=="1" (
 		echo fast: bundled JRE missing at %ROOT%\jre 1>&2
 		exit /b 1
 	)
+)
+if exist "%ROOT%\.fast-engine-id" (
+	set /p FAST_ENGINE_ID=<"%ROOT%\.fast-engine-id"
 )
 "%JAVA%" --add-opens=java.base/java.nio=ALL-UNNAMED -Dfast.engines.yaml="%CONF%\engines.yaml" -Dfast.extensions.yaml="%CONF%\extensions.yaml" -Dfast.extensions="%EXTS%" -cp "%ROOT%\lib\*" ai.fastllm.agent.cli.CliApp %*
 EOF

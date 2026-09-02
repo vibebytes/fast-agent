@@ -1344,9 +1344,11 @@ test('bridgeEventSchema accepts HelloOk / HelloReject / daemon_shutting_down', (
 		protocolVersion: 1,
 		engineEpoch: 'e1',
 		daemonPid: 9,
-		serverTimeMillis: 1
+		serverTimeMillis: 1,
+		engineId: '0.3.1 temurin-17-darwin-arm64 2026-09-02T08:50:00.000Z'
 	});
 	assert.equal(ok.type, 'HelloOk');
+	if (ok.type === 'HelloOk') assert.equal(ok.engineId?.startsWith('0.3.1 '), true);
 
 	const reject = bridgeEventSchema.parse({
 		type: 'HelloReject',

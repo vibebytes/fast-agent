@@ -14,6 +14,7 @@ import os from 'node:os';
 import path from 'node:path';
 import {bridgePaths} from './paths.js';
 import {tryConnectUnix} from './unixConnection.js';
+import {shouldReplaceDaemon} from './engineIdentity.js';
 
 export const CONNECT_TIMEOUT_MS = 5_000;
 /** Cold Bridge boots commonly take 15–30s (Rocks + Hub seed + session resume). */
@@ -54,6 +55,9 @@ export type EnsureDaemonDeps = {
 	commandLine?: (pid: number) => string | undefined;
 	/** All live Bridge engine PIDs on this machine (process scan). */
 	liveBridgePids?: () => number[];
+	wantEngineId?: string;
+	bundledEngine?: string;
+	killPid?: (pid: number, signal: NodeJS.Signals) => void;
 };
 
 const defaultSleep = (ms: number) => new Promise<void>(r => setTimeout(r, ms));
@@ -135,9 +139,18 @@ function aliveLockHolders(
 	return holders(lockPath).filter(alive);
 }
 
-function processCommandLine(pid: number): string | undefined {
+export function engineCommandLine(pid: number): string | undefined {
 	try {
-		const out = execFileSync('ps', ['-p', String(pid), '-o', 'command='], {
+		if (process.platform === 'win32') {
+			const out = execFileSync(
+				'wmic',
+				['process', 'where', `ProcessId=${pid}`, 'get', 'CommandLine', '/value'],
+				{encoding: 'utf8', timeout: 2_000, stdio: ['ignore', 'pipe', 'ignore']}
+			);
+			const m = out.match(/CommandLine=(.*)/);
+			return m?.[1]?.trim() || undefined;
+		}
+		const out = execFileSync('ps', ['-ww', '-p', String(pid), '-o', 'command='], {
 			encoding: 'utf8',
 			timeout: 2_000,
 			stdio: ['ignore', 'pipe', 'ignore']
@@ -170,7 +183,7 @@ export function isLiveBridgeHost(
 	} = {}
 ): boolean {
 	const alive = deps.alive ?? isPidAlive;
-	const commandLine = deps.commandLine ?? processCommandLine;
+	const commandLine = deps.commandLine ?? engineCommandLine;
 	if (!alive(pid)) return false;
 	const cmd = commandLine(pid);
 	if (cmd === undefined) return true;
@@ -178,8 +191,29 @@ export function isLiveBridgeHost(
 }
 
 /** Best-effort: every live Bridge host JVM/cli on this machine. */
+function liveBridgePidsWindows(): number[] {
+	try {
+		const out = execFileSync(
+			'wmic',
+			['process', 'where', "CommandLine like '%ai.fastllm.agent.cli.CliApp%'", 'get', 'ProcessId,CommandLine', '/format:list'],
+			{encoding: 'utf8', timeout: 3_000, stdio: ['ignore', 'pipe', 'ignore']}
+		);
+		const found = new Set<number>();
+		const blocks = out.split(/\r?\n\r?\n/);
+		for (const block of blocks) {
+			if (!/engine/i.test(block) || !/bridge/i.test(block)) continue;
+			const m = block.match(/ProcessId=(\d+)/i);
+			const n = Number(m?.[1]);
+			if (Number.isFinite(n) && n > 0 && n !== process.pid) found.add(n);
+		}
+		return [...found];
+	} catch {
+		return [];
+	}
+}
+
 export function liveBridgePids(): number[] {
-	if (process.platform === 'win32') return [];
+	if (process.platform === 'win32') return liveBridgePidsWindows();
 	const patterns = [
 		'ai.fastllm.agent.cli.CliApp.*engine.*bridge',
 		'fast-cli.*engine.*bridge',
@@ -395,8 +429,11 @@ export async function ensureDaemon(deps: EnsureDaemonDeps = {}): Promise<EnsureD
 	const engineLaunch = deps.engineLaunch ?? resolveDaemonLaunch;
 	const lockPathOf = deps.rocksLockPath ?? rocksLockPath;
 	const lockHoldersOf = deps.rocksLockHolders ?? rocksLockHolders;
-	const commandLine = deps.commandLine ?? processCommandLine;
+	const commandLine = deps.commandLine ?? engineCommandLine;
 	const bridgePidsOf = deps.liveBridgePids ?? liveBridgePids;
+	const killPid = deps.killPid ?? ((pid, signal) => process.kill(pid, signal));
+	const wantEngineId = deps.wantEngineId ?? env.FAST_WANT_ENGINE_ID;
+	const bundledEngine = deps.bundledEngine ?? env.FAST_BUNDLED_ENGINE;
 	const lockPath = lockPathOf(env);
 	const liveBridge = (pid: number) => isLiveBridgeHost(pid, {alive, commandLine});
 
@@ -416,9 +453,37 @@ export async function ensureDaemon(deps: EnsureDaemonDeps = {}): Promise<EnsureD
 			};
 		}
 
-		// Any live Bridge JVM owns the machine slot — wait for sock, never spawn another.
+		// Any live Bridge JVM owns the machine slot — wait for sock, never spawn another
+		// unless it is our leftover bundled CLI (identity replace; never a public --ws host).
 		const running = bridgePidsOf().filter(alive);
 		if (running.length > 0) {
+			let reaped = false;
+			for (const pid of running) {
+				const cmd = commandLine(pid);
+				if (
+					shouldReplaceDaemon({
+						wantId: wantEngineId,
+						haveId: undefined,
+						commandLine: cmd,
+						bundledCli: bundledEngine,
+						env
+					})
+				) {
+					try {
+						killPid(pid, 'SIGTERM');
+					} catch {
+						// already gone
+					}
+					reaped = true;
+				}
+			}
+			if (reaped) {
+				unlink(paths.pidFile);
+				startingClaimSince = undefined;
+				staleAliveSince = undefined;
+				await sleep(200);
+				continue;
+			}
 			startingClaimSince = undefined;
 			staleAliveSince ??= now();
 			if (now() - staleAliveSince >= startupTimeoutMs || now() >= deadline) {

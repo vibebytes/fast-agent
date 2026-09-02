@@ -10,6 +10,7 @@ export {
 	engineBinName,
 	placedEngineCli,
 	resourcesEngineCli,
+	engineCommandLine,
 	isPidAlive,
 	readPidFile,
 	claimPidExclusive,
@@ -18,7 +19,23 @@ export {
 	type EnsureDaemonResult,
 	type EnsureDaemonDeps
 } from './ensureDaemon.js';
-export {connectUnix, tryConnectUnix, type UnixConnection, type UnixConnectionHandlers} from './unixConnection.js';
+export {
+	commandOwnsCli,
+	engineRootFromCli,
+	isPublicWsBind,
+	shouldReplaceDaemon,
+	shouldStopDaemonOnQuit,
+	trimmedId,
+	waitWhile
+} from './engineIdentity.js';
+export {stopOwnedLocal, type StopOwnedLocalOpts} from './stopOwnedLocal.js';
+export {
+	connectUnix,
+	tryConnectUnix,
+	type ConnectUnixOpts,
+	type UnixConnection,
+	type UnixConnectionHandlers
+} from './unixConnection.js';
 export {
 	connectWs,
 	tlsClientOptions,

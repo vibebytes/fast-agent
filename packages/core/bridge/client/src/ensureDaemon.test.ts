@@ -207,6 +207,42 @@ test('isLiveBridgeHost treats unknown cmdline as owner; non-bridge as stale', ()
 	assert.equal(isLiveBridgeHost(1, {alive: () => false, commandLine: () => bridgeCmd}), false);
 });
 
+test('ensureDaemon SIGTERM leftover bundled CLI when wantId set and sock is down', async () => {
+	const killed: Array<[number, NodeJS.Signals]> = [];
+	let spawned = 0;
+	let t = 0;
+	const result = await ensureDaemon({
+		...noRocksHolders,
+		env: {HOME: '/tmp/bridge-reap-home', FAST_RUN_DIR: '/tmp/bridge-reap-run'},
+		startupTimeoutMs: 2_000,
+		sleep: async () => {},
+		now: () => (t += 100),
+		tryConnect: async () => spawned > 0,
+		isPidAlive: pid => pid === 7777 && killed.length === 0,
+		liveBridgePids: () => (killed.length === 0 ? [7777] : []),
+		commandLine: () =>
+			'/pack/engine/jre/bin/java -cp /pack/engine/lib/* ai.fastllm.agent.cli.CliApp engine --mode bridge --transport unix',
+		wantEngineId: '0.3.1 next',
+		bundledEngine: '/pack/engine/bin/fast-cli',
+		killPid: (pid, signal) => {
+			killed.push([pid, signal]);
+		},
+		readPid: () => undefined,
+		unlink: () => {},
+		claimPidExclusive: () => {},
+		spawnDaemon: () => {
+			spawned += 1;
+			return undefined;
+		},
+		readToken: () => 'tok',
+		exists: p => spawned > 0 && p.includes('bridge.token'),
+		ensureDir: () => {}
+	});
+	assert.deepEqual(killed, [[7777, 'SIGTERM']]);
+	assert.equal(spawned, 1);
+	assert.equal(result.spawned, true);
+});
+
 test('ensureDaemon waits on liveBridgePids — never spawn second JVM', async () => {
 	await assert.rejects(
 		() =>

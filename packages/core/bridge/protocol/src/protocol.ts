@@ -1970,7 +1970,9 @@ const bridgeEventPayloadSchema = z.discriminatedUnion('type', [
 		engineEpoch: z.string().optional(),
 		daemonPid: z.number().optional(),
 		serverTimeMillis: z.number().optional(),
-		hostHome: z.string().optional()
+		hostHome: z.string().optional(),
+		/** Packed `.fast-engine-id` (`<ver> <jre> <UTC>`). Absent on hand-started hosts. */
+		engineId: z.string().optional()
 	}),
 	z.object({
 		type: z.literal('HelloReject'),

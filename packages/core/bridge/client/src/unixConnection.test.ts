@@ -104,3 +104,12 @@ test('connectUnix reassembles CJK split across socket reads', async () => {
 		await new Promise<void>(resolve => server.close(() => resolve()));
 	}
 });
+
+test('connectUnix timeoutMs rejects when the socket never accepts', async () => {
+	const dir = mkdtempSync(path.join(tmpdir(), 'unix-timeout-'));
+	const socketPath = path.join(dir, 'missing.sock');
+	await assert.rejects(
+		connectUnix(socketPath, {onEvent: () => {}, onError: () => {}, onClose: () => {}}, {timeoutMs: 80}),
+		err => err instanceof Error && /timed out|ENOENT|ECONNREFUSED|connect/i.test(err.message)
+	);
+});

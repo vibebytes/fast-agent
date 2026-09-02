@@ -94,6 +94,23 @@ cli_pack_dir() {
 	echo "$root/release/cli-$(resolved_os)"
 }
 
+# File or directory → du -sh (e.g. 333M). Empty if missing.
+human_size() {
+	local p="${1:-}"
+	[[ -e "$p" ]] || return 1
+	du -sh "$p" 2>/dev/null | awk '{print $1}'
+}
+
+echo_sized() {
+	local label="$1" path="$2"
+	local sz
+	if sz="$(human_size "$path")"; then
+		echo "$label $path ($sz)"
+	else
+		echo "$label $path"
+	fi
+}
+
 linux_unpacked_dir() {
 	case "${1:-}" in
 		linux-arm64) echo "$root/apps/desktop/release/linux-arm64-unpacked" ;;
@@ -205,11 +222,14 @@ pack_cli() {
 	mkdir -p "$root/release"
 	rm -rf "$link"
 	ln -sfn "$(basename "$dest")" "$link"
-	echo "CLI pack -> $dest"
+	echo_sized "CLI pack ->" "$dest"
 	echo "  $dest/bin/fast-ink"
 	echo "  $dest/bin/fast-cli"
 	echo "  $dest/bin/fast"
 	echo "  $link -> $(basename "$dest")"
+	if [[ -d "$dest/engine/jre" ]]; then
+		echo_sized "  jre" "$dest/engine/jre"
+	fi
 }
 
 clear_mac_out() {
@@ -288,9 +308,12 @@ pack_desktop() {
 	if [[ -n "$app" ]]; then
 		app="$(cd "$app" && pwd)"
 		res="$app/Contents/Resources"
-		echo "Desktop app -> $app"
+		echo_sized "Desktop app ->" "$app"
 		echo "  engine $res/engine/bin/fast-cli"
 		echo "  shims  $res/bin"
+		if [[ -d "$res/engine/jre" ]]; then
+			echo_sized "  jre" "$res/engine/jre"
+		fi
 	fi
 	if [[ -n "$pkg" && -n "$dmg" ]]; then
 		pkg="$(cd "$(dirname "$pkg")" && pwd)/$(basename "$pkg")"
@@ -298,15 +321,19 @@ pack_desktop() {
 		mkdir -p "$root/release"
 		ln -sfn "$pkg" "$root/release/$(basename "$pkg")"
 		ln -sfn "$dmg" "$root/release/$(basename "$dmg")"
-		echo "Installer -> $dmg"
+		echo_sized "Installer ->" "$dmg"
+		echo_sized "  pkg" "$pkg"
 		echo "  contains Install Fast.pkg (installs /Applications/Fast.app + /usr/local/bin/{fast-ink,fast-cli,fast})"
 	elif [[ "$platform" == darwin ]]; then
 		echo "electron-builder finished; pkg/dmg not found under apps/desktop/release" >&2
 		exit 1
 	elif [[ -n "$unpacked" ]]; then
 		unpacked="$(cd "$unpacked" && pwd)"
-		echo "Desktop dir -> $unpacked"
+		echo_sized "Desktop dir ->" "$unpacked"
 		echo "  engine $unpacked/resources/engine/bin/fast-cli"
+		if [[ -d "$unpacked/resources/engine/jre" ]]; then
+			echo_sized "  jre" "$unpacked/resources/engine/jre"
+		fi
 	else
 		echo "electron-builder finished; no Fast.app / unpacked dir under apps/desktop/release" >&2
 		exit 1
@@ -345,8 +372,12 @@ smoke_cli() {
 		echo "smoke: $dest/engine/bin/fast-cli does not exec bundled jre" >&2
 		exit 1
 	}
+	[[ -s "$dest/engine/.fast-engine-id" ]] || {
+		echo "smoke: missing $dest/engine/.fast-engine-id" >&2
+		exit 1
+	}
 	(cd "$dest/tui" && node --input-type=module -e "import '@fast-ide/session-view'; import '@fastllm/bridge-client'")
-	echo "CLI smoke ok ($dest)"
+	echo_sized "CLI smoke ok" "$dest"
 }
 
 smoke_desktop() {
@@ -393,7 +424,11 @@ smoke_desktop() {
 					exit 1
 				}
 			fi
-			echo "Desktop smoke ok (dir $unpacked)"
+			[[ -s "$unpacked/resources/engine/.fast-engine-id" ]] || {
+				echo "smoke: missing $unpacked/resources/engine/.fast-engine-id" >&2
+				exit 1
+			}
+			echo_sized "Desktop smoke ok (dir)" "$unpacked"
 			return
 		fi
 		echo "desktop smoke skipped (no Fast.app)"
@@ -416,6 +451,10 @@ smoke_desktop() {
 	}
 	grep -q 'jre/bin/java' "$res/engine/bin/fast-cli" || {
 		echo "smoke: packaged fast-cli does not exec bundled jre" >&2
+		exit 1
+	}
+	[[ -s "$res/engine/.fast-engine-id" ]] || {
+		echo "smoke: missing $res/engine/.fast-engine-id" >&2
 		exit 1
 	}
 	bin_info="$(file "$app/Contents/MacOS/Fast" 2>/dev/null || true)"
@@ -510,7 +549,7 @@ smoke_desktop() {
 	else
 		echo "smoke: @electron/asar not found; skip asar list checks" >&2
 	fi
-	echo "Desktop smoke ok ($dmg)"
+	echo_sized "Desktop smoke ok" "$dmg"
 }
 
 prepare_pack() {

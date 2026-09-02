@@ -19,7 +19,7 @@
     "prebuild": "npm run build --prefix ../protocol",
     "typecheck": "tsc --noEmit",
     "pretypecheck": "npm run build --prefix ../protocol",
-		"test": "tsx --test src/paths.test.ts src/ensureDaemon.test.ts src/unixConnection.test.ts src/wsConnection.test.ts src/tlsPin.test.ts src/probe.test.ts src/BridgeHost.test.ts src/extensions.test.ts",
+		"test": "tsx --test src/paths.test.ts src/ensureDaemon.test.ts src/engineIdentity.test.ts src/stopOwnedLocal.test.ts src/unixConnection.test.ts src/wsConnection.test.ts src/tlsPin.test.ts src/probe.test.ts src/BridgeHost.test.ts src/extensions.test.ts",
     "prepublishOnly": "npm run build"
   },
   "dependencies": {

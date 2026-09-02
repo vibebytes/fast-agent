@@ -15,10 +15,15 @@ export type UnixConnection = {
 	close: () => void;
 };
 
+export type ConnectUnixOpts = {
+	timeoutMs?: number;
+};
+
 /** Connect to a unix domain socket and frame bidirectional NDJSON. */
 export function connectUnix(
 	socketPath: string,
-	handlers: UnixConnectionHandlers
+	handlers: UnixConnectionHandlers,
+	opts?: ConnectUnixOpts
 ): Promise<UnixConnection> {
 	return new Promise((resolve, reject) => {
 		const socket = net.createConnection({path: socketPath});
@@ -28,13 +33,20 @@ export function connectUnix(
 		let closed = false;
 		const pending: string[] = [];
 		let flushScheduled = false;
+		const timeoutMs = opts?.timeoutMs;
+		const timer =
+			timeoutMs && timeoutMs > 0
+				? setTimeout(() => fail(new Error(`connectUnix timed out after ${timeoutMs}ms`)), timeoutMs)
+				: undefined;
 
 		const fail = (err: Error) => {
+			if (timer) clearTimeout(timer);
 			if (settled) {
 				handlers.onError(err.message);
 				return;
 			}
 			settled = true;
+			socket.destroy();
 			reject(err);
 		};
 
@@ -69,6 +81,7 @@ export function connectUnix(
 		};
 
 		socket.once('connect', () => {
+			if (timer) clearTimeout(timer);
 			settled = true;
 			resolve({
 				socketPath,

@@ -79,6 +79,8 @@ protocol.registerSchemesAsPrivileged([
 
 let mainWindow: BrowserWindow | null = null;
 let isQuitting = false;
+let engineStopDone = false;
+let engineStopInFlight = false;
 const electronVault: TokenVault = {
 	isEncryptionAvailable: () => safeStorage.isEncryptionAvailable(),
 	encryptString: plain => safeStorage.encryptString(plain),
@@ -184,7 +186,13 @@ function createWindow(): void {
 
 	mainWindow.on('closed', () => {
 		stopHeartbeat();
-		hub.closeAll();
+		// Last window on Windows/Linux proceeds to quit; keep the unix lease so
+		// will-quit can Shutdown the host we started. Darwin last-window stays
+		// in dock and only drops the lease (Java stays until Cmd+Q).
+		const last = BrowserWindow.getAllWindows().length === 0;
+		if (!isQuitting && !(last && process.platform !== 'darwin')) {
+			hub.closeAll();
+		}
 		mainWindow = null;
 	});
 }
@@ -611,14 +619,26 @@ app.on('before-quit', () => {
 	destroyPetWindow();
 });
 
+app.on('will-quit', event => {
+	if (engineStopDone) return;
+	event.preventDefault();
+	if (engineStopInFlight) return;
+	engineStopInFlight = true;
+	void hub.stopOwnedEngine().finally(() => {
+		engineStopDone = true;
+		app.quit();
+	});
+});
+
 app.on('window-all-closed', () => {
 	if (!isQuitting && (isPetVisible() || (loadPetVisible() && hasPetWindow()))) {
 		return;
 	}
 	stopHeartbeat();
-	hub.closeAll();
 	destroyPetWindow();
 	if (process.platform !== 'darwin') {
-		app.quit();
+		quitApp();
+	} else if (!isQuitting) {
+		hub.closeAll();
 	}
 });
