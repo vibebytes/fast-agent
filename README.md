@@ -22,6 +22,7 @@
 
 <p align="center">
   <a href="#direct-download">Download</a> ·
+  <a href="#how-to-use-the-mobile-client-experimental-under-active-development">Mobile</a> ·
   <a href="#install-from-source">From source</a> ·
   <a href="#development">Development</a> ·
   <a href="#quick-start">Quick Start</a> ·
@@ -59,6 +60,61 @@ v0.0.1 pre-release. **macOS** is the primary host. **Windows** native is in deve
 | CLI (TUI) | [Download](https://github.com/kai2002/fast/releases/latest) | Unpack `fast-ink` + `fast-cli` (alias `fast`) | Partial |
 
 How packs are built: [Install from source](#install-from-source).
+
+### How to use the mobile client (experimental, under active development)
+
+The phone is a companion. It does not start an engine or edit files on the phone. Install the app first (Android: `adb install` the APK from the same release; iOS: Expo / from source, untested). Then pick a mode.
+
+#### LAN (desktop)
+
+The phone talks to a desktop Fast that is already running, on the same LAN.
+
+1. **Install desktop** on the computer ([Direct download](#direct-download)). macOS is the primary host.
+2. **Turn on the LAN bridge**, then start desktop. A token is required. Default port is `8787`:
+
+```bash
+FAST_MOBILE_BRIDGE_TOKEN='your-secret' /Applications/Fast.app/Contents/MacOS/Fast
+```
+
+From source: prefix the same variable on `pnpm dev:desktop`. Optional: `FAST_MOBILE_BRIDGE_PORT`.
+
+3. **Pair.** Desktop → Settings → Servers → Mobile pairing. On the phone: Settings → Scan to pair. You can paste the URL and token instead of scanning.
+
+Guest Wi-Fi / client isolation, or a firewall blocking `8787`, will fail the connect. Desktop must stay running.
+
+#### Public network (remote CLI)
+
+The phone talks to `fast-cli` on a remote Linux or macOS server. No desktop in the path.
+
+1. **Fetch the engine** so `modules/engine/current/` exists. The tree must match the server OS and arch — do not later copy a Darwin `current/` onto Linux. `--clean` **replaces** local `current/`.
+
+```bash
+pnpm fetch-engine                          # host OS
+pnpm fetch-engine -- --clean linux-x64     # Linux x64 tree (or linux-arm64)
+```
+
+2. **Upload** `modules/engine/current/` to the server. The server needs **JDK 17+**.
+3. **Start the CLI** so it listens on the public interface. Non-loopback binds speak `wss` (TLS; auto-minted cert if you omit `--wss-cert` / `--wss-key`):
+
+```bash
+./bin/fast-cli engine --mode bridge --transport unix --wss 0.0.0.0:1979
+```
+
+4. **Read the token** on the server. Token goes in `Hello.authToken`, not in the URL:
+
+```bash
+cat ~/.fast/run/bridge.token
+```
+
+5. **Connect from the phone.** Settings → add server URL and token. URL is `wss://<host>:1979/bridge`. The client confirms the TLS fingerprint on its own.
+
+Open `1979` (or the port you chose) on the host firewall / security group. Optional: `--wss-cert` / `--wss-key` for your own cert.
+
+#### After you are connected
+
+Chat is the latest session. History lists sessions. A session can send, approve, and interrupt. Theme and language stay on the phone.
+
+The pairing token is full access. Do not screenshot or share it. A lost phone is a leaked token — rotate the token and pair again. More: [SECURITY.md](SECURITY.md).
 
 ### Install from source
 

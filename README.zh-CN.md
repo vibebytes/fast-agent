@@ -22,6 +22,7 @@
 
 <p align="center">
   <a href="#直接下载">下载</a> ·
+  <a href="#怎么使用移动客户端实验性高频开发中">移动客户端</a> ·
   <a href="#通过源码安装">源码安装</a> ·
   <a href="#开发">开发</a> ·
   <a href="#快速开始">快速开始</a> ·
@@ -59,6 +60,61 @@ v0.0.1 预发布。**macOS** 是主路径。**Windows** 原生开发中。安装
 | CLI（TUI） | [下载](https://github.com/kai2002/fast/releases/latest) | 解压 `fast-ink` + `fast-cli`（别名 `fast`） | 部分 |
 
 打包方式见 [通过源码安装](#通过源码安装)。
+
+### 怎么使用移动客户端（实验性，高频开发中）
+
+手机是遥控器。不在手机上起引擎，不改文件。先装 App（Android：`adb install` 同一发行里的 APK；iOS：走 Expo / 源码，未测试），再选一种连法。
+
+#### 局域网（桌面）
+
+手机连本机已经在跑的桌面 Fast，同一局域网。
+
+1. **先装桌面**（[直接下载](#直接下载)）。macOS 是主路径。
+2. **打开局域网桥接**，再启动桌面。必须带 token。默认端口 `8787`：
+
+```bash
+FAST_MOBILE_BRIDGE_TOKEN='your-secret' /Applications/Fast.app/Contents/MacOS/Fast
+```
+
+源码开发时把同一变量加在 `pnpm dev:desktop` 前面。可选 `FAST_MOBILE_BRIDGE_PORT`。
+
+3. **配对。** 桌面 → 设置 → 服务器 → 手机配对。手机：设置 → 扫码配对。也可手填地址和 token。
+
+访客 Wi-Fi / 客户端隔离，或防火墙挡住 `8787`，都会连不上。桌面必须一直开着。
+
+#### 公网（远程 CLI）
+
+手机直连远程 Linux / macOS 上的 `fast-cli`，不经过本机桌面。
+
+1. **先跑 fetch**，写出 `modules/engine/current/`。目录必须和服务器的 OS / 架构一致 — 不要随后把 Darwin 的 `current/` 拷到 Linux。`--clean` **会覆盖**本机 `current/`。
+
+```bash
+pnpm fetch-engine                          # 当前主机 OS
+pnpm fetch-engine -- --clean linux-x64     # 打 Linux x64 包（或 linux-arm64）
+```
+
+2. **上传** `modules/engine/current/` 到服务器。服务器需要 **JDK 17+**。
+3. **启动 CLI**，让它听公网口。非 loopback 走 `wss`（TLS；不写 `--wss-cert` / `--wss-key` 会自动签发）：
+
+```bash
+./bin/fast-cli engine --mode bridge --transport unix --wss 0.0.0.0:1979
+```
+
+4. **在服务器上取 token。** Token 进 `Hello.authToken`，不进 URL：
+
+```bash
+cat ~/.fast/run/bridge.token
+```
+
+5. **手机连接。** 设置 → 手填服务器地址和 token。地址是 `wss://<host>:1979/bridge`。指纹由客户端自动确认。
+
+在主机防火墙 / 安全组放行 `1979`（或你改的端口）。自备证书用 `--wss-cert` / `--wss-key`。
+
+#### 连上之后
+
+对话 Tab 是最近会话；历史列出会话；会话里可发消息、审批、打断。主题和语言只存在手机上。
+
+配对 token 等于全部权限，不要截图或外传。手机丢了就当 token 泄露 — 换 token 再配对。详见 [SECURITY.md](SECURITY.md)。
 
 ### 通过源码安装
 
