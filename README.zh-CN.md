@@ -238,9 +238,9 @@ TUI（`fast-ink`）— 同一引擎，走 unix Bridge。
 
 <div align="center">
 
-| 微信群 | QQ 群 |
-| :---: | :---: |
-| <img src="docs/community/wechat.png" width="220" alt="微信群二维码"> | <img src="docs/community/qq.png" width="220" alt="QQ 群二维码"> |
+| 微信群 |
+| :---: |
+| <img src="docs/community/weichat.jpg" width="220" alt="微信群二维码"> |
 
 Discord：[加入 Fast Agent](https://discord.gg/HXeK9QV57)
 

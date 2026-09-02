@@ -238,9 +238,9 @@ Use whichever channel you prefer for usage questions, development, and project u
 
 <div align="center">
 
-| WeChat | QQ |
-| :---: | :---: |
-| <img src="docs/community/wechat.png" width="220" alt="WeChat group"> | <img src="docs/community/qq.png" width="220" alt="QQ group"> |
+| WeChat |
+| :---: |
+| <img src="docs/community/weichat.jpg" width="220" alt="WeChat group"> |
 
 Discord: [Join Fast Agent](https://discord.gg/HXeK9QV57)
 
