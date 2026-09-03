@@ -1332,6 +1332,13 @@ export function applyBridgeEvent(state: TranscriptState, event: BridgeEvent): Tr
 			const isFail = event.type === 'run_failed' || event.type === 'run_exhausted';
 			const matchesEntry = (entry: TranscriptEntry): boolean =>
 				Boolean(runId) && (entry.turnId === runId || entry.clientMessageId === runId);
+			// Compact / catalog miss can fail before input_accepted remaps client id →
+			// server run id. Seal the live streaming row anyway so ErrorCard lights.
+			const matchesLiveStream = (entry: TranscriptEntry): boolean =>
+				isFail &&
+				entry.status === 'streaming' &&
+				Boolean(state.activeRunId) &&
+				(entry.turnId === state.activeRunId || entry.clientMessageId === state.activeRunId);
 			// Failures must seal even after the row was mis-closed as `done` (FailRun
 			// after the stream died). Success/cancel still only touch the live stream.
 			const sealsEntry = (entry: TranscriptEntry): boolean =>
@@ -1340,7 +1347,9 @@ export function applyBridgeEvent(state: TranscriptState, event: BridgeEvent): Tr
 				entry.messageType !== 'goal_outcome' &&
 				(isFail
 					? entry.status !== 'cancelled' &&
-						(matchesEntry(entry) || (touchesActive && entry.status === 'streaming'))
+						(matchesEntry(entry) ||
+							(touchesActive && entry.status === 'streaming') ||
+							matchesLiveStream(entry))
 					: entry.status === 'streaming' && (matchesEntry(entry) || touchesActive));
 			const hasMatch = state.entries.some(sealsEntry);
 			const nextApprovals = state.approvals.filter(a => !a.runId || a.runId !== runId);
@@ -1401,6 +1410,7 @@ export function applyBridgeEvent(state: TranscriptState, event: BridgeEvent): Tr
 					// the event carried no error text (exhausted/cancel reasons may be empty).
 					text: isFail && failText ? failText : (rest.text.trim() || failText || rest.text),
 					fault: event.type === 'run_failed' ? keepFault(rest.fault, event.fault) : rest.fault,
+					...(isFail && runId ? {turnId: runId} : {}),
 					tools: (entry.tools ?? []).map(t =>
 						t.status === 'running' ? {...t, status: toolStatus} : t
 					)
@@ -1409,10 +1419,12 @@ export function applyBridgeEvent(state: TranscriptState, event: BridgeEvent): Tr
 			const stillStreaming = entries.some(
 				e => e.role === 'assistant' && e.status === 'streaming'
 			);
+			const extinguishActive =
+				state.activeRunId === runId || (isFail && Boolean(state.activeRunId) && !stillStreaming && hasMatch);
 			return {
 				...forgetDocument(state, runId),
-				activeRunId: state.activeRunId === runId ? undefined : state.activeRunId,
-				activeRunFromServer: state.activeRunId === runId ? false : state.activeRunFromServer,
+				activeRunId: extinguishActive ? undefined : state.activeRunId,
+				activeRunFromServer: extinguishActive ? false : state.activeRunFromServer,
 				// Only arm straggler guard when this settle closed the last streaming row.
 				postRunTerminal: stillStreaming ? false : hasMatch ? true : state.postRunTerminal,
 				leaseAware: stillStreaming ? state.leaseAware : false,

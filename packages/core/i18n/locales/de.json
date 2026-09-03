@@ -1420,11 +1420,13 @@
       "declined": "Anfrage abgelehnt",
       "availability": "Modell vorübergehend nicht verfügbar",
       "transport": "Netzwerktransportfehler",
-      "unusable": "Modellausgabe unbrauchbar"
+      "unusable": "Modellausgabe unbrauchbar",
+      "config": "Modell nicht konfiguriert"
     },
     "hint": {
       "availability": "Modell vorübergehend nicht verfügbar oder Verbindung unterbrochen — versuche es später erneut oder prüfe die Netzwerk-/Proxy-Einstellungen.",
-      "transport": "Netzwerk-Handshake abgelaufen / Modellverbindung unterbrochen — bitte prüfe deine Netzwerk- oder Proxy-Einstellungen."
+      "transport": "Netzwerk-Handshake abgelaufen / Modellverbindung unterbrochen — bitte prüfe deine Netzwerk- oder Proxy-Einstellungen.",
+      "config": "Kein passendes Modell im Katalog. Wähle in den Einstellungen ein verfügbares Modell und sende erneut."
     },
     "remedy": {
       "retry_same": "Mit denselben Einstellungen erneut versuchen",

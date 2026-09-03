@@ -45,7 +45,7 @@ export function ErrorCardRow({
 		return firstLine?.slice(0, 400) ?? '';
 	}, [rawText]);
 	const friendlyHint =
-		fault && (fault.kind === 'transport' || fault.kind === 'availability')
+		fault && (fault.kind === 'transport' || fault.kind === 'availability' || fault.kind === 'config')
 			? t(`errors.hint.${fault.kind}`, {defaultValue: ''})
 			: '';
 	const primary = friendlyHint || summary;

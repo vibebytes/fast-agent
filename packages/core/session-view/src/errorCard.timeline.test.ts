@@ -146,6 +146,31 @@ test('run_failed reseals an already-done assistant (FailRun after stream death)'
 	assert.equal(regenUserIdOf(items), null);
 });
 
+const CONFIG = 'RuntimeException: LLM Model config not found: default';
+const configFault = {kind: 'config', remedy: 'fail'} as const;
+
+test('model-config run_failed on a live turn becomes an error card', () => {
+	let state = createTranscriptState();
+	state = applyBridgeEvent(state, {
+		type: 'turn_started',
+		turnId: 'cm-1',
+		clientMessageId: 'cm-1',
+		text: 'hello'
+	});
+	state = applyBridgeEvent(state, {
+		type: 'run_failed',
+		runId: 'run-1',
+		error: CONFIG,
+		fault: configFault
+	});
+	const entry = state.entries.find(e => e.role === 'assistant');
+	assert.equal(entry?.status, 'error');
+	assert.equal(entry?.fault?.kind, 'config');
+	assert.equal(entry?.text, CONFIG);
+	assert.equal(lastAssistant(toTimelineItems(state))?.fault?.kind, 'config');
+	assert.equal(composerGate(state, true).runState, 'idle');
+});
+
 test('run_failed with no assistant row synthesizes an error card', () => {
 	let state = createTranscriptState();
 	state = {

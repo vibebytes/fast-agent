@@ -1420,11 +1420,13 @@
       "declined": "Solicitação recusada",
       "availability": "Modelo temporariamente indisponível",
       "transport": "Falha de transporte de rede",
-      "unusable": "Saída do modelo inutilizável"
+      "unusable": "Saída do modelo inutilizável",
+      "config": "Modelo não configurado"
     },
     "hint": {
       "availability": "Modelo temporariamente indisponível ou conexão perdida — tente novamente mais tarde ou verifique as configurações de rede/proxy.",
-      "transport": "Tempo limite no handshake de rede / conexão com o modelo perdida — verifique suas configurações de rede ou proxy."
+      "transport": "Tempo limite no handshake de rede / conexão com o modelo perdida — verifique suas configurações de rede ou proxy.",
+      "config": "Nenhum modelo correspondente no catálogo. Escolha um modelo disponível em Configurações e envie novamente."
     },
     "remedy": {
       "retry_same": "Tentar novamente com as mesmas configurações",

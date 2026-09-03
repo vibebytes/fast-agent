@@ -1426,11 +1426,13 @@
       "declined": "Request declined",
       "availability": "Model temporarily unavailable",
       "transport": "Network transport failure",
-      "unusable": "Model output unusable"
+      "unusable": "Model output unusable",
+      "config": "Model not configured"
     },
     "hint": {
       "availability": "Model temporarily unavailable or connection dropped — please retry later or check your network/proxy settings.",
-      "transport": "Network handshake timed out / model connection dropped — please check your network or proxy settings."
+      "transport": "Network handshake timed out / model connection dropped — please check your network or proxy settings.",
+      "config": "No matching model in the catalog. Choose an available model in Settings and send again."
     },
     "remedy": {
       "retry_same": "Retry with the same settings",

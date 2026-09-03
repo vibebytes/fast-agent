@@ -487,7 +487,7 @@ function EntryBubble({
     const kind = entry.fault?.kind;
     const remedy = entry.fault?.remedy;
     const friendlyHint =
-      kind === 'transport' || kind === 'availability'
+      kind === 'transport' || kind === 'availability' || kind === 'config'
         ? t(`errors.hint.${kind}`, { defaultValue: '' })
         : '';
     const primary = friendlyHint || summary;
