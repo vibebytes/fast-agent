@@ -85,6 +85,7 @@ import {useLocalePrefs} from './useLocalePrefs';
 import {useThemePrefs} from './useThemePrefs';
 import {useApprovalSound} from './useApprovalSound';
 import {useCompletionSound} from './useCompletionSound';
+import {engineOverlay} from './shellGate';
 
 type LayoutPreference = 'coding' | 'general';
 
@@ -501,10 +502,7 @@ export function App({store}: {store: WorkspaceStore}) {
 		[gitStatus]
 	);
 
-	const engineBlocked =
-		engineStatus === 'reconnecting' ||
-		engineStatus === 'exited' ||
-		engineStatus === 'error';
+	const overlay = engineOverlay(engineStatus);
 
 	return (
 		<ReviewDirtyPaths.Provider value={dirtyPaths}>
@@ -527,39 +525,6 @@ export function App({store}: {store: WorkspaceStore}) {
 				/>
 			) : null}
 			<div className={cn('relative flex h-svh min-h-0 w-full flex-col overflow-hidden', settings2Open && 'hidden')}>
-			{engineBlocked ? (
-				<div
-					className="absolute inset-0 z-50 flex items-center justify-center bg-background/70 backdrop-blur-[2px]"
-					role="alertdialog"
-					aria-modal="true"
-					aria-label={
-						engineStatus === 'reconnecting'
-							? 'Engine reconnecting'
-							: 'Engine Error'
-					}
-				>
-					<div className="app-region-no-drag flex flex-col items-center gap-3 px-6 text-center">
-						<p className="text-sm font-medium text-foreground">
-							{engineStatus === 'reconnecting'
-								? 'Reconnecting to engine…'
-								: 'Engine Error'}
-						</p>
-						{engineError ? (
-							<p className="max-w-sm text-xs text-muted-foreground">{engineError}</p>
-						) : null}
-						{engineStatus === 'error' || engineStatus === 'exited' ? (
-							<Button
-								type="button"
-								size="sm"
-								variant="secondary"
-								onClick={() => void window.fastIde.retryEngine()}
-							>
-								Retry
-							</Button>
-						) : null}
-					</div>
-				</div>
-			) : null}
 			<SidebarProvider className="relative flex min-h-0 w-full flex-1 overflow-hidden">
 				<WindowSidebarToggle />
 				<Sidebar collapsible="offcanvas">
@@ -678,6 +643,40 @@ export function App({store}: {store: WorkspaceStore}) {
 				</Sidebar>
 
 				<SidebarInset className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+					{overlay.visible ? (
+						<div
+							data-slot="engine-overlay"
+							className="absolute inset-0 z-20 flex items-center justify-center bg-background/70 backdrop-blur-[2px]"
+							role="status"
+							aria-live="polite"
+							aria-label={
+								engineStatus === 'reconnecting'
+									? 'Engine reconnecting'
+									: 'Engine Error'
+							}
+						>
+							<div className="app-region-no-drag flex flex-col items-center gap-3 px-6 text-center">
+								<p className="text-sm font-medium text-foreground">
+									{engineStatus === 'reconnecting'
+										? 'Reconnecting to engine…'
+										: 'Engine Error'}
+								</p>
+								{engineError ? (
+									<p className="max-w-sm text-xs text-muted-foreground">{engineError}</p>
+								) : null}
+								{overlay.showRetry ? (
+									<Button
+										type="button"
+										size="sm"
+										variant="secondary"
+										onClick={() => void window.fastIde.retryEngine()}
+									>
+										Retry
+									</Button>
+								) : null}
+							</div>
+						</div>
+					) : null}
 					<ResizablePanelGroup
 						orientation="horizontal"
 						className="min-h-0 flex-1"

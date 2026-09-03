@@ -24,3 +24,20 @@ export function engineOverlayVisible(
 ): boolean {
 	return status === 'reconnecting' || status === 'exited' || status === 'error';
 }
+
+export type EngineOverlay = {
+	visible: boolean;
+	/** Full-window modal would lock sidebar / status. Pane overlay must not. */
+	lockChrome: boolean;
+	showRetry: boolean;
+};
+
+/** Pane-scoped overlay: same for local and remote. Chrome stays clickable. */
+export function engineOverlay(status: string | null | undefined): EngineOverlay {
+	const visible = engineOverlayVisible(status);
+	return {
+		visible,
+		lockChrome: false,
+		showRetry: visible && (status === 'error' || status === 'exited')
+	};
+}
