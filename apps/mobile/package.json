@@ -1,7 +1,7 @@
 {
   "name": "mobile",
   "main": "expo-router/entry",
-  "version": "0.3.1",
+  "version": "0.3.3",
   "dependencies": {
     "@expo/ui": "~57.0.14",
     "@fast-ide/i18n": "workspace:*",

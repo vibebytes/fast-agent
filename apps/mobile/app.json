@@ -1,16 +1,16 @@
 {
   "expo": {
-    "name": "mobile",
+    "name": "Fast",
     "slug": "mobile",
-    "version": "1.0.0",
+    "version": "0.3.3",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "mobile",
     "userInterfaceStyle": "automatic",
     "ios": {
       "bundleIdentifier": "ai.fastllm.mobile",
-      "icon": "./assets/expo.icon",
       "infoPlist": {
+        "CFBundleDisplayName": "Fast",
         "NSAppTransportSecurity": {
           "NSAllowsLocalNetworking": true
         }
@@ -19,7 +19,7 @@
     "android": {
       "package": "ai.fastllm.mobile",
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
+        "backgroundColor": "#FFFFFF",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
@@ -37,16 +37,16 @@
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#208AEF",
+          "backgroundColor": "#FFFFFF",
           "image": "./assets/images/splash-icon.png",
-          "imageWidth": 76
+          "imageWidth": 128
         }
       ],
       [
         "expo-speech-recognition",
         {
-          "microphonePermission": "Allow Fast Mobile to use the microphone for voice input",
-          "speechRecognitionPermission": "Allow Fast Mobile to recognize your speech"
+          "microphonePermission": "Allow Fast to use the microphone for voice input",
+          "speechRecognitionPermission": "Allow Fast to recognize your speech"
         }
       ]
     ],
