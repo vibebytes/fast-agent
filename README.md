@@ -65,15 +65,9 @@ The phone is a companion. It does not start an engine or edit files on the phone
 The phone talks to a desktop Fast that is already running, on the same LAN.
 
 1. **Install desktop** on the computer ([1.1 Direct download](#11-direct-download)). macOS is the primary host.
-2. **Turn on the LAN bridge**, then start desktop. A token is required. Default port is `8787`:
+2. **Pair.** Desktop → Settings → Servers → Mobile pairing. On the phone: Settings → Scan to pair. You can paste the URL and token instead of scanning.
 
-```bash
-FAST_MOBILE_BRIDGE_TOKEN='your-secret' /Applications/Fast.app/Contents/MacOS/Fast
-```
-
-From source: prefix the same variable on `pnpm dev:desktop`. Optional: `FAST_MOBILE_BRIDGE_PORT`.
-
-1. **Pair.** Desktop → Settings → Servers → Mobile pairing. On the phone: Settings → Scan to pair. You can paste the URL and token instead of scanning.
+The LAN bridge starts with the IDE. A token is minted and stored in userData (override with `FAST_MOBILE_BRIDGE_TOKEN`; default port `8787`, optional `FAST_MOBILE_BRIDGE_PORT`). Set `FAST_MOBILE_BRIDGE=0` to keep it off.
 
 Guest Wi-Fi / client isolation, or a firewall blocking `8787`, will fail the connect. Desktop must stay running.
 

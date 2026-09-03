@@ -296,7 +296,7 @@
         "agentDescription": "執行任務的位置",
         "mobilePairing": "手機配對",
         "mobilePairingDescription": "同一區網內的 Fast Mobile App 使用以下資訊配對。",
-        "mobilePairingOff": "手機橋接未啟用。以 FAST_MOBILE_BRIDGE=1 啟動 IDE 可開啟。",
+        "mobilePairingOff": "手機橋接未啟用。去掉 FAST_MOBILE_BRIDGE=0 後重啟 IDE 即可開啟。",
         "mobilePairingUrl": "配對地址",
         "mobilePairingToken": "配對權杖",
         "mobilePairingQrHint": "在手機 App 的「掃碼配對」中掃描二維碼即可完成配對。配對碼含存取權杖，等同全部權限，請勿截圖或外傳。",

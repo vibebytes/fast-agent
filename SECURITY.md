@@ -107,7 +107,7 @@ Not an advisory. Still fine as a normal issue or PR.
 ## 4. Hardening
 
 - Run desktop / TUI as your normal user, not root.
-- Prefer unix Bridge on the same host. Enable LAN / mobile pairing only when you need the phone.
+- Prefer unix Bridge on the same host. The desktop LAN mobile bridge is on by default (`0.0.0.0:8787`, token in userData). Set `FAST_MOBILE_BRIDGE=0` if you do not need the phone.
 - Confirm the TLS fingerprint in Settings before trusting a non-loopback desktop.
 - Do not paste pairing tokens into issues, screenshots, or chat.
 - Review `extensions/` jars the same way you review a native binary.

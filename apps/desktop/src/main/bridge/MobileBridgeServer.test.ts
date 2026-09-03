@@ -180,3 +180,26 @@ test('pairingInfo exposes LAN ws url and token', async () => {
 		server.stop();
 	}
 });
+
+test('setToken is used on start', async () => {
+	const sent: BridgeCommand[] = [];
+	const server = new MobileBridgeServer({
+		port: 0,
+		token: '',
+		send: command => {
+			sent.push(command);
+			return true;
+		}
+	});
+	server.setToken('minted-token');
+	const port = await server.start();
+	try {
+		assert.equal(server.pairingInfo().available, true);
+		assert.equal(server.pairingInfo().token, 'minted-token');
+		const client = await openClient(port);
+		client.send(hello('minted-token'));
+		assert.equal((await client.next()).type, 'HelloOk');
+	} finally {
+		server.stop();
+	}
+});

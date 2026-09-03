@@ -526,7 +526,7 @@ export type EdgeTestResult = EdgeOk | EdgeFailure;
 
 /** Pairing export for the mobile app (S7.2): LAN WebSocket URL + token. */
 export type MobilePairingInfo = {
-	/** False when the bridge is off (no token configured) or not started. */
+	/** False when the bridge is off (`FAST_MOBILE_BRIDGE=0`) or not started. */
 	available: boolean;
 	host: string;
 	port: number;

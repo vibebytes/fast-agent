@@ -296,7 +296,7 @@
         "agentDescription": "任务执行的位置",
         "mobilePairing": "手机配对",
         "mobilePairingDescription": "同一局域网内的 Fast Mobile App 用以下信息配对。",
-        "mobilePairingOff": "手机桥接未启用。以 FAST_MOBILE_BRIDGE=1 启动 IDE 可开启。",
+        "mobilePairingOff": "手机桥接未启用。去掉 FAST_MOBILE_BRIDGE=0 后重启 IDE 即可开启。",
         "mobilePairingUrl": "配对地址",
         "mobilePairingToken": "配对令牌",
         "mobilePairingQrHint": "在手机 App 的「扫码配对」中扫描二维码即可完成配对。配对码含访问 token，等同全部权限，请勿截图或外传。",

@@ -70,13 +70,18 @@ export class MobileBridgeServer {
 	private conns = new Set<ConnState>();
 	private tokenHash = tokenDigest('');
 	private started = false;
+	private boundPort?: number;
 
 	constructor(options: MobileBridgeServerOptions) {
 		this.options = options;
 	}
 
+	setToken(token: string): void {
+		this.options.token = token;
+	}
+
 	start(): Promise<number> {
-		if (this.started) return Promise.resolve(this.options.port);
+		if (this.started) return Promise.resolve(this.boundPort ?? this.options.port);
 		this.tokenHash = tokenDigest(this.options.token);
 		const server = createServer((_req, res) => {
 			res.writeHead(426, {'Upgrade': 'websocket'}).end();
@@ -99,6 +104,7 @@ export class MobileBridgeServer {
 				server.removeListener('error', reject);
 				const address = server.address();
 				const port = typeof address === 'object' && address ? address.port : this.options.port;
+				this.boundPort = port;
 				this.options.log?.(`mobile bridge listening on 0.0.0.0:${port} (ws ${BRIDGE_PATH})`);
 				resolve(port);
 			});
@@ -108,6 +114,7 @@ export class MobileBridgeServer {
 	stop(): void {
 		if (!this.started) return;
 		this.started = false;
+		this.boundPort = undefined;
 		for (const conn of this.conns) {
 			clearTimeout(conn.helloTimer);
 			conn.ws.close(1001, 'server stopping');
@@ -122,7 +129,7 @@ export class MobileBridgeServer {
 	/** Pairing export for the desktop settings page (S7.2). */
 	pairingInfo(): {available: boolean; host: string; port: number; serverUrl: string; token: string} {
 		const host = lanAddress();
-		const port = this.options.port;
+		const port = this.boundPort ?? this.options.port;
 		return {
 			available: this.started && Boolean(this.options.token),
 			host,

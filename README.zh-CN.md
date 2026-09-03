@@ -82,15 +82,9 @@ v0.3.1 预发布。**macOS** 是主路径。**Windows** 原生开发中。安装
 手机连本机已经在跑的桌面 Fast，同一局域网。
 
 1. **先装桌面**（[1.1 直接下载](#11-直接下载)）。macOS 是主路径。
-2. **打开局域网桥接**，再启动桌面。必须带 token。默认端口 `8787`：
+2. **配对。** 桌面 → 设置 → 服务器 → 手机配对。手机：设置 → 扫码配对。也可手填地址和 token。
 
-```bash
-FAST_MOBILE_BRIDGE_TOKEN='your-secret' /Applications/Fast.app/Contents/MacOS/Fast
-```
-
-源码开发时把同一变量加在 `pnpm dev:desktop` 前面。可选 `FAST_MOBILE_BRIDGE_PORT`。
-
-3. **配对。** 桌面 → 设置 → 服务器 → 手机配对。手机：设置 → 扫码配对。也可手填地址和 token。
+局域网桥接随 IDE 一起启动。token 会生成并写入 userData（可用 `FAST_MOBILE_BRIDGE_TOKEN` 覆盖；默认端口 `8787`，可选 `FAST_MOBILE_BRIDGE_PORT`）。不想开时设 `FAST_MOBILE_BRIDGE=0`。
 
 访客 Wi-Fi / 客户端隔离，或防火墙挡住 `8787`，都会连不上。桌面必须一直开着。
 

@@ -296,7 +296,7 @@
         "save": "Save",
         "mobilePairing": "Mobile pairing",
         "mobilePairingDescription": "Pair a Fast Mobile app on the same LAN with the details below.",
-        "mobilePairingOff": "Mobile bridge is off. Start the IDE with FAST_MOBILE_BRIDGE=1 to enable it.",
+        "mobilePairingOff": "Mobile bridge is off. Restart the IDE without FAST_MOBILE_BRIDGE=0 to enable it.",
         "mobilePairingUrl": "Pairing URL",
         "mobilePairingToken": "Pairing token",
         "mobilePairingQrHint": "Scan this QR code in the mobile app's \"Scan to pair\" screen. The pairing code contains the access token — treat it as full access; do not screenshot or share it.",

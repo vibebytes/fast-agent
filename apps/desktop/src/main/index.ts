@@ -12,6 +12,7 @@ import type {
 } from '@fast-ide/session-view';
 import {WorkspaceHub} from './bridge/WorkspaceHub';
 import {MobileBridgeServer} from './bridge/MobileBridgeServer';
+import {mobileBridgeEnabled, resolveMobileBridgeToken} from './bridge/mobileBridgeToken';
 import {createDesktopHost} from './bridge/desktopHost';
 import {isDefaultProjectPath} from './bridge/defaultProject';
 import {createUiPublisher} from './bridge/uiPublisher';
@@ -502,7 +503,13 @@ app.whenReady().then(async () => {
 	// Apply persisted locale before tray/pet menus so cold start matches pinned pref.
 	await applyLocalePref(loadLocalePref());
 	bindCommittedFromDisk();
-	if (process.env.FAST_MOBILE_BRIDGE_TOKEN) {
+	if (mobileBridgeEnabled(process.env)) {
+		mobileBridge.setToken(
+			resolveMobileBridgeToken({
+				env: process.env,
+				userDataPath: app.getPath('userData')
+			})
+		);
 		mobileBridge.start().catch(error => {
 			console.error('[mobile-bridge] failed to start', error);
 		});
