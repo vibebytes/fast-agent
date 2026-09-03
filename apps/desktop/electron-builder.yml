@@ -41,8 +41,11 @@ pkg:
   welcome: welcome.txt
   conclusion: conclusion.txt
 linux:
+  category: Development
+  executableName: Fast
+  artifactName: ${productName}-${version}-linux-${arch}.${ext}
   target:
-    - dir
+    - AppImage
 win:
   artifactName: ${productName}-${version}-win-${arch}.${ext}
   target:

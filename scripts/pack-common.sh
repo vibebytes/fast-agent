@@ -106,6 +106,47 @@ win_installer() {
 	echo "$root/apps/desktop/release/Fast-$(desktop_version)-win-${cpu}.exe"
 }
 
+# Canonical name after afterAllArtifactBuild settles AppImage GNU aliases (x86_64 → x64).
+linux_installer() {
+	local cpu="$1"
+	echo "$root/apps/desktop/release/Fast-$(desktop_version)-linux-${cpu}.AppImage"
+}
+
+# electron-builder aliases → --os token. Safe to run twice.
+settle_desktop_artifacts() {
+	local eos="${1:-}"
+	local platform cpu ver rel dest src
+	platform="$(electron_platform "$eos")"
+	cpu="$(electron_cpu "$eos")"
+	ver="$(desktop_version)"
+	rel="$root/apps/desktop/release"
+	case "$platform" in
+		linux)
+			dest="$rel/Fast-${ver}-linux-${cpu}.AppImage"
+			if [[ ! -f "$dest" ]]; then
+				case "$cpu" in
+					x64) src="$rel/Fast-${ver}-linux-x86_64.AppImage" ;;
+					arm64) src="$rel/Fast-${ver}-linux-aarch64.AppImage" ;;
+					*) src="" ;;
+				esac
+				if [[ -n "$src" && -f "$src" ]]; then
+					mv -f "$src" "$dest"
+					[[ -f "${src}.blockmap" ]] && mv -f "${src}.blockmap" "${dest}.blockmap"
+				fi
+				if [[ ! -f "$dest" && "$cpu" == x64 && -f "$rel/Fast-${ver}-linux-amd64.AppImage" ]]; then
+					mv -f "$rel/Fast-${ver}-linux-amd64.AppImage" "$dest"
+				fi
+			fi
+			;;
+		win)
+			dest="$rel/Fast-${ver}-win-${cpu}.exe"
+			if [[ ! -f "$dest" && -f "$rel/Fast Setup ${ver}.exe" ]]; then
+				mv -f "$rel/Fast Setup ${ver}.exe" "$dest"
+			fi
+			;;
+	esac
+}
+
 cli_pack_dir() {
 	echo "$root/release/cli-$(resolved_os)"
 }
@@ -140,9 +181,15 @@ win_unpacked_dir() {
 	echo "$root/apps/desktop/release/win-unpacked"
 }
 
-# One layout per --os. Leftover Fast.app / Fast-0.0.1.dmg / *unpacked from
-# another pack must never be considered. pack_desktop and smoke_desktop both
+# One layout per --os after settle_desktop_artifacts. Never glob leftover
+# Fast.app / Fast-0.0.1.dmg / *unpacked. pack_desktop and smoke_desktop both
 # call this so they cannot drift.
+#
+#   darwin-arm64  Fast-<v>-mac-arm64.{pkg,dmg}   mac-arm64/Fast.app
+#   darwin-x64    Fast-<v>-mac-x64.{pkg,dmg}     mac/Fast.app
+#   linux-x64     Fast-<v>-linux-x64.AppImage    linux-unpacked
+#   linux-arm64   Fast-<v>-linux-arm64.AppImage  linux-arm64-unpacked
+#   win32-x64     Fast-<v>-win-x64.exe           win-unpacked
 desktop_out() {
 	local eos="${1:-}"
 	local platform cpu
@@ -165,6 +212,8 @@ desktop_out() {
 		linux)
 			DESKTOP_UNPACKED="$(linux_unpacked_dir "$eos")"
 			[[ -d "$DESKTOP_UNPACKED" ]] || DESKTOP_UNPACKED=""
+			DESKTOP_EXE="$(linux_installer "$cpu")"
+			[[ -f "$DESKTOP_EXE" ]] || DESKTOP_EXE=""
 			;;
 		win)
 			DESKTOP_UNPACKED="$(win_unpacked_dir)"
@@ -331,6 +380,11 @@ pack_desktop() {
 		rm -f "$root/apps/desktop/release/"*-mac-"${cpu}.pkg" "$root/apps/desktop/release/"*-mac-"${cpu}.dmg"
 	elif [[ "$platform" == win ]]; then
 		rm -f "$root/apps/desktop/release/"*-win-"${cpu}.exe"
+	elif [[ "$platform" == linux ]]; then
+		rm -f "$root/apps/desktop/release/Fast-$(desktop_version)-linux-${cpu}.AppImage" \
+			"$root/apps/desktop/release/Fast-$(desktop_version)-linux-x86_64.AppImage" \
+			"$root/apps/desktop/release/Fast-$(desktop_version)-linux-amd64.AppImage" \
+			"$root/apps/desktop/release/Fast-$(desktop_version)-linux-aarch64.AppImage"
 	fi
 	(
 		cd "$root/apps/desktop"
@@ -341,10 +395,11 @@ pack_desktop() {
 		node scripts/pack/vendor-npm.mjs
 		case "$platform" in
 			darwin) CSC_IDENTITY_AUTO_DISCOVERY=false pnpm exec electron-builder --config electron-builder.yml --mac pkg "--$cpu" ;;
-			linux) CSC_IDENTITY_AUTO_DISCOVERY=false pnpm exec electron-builder --config electron-builder.yml --linux dir "--$cpu" ;;
+			linux) CSC_IDENTITY_AUTO_DISCOVERY=false pnpm exec electron-builder --config electron-builder.yml --linux AppImage "--$cpu" ;;
 			win) CSC_IDENTITY_AUTO_DISCOVERY=false pnpm exec electron-builder --config electron-builder.yml --win nsis "--$cpu" ;;
 		esac
 	)
+	settle_desktop_artifacts "$eos"
 	local app pkg dmg unpacked exe res
 	desktop_out "$eos"
 	app="$DESKTOP_APP"
@@ -399,6 +454,16 @@ pack_desktop() {
 		ln -sfn "$exe" "$root/release/$(basename "$exe")"
 		echo_sized "Installer ->" "$exe"
 		echo "  NSIS setup (installs Fast.exe + user PATH resources\\bin\\{fast,fast-cli,fast-ink})"
+	elif [[ "$platform" == linux ]]; then
+		[[ -n "$exe" ]] || {
+			echo "electron-builder finished; missing $(linux_installer "$cpu")" >&2
+			exit 1
+		}
+		exe="$(cd "$(dirname "$exe")" && pwd)/$(basename "$exe")"
+		mkdir -p "$root/release"
+		ln -sfn "$exe" "$root/release/$(basename "$exe")"
+		echo_sized "Installer ->" "$exe"
+		echo "  AppImage (chmod +x and run on glibc Linux; do not run on macOS)"
 	fi
 }
 
@@ -500,6 +565,20 @@ smoke_desktop() {
 			nsis_info="$(file "$exe" 2>/dev/null || true)"
 			[[ "$nsis_info" == *PE32* || "$nsis_info" == *Nullsoft* || "$nsis_info" == *NSIS* ]] || {
 				echo "smoke: $exe is not an NSIS installer ($nsis_info)" >&2
+				exit 1
+			}
+			echo_sized "Desktop smoke ok" "$exe"
+			return
+		fi
+		if [[ "$platform" == linux ]]; then
+			[[ -n "$exe" && -f "$exe" ]] || {
+				echo "smoke: missing $(linux_installer "$cpu") for $eos" >&2
+				exit 1
+			}
+			local appimage_info
+			appimage_info="$(file "$exe" 2>/dev/null || true)"
+			[[ "$appimage_info" == *ELF* || "$appimage_info" == *AppImage* || "$appimage_info" == *ISO\ 9660* ]] || {
+				echo "smoke: $exe is not an AppImage ($appimage_info)" >&2
 				exit 1
 			}
 			echo_sized "Desktop smoke ok" "$exe"
