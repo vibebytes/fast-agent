@@ -30,12 +30,17 @@ export function forgetDocument(state: TranscriptState, id?: string): TranscriptS
 /** Card that persist/live prose must write. Never a cancelled or Goal-notice row. */
 export function documentCard(
 	state: TranscriptState,
-	turnId?: string
+	turnId?: string,
+	opts: {strictTurn?: boolean} = {}
 ): TranscriptEntry | undefined {
 	if (turnId) {
 		const exact = cardById(state, turnId, {allowCancelled: true, anyMessage: true});
 		if (exact && exact.status !== 'cancelled') return exact;
-		// Cancelled exact match: stamp is stale (bindHeld inherited the opener).
+		// Strict callers (stamped deltas): an unknown turnId must not fall back to
+		// someone else's card — the caller opens a fresh card for that turn instead.
+		// A cancelled exact match still falls through: stamp is stale (bindHeld
+		// inherited the opener), the prose belongs to the current document.
+		if (!exact && opts.strictTurn) return undefined;
 	}
 	return (
 		cardById(state, state.lastDocumentId) ??

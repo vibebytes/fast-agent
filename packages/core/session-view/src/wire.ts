@@ -1094,6 +1094,11 @@ export type InvokeChannels = {
 	'dshGoal:act': {args: [action: 'pause' | 'resume' | 'complete' | 'clear']; result: boolean};
 	/** Re-start Engine after restore failure or disconnect (in-shell Retry). */
 	'engine:retry': {args: []; result: boolean};
+	/** Unix dead-letter ring + parse failure counts for the About diagnostics copy. */
+	'engine:diagnostics': {
+		args: [];
+		result: {parseFailures: number; deadLetters: readonly string[]};
+	};
 	/** Persist Project display name via Bridge SetProjectDisplayName. */
 	'project:rename': {args: [projectId: string, displayName: string]; result: TaskMutationResult};
 	/** Ambient Rules (Meta) for Context pane. */

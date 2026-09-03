@@ -45,7 +45,7 @@ import {pruneDecisions} from './pendingDecisions';
 import {basename, dayGreeting} from './path';
 import {EmptyConversationState} from './EmptyConversationState';
 import {QueuedMessagesSection} from './QueuedMessages';
-import {isEchoReflected, makeQueueEcho, type QueueEcho} from './queueEcho';
+import {isEchoExpired, isEchoReflected, makeQueueEcho, type QueueEcho} from './queueEcho';
 import {QueueDock} from '../dsh/queue/QueueDock';
 import {GoalIsland} from '../dsh/goal/GoalIsland';
 import {reviewListForSession} from '../review/agentReview';
@@ -291,8 +291,7 @@ export const SessionPane = memo(function SessionPane({
 	}
 	prevActiveRef.current = activeTaskId;
 	/** Optimistic user echo (perf doc P2-15 / 5.1) — local only, never enters the store.
-	 *  ttl: how long to keep the bubble if the engine never echoes it back
-	 *  (interrupt echoes wait for cancel+resubmit, so they get a long ttl). */
+	 *  Retires when the engine's user row lands or the active task changes — no TTL. */
 	const [echo, setEcho] = useState<QueueEcho | null>(null);
 	const pulledBodyFor = useRef<string | null>(null);
 	const activeTaskRef = useRef(activeTaskId);
@@ -503,9 +502,9 @@ export const SessionPane = memo(function SessionPane({
 	const [restoreFiles, setRestoreFiles] = useState(true);
 
 	// Sending shows the bubble immediately; the engine echo replaces it when the
-	// real user entry lands (count baseline, so resending identical text works) —
-	// with a timeout fallback so a rewritten prompt (e.g. plan prefix) cannot
-	// leave a stale ghost.
+	// real user entry lands (count baseline, so resending identical text works).
+	// Wide fallback TTL only covers slash rewrite / reject / send failure — cases
+	// that never emit a matching user row (P1-4: do not drop a late turn_started).
 	const echoReflected = isEchoReflected(echo, timeline);
 	useEffect(() => {
 		if (!echo) return;
@@ -513,8 +512,13 @@ export const SessionPane = memo(function SessionPane({
 			setEcho(null);
 			return;
 		}
-		const t = window.setTimeout(() => setEcho(null), echo.ttl ?? 10_000);
-		return () => window.clearTimeout(t);
+		const remain = echo.expiresAt - Date.now();
+		if (remain <= 0) {
+			setEcho(null);
+			return;
+		}
+		const timer = window.setTimeout(() => setEcho(null), remain);
+		return () => window.clearTimeout(timer);
 	}, [echo, echoReflected, activeTaskId]);
 
 	const liveProcs = transcript.liveProcs ?? EMPTY_LIVE_PROCS;
@@ -532,7 +536,7 @@ export const SessionPane = memo(function SessionPane({
 
 	const displayTimeline = useMemo(() => {
 		let items = timeline;
-		if (echo && echo.taskId === activeTaskId && !echoReflected) {
+		if (echo && echo.taskId === activeTaskId && !echoReflected && !isEchoExpired(echo)) {
 			const item: TimelineItem = {
 				kind: 'user',
 				id: `echo-${echo.at}`,
@@ -785,7 +789,7 @@ export const SessionPane = memo(function SessionPane({
 	const onInterrupt = useCallback(
 		(item: QueueItem) => {
 			stickToBottomRef.current = true;
-			setEcho(makeQueueEcho(activeTaskId, item.text, timelineRef.current, 15_000));
+			setEcho(makeQueueEcho(activeTaskId, item.text, timelineRef.current));
 		},
 		[activeTaskId]
 	);

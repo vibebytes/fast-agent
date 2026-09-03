@@ -18,7 +18,7 @@
     "build": "tsc -p tsconfig.build.json",
     "prepare": "npm run build",
     "typecheck": "tsc --noEmit",
-		"test": "tsx --test src/protocol.test.ts src/parseNdjson.test.ts src/packageExport.test.ts src/bridgeFixedCommands.test.ts src/slashRoute.test.ts src/extractQuery.test.ts",
+		"test": "tsx --test src/protocol.test.ts src/parseNdjson.test.ts src/packageExport.test.ts src/bridgeFixedCommands.test.ts src/slashRoute.test.ts src/extractQuery.test.ts src/sessionStream.test.ts src/sessionStream.consumers.test.ts src/eventPeel.test.ts && node ../../../../scripts/gen-session-stream.mjs --check",
     "prepublishOnly": "npm run build"
   },
   "dependencies": {

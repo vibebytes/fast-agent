@@ -1114,6 +1114,14 @@ const bridgeEventPayloadSchema = z.discriminatedUnion('type', [
 	z.object({type: z.literal('final_answer'), turnId: z.string().optional(), text: z.string(), sessionId: z.string().optional()}),
 	z.object({type: z.literal('turn_usage'), turnId: z.string().optional(), turn: z.number(), tokensUsed: z.number(), sessionId: z.string().optional()}),
 	z.object({type: z.literal('turn_finished'), turnId: z.string().optional(), success: z.boolean(), reason: z.string().optional(), sessionId: z.string().optional()}),
+	z.object({
+		type: z.literal('run_state'),
+		sessionId: z.string().optional(),
+		runId: z.string().optional(),
+		state: z.enum(['running', 'waiting', 'cancelling', 'idle']),
+		turnId: z.string().optional(),
+		ts: z.number()
+	}),
 	z.object({type: z.literal('turn_cancelled'), turnId: z.string().optional(), reason: z.string().optional(), sessionId: z.string().optional()}),
 	z.object({
 		type: z.literal('mention_suggestions'),
@@ -1883,6 +1891,7 @@ const bridgeEventPayloadSchema = z.discriminatedUnion('type', [
 	z.object({type: z.literal('task_failed'), taskId: z.string(), error: z.string(), sessionId: z.string().optional()}),
 	z.object({type: z.literal('task_cancelled'), taskId: z.string(), reason: z.string(), sessionId: z.string().optional()}),
 	z.object({type: z.literal('error'), turnId: z.string().optional(), message: z.string(), sessionId: z.string().optional()}),
+	z.object({type: z.literal('host_error'), message: z.string()}),
 	z.object({
 		type: z.literal('session_restored'),
 		sessionId: z.string(),
@@ -2070,7 +2079,8 @@ const LIVE_CALLBACK_TYPES = new Set([
 	// Parent turn may already be finished; child settle must still paint.
 	'subagent_started',
 	'subagent_updated',
-	'subagent_finished'
+	'subagent_finished',
+	'run_state'
 ]);
 
 /** Persist types emitted as live chrome (no eventSeq, do not advance lastApplied). */

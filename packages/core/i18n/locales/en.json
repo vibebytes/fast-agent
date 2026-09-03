@@ -1392,6 +1392,12 @@
       "rejected": "Build rejected",
       "missing_plan_id": "Build failed — missing plan_id."
     },
+    "lease": {
+      "expired": "Engine timed out — input restored."
+    },
+    "protocol": {
+      "mismatch": "Protocol mismatch — engine events no longer parse. Reconnect or update."
+    },
     "send": {
       "task_changed": "Task changed before send. Your draft was restored.",
       "empty_message": "Empty message.",

@@ -1,9 +1,9 @@
 import {X509Certificate} from 'node:crypto';
 import type {PeerCertificate} from 'node:tls';
 import {WebSocket} from 'ws';
-import {bridgeEventSchema, type BridgeCommand, type BridgeEvent} from '@fastllm/bridge-protocol';
+import {bridgeEventSchema, reportInvalidEngineLine, PROTOCOL_MISMATCH_PREFIX, CONSECUTIVE_PARSE_FAIL_NOTICE, type BridgeCommand, type BridgeEvent} from '@fastllm/bridge-protocol';
 import {fingerprintOf, normalizeFingerprint} from './tlsPin.js';
-import type {UnixConnectionHandlers} from './unixConnection.js';
+import type {UnixConnectionHandlers, UnixConnectionStats} from './unixConnection.js';
 
 export type WsConnectionHandlers = UnixConnectionHandlers;
 
@@ -32,6 +32,7 @@ export type WsConnection = {
 	url: string;
 	send: (command: BridgeCommand) => boolean;
 	close: () => void;
+	stats: () => UnixConnectionStats;
 };
 
 export type WsSocketLike = {
@@ -44,6 +45,7 @@ export type WsSocketLike = {
 export type WsFactory = (url: string, opts: Record<string, unknown>) => WsSocketLike;
 
 const OPEN = 1;
+const DEAD_LETTER_CAPACITY = 100;
 
 export function tlsClientOptions(opts?: RemoteBridgeTls): {
 	rejectUnauthorized: boolean;
@@ -160,12 +162,29 @@ export function connectWs(
 			opts.signal.addEventListener('abort', onAbort, {once: true});
 		}
 
+		let parseFailures = 0;
+		let consecutiveParseFailures = 0;
+		const deadLetters: string[] = [];
 		const dispatchLine = (line: string) => {
 			if (!line.startsWith('{')) return;
 			try {
 				handlers.onEvent(bridgeEventSchema.parse(JSON.parse(line)));
+				consecutiveParseFailures = 0;
 			} catch {
-				handlers.onLog?.(`Invalid engine event: ${line}`);
+				parseFailures += 1;
+				consecutiveParseFailures += 1;
+				deadLetters.push(line);
+				if (deadLetters.length > DEAD_LETTER_CAPACITY) deadLetters.shift();
+				handlers.onDeadLetter?.({line, count: parseFailures});
+				reportInvalidEngineLine(line, {
+					onTerminal: message => handlers.onError(message),
+					onLog: message => handlers.onLog?.(message)
+				});
+				if (consecutiveParseFailures >= CONSECUTIVE_PARSE_FAIL_NOTICE) {
+					handlers.onError(
+						`${PROTOCOL_MISMATCH_PREFIX} ${consecutiveParseFailures} consecutive parse failures`
+					);
+				}
 			}
 		};
 
@@ -214,6 +233,9 @@ export function connectWs(
 					closed = true;
 					opts.signal?.removeEventListener('abort', onAbort);
 					socket.close();
+				},
+				stats() {
+					return {parseFailures, deadLetters: [...deadLetters]};
 				}
 			});
 		});

@@ -6,7 +6,7 @@ import {randomUUID} from 'node:crypto';
 import {BridgeHost, isStdioTransport, placedEngineCli, resourcesEngineCli} from '@fastllm/bridge-client';
 import {bridgeEventSchema, type BridgeCommand, type BridgeEvent} from './protocol.js';
 import {parseNdjsonChunk} from './parseNdjson.js';
-import {utf8Stream} from '@fastllm/bridge-protocol';
+import {utf8Stream, reportInvalidEngineLine} from '@fastllm/bridge-protocol';
 import {resolveSessionArgs, type SessionLaunchConfig} from './sessionLaunch.js';
 import {
 	emptyUnixBootstrap,
@@ -251,7 +251,10 @@ export class AgentProcess {
 						handlers.onEvent(parsed);
 					}
 				} catch {
-					handlers.onError(`Invalid engine event: ${line}`);
+					reportInvalidEngineLine(line, {
+						onTerminal: message => handlers.onError(message),
+						onLog: message => handlers.onError(message)
+					});
 				}
 			});
 		});

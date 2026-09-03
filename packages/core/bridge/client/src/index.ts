@@ -34,7 +34,8 @@ export {
 	tryConnectUnix,
 	type ConnectUnixOpts,
 	type UnixConnection,
-	type UnixConnectionHandlers
+	type UnixConnectionHandlers,
+	type UnixConnectionStats
 } from './unixConnection.js';
 export {
 	connectWs,

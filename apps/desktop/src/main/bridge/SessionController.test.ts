@@ -1328,6 +1328,227 @@ test('cancel settlement timeout unlocks submit when turn_cancelled never arrives
 	assert.equal(controller.sendMessage('after timeout'), true);
 });
 
+test('cancel settlement timers are per-task: arming B does not disarm A', async () => {
+	const controller = new SessionController({
+		clientId: 'cli',
+		send: () => true,
+		createId: (() => {
+			let n = 0;
+			return () => `id-${++n}`;
+		})(),
+		cancelSettlementTimeoutMs: 30
+	});
+	const a = controller.createTask('A');
+	controller.acceptNewSession('sess-a', a.id);
+	controller.handleEvent({type: 'Attached', sessionId: 'sess-a', clientId: 'cli'});
+	controller.handleEvent(withSid('sess-a', {
+		type: 'turn_started',
+		eventSeq: 1,
+		turnId: 'client_a',
+		clientMessageId: 'client_a',
+		text: 'run a'
+	}));
+	assert.equal(controller.cancelRun('stop'), true);
+	assert.equal(controller.listTasks().find(t => t.id === a.id)?.transcript.awaitingCancelSettlement, true);
+
+	const b = controller.createTask('B');
+	controller.acceptNewSession('sess-b', b.id);
+	controller.handleEvent({type: 'Attached', sessionId: 'sess-b', clientId: 'cli'});
+	controller.selectTask(b.id);
+	controller.handleEvent(withSid('sess-b', {
+		type: 'turn_started',
+		eventSeq: 1,
+		turnId: 'client_b',
+		clientMessageId: 'client_b',
+		text: 'run b'
+	}));
+	assert.equal(controller.cancelRun('stop'), true);
+	assert.equal(controller.listTasks().find(t => t.id === b.id)?.transcript.awaitingCancelSettlement, true);
+	assert.equal(controller.listTasks().find(t => t.id === a.id)?.transcript.awaitingCancelSettlement, true);
+
+	await new Promise(r => setTimeout(r, 80));
+	assert.equal(
+		controller.listTasks().find(t => t.id === a.id)?.transcript.awaitingCancelSettlement,
+		false,
+		'A watchdog must fire even after B armed its own'
+	);
+	assert.equal(controller.listTasks().find(t => t.id === b.id)?.transcript.awaitingCancelSettlement, false);
+});
+
+test('run lease expiry attaches then locally settles after grace', () => {
+	const sent: BridgeCommand[] = [];
+	let now = 1_000;
+	const controller = new SessionController({
+		clientId: 'cli',
+		send: cmd => {
+			sent.push(cmd);
+			return true;
+		},
+		now: () => now,
+		leaseScanIntervalMs: 0,
+		createId: () => 'cid'
+	});
+	const task = controller.createTask('T');
+	controller.acceptNewSession('sess', task.id);
+	controller.handleEvent({type: 'Attached', sessionId: 'sess', clientId: 'cli'});
+	controller.handleEvent(withSid('sess', {
+		type: 'turn_started',
+		eventSeq: 1,
+		turnId: 'run-1',
+		clientMessageId: 'c1',
+		text: 'hi'
+	}));
+	controller.handleEvent(withSid('sess', {
+		type: 'assistant_delta',
+		eventSeq: 2,
+		turnId: 'run-1',
+		text: 'hello'
+	}));
+	controller.handleEvent(withSid('sess', {
+		type: 'run_state',
+		runId: 'run-1',
+		state: 'running',
+		ts: now
+	}));
+	assert.equal(controller.getActiveTask()?.transcript.leaseAware, true);
+	assert.equal(controller.gate().runState, 'running');
+
+	now = 1_000 + 16_000;
+	sent.length = 0;
+	controller.tickRunLeases();
+	assert.ok(sent.some(c => c.type === 'AttachSession'));
+	assert.equal(controller.gate().runState, 'running', 'grace keeps chrome busy');
+
+	now += 5_000;
+	controller.tickRunLeases();
+	assert.equal(controller.getActiveTask()?.transcript.activeRunId, undefined);
+	assert.equal(controller.gate().runState, 'idle');
+	assert.equal(controller.canSubmitNow(), true);
+	assert.equal(controller.consumeHelpNotice(), 'errors.lease.expired');
+	controller.reset();
+});
+
+test('run lease does not expire before a run_state (legacy engine)', () => {
+	const sent: BridgeCommand[] = [];
+	let now = 1_000;
+	const controller = new SessionController({
+		clientId: 'cli',
+		send: cmd => {
+			sent.push(cmd);
+			return true;
+		},
+		now: () => now,
+		leaseScanIntervalMs: 0,
+		createId: () => 'cid'
+	});
+	const task = controller.createTask('T');
+	controller.acceptNewSession('sess', task.id);
+	controller.handleEvent({type: 'Attached', sessionId: 'sess', clientId: 'cli'});
+	controller.handleEvent(withSid('sess', {
+		type: 'turn_started',
+		eventSeq: 1,
+		turnId: 'run-1',
+		clientMessageId: 'c1',
+		text: 'hi'
+	}));
+	now = 1_000 + 60_000;
+	controller.tickRunLeases();
+	assert.equal(sent.some(c => c.type === 'AttachSession' && 'lastEventSeq' in c && c.lastEventSeq > 0), false);
+	assert.equal(controller.gate().runState, 'running');
+	controller.reset();
+});
+
+test('run lease heartbeat during grace renews and does not settle', () => {
+	const sent: BridgeCommand[] = [];
+	let now = 1_000;
+	const controller = new SessionController({
+		clientId: 'cli',
+		send: cmd => {
+			sent.push(cmd);
+			return true;
+		},
+		now: () => now,
+		leaseScanIntervalMs: 0,
+		createId: () => 'cid'
+	});
+	const task = controller.createTask('T');
+	controller.acceptNewSession('sess', task.id);
+	controller.handleEvent({type: 'Attached', sessionId: 'sess', clientId: 'cli'});
+	controller.handleEvent(withSid('sess', {
+		type: 'turn_started',
+		eventSeq: 1,
+		turnId: 'run-1',
+		clientMessageId: 'c1',
+		text: 'hi'
+	}));
+	controller.handleEvent(withSid('sess', {
+		type: 'run_state',
+		runId: 'run-1',
+		state: 'running',
+		ts: now
+	}));
+	now = 1_000 + 16_000;
+	controller.tickRunLeases();
+	controller.handleEvent(withSid('sess', {
+		type: 'run_state',
+		runId: 'run-1',
+		state: 'running',
+		ts: now
+	}));
+	now += 5_000;
+	controller.tickRunLeases();
+	assert.equal(controller.gate().runState, 'running');
+	assert.equal(controller.consumeHelpNotice(), null);
+	controller.reset();
+});
+
+test('run lease expires a Goal-only overlay after grace', () => {
+	const sent: BridgeCommand[] = [];
+	let now = 1_000;
+	const controller = new SessionController({
+		clientId: 'cli',
+		send: cmd => {
+			sent.push(cmd);
+			return true;
+		},
+		now: () => now,
+		leaseScanIntervalMs: 0,
+		createId: () => 'cid'
+	});
+	const task = controller.createTask('T');
+	controller.acceptNewSession('sess', task.id);
+	controller.handleEvent({type: 'Attached', sessionId: 'sess', clientId: 'cli'});
+	controller.handleEvent(withSid('sess', {
+		type: 'goal_updated',
+		goalId: 'g1',
+		phase: 'started',
+		status: 'running'
+	}));
+	controller.handleEvent(withSid('sess', {
+		type: 'run_state',
+		runId: 'goal-run',
+		state: 'running',
+		ts: now
+	}));
+	assert.equal(controller.gate().runState, 'running');
+	assert.equal(controller.gate().canCancel, false);
+	assert.equal(controller.getActiveTask()?.transcript.activeRunId, undefined);
+
+	now = 1_000 + 16_000;
+	sent.length = 0;
+	controller.tickRunLeases();
+	assert.ok(sent.some(c => c.type === 'AttachSession'));
+	assert.equal(controller.gate().runState, 'running', 'grace keeps Goal chrome busy');
+
+	now += 5_000;
+	controller.tickRunLeases();
+	assert.equal(controller.getActiveTask()?.goalCard, undefined);
+	assert.equal(controller.gate().runState, 'idle');
+	assert.equal(controller.canSubmitNow(), true);
+	assert.equal(controller.consumeHelpNotice(), 'errors.lease.expired');
+	controller.reset();
+});
+
 test('cancel without server Run id still sends CancelAssociated (V6 Stop)', () => {
 	const sent: BridgeCommand[] = [];
 	const controller = new SessionController({

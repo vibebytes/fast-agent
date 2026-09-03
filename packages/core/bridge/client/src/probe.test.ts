@@ -44,7 +44,7 @@ test('probeBridge on plaintext ws skips fingerprint inspect and Hellos', async (
 		{url: 'ws://127.0.0.1:1979/bridge', authToken: 'tok', timeoutMs: 200},
 		async (url, wire) => {
 			queueMicrotask(() => wire.onEvent({type: 'HelloOk'}));
-			return {url, send: () => true, close() {}};
+			return {url, send: () => true, close() {}, stats: () => ({parseFailures: 0, deadLetters: []})};
 		},
 		async () => {
 			throw new Error('inspect must not run for ws://');
@@ -85,7 +85,8 @@ test('probeBridge fails HelloReject UNAUTHORIZED as auth', async () => {
 			return {
 				url,
 				send: () => true,
-				close() {}
+				close() {},
+				stats: () => ({parseFailures: 0, deadLetters: []})
 			} satisfies WsConnection;
 		}
 	);
@@ -100,7 +101,8 @@ test('probeBridge fails when TCP opens but Hello never arrives', async () => {
 			({
 				url,
 				send: () => true,
-				close() {}
+				close() {},
+				stats: () => ({parseFailures: 0, deadLetters: []})
 			}) satisfies WsConnection
 	);
 	assert.equal(res.ok, false);
@@ -132,7 +134,7 @@ test('probeBridge connect URL has no token query', async () => {
 		async (url, wire: WsConnectionHandlers) => {
 			urls.push(url);
 			queueMicrotask(() => wire.onEvent({type: 'HelloOk'}));
-			return {url, send: () => true, close() {}};
+			return {url, send: () => true, close() {}, stats: () => ({parseFailures: 0, deadLetters: []})};
 		}
 	);
 	assert.equal(urls[0], 'wss://10.0.0.2:1980/bridge');

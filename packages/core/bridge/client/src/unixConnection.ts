@@ -1,19 +1,30 @@
 import net from 'node:net';
-import {parseNdjsonChunk, utf8Stream, bridgeEventSchema, type BridgeCommand, type BridgeEvent} from '@fastllm/bridge-protocol';
+import {parseNdjsonChunk, utf8Stream, bridgeEventSchema, reportInvalidEngineLine, PROTOCOL_MISMATCH_PREFIX, CONSECUTIVE_PARSE_FAIL_NOTICE, type BridgeCommand, type BridgeEvent} from '@fastllm/bridge-protocol';
 
 export type UnixConnectionHandlers = {
 	onEvent: (event: BridgeEvent) => void;
 	onError: (message: string) => void;
 	/** Non-fatal parse / log lines. Missing handler skips the line. */
 	onLog?: (message: string) => void;
+	/** Fired on every parse failure with the raw line and cumulative count. */
+	onDeadLetter?: (info: {line: string; count: number}) => void;
 	onClose: () => void;
+};
+
+export type UnixConnectionStats = {
+	parseFailures: number;
+	/** Most recent raw lines that failed to parse (bounded ring). */
+	deadLetters: readonly string[];
 };
 
 export type UnixConnection = {
 	socketPath: string;
 	send: (command: BridgeCommand) => boolean;
 	close: () => void;
+	stats: () => UnixConnectionStats;
 };
+
+const DEAD_LETTER_CAPACITY = 100;
 
 export type ConnectUnixOpts = {
 	timeoutMs?: number;
@@ -50,12 +61,30 @@ export function connectUnix(
 			reject(err);
 		};
 
+		let parseFailures = 0;
+		let consecutiveParseFailures = 0;
+		const deadLetters: string[] = [];
+
 		const dispatchLine = (line: string) => {
 			if (!line.startsWith('{')) return;
 			try {
 				handlers.onEvent(bridgeEventSchema.parse(JSON.parse(line)));
+				consecutiveParseFailures = 0;
 			} catch {
-				handlers.onLog?.(`Invalid engine event: ${line}`);
+				parseFailures += 1;
+				consecutiveParseFailures += 1;
+				deadLetters.push(line);
+				if (deadLetters.length > DEAD_LETTER_CAPACITY) deadLetters.shift();
+				handlers.onDeadLetter?.({line, count: parseFailures});
+				reportInvalidEngineLine(line, {
+					onTerminal: message => handlers.onError(message),
+					onLog: message => handlers.onLog?.(message)
+				});
+				if (consecutiveParseFailures >= CONSECUTIVE_PARSE_FAIL_NOTICE) {
+					handlers.onError(
+						`${PROTOCOL_MISMATCH_PREFIX} ${consecutiveParseFailures} consecutive parse failures`
+					);
+				}
 			}
 		};
 
@@ -102,6 +131,9 @@ export function connectUnix(
 					closed = true;
 					socket.end();
 					socket.destroy();
+				},
+				stats() {
+					return {parseFailures, deadLetters: [...deadLetters]};
 				}
 			});
 		});

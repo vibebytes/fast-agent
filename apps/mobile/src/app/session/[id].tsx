@@ -13,7 +13,9 @@ export default function SessionScreen() {
   useBridgeStart();
 
   useEffect(() => {
-    if (id) bridgeStore.attach(id);
+    if (!id) return;
+    bridgeStore.attach(id);
+    return () => bridgeStore.detach(id);
   }, [id]);
 
   return (

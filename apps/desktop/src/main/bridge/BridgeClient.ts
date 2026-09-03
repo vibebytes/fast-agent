@@ -1,7 +1,7 @@
 import {spawn, type ChildProcessWithoutNullStreams, type SpawnOptionsWithoutStdio} from 'node:child_process';
 import {randomUUID} from 'node:crypto';
 import {BridgeHost, isStdioTransport, type RemoteBridgeConnectionOptions} from '@fastllm/bridge-client';
-import {bridgeEventSchema, parseNdjsonChunk, utf8Stream, type BridgeCommand, type BridgeEvent} from '@fastllm/bridge-protocol';
+import {bridgeEventSchema, parseNdjsonChunk, utf8Stream, reportInvalidEngineLine, type BridgeCommand, type BridgeEvent} from '@fastllm/bridge-protocol';
 import {resolveEngineLaunch, type ResolveEngineLaunchOptions} from './engineLaunch.js';
 
 export type BridgeClientHandlers = {
@@ -205,8 +205,10 @@ export class BridgeClient {
 					const parsed = bridgeEventSchema.parse(JSON.parse(line));
 					handlers.onEvent(parsed);
 				} catch {
-					// One bad NDJSON line must not mark the whole engine dead (Attach hydrate, etc.).
-					handlers.onLog?.(`Invalid engine event: ${line}`);
+					reportInvalidEngineLine(line, {
+						onTerminal: message => handlers.onError(message),
+						onLog: message => handlers.onLog?.(message)
+					});
 				}
 			});
 		});
@@ -247,6 +249,10 @@ export class BridgeClient {
 			this.handlers?.onError(error instanceof Error ? error.message : String(error));
 			return false;
 		}
+	}
+
+	stats(): {parseFailures: number; deadLetters: readonly string[]} {
+		return this.host?.stats() ?? {parseFailures: 0, deadLetters: []};
 	}
 
 	async stopLocal(): Promise<void> {

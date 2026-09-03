@@ -20,6 +20,7 @@ export {
 	appendProcPreview,
 	applyBridgeEvent,
 	applyLocalCancel,
+	applyLeaseExpiry,
 	createTranscriptState,
 	LIVE_PROC_PREVIEW_MAX,
 	nextFireAtFromDetail,
@@ -56,6 +57,8 @@ export {
 
 export {
 	CANCEL_SETTLEMENT_TIMEOUT_MS,
+	RUN_LEASE_INTERVAL_MS,
+	RUN_LEASE_TTL_MS,
 	canAutoDequeue,
 	canFlushQueuedInput,
 	composerGate,

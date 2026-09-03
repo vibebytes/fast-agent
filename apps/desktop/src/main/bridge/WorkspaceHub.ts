@@ -2,7 +2,7 @@ import {existsSync, mkdirSync} from 'node:fs';
 import {randomUUID} from 'node:crypto';
 import {homedir} from 'node:os';
 import path from 'node:path';
-import type {BridgeCommand, BridgeEvent} from '@fastllm/bridge-protocol';
+import {TERMINAL_PARSE_FAILURE_PREFIX, PROTOCOL_MISMATCH_PREFIX, type BridgeCommand, type BridgeEvent} from '@fastllm/bridge-protocol';
 import type {
 	AgentRow,
 	AmbientRule,
@@ -417,6 +417,8 @@ export class WorkspaceHub {
 			},
 			onError: message => {
 				if (!isCurrent() || !live) return;
+				if (this.reconcileTerminalParseFailure(message, handlers)) return;
+				if (this.noticeProtocolMismatch(message, handlers)) return;
 				this.setEngineStatus('error', message);
 				handlers.onError('engine', message);
 			},
@@ -721,6 +723,10 @@ export class WorkspaceHub {
 
 	getEngineStatus(): {status: EngineHostStatus; error?: string} {
 		return {status: this.engineStatus, error: this.engineError};
+	}
+
+	bridgeDiagnostics(): {parseFailures: number; deadLetters: readonly string[]} {
+		return this.bridge?.stats() ?? {parseFailures: 0, deadLetters: []};
 	}
 
 	/** Host-lane commands talk to the JVM, not a ready session runtime. */
@@ -3735,6 +3741,7 @@ export class WorkspaceHub {
 					},
 					onError: message => {
 						if (this.switchingEdge) return;
+						if (this.reconcileTerminalParseFailure(message, handlers)) return;
 						this.setEngineStatus('error', message);
 						handlers.onError('engine', message);
 					},
@@ -3905,6 +3912,35 @@ export class WorkspaceHub {
 		}
 	}
 
+	/**
+	 * A terminal event failed Zod parse — do not mark the Engine crashed.
+	 * Re-Attach every live session so AttachChrome can replay the missed settle.
+	 */
+	private reconcileTerminalParseFailure(
+		message: string,
+		handlers: WorkspaceProjectHandlers
+	): boolean {
+		if (!message.startsWith(TERMINAL_PARSE_FAILURE_PREFIX)) return false;
+		for (const project of this.projects.values()) {
+			project.sessions.resyncAttached();
+		}
+		handlers.onLog?.('engine', message);
+		return true;
+	}
+
+	/** Consecutive Zod failures — notice only, not an engine crash. */
+	private noticeProtocolMismatch(
+		message: string,
+		handlers: WorkspaceProjectHandlers
+	): boolean {
+		if (!message.startsWith(PROTOCOL_MISMATCH_PREFIX)) return false;
+		for (const project of this.projects.values()) {
+			project.sessions.noteHelp('errors.protocol.mismatch');
+		}
+		handlers.onLog?.('engine', message);
+		return true;
+	}
+
 	private onBridgeEvent(event: BridgeEvent, handlers: WorkspaceProjectHandlers): void {
 		if (event.type === 'engine_install_log') {
 			this.engineHandlers?.onEngineInstallLog?.(event);
@@ -4070,7 +4106,16 @@ export class WorkspaceHub {
 			return;
 		}
 
-		if (event.type === 'error') {
+		if (event.type === 'host_error') {
+			handlers.onError('engine', event.message);
+			handlers.onEvent('engine', event);
+			return;
+		}
+
+		// error with sessionId is a session-scoped failure: fall through to the
+		// SESSION_STREAM demux below so it reaches SessionController.handleEvent.
+		// Only sessionId-less errors (host-level command failures) are handled here.
+		if (event.type === 'error' && sessionIdFromEvent(event) === undefined) {
 			const msg = typeof event.message === 'string' ? event.message : '';
 			const pending = [...this.projects.values()].find(p => p.pendingDisplayName);
 			if (

@@ -278,6 +278,13 @@ export type TranscriptState = {
 	lastDocumentId?: string;
 	/** Stopping: awaiting Bridge `turn_cancelled` after local cancel. */
 	awaitingCancelSettlement?: boolean;
+	/** Last run_state replica from the engine (lease / attach snapshot). */
+	runLease?: {
+		runId?: string;
+		state: 'running' | 'waiting' | 'cancelling' | 'idle';
+	};
+	/** True after at least one run_state for the current run — enables TTL. */
+	leaseAware?: boolean;
 	/** ADR-0012: older Turns remain beyond the loaded window. */
 	hasMoreOlder?: boolean;
 	/** ADR-0012: total MESSAGE-derived Turn count for the Session. */
@@ -590,7 +597,9 @@ export function applyBridgeEvent(state: TranscriptState, event: BridgeEvent): Tr
 				activeRunId: event.turnId ?? state.activeRunId,
 				activeRunFromServer: event.turnId ? false : state.activeRunFromServer,
 				postRunTerminal: false,
-				awaitingCancelSettlement: false
+				awaitingCancelSettlement: false,
+				leaseAware: false,
+				runLease: undefined
 			};
 		}
 		case 'input_accepted': {
@@ -682,8 +691,24 @@ export function applyBridgeEvent(state: TranscriptState, event: BridgeEvent): Tr
 			};
 		}
 		case 'session_history_page': {
+			// Restore ids derive from the server turnId while live ids may still carry
+			// the client message id (input_accepted remaps turnId but keeps entry.id
+			// stable for UI keys) — dedup by content identity (role + turn keys), not
+			// only by id, or the same turn renders twice.
 			const existingIds = new Set(state.entries.map(e => e.id));
-			const older = entriesFromRestoredTurns(event.turns).filter(e => !existingIds.has(e.id));
+			const existingTurnKeys = new Set(
+				state.entries.flatMap(e =>
+					[e.turnId, e.clientMessageId]
+						.filter((k): k is string => Boolean(k))
+						.map(k => `${e.role}:${k}`)
+				)
+			);
+			const older = entriesFromRestoredTurns(event.turns).filter(
+				e =>
+					!existingIds.has(e.id) &&
+					!(e.turnId && existingTurnKeys.has(`${e.role}:${e.turnId}`)) &&
+					!(e.clientMessageId && existingTurnKeys.has(`${e.role}:${e.clientMessageId}`))
+			);
 			const superseded = {...state.superseded};
 			for (const rt of event.turns) {
 				if (rt.supersedes) {
@@ -738,8 +763,77 @@ export function applyBridgeEvent(state: TranscriptState, event: BridgeEvent): Tr
 		}
 		case 'assistant_delta': {
 			if (subagentRunIdOf(event)) return state;
+			// Stamped delta whose turnId matches nothing: never route into another
+			// run's card via the lastDocumentId/activeRunId fallback — open a fresh
+			// card keyed by that turnId so the prose lands under its own turn.
+			// postRunTerminal stragglers keep the legacy fill-empty path — a fresh
+			// streaming card after settle would relight Composer Stop.
+			if (
+				event.turnId &&
+				!state.postRunTerminal &&
+				!documentCard(state, event.turnId, {strictTurn: true})
+			) {
+				// Late remap: when the current run's streaming row still carries the
+				// unconfirmed client id (input_accepted was missed — turnId never
+				// diverged from clientMessageId), a server-stamped delta IS that remap
+				// arriving late. Adopt the server turnId onto the row instead of
+				// opening a second card; follow-up deltas then hit the exact match.
+				const candidate = documentCard(state);
+				const unconfirmed =
+					candidate &&
+					candidate.status === 'streaming' &&
+					(!candidate.turnId || candidate.turnId === candidate.clientMessageId);
+				if (candidate && unconfirmed) {
+					const oldKeys = new Set(
+						[candidate.turnId, candidate.clientMessageId].filter(
+							(k): k is string => Boolean(k)
+						)
+					);
+					const wasActive = Boolean(state.activeRunId && oldKeys.has(state.activeRunId));
+					return rememberDocument(
+						{
+							...state,
+							activeRunId: wasActive ? event.turnId : state.activeRunId,
+							activeRunFromServer: wasActive ? true : state.activeRunFromServer,
+							entries: state.entries.map(entry => {
+								if (entry === candidate) {
+									return {
+										...clearWaitState(
+											pushAssistantSegment(entry, event.text, event.unitId, persistDelta(event))
+										),
+										turnId: event.turnId
+									};
+								}
+								const pairedUser =
+									entry.role === 'user' &&
+									((entry.turnId && oldKeys.has(entry.turnId)) ||
+										(entry.clientMessageId && oldKeys.has(entry.clientMessageId)));
+								return pairedUser ? {...entry, turnId: event.turnId} : entry;
+							})
+						},
+						event.turnId
+					);
+				}
+				const fresh: TranscriptEntry = {
+					id: `assistant-${event.turnId}`,
+					role: 'assistant',
+					text: '',
+					reasoning: '',
+					status: 'streaming',
+					turnId: event.turnId,
+					tools: [],
+					segments: []
+				};
+				const seeded = clearWaitState(
+					pushAssistantSegment(fresh, event.text, event.unitId, persistDelta(event))
+				);
+				return {
+					...rememberDocument(state, event.turnId),
+					entries: [...state.entries, seeded]
+				};
+			}
 			return patchAssistant(state, event.turnId, entry =>
-				clearWaitState(pushAssistantSegment(entry, event.text, event.unitId))
+				clearWaitState(pushAssistantSegment(entry, event.text, event.unitId, persistDelta(event)))
 			);
 		}
 		case 'checkpoint': {
@@ -751,7 +845,7 @@ export function applyBridgeEvent(state: TranscriptState, event: BridgeEvent): Tr
 		case 'final_answer': {
 			// Prefer streamed deltas; only seed from final_answer when empty (cli-ink).
 			return patchAssistant(state, event.turnId, entry =>
-				entry.text.trim().length > 0 ? entry : pushAssistantSegment(entry, event.text)
+				entry.text.trim().length > 0 ? entry : pushAssistantSegment(entry, event.text, undefined, persistDelta(event))
 			);
 		}
 		case 'turn_finished': {
@@ -804,7 +898,9 @@ export function applyBridgeEvent(state: TranscriptState, event: BridgeEvent): Tr
 				...patched,
 				postRunTerminal: !stillStreaming,
 				activeRunId: keepActive ? state.activeRunId : undefined,
-				activeRunFromServer: keepActive ? state.activeRunFromServer : false
+				activeRunFromServer: keepActive ? state.activeRunFromServer : false,
+				leaseAware: keepActive ? state.leaseAware : false,
+				runLease: keepActive ? state.runLease : undefined
 			};
 		}
 		case 'turn_cancelled': {
@@ -813,6 +909,8 @@ export function applyBridgeEvent(state: TranscriptState, event: BridgeEvent): Tr
 				activeRunId: undefined,
 				activeRunFromServer: false,
 				awaitingCancelSettlement: false,
+				leaseAware: false,
+				runLease: undefined,
 				approvals: state.approvals.filter(a => !a.runId),
 				questions: [],
 				questionBatches: state.questionBatches.filter(q => !q.runId),
@@ -1317,6 +1415,8 @@ export function applyBridgeEvent(state: TranscriptState, event: BridgeEvent): Tr
 				activeRunFromServer: state.activeRunId === runId ? false : state.activeRunFromServer,
 				// Only arm straggler guard when this settle closed the last streaming row.
 				postRunTerminal: stillStreaming ? false : hasMatch ? true : state.postRunTerminal,
+				leaseAware: stillStreaming ? state.leaseAware : false,
+				runLease: stillStreaming ? state.runLease : undefined,
 				approvals: nextApprovals,
 				questions: nextQuestions,
 				questionBatches: nextBatches,
@@ -1479,9 +1579,79 @@ export function applyBridgeEvent(state: TranscriptState, event: BridgeEvent): Tr
 				runId: event.runId
 			});
 		}
+		case 'run_state': {
+			const runLease = {
+				...(event.runId ? {runId: event.runId} : {}),
+				state: event.state
+			};
+			if (event.state === 'idle') {
+				const next = {...state, runLease};
+				if (state.leaseAware && localBusy(state)) return applyLeaseExpiry(next);
+				return {...next, leaseAware: false};
+			}
+			const marked = {...state, runLease, leaseAware: true as const};
+			if (state.awaitingCancelSettlement && event.state === 'running') return marked;
+			if (
+				!localBusy(marked) &&
+				event.runId &&
+				(event.state === 'running' || event.state === 'waiting' || event.state === 'cancelling')
+			) {
+				return reviveChatRun(marked, event.runId);
+			}
+			return marked;
+		}
 		default:
 			return state;
 	}
+}
+
+/** Lease / attach snapshot said idle while local chrome is still busy. */
+export function applyLeaseExpiry(state: TranscriptState): TranscriptState {
+	return {
+		...forgetDocument(state),
+		activeRunId: undefined,
+		activeRunFromServer: false,
+		awaitingCancelSettlement: false,
+		postRunTerminal: true,
+		leaseAware: false,
+		runLease: {state: 'idle'},
+		entries: state.entries.map(entry => {
+			if (entry.role !== 'assistant' || entry.status !== 'streaming') return entry;
+			return {
+				...sealOpenThinking(entry),
+				status: 'done',
+				tools: (entry.tools ?? []).map(t =>
+					t.status === 'running' ? {...t, status: 'cancelled'} : t
+				)
+			};
+		})
+	};
+}
+
+function localBusy(state: TranscriptState): boolean {
+	return Boolean(state.activeRunId) || state.entries.some(e => e.status === 'streaming');
+}
+
+/** Attach snapshot said the chat run is still live after a local idle settle. */
+function reviveChatRun(state: TranscriptState, runId: string): TranscriptState {
+	let revived = false;
+	const entries = state.entries.map(entry => {
+		if (entry.role !== 'assistant') return entry;
+		if (entry.turnId !== runId && entry.clientMessageId !== runId) return entry;
+		if (entry.status === 'cancelled' || entry.status === 'error') return entry;
+		revived = true;
+		if (entry.status === 'streaming') return entry;
+		return {...entry, status: 'streaming' as const};
+	});
+	if (!revived) return state;
+	return {
+		...state,
+		activeRunId: runId,
+		activeRunFromServer: true,
+		postRunTerminal: false,
+		awaitingCancelSettlement: false,
+		entries
+	};
 }
 
 /** Peer / stream path: bind PlanBuild fields onto the execute-turn user row. */
@@ -1919,7 +2089,16 @@ function pushThinkingSegment(entry: TranscriptEntry, text: string): TranscriptEn
 	};
 }
 
-function pushAssistantSegment(entry: TranscriptEntry, text: string, unitId?: string): TranscriptEntry {
+function persistDelta(event: {eventSeq?: number}): boolean {
+	return typeof event.eventSeq === 'number' && event.eventSeq > 0;
+}
+
+function pushAssistantSegment(
+	entry: TranscriptEntry,
+	text: string,
+	unitId?: string,
+	persist = false
+): TranscriptEntry {
 	if (!text) return entry.status === 'streaming' ? {...entry, status: 'streaming'} : entry;
 	if (entry.status === 'cancelled') return entry;
 	// Empty settled row: seed prose without relighting Stop (approval-pause rows
@@ -1935,8 +2114,19 @@ function pushAssistantSegment(entry: TranscriptEntry, text: string, unitId?: str
 			]
 		};
 	}
-	// Guard against engine re-emitting the full answer as one delta.
-	if (entry.text.length > 0 && text === entry.text) {
+	const live = entry.text;
+	// Guard against engine re-emitting the full answer, and align persist/full
+	// chrome against live prefix instead of appending a second copy (P1-3).
+	if (live.length > 0 && text === live) {
+		return {...entry, status: 'streaming'};
+	}
+	if (live.length > 0 && text.startsWith(live)) {
+		return extendAssistantText(entry, text, unitId);
+	}
+	// Stale persist snapshot of the same document (live chrome already painted further).
+	// Must not apply to live incremental tokens — repeating fragments like `0x` match
+	// the document start and would otherwise be dropped instead of appended.
+	if (persist && live.length > 0 && live.startsWith(text)) {
 		return {...entry, status: 'streaming'};
 	}
 	const sealed = sealOpenThinking(entry);
@@ -1964,6 +2154,39 @@ function pushAssistantSegment(entry: TranscriptEntry, text: string, unitId?: str
 		segments: [
 			...segments,
 			{kind: 'assistant', id: nextSegmentId(entry.id, segments, 'a'), text, unitId}
+		]
+	};
+}
+
+/** Replace live assistant prose with a longer persist/full snapshot of the same card. */
+function extendAssistantText(entry: TranscriptEntry, incoming: string, unitId?: string): TranscriptEntry {
+	const sealed = sealOpenThinking(entry);
+	const suffix = incoming.slice(entry.text.length);
+	if (!suffix) return {...sealed, status: 'streaming'};
+	const segments = sealed.segments ?? [];
+	const last = segments.at(-1);
+	const sameUnit =
+		last?.kind === 'assistant' &&
+		(unitId == null || last.unitId == null || last.unitId === unitId);
+	if (sameUnit && last?.kind === 'assistant') {
+		return {
+			...sealed,
+			text: incoming,
+			status: 'streaming',
+			segments: segments.map((segment, index) =>
+				index === segments.length - 1 && segment.kind === 'assistant'
+					? {...segment, text: segment.text + suffix, unitId: segment.unitId ?? unitId}
+					: segment
+			)
+		};
+	}
+	return {
+		...sealed,
+		text: incoming,
+		status: 'streaming',
+		segments: [
+			...segments,
+			{kind: 'assistant', id: nextSegmentId(entry.id, segments, 'a'), text: suffix, unitId}
 		]
 	};
 }

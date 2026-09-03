@@ -8,6 +8,11 @@ import {createTranscriptState, type TranscriptState} from './transcriptProjectio
 /** Default matches Engine ~10s hard timeout + small buffer. */
 export const CANCEL_SETTLEMENT_TIMEOUT_MS = 12_000;
 
+/** Engine run_state heartbeat interval (aligned with CommandLoop durationProp). */
+export const RUN_LEASE_INTERVAL_MS = 5_000;
+/** 3× interval — tolerate two missed heartbeats before expiry. */
+export const RUN_LEASE_TTL_MS = 15_000;
+
 export type RunState = 'idle' | 'running' | 'stopping';
 
 export type ComposerLockReason = 'prompt' | null;
@@ -27,6 +32,7 @@ export type ComposerRunFlags = {
 	sessionReady: boolean;
 	running: boolean;
 	awaitingCancelSettlement: boolean;
+	leaseExpired?: boolean;
 	approvals: TranscriptState['approvals'];
 	questions: TranscriptState['questions'];
 	questionBatches?: TranscriptState['questionBatches'];
@@ -62,15 +68,20 @@ export function canFlushQueuedInput(opts: {
  * Derive Composer affordances from Transcript state + host-folded session readiness.
  * `sessionReady` = Session exists, attached, not pending create/attach — not prompt lock.
  */
-export function composerGate(transcript: TranscriptState, sessionReady: boolean): ComposerGate {
+export function composerGate(
+	transcript: TranscriptState,
+	sessionReady: boolean,
+	leaseExpired = false
+): ComposerGate {
 	const hasPrompt =
 		transcript.approvals.length > 0 ||
 		transcript.questions.length > 0 ||
 		transcript.questionBatches.length > 0;
 	const stopping = Boolean(transcript.awaitingCancelSettlement);
 	const hasRun =
-		Boolean(transcript.activeRunId) ||
-		transcript.entries.some(e => e.status === 'streaming');
+		!leaseExpired &&
+		(Boolean(transcript.activeRunId) ||
+			transcript.entries.some(e => e.status === 'streaming'));
 
 	// Waiting for user (question / approval) is not model execution. Fast IDE Stop is
 	// bound to canCancel — keeping runState=running after ask_user_question leaves the
@@ -103,6 +114,7 @@ export function composerGateFromRunFlags(flags: ComposerRunFlags): ComposerGate 
 				flags.running && !flags.awaitingCancelSettlement ? 'active' : undefined,
 			awaitingCancelSettlement: flags.awaitingCancelSettlement
 		},
-		flags.sessionReady
+		flags.sessionReady,
+		flags.leaseExpired ?? false
 	);
 }

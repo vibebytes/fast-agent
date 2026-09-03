@@ -201,6 +201,48 @@ test('BridgeClient logs invalid engine JSON without failing the engine', async (
 	client.stop();
 });
 
+test('BridgeClient upgrades terminal parse failures to onError', async () => {
+	const stdout = new PassThrough();
+	const stdin = new PassThrough();
+	const stderr = new PassThrough();
+	const child = Object.assign(new EventEmitter(), {
+		stdout,
+		stderr,
+		stdin,
+		killed: false,
+		pid: 3,
+		kill() {
+			this.killed = true;
+		}
+	});
+
+	const client = new BridgeClient({
+		spawnImpl: () => child as never
+	});
+
+	const message = await new Promise<string>(resolve => {
+		client.start('/tmp/ws', {
+			onEvent() {},
+			onError(msg) {
+				resolve(`error:${msg}`);
+			},
+			onLog(msg) {
+				resolve(`log:${msg}`);
+			},
+			onExit() {}
+		}, {
+			env: {FAST_ENGINE_COMMAND: 'mock', FAST_ENGINE_ARGS: 'x'},
+			bundledEnginePath: '/unused'
+		});
+		queueMicrotask(() => {
+			stdout.write('{"type":"turn_finished","success":"not-a-boolean"}\n');
+		});
+	});
+
+	assert.equal(message, 'error:terminal event parse failure: turn_finished');
+	client.stop();
+});
+
 test('BridgeClient delivers CommandLoop turn_finished without eventSeq', async () => {
 	const stdout = new PassThrough();
 	const stdin = new PassThrough();

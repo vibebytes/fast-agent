@@ -1,6 +1,12 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import {countUserMatches, isEchoReflected, makeQueueEcho} from './queueEcho.js';
+import {
+	countUserMatches,
+	ECHO_FALLBACK_TTL_MS,
+	isEchoExpired,
+	isEchoReflected,
+	makeQueueEcho
+} from './queueEcho.js';
 
 type Row = {kind: string; text?: string};
 
@@ -47,4 +53,21 @@ test('a null echo and an unrelated-text entry never count as reflected', () => {
 	assert.equal(isEchoReflected(null, rows(['user', 'hi'])), false);
 	const echo = makeQueueEcho('t1', 'hello', rows());
 	assert.equal(isEchoReflected(echo, rows(['user', 'hi'])), false);
+});
+
+test('fallback TTL expires an unmatched echo without treating it as reflected', () => {
+	const now = 1_000_000;
+	const echo = makeQueueEcho('t1', '/plan rewrite', rows(), now);
+	assert.equal(echo.expiresAt, now + ECHO_FALLBACK_TTL_MS);
+	assert.equal(isEchoReflected(echo, rows()), false);
+	assert.equal(isEchoExpired(echo, now), false);
+	assert.equal(isEchoExpired(echo, now + ECHO_FALLBACK_TTL_MS - 1), false);
+	assert.equal(isEchoExpired(echo, now + ECHO_FALLBACK_TTL_MS), true);
+	assert.equal(isEchoExpired(null, now + ECHO_FALLBACK_TTL_MS), false);
+});
+
+test('a matching user row still reflects before the fallback TTL fires', () => {
+	const echo = makeQueueEcho('t1', 'hi', rows(), 0);
+	assert.equal(isEchoReflected(echo, rows(['user', 'hi'])), true);
+	assert.equal(isEchoExpired(echo, 1), false);
 });

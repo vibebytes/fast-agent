@@ -14,7 +14,20 @@ export function connectionLabel(t: Translate, state: ConnectionState): string {
 export function ConnectionBanner() {
   const { t } = useTranslation();
   const snapshot = useBridgeSnapshot();
-  if (snapshot.connection === 'open') return null;
+  const host = snapshot.hostNotice?.trim();
+  const parseFailures = snapshot.parseStats.parseFailures;
+  if (snapshot.connection === 'open') {
+    if (!host && parseFailures === 0) return null;
+    const text = host ?? t('errors.protocol.mismatch', {defaultValue: `Parse failures: ${parseFailures}`});
+    return (
+      <View className="bg-warning/15 px-3 py-1.5">
+        <Text className="text-center text-[11px] text-warning">
+          {text}
+          {!host && parseFailures > 0 ? ` (${parseFailures})` : ''}
+        </Text>
+      </View>
+    );
+  }
   const label = connectionLabel(t, snapshot.connection);
   const detail = snapshot.connectionDetail ? formatCopy(t, snapshot.connectionDetail) : '';
   return (

@@ -7,7 +7,7 @@ import {
 } from '@fast-ide/session-view';
 import type {BridgeEvent} from '../rpc/protocol.js';
 import {isSilentCommandResult} from '../rpc/hostProtocolCommands.js';
-import {pickIdList} from '@fastllm/bridge-protocol';
+import {isSessionStreamEvent, pickIdList} from '@fastllm/bridge-protocol';
 import type {AgentRun, FooterConfig, FooterItemId, GoalCardState, Message, QueuedInput, Turn, UiState} from './model.js';
 import {pushAgent, popAgent, switchSibling} from './agentViewStack.js';
 import type {AgentViewEntry} from './agentViewStack.js';
@@ -49,36 +49,6 @@ function toolActivity(tool: string, args: Record<string, string>): string {
 	const capped = firstLine.length > 40 ? `${firstLine.slice(0, 39)}…` : firstLine;
 	return `${tool} ${capped}`;
 }
-
-/** Events whose Transcript projection is owned by session-view applyBridgeEvent. */
-const BRIDGE_TRANSCRIPT_EVENTS = new Set([
-	'turn_started',
-	'input_accepted',
-	'session_restored',
-	'session_history_page',
-	'reasoning_delta',
-	'assistant_delta',
-	'final_answer',
-	'turn_finished',
-	'turn_cancelled',
-	'error',
-	'tool_started',
-	'tool_output',
-	'tool_finished',
-	'file_read',
-	'approval_requested',
-	'approval_resolved',
-	'approval_expired',
-	'question_requested',
-	'question_answered',
-	'clarify_resolved',
-	'clarify',
-	'run_cancelled',
-	'run_done',
-	'run_failed',
-	'run_exhausted',
-	'llm_network_wait'
-]);
 
 export type UiAction =
 	| {type: 'submit_user'; text: string; clientMessageId: string}
@@ -349,7 +319,7 @@ export function reducer(state: UiState, action: UiAction): UiState {
 }
 
 function applyEvent(state: UiState, event: BridgeEvent): UiState {
-	const withTranscript = BRIDGE_TRANSCRIPT_EVENTS.has(event.type)
+	const withTranscript = isSessionStreamEvent(event.type)
 		? {...state, ...stampEntryStreamSeq(state, applyBridgeEvent(state.transcript, event))}
 		: state;
 
@@ -537,7 +507,7 @@ function applyEvent(state: UiState, event: BridgeEvent): UiState {
 			}
 			// Homeless stream events: session-view drops them (no ghost turns).
 			if (
-				BRIDGE_TRANSCRIPT_EVENTS.has(event.type)
+				isSessionStreamEvent(event.type)
 				&& next.transcript === state.transcript
 				&& (event.type === 'reasoning_delta'
 					|| event.type === 'assistant_delta'

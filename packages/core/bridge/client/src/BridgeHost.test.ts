@@ -11,7 +11,8 @@ function openConn(url: string, wire: WsConnectionHandlers): WsConnection {
 		send: () => true,
 		close() {
 			wire.onClose();
-		}
+		},
+		stats: () => ({parseFailures: 0, deadLetters: []})
 	};
 }
 
@@ -97,7 +98,8 @@ test('local connect replaces host when packed engineId disagrees', async () => {
 				},
 				close() {
 					wire.onClose();
-				}
+				},
+				stats: () => ({parseFailures: 0, deadLetters: []})
 			};
 		}
 	});
@@ -136,7 +138,8 @@ test('stopLocal Shutdown without SIGTERM when we own the host', async () => {
 			},
 			close() {
 				wire.onClose();
-			}
+			},
+			stats: () => ({parseFailures: 0, deadLetters: []})
 		})
 	});
 	await host.connect(
@@ -168,7 +171,8 @@ test('Hello timeout closes the unix connection', async () => {
 			close() {
 				closed += 1;
 				wire.onClose();
-			}
+			},
+			stats: () => ({parseFailures: 0, deadLetters: []})
 		}),
 		connectWs: async (_url, wire, opts) => {
 			void opts;
@@ -178,7 +182,8 @@ test('Hello timeout closes the unix connection', async () => {
 				close() {
 					closed += 1;
 					wire.onClose();
-				}
+				},
+				stats: () => ({parseFailures: 0, deadLetters: []})
 			};
 		}
 	});

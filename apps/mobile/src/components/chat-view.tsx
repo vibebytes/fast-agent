@@ -4,6 +4,7 @@ import {
   countDiffStats,
   parseDiffWithLineNumbers,
   type DiffLine,
+  type PendingQuestionBatch,
   type TranscriptEntry
 } from '@fast-ide/session-view';
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -24,7 +25,17 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { bridgeStore, type FollowUpItem } from '@/bridge/store';
+import {
+  batchAnswersOf,
+  batchDraftAnswered,
+  batchDraftCompleted,
+  emptyBatchDraft,
+  overlayGoalGate,
+  parseRecommendedLabel,
+  STOPPABLE_GOAL_PHASES,
+  type BatchDraft
+} from '@/bridge/mobile-transcript';
+import { bridgeStore, type FollowUpItem, type SessionRecord } from '@/bridge/store';
 import { useBridgeSnapshot } from '@/bridge/useBridge';
 import { ConnectionBanner } from '@/components/connection';
 import { GlassHeader } from '@/components/glass-header';
@@ -386,11 +397,151 @@ function MessageActionBar({ text }: { text?: string }) {
   );
 }
 
-function EntryBubble({ entry }: { entry: TranscriptEntry }) {
+function sessionComposerGate(record: SessionRecord | undefined) {
+  if (!record) return null;
+  return overlayGoalGate(composerGate(record.transcript, true), record.goalCard);
+}
+
+function hasActionablePrompt(record: SessionRecord | undefined): boolean {
+  const transcript = record?.transcript;
+  if (!transcript) return false;
+  return (
+    transcript.questions.length > 0 ||
+    transcript.questionBatches.length > 0 ||
+    transcript.approvals.length > 0
+  );
+}
+
+function StopControl({
+  sessionId,
+  record,
+  gate,
+  label,
+  className,
+  textClassName
+}: {
+  sessionId: string;
+  record: SessionRecord;
+  gate: ReturnType<typeof sessionComposerGate>;
+  label: string;
+  className: string;
+  textClassName: string;
+}) {
+  const canStopRun = Boolean(gate?.canCancel);
+  const canStopGoal = Boolean(
+    !canStopRun && record.goalCard && STOPPABLE_GOAL_PHASES.has(record.goalCard.phase)
+  );
+  if (!canStopRun && !canStopGoal) return null;
+  return (
+    <Pressable
+      onPress={() => {
+        if (canStopRun) bridgeStore.cancelRun(sessionId, record.transcript.activeRunId);
+        else bridgeStore.cancelGoal(sessionId, record.goalCard?.goalId);
+      }}
+      className={className}
+    >
+      <Text className={textClassName}>{label}</Text>
+    </Pressable>
+  );
+}
+
+function staleErrorEntryIds(entries: readonly TranscriptEntry[]): Set<string> {
+  const stale = new Set<string>();
+  let pending: string | null = null;
+  for (const entry of entries) {
+    if (entry.role !== 'assistant') continue;
+    if (entry.status === 'error') {
+      if (pending !== null) stale.add(pending);
+      pending = entry.id;
+    } else if (entry.status === 'done' || entry.status === 'cancelled') {
+      if (pending !== null) {
+        stale.add(pending);
+        pending = null;
+      }
+    }
+  }
+  return stale;
+}
+
+function EntryBubble({
+  entry,
+  sessionId,
+  busy,
+  stale
+}: {
+  entry: TranscriptEntry;
+  sessionId: string;
+  busy: boolean;
+  stale: boolean;
+}) {
   const { t } = useTranslation();
   const isUser = entry.role === 'user';
   const tools = entry.tools ?? [];
   const isStreaming = entry.status === 'streaming';
+  const isError = entry.status === 'error';
+
+  if (isError) {
+    const rawText = (entry.text ?? '').trim();
+    const firstLine = rawText.split('\n').find((line) => line.trim().length > 0);
+    const summary = firstLine?.slice(0, 400) ?? '';
+    const kind = entry.fault?.kind;
+    const remedy = entry.fault?.remedy;
+    const friendlyHint =
+      kind === 'transport' || kind === 'availability'
+        ? t(`errors.hint.${kind}`, { defaultValue: '' })
+        : '';
+    const primary = friendlyHint || summary;
+    const retryable = entry.fault ? entry.fault.remedy === 'retry_same' : true;
+    const runId = entry.turnId?.trim();
+    return (
+      <View className="mb-5 self-stretch overflow-hidden rounded-2xl border border-destructive/40 bg-destructive/10 px-3.5 py-3">
+        <Text className="text-sm font-semibold text-destructive">{t('session.errorCard.title')}</Text>
+        {kind ? (
+          <Text className="mt-1 text-xs text-muted">
+            {t('session.errorCard.kind')}: {t(`errors.kind.${kind}`, { defaultValue: kind })}
+          </Text>
+        ) : null}
+        {primary ? (
+          <Text className="mt-1.5 font-mono text-xs leading-5 text-foreground" selectable>
+            {primary}
+          </Text>
+        ) : null}
+        {remedy ? (
+          <Text className="mt-2 text-xs font-medium text-warning">
+            {t('session.errorCard.remedy')}: {t(`errors.remedy.${remedy}`, { defaultValue: remedy })}
+          </Text>
+        ) : null}
+        {typeof entry.fault?.attempts === 'number' && entry.fault.attempts > 1 ? (
+          <Text className="mt-1 text-[11px] text-muted">
+            {t('session.errorCard.attempts', { attempts: entry.fault.attempts })}
+          </Text>
+        ) : null}
+        {stale ? null : (
+          <View className="mt-3 flex-row flex-wrap gap-2">
+            {retryable && runId ? (
+              <Pressable
+                disabled={busy}
+                onPress={() => bridgeStore.rerunRun(sessionId, runId)}
+                className="rounded-lg border border-destructive/40 bg-background px-3 py-1.5 active:opacity-75 disabled:opacity-30"
+              >
+                <Text className="text-xs font-medium text-foreground">{t('session.errorCard.retry')}</Text>
+              </Pressable>
+            ) : null}
+            {typeof entry.fault?.acceptedTurns === 'number' && entry.fault.acceptedTurns > 0 ? (
+              <Pressable
+                disabled={busy}
+                onPress={() => bridgeStore.continueRun(sessionId)}
+                className="rounded-lg border border-destructive/40 bg-background px-3 py-1.5 active:opacity-75 disabled:opacity-30"
+              >
+                <Text className="text-xs font-medium text-foreground">{t('session.errorCard.continue')}</Text>
+              </Pressable>
+            ) : null}
+          </View>
+        )}
+        <AgentToolPipeline tools={tools} />
+      </View>
+    );
+  }
 
   return (
     <View
@@ -455,7 +606,7 @@ function RunSheet({
   const vars = useThemeVars();
   const snapshot = useBridgeSnapshot();
   const record = snapshot.records[sessionId];
-  const gate = record ? composerGate(record.transcript, true) : null;
+  const gate = sessionComposerGate(record);
   const liveProcs = record?.transcript.liveProcs ?? [];
   const [interruptText, setInterruptText] = useState('');
   const { t } = useTranslation();
@@ -493,13 +644,15 @@ function RunSheet({
             </View>
           </View>
 
-          {gate?.canCancel && record?.transcript.activeRunId ? (
-            <Pressable
-              onPress={() => bridgeStore.cancelRun(sessionId, record.transcript.activeRunId!)}
+          {record ? (
+            <StopControl
+              sessionId={sessionId}
+              record={record}
+              gate={gate}
+              label={t('mobile.chat.abortNow')}
               className="mt-3.5 items-center justify-center rounded-xl bg-destructive py-2.5 active:opacity-80"
-            >
-              <Text className="text-sm font-semibold text-destructive-foreground">{t('mobile.chat.abortNow')}</Text>
-            </Pressable>
+              textClassName="text-sm font-semibold text-destructive-foreground"
+            />
           ) : null}
         </View>
 
@@ -566,7 +719,7 @@ function Composer({ sessionId }: { sessionId: string }) {
   const vars = useThemeVars();
   const snapshot = useBridgeSnapshot();
   const record = snapshot.records[sessionId];
-  const gate = record ? composerGate(record.transcript, true) : null;
+  const gate = sessionComposerGate(record);
   const [text, setText] = useState('');
   const [pendingId, setPendingId] = useState<string | null>(null);
   const [queued, setQueued] = useState(false);
@@ -610,13 +763,23 @@ function Composer({ sessionId }: { sessionId: string }) {
     <View className="border-t border-border bg-background">
       <RunSheet sessionId={sessionId} visible={runSheet} onClose={() => setRunSheet(false)} />
 
+      {snapshot.leaseNotice ? (
+        <View className="flex-row items-center gap-1.5 bg-warning/10 px-4 py-2">
+          <Text className="text-xs text-warning">
+            {snapshot.leaseNotice.startsWith('errors.') || snapshot.leaseNotice.startsWith('shell.')
+              ? t(snapshot.leaseNotice)
+              : snapshot.leaseNotice}
+          </Text>
+        </View>
+      ) : null}
+
       {offline ? (
         <View className="flex-row items-center gap-1.5 bg-warning/10 px-4 py-2">
           <Text className="text-xs text-warning">{t('mobile.chat.lockedDisconnected')}</Text>
         </View>
       ) : null}
 
-      {locked && !offline ? (
+      {locked && !offline && !hasActionablePrompt(record) ? (
         <View className="flex-row items-center gap-1.5 bg-warning/10 px-4 py-2">
           <Text className="text-xs text-warning">{t('mobile.chat.lockedDecision')}</Text>
         </View>
@@ -640,13 +803,15 @@ function Composer({ sessionId }: { sessionId: string }) {
             </Text>
           </Pressable>
           <View className="flex-row items-center gap-2">
-            {gate?.canCancel && record?.transcript.activeRunId ? (
-              <Pressable
-                onPress={() => bridgeStore.cancelRun(sessionId, record.transcript.activeRunId!)}
+            {record ? (
+              <StopControl
+                sessionId={sessionId}
+                record={record}
+                gate={gate}
+                label={t('shell.common.stop')}
                 className="rounded-lg bg-destructive/20 px-2 py-0.5 active:opacity-70"
-              >
-                <Text className="text-[11px] font-bold text-destructive">{t('shell.common.stop')}</Text>
-              </Pressable>
+                textClassName="text-[11px] font-bold text-destructive"
+              />
             ) : null}
             <Pressable
               onPress={() => setRunSheet(true)}
@@ -723,6 +888,9 @@ export function ChatView({ sessionId }: { sessionId: string }) {
   const entries = record?.transcript.entries ?? [];
   const hasMoreOlder = record?.transcript.hasMoreOlder ?? false;
   const lastResyncRef = useRef(0);
+  const staleIds = useMemo(() => staleErrorEntryIds(entries), [entries]);
+  const gate = sessionComposerGate(record);
+  const busy = gate?.runState === 'running' || gate?.runState === 'stopping';
 
   const maybeResync = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
     const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent;
@@ -748,7 +916,9 @@ export function ChatView({ sessionId }: { sessionId: string }) {
         contentContainerStyle={{ paddingHorizontal: 14, paddingVertical: 12 }}
         onScrollEndDrag={maybeResync}
         onMomentumScrollEnd={maybeResync}
-        renderItem={({ item }) => <EntryBubble entry={item} />}
+        renderItem={({ item }) => (
+          <EntryBubble entry={item} sessionId={sessionId} busy={busy} stale={staleIds.has(item.id)} />
+        )}
         ListEmptyComponent={
           !record ? (
             <View className="items-center justify-center py-24">
@@ -772,6 +942,7 @@ export function ChatView({ sessionId }: { sessionId: string }) {
         }
       />
       <ApprovalSlot sessionId={sessionId} />
+      <QuestionBatchSlot sessionId={sessionId} />
       <QuestionSlot sessionId={sessionId} />
       <FollowUpsBar sessionId={sessionId} />
       <Composer sessionId={sessionId} />
@@ -826,6 +997,193 @@ function ApprovalSlot({ sessionId }: { sessionId: string }) {
           </View>
         </View>
       ))}
+    </View>
+  );
+}
+
+function QuestionBatchSlot({ sessionId }: { sessionId: string }) {
+  const snapshot = useBridgeSnapshot();
+  const batches = snapshot.records[sessionId]?.transcript.questionBatches ?? [];
+  if (batches.length === 0) return null;
+  return (
+    <View className="gap-2.5 px-3.5 pb-2">
+      {batches.map((batch) => (
+        <QuestionBatchPane key={batch.rpcId} sessionId={sessionId} batch={batch} />
+      ))}
+    </View>
+  );
+}
+
+function QuestionBatchPane({
+  sessionId,
+  batch
+}: {
+  sessionId: string;
+  batch: PendingQuestionBatch;
+}) {
+  const { t } = useTranslation();
+  const vars = useThemeVars();
+  const [index, setIndex] = useState(0);
+  const [drafts, setDrafts] = useState<Record<string, BatchDraft>>({});
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setIndex(0);
+    setDrafts({});
+    setError(null);
+  }, [batch.rpcId]);
+
+  useEffect(() => {
+    setIndex((i) => Math.min(i, Math.max(0, batch.questions.length - 1)));
+  }, [batch.questions.length]);
+
+  const last = batch.questions.length - 1;
+  const question = batch.questions[index];
+  if (!question) return null;
+  const draft = drafts[question.id] ?? emptyBatchDraft();
+  const multi = Boolean(question.multiSelect);
+  const options = question.options ?? [];
+  const approve = question.intent?.kind === 'plan-review' ? question.intent.approve : undefined;
+
+  const update = (next: BatchDraft) => {
+    setDrafts((cur) => ({ ...cur, [question.id]: next }));
+    setError(null);
+  };
+
+  const choose = (label: string) => {
+    if (multi) {
+      const selected = draft.selected.includes(label)
+        ? draft.selected.filter((s) => s !== label)
+        : [...draft.selected, label];
+      update({ ...draft, selected, skipped: false });
+      return;
+    }
+    update({ selected: [label], custom: '', skipped: false });
+    if (index < last) setIndex(index + 1);
+  };
+
+  const submit = (map: Record<string, BatchDraft>) => {
+    const missing = batch.questions.findIndex((q) => !batchDraftCompleted(map[q.id] ?? emptyBatchDraft()));
+    if (missing >= 0) {
+      setIndex(missing);
+      setError(t('shell.question.incomplete'));
+      return;
+    }
+    bridgeStore.answerQuestionBatch(sessionId, batch.rpcId, { answers: batchAnswersOf(batch.questions, map) });
+  };
+
+  const skip = () => {
+    const nextDrafts = { ...drafts, [question.id]: { selected: [], custom: '', skipped: true } };
+    setDrafts(nextDrafts);
+    setError(null);
+    if (index < last) {
+      setIndex(index + 1);
+      return;
+    }
+    submit(nextDrafts);
+  };
+
+  const goNext = () => {
+    if (!batchDraftAnswered(draft)) {
+      setError(t('shell.question.unanswered'));
+      return;
+    }
+    if (index < last) {
+      setIndex(index + 1);
+      setError(null);
+      return;
+    }
+    submit(drafts);
+  };
+
+  return (
+    <View className="overflow-hidden rounded-2xl border border-primary/40 bg-surface p-4 shadow-md">
+      <View className="flex-row items-start justify-between gap-2">
+        <View className="min-w-0 flex-1">
+          {question.header ? (
+            <Text className="text-[11px] leading-4 text-muted">{question.header}</Text>
+          ) : null}
+          <Text className="text-base font-semibold text-foreground">{question.question}</Text>
+        </View>
+        <Pressable
+          onPress={() => bridgeStore.answerQuestionBatch(sessionId, batch.rpcId, { cancelled: true })}
+          className="rounded-lg px-2 py-1 active:opacity-70"
+        >
+          <Text className="text-xs font-semibold text-muted">{t('shell.question.dismissAll')}</Text>
+        </Pressable>
+      </View>
+      {question.detail ? (
+        <Text className="mt-1.5 text-xs leading-5 text-muted">{question.detail}</Text>
+      ) : null}
+      <View className="mt-3 gap-2">
+        {options.map((option, i) => {
+          const on = draft.selected.includes(option.label);
+          const display = parseRecommendedLabel(option.label);
+          const recommended = display.recommended || approve === option.label;
+          return (
+            <Pressable
+              key={`${option.label}-${i}`}
+              onPress={() => choose(option.label)}
+              className={`rounded-xl border px-3.5 py-2.5 active:scale-[0.98] ${
+                on ? 'border-primary bg-primary/10' : 'border-border bg-surface-secondary'
+              }`}
+            >
+              <View className="flex-row items-start gap-2">
+                <Text className="mt-0.5 text-xs font-mono text-muted">{multi ? (on ? '☑' : '☐') : `${i + 1}`}</Text>
+                <View className="min-w-0 flex-1">
+                  <Text className="text-sm font-medium text-foreground">{display.label}</Text>
+                  {recommended ? (
+                    <Text className="mt-0.5 text-[10px] font-semibold text-primary">
+                      {t('shell.question.recommended')}
+                    </Text>
+                  ) : null}
+                  {option.description ? (
+                    <Text className="mt-0.5 text-xs leading-4 text-muted">{option.description}</Text>
+                  ) : null}
+                </View>
+              </View>
+            </Pressable>
+          );
+        })}
+      </View>
+      <View className="mt-3 flex-row gap-2">
+        <TextInput
+          value={draft.custom}
+          onChangeText={(custom) =>
+            update({
+              selected: multi ? draft.selected : [],
+              custom,
+              skipped: false
+            })
+          }
+          placeholder={t('shell.question.typeYourAnswer')}
+          placeholderTextColor={vars['--muted']}
+          className="flex-1 rounded-xl border border-border bg-surface-secondary px-3.5 py-2 text-sm text-foreground"
+        />
+      </View>
+      {error ? <Text className="mt-2 text-xs text-destructive">{error}</Text> : null}
+      <View className="mt-3.5 flex-row items-center justify-between">
+        <Text className="text-xs text-muted">
+          {index + 1} / {batch.questions.length}
+        </Text>
+        <View className="flex-row gap-2">
+          <Pressable
+            onPress={skip}
+            className="rounded-xl border border-border bg-surface-secondary px-3 py-2 active:scale-95"
+          >
+            <Text className="text-xs font-semibold text-foreground">{t('shell.question.skip')}</Text>
+          </Pressable>
+          <Pressable
+            onPress={goNext}
+            disabled={!batchDraftAnswered(draft)}
+            className="rounded-xl bg-default px-3 py-2 active:scale-95 disabled:opacity-30"
+          >
+            <Text className="text-xs font-semibold text-default-foreground">
+              {index === last ? t('shell.question.submit') : t('shell.question.next')}
+            </Text>
+          </Pressable>
+        </View>
+      </View>
     </View>
   );
 }

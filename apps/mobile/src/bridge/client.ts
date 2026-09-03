@@ -1,5 +1,10 @@
 import type {BridgeCommand, BridgeEvent} from '@fastllm/bridge-protocol';
-import {bridgeEventSchema} from '@fastllm/bridge-protocol';
+import {
+  bridgeEventSchema,
+  reportInvalidEngineLine,
+  PROTOCOL_MISMATCH_PREFIX,
+  CONSECUTIVE_PARSE_FAIL_NOTICE
+} from '@fastllm/bridge-protocol';
 
 import type {ClientConfig} from './config';
 import type { Copy } from './copy';
@@ -10,14 +15,22 @@ import {probeTlsFingerprint} from './tls-pinning';
 
 export type ConnectionState = 'idle' | 'connecting' | 'hello' | 'open' | 'closed' | 'rejected';
 
+export type ParseStats = {
+  parseFailures: number;
+  deadLetters: readonly string[];
+};
+
 const HEARTBEAT_MS = 15_000;
 const BACKOFF_MS = [1_000, 2_000, 5_000, 10_000];
+const DEAD_LETTER_CAPACITY = 100;
 
 type Handlers = {
   onState: (state: ConnectionState, detail?: Copy) => void;
   onEvent: (event: BridgeEvent) => void;
   onOpen?: () => void;
   onUnpinnedFingerprint?: (fingerprint: string) => void;
+  onTerminalParseFailure?: (message: string) => void;
+  onDeadLetter?: (info: {line: string; count: number}) => void;
 };
 
 type Wire = PinnedWire;
@@ -32,6 +45,9 @@ export class BridgeClient {
   private attempt = 0;
   private disposed = false;
   private state: ConnectionState = 'idle';
+  private parseFailures = 0;
+  private consecutiveParseFailures = 0;
+  private deadLetters: string[] = [];
 
   constructor(config: ClientConfig, handlers: Handlers) {
     this.config = config;
@@ -156,7 +172,22 @@ export class BridgeClient {
     let event: BridgeEvent;
     try {
       event = bridgeEventSchema.parse(JSON.parse(data));
+      this.consecutiveParseFailures = 0;
     } catch {
+      this.parseFailures += 1;
+      this.consecutiveParseFailures += 1;
+      this.deadLetters.push(data);
+      if (this.deadLetters.length > DEAD_LETTER_CAPACITY) this.deadLetters.shift();
+      this.handlers.onDeadLetter?.({line: data, count: this.parseFailures});
+      reportInvalidEngineLine(data, {
+        onTerminal: message => this.handlers.onTerminalParseFailure?.(message),
+        onLog: () => undefined
+      });
+      if (this.consecutiveParseFailures >= CONSECUTIVE_PARSE_FAIL_NOTICE) {
+        this.handlers.onTerminalParseFailure?.(
+          `${PROTOCOL_MISMATCH_PREFIX} ${this.consecutiveParseFailures} consecutive parse failures`
+        );
+      }
       return;
     }
     if (event.type === 'HelloOk') {
@@ -183,6 +214,10 @@ export class BridgeClient {
 
   send(command: BridgeCommand): boolean {
     return this.wire?.send(JSON.stringify(command)) ?? false;
+  }
+
+  stats(): ParseStats {
+    return {parseFailures: this.parseFailures, deadLetters: [...this.deadLetters]};
   }
 
   close() {

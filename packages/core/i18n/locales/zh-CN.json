@@ -1430,6 +1430,12 @@
       "retry_same": "以相同设置重试",
       "retry_other": "切换模型后重试",
       "fail": "无法自动恢复 — 请开启新的运行"
+    },
+    "lease": {
+      "expired": "Engine timed out — input restored."
+    },
+    "protocol": {
+      "mismatch": "Protocol mismatch — engine events no longer parse. Reconnect or update."
     }
   },
   "slash": {

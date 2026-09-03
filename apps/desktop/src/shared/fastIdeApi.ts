@@ -569,6 +569,7 @@ export type FastIdeApi = {
 	dshSteer: (text: string) => Promise<boolean>;
 	dshGoalAct: (action: 'pause' | 'resume' | 'complete' | 'clear') => Promise<boolean>;
 	retryEngine: () => Promise<boolean>;
+	engineDiagnostics: () => Promise<{parseFailures: number; deadLetters: readonly string[]}>;
 	checkRestoreState: () => Promise<{done: boolean; failed: boolean; reason?: string}>;
 	onProjectsChanged: (handler: (payload: ProjectsSnapshot) => void) => () => void;
 	onWorkspaceFocus: (handler: (payload: WorkspaceFocus) => void) => () => void;

@@ -172,3 +172,69 @@ test('connectWs passes skip-verify to the socket factory', async () => {
 	assert.equal(seen?.rejectUnauthorized, false);
 	conn.close();
 });
+
+test('connectWs upgrades terminal parse failures to onError', async () => {
+	FakeSocket.instances = [];
+	const errors: string[] = [];
+	const logs: string[] = [];
+	const conn = await connectWs(
+		'ws://127.0.0.1:1979/bridge',
+		{
+			onEvent: () => {},
+			onError: m => errors.push(m),
+			onLog: m => logs.push(m),
+			onClose: () => {}
+		},
+		{},
+		factory
+	);
+	const peer = FakeSocket.instances[0];
+	assert.ok(peer);
+	peer.pushText('{"type":"turn_finished","success":"not-a-boolean"}\n');
+	await new Promise(r => setTimeout(r, 20));
+	assert.deepEqual(errors, ['terminal event parse failure: turn_finished']);
+	assert.deepEqual(logs, []);
+	assert.equal(conn.stats().parseFailures, 1);
+	conn.close();
+});
+
+test('connectWs records dead letters and escalates consecutive parse failures', async () => {
+	FakeSocket.instances = [];
+	const errors: string[] = [];
+	const logs: string[] = [];
+	const deadLetters: Array<{line: string; count: number}> = [];
+	const conn = await connectWs(
+		'ws://127.0.0.1:1979/bridge',
+		{
+			onEvent: () => {},
+			onError: m => errors.push(m),
+			onLog: m => logs.push(m),
+			onDeadLetter: info => deadLetters.push(info),
+			onClose: () => {}
+		},
+		{},
+		factory
+	);
+	const peer = FakeSocket.instances[0];
+	assert.ok(peer);
+	peer.pushText('{"broken json\n{"type":"made_up_event"}\n{"type":"assistant_delta","text":1}\n');
+	await new Promise(r => setTimeout(r, 20));
+	const stats = conn.stats();
+	assert.equal(stats.parseFailures, 3);
+	assert.deepEqual(stats.deadLetters, [
+		'{"broken json',
+		'{"type":"made_up_event"}',
+		'{"type":"assistant_delta","text":1}'
+	]);
+	assert.deepEqual(
+		deadLetters,
+		[
+			{line: '{"broken json', count: 1},
+			{line: '{"type":"made_up_event"}', count: 2},
+			{line: '{"type":"assistant_delta","text":1}', count: 3}
+		]
+	);
+	assert.match(errors[errors.length - 1]!, /^protocol mismatch:/);
+	assert.equal(logs.length, 3);
+	conn.close();
+});

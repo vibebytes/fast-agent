@@ -3,8 +3,11 @@ import {pickIdList, wireIdList} from '@fastllm/bridge-protocol';
 import type {MentionChip} from '@fast-ide/session-view';
 import {
 	applyBridgeEvent,
+	applyLeaseExpiry,
 	applyLocalCancel,
 	CANCEL_SETTLEMENT_TIMEOUT_MS,
+	RUN_LEASE_INTERVAL_MS,
+	RUN_LEASE_TTL_MS,
 	composerGate,
 	createTranscriptState,
 	emptySessionSeq,
@@ -445,6 +448,8 @@ export type SessionControllerDeps = {
 	onChange?: () => void;
 	/** Client-side Cancel Settlement watchdog; must be ≥ Engine hard timeout. */
 	cancelSettlementTimeoutMs?: number;
+	/** Host lease scan period. `0` disables the interval (tests call `tickRunLeases`). */
+	leaseScanIntervalMs?: number;
 	/** Registered workspace hash for BindSessionWorkspace (slot / I/O). */
 	workspaceId?: () => string | undefined;
 	/** Meta project id for CreateSession (sidebar identity). */
@@ -558,6 +563,12 @@ export type SessionLifecycle = {
 	 * `focus: true` matches selectTask (chrome + activeTaskId).
 	 */
 	ensureLive(taskId: string, opts?: {focus?: boolean}): TaskRecord | null;
+	/** Re-Attach every live session (terminal parse-fail / lease expiry reconcile). */
+	resyncAttached(): void;
+	/** Host-level notice (protocol mismatch, etc.) shown via consumeHelpNotice. */
+	noteHelp(notice: string): void;
+	/** Scan lease-aware runs: TTL → Attach reconcile → local settle. */
+	tickRunLeases(): void;
 	getActiveTask(): TaskRecord | null;
 	listTasks(): TaskRecord[];
 	listChats(): TaskRecord[];
@@ -592,12 +603,17 @@ export class SessionController implements TaskCommands, SessionLifecycle, TaskVi
 	private readonly createId: () => string;
 	private readonly onChange?: () => void;
 	private readonly cancelSettlementTimeoutMs: number;
+	private readonly leaseScanIntervalMs: number;
 	private readonly workspaceId?: () => string | undefined;
 	private readonly projectId?: () => string | undefined;
 	private readonly requestRegister?: () => void;
-	private cancelSettleTimer: ReturnType<typeof setTimeout> | null = null;
-	/** Task that armed the Cancel Settlement watchdog (may no longer be active). */
-	private cancelSettleTaskId: string | null = null;
+	/** Per-task Cancel Settlement watchdogs — switching tabs must not disarm others. */
+	private cancelSettleTimers = new Map<string, ReturnType<typeof setTimeout>>();
+	/** Last run_state / terminal seen, per task. Lease TTL is host-owned. */
+	private leaseSeenAt = new Map<string, number>();
+	/** Tasks waiting one heartbeat after Attach reconcile before local settle. */
+	private leaseReconcileAt = new Map<string, number>();
+	private leaseScanTimer: ReturnType<typeof setInterval> | null = null;
 	private tasks = new Map<string, TaskRecord>();
 	/** Contiguous applied cursor + pending, keyed by sessionId. */
 	private seqBySession = new Map<string, SessionSeq>();
@@ -676,6 +692,7 @@ export class SessionController implements TaskCommands, SessionLifecycle, TaskVi
 		this.onChange = deps.onChange;
 		this.cancelSettlementTimeoutMs =
 			deps.cancelSettlementTimeoutMs ?? CANCEL_SETTLEMENT_TIMEOUT_MS;
+		this.leaseScanIntervalMs = deps.leaseScanIntervalMs ?? 2_000;
 		this.workspaceId = deps.workspaceId;
 		this.projectId = deps.projectId;
 		this.requestRegister = deps.requestRegister;
@@ -726,7 +743,7 @@ export class SessionController implements TaskCommands, SessionLifecycle, TaskVi
 	 * re-Attaches — host is still running the turn.
 	 */
 	markEngineLost(reason: string, opts?: {failTurns?: boolean}): void {
-		this.clearCancelSettleTimer();
+		this.clearAllCancelSettleTimers();
 		this.rejectPendingDeletes(reason);
 		const failTurns = opts?.failTurns ?? true;
 		for (const task of this.tasks.values()) {
@@ -757,6 +774,8 @@ export class SessionController implements TaskCommands, SessionLifecycle, TaskVi
 		}
 		this.attachedSessionIds.clear();
 		this.restoredSessionIds.clear();
+		this.leaseSeenAt.clear();
+		this.leaseReconcileAt.clear();
 		this.onChange?.();
 	}
 
@@ -983,9 +1002,9 @@ export class SessionController implements TaskCommands, SessionLifecycle, TaskVi
 			this.seqBySession.delete(task.sessionId);
 		}
 		this.tasks.delete(taskId);
-		if (this.cancelSettleTaskId === taskId) {
-			this.clearCancelSettleTimer();
-		}
+		this.clearCancelSettleTimer(taskId);
+		this.leaseSeenAt.delete(taskId);
+		this.leaseReconcileAt.delete(taskId);
 
 		if (this.activeTaskId === taskId) {
 			const remaining = this.listTasks();
@@ -1161,6 +1180,8 @@ export class SessionController implements TaskCommands, SessionLifecycle, TaskVi
 		if (focus) {
 			this.activeTaskId = taskId;
 			this.restoreChromeFromTask(task);
+			// Re-arm watchdog when returning to a task still awaiting Cancel Settlement.
+			this.syncCancelSettleTimer(task);
 		}
 		// Pending create — optional focus only; Bind/Attach wait until sessionId exists.
 		if (!task.sessionId) return task;
@@ -2091,14 +2112,12 @@ export class SessionController implements TaskCommands, SessionLifecycle, TaskVi
 	 * Last-resort unlock when Bridge never emits `turn_cancelled` (or it is dropped).
 	 * Safe to call repeatedly; only acts while awaiting Cancel Settlement.
 	 */
-	forceCancelSettlement(reason = 'client settlement timeout'): boolean {
-		const taskId = this.cancelSettleTaskId ?? this.activeTaskId;
-		const task = taskId ? this.tasks.get(taskId) ?? null : null;
-		if (!task?.transcript.awaitingCancelSettlement) {
-			this.clearCancelSettleTimer();
-			return false;
-		}
-		this.clearCancelSettleTimer();
+	forceCancelSettlement(reason = 'client settlement timeout', taskId?: string): boolean {
+		const id = taskId ?? this.activeTaskId;
+		const task = id ? this.tasks.get(id) ?? null : null;
+		if (!task) return false;
+		this.clearCancelSettleTimer(task.id);
+		if (!task.transcript.awaitingCancelSettlement) return false;
 		task.transcript = applyBridgeEvent(task.transcript, {
 			type: 'turn_cancelled',
 			reason
@@ -2109,30 +2128,117 @@ export class SessionController implements TaskCommands, SessionLifecycle, TaskVi
 	}
 
 	private armCancelSettleTimer(taskId: string): void {
-		this.clearCancelSettleTimer();
-		this.cancelSettleTaskId = taskId;
-		this.cancelSettleTimer = setTimeout(() => {
-			this.cancelSettleTimer = null;
-			this.forceCancelSettlement();
-		}, this.cancelSettlementTimeoutMs);
+		this.clearCancelSettleTimer(taskId);
+		this.cancelSettleTimers.set(
+			taskId,
+			setTimeout(() => {
+				this.cancelSettleTimers.delete(taskId);
+				this.forceCancelSettlement('client settlement timeout', taskId);
+			}, this.cancelSettlementTimeoutMs)
+		);
 	}
 
-	private clearCancelSettleTimer(): void {
-		if (this.cancelSettleTimer != null) {
-			clearTimeout(this.cancelSettleTimer);
-			this.cancelSettleTimer = null;
+	private clearCancelSettleTimer(taskId: string): void {
+		const timer = this.cancelSettleTimers.get(taskId);
+		if (timer != null) {
+			clearTimeout(timer);
+			this.cancelSettleTimers.delete(taskId);
 		}
-		this.cancelSettleTaskId = null;
+	}
+
+	private clearAllCancelSettleTimers(): void {
+		for (const timer of this.cancelSettleTimers.values()) clearTimeout(timer);
+		this.cancelSettleTimers.clear();
 	}
 
 	private syncCancelSettleTimer(task: TaskRecord): void {
 		if (task.transcript.awaitingCancelSettlement) {
-			if (this.cancelSettleTimer == null || this.cancelSettleTaskId !== task.id) {
+			if (!this.cancelSettleTimers.has(task.id)) {
 				this.armCancelSettleTimer(task.id);
 			}
-		} else if (this.cancelSettleTaskId === task.id) {
-			this.clearCancelSettleTimer();
+		} else {
+			this.clearCancelSettleTimer(task.id);
 		}
+	}
+
+	private static readonly LEASE_TERMINALS = new Set([
+		'turn_finished',
+		'turn_cancelled',
+		'run_done',
+		'run_failed',
+		'run_cancelled',
+		'run_exhausted'
+	]);
+
+	private noteRunLease(task: TaskRecord, event: BridgeEvent): void {
+		const renews =
+			event.type === 'run_state' || SessionController.LEASE_TERMINALS.has(event.type);
+		if (!renews) return;
+		this.leaseSeenAt.set(task.id, this.now());
+		this.leaseReconcileAt.delete(task.id);
+		if (task.transcript.leaseAware) this.ensureLeaseScan();
+	}
+
+	private ensureLeaseScan(): void {
+		if (this.leaseScanTimer != null || this.leaseScanIntervalMs <= 0) return;
+		this.leaseScanTimer = setInterval(() => this.tickRunLeases(), this.leaseScanIntervalMs);
+		this.leaseScanTimer.unref?.();
+	}
+
+	private stopLeaseScan(): void {
+		if (this.leaseScanTimer == null) return;
+		clearInterval(this.leaseScanTimer);
+		this.leaseScanTimer = null;
+	}
+
+	private static hasLocalRun(t: TranscriptState): boolean {
+		return Boolean(t.activeRunId) || t.entries.some(e => e.status === 'streaming');
+	}
+
+	private leaseBusy(task: TaskRecord): boolean {
+		return SessionController.hasLocalRun(task.transcript) || goalKeepsBusy(task.goalCard);
+	}
+
+	private settleExpiredLease(task: TaskRecord): void {
+		task.transcript = applyLeaseExpiry(task.transcript);
+		if (goalKeepsBusy(task.goalCard)) {
+			task.goalCard = undefined;
+			task.transcript = {...task.transcript, goalFlow: undefined};
+		}
+		task.pendingAttach = false;
+		this.helpNotice = 'errors.lease.expired';
+		this.leaseReconcileAt.delete(task.id);
+		this.tasks.set(task.id, task);
+		this.syncCancelSettleTimer(task);
+	}
+
+	/** Host-owned TTL: Attach reconcile, then local settle if the snapshot stays silent. */
+	tickRunLeases(): void {
+		const now = this.now();
+		let changed = false;
+		for (const task of [...this.tasks.values()]) {
+			if (!task.transcript.leaseAware || !this.leaseBusy(task)) {
+				this.leaseReconcileAt.delete(task.id);
+				continue;
+			}
+			const reconcileAt = this.leaseReconcileAt.get(task.id);
+			if (reconcileAt != null) {
+				if (now - reconcileAt < RUN_LEASE_INTERVAL_MS) continue;
+				this.settleExpiredLease(task);
+				changed = true;
+				continue;
+			}
+			const seen = this.leaseSeenAt.get(task.id);
+			if (seen == null || now - seen <= RUN_LEASE_TTL_MS) continue;
+			if (task.sessionId) this.requestAttach(task, task.sessionId, task.lastEventSeq);
+			this.leaseReconcileAt.set(task.id, now);
+		}
+		if (changed) this.onChange?.();
+	}
+
+	noteHelp(notice: string): void {
+		this.helpNotice = notice;
+		this.onChange?.();
 	}
 
 	consumeHelpNotice(): string | null {
@@ -2805,9 +2911,8 @@ export class SessionController implements TaskCommands, SessionLifecycle, TaskVi
 			);
 		}
 
-		if (task.id === this.activeTaskId || this.cancelSettleTaskId === task.id) {
-			this.syncCancelSettleTimer(task);
-		}
+		this.syncCancelSettleTimer(task);
+		this.noteRunLease(task, event);
 
 		return task;
 	}
@@ -2883,6 +2988,14 @@ export class SessionController implements TaskCommands, SessionLifecycle, TaskVi
 			if (task.sessionId === sessionId) return task;
 		}
 		return null;
+	}
+
+	resyncAttached(): void {
+		for (const task of this.tasks.values()) {
+			if (task.sessionId && this.attachedSessionIds.has(task.sessionId)) {
+				this.requestAttach(task, task.sessionId, task.lastEventSeq);
+			}
+		}
 	}
 
 	private requestAttach(task: TaskRecord, sessionId: string, lastEventSeq = 0): boolean {
@@ -3102,6 +3215,10 @@ export class SessionController implements TaskCommands, SessionLifecycle, TaskVi
 
 	reset(): void {
 		this.rejectPendingDeletes('Engine reset');
+		this.clearAllCancelSettleTimers();
+		this.stopLeaseScan();
+		this.leaseSeenAt.clear();
+		this.leaseReconcileAt.clear();
 		this.tasks.clear();
 		this.activeTaskId = null;
 		this.attachedSessionIds.clear();

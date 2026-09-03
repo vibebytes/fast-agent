@@ -210,6 +210,7 @@ const api = {
 	dshSteer: (text: string) => invoke('dsh:steer', text),
 	dshGoalAct: (action: 'pause' | 'resume' | 'complete' | 'clear') => invoke('dshGoal:act', action),
 	retryEngine: () => invoke('engine:retry'),
+	engineDiagnostics: () => invoke('engine:diagnostics'),
 	checkRestoreState: () => invoke('workspace:checkRestore'),
 	onProjectsChanged: handler => onPush('projects:changed', handler),
 	onWorkspaceFocus: handler => onPush('workspace:focus', handler),

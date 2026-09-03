@@ -3136,6 +3136,33 @@ test('assistant_delta keeps ）\\n\\n and opens a new segment on unitId change',
 	assert.equal(units[1]?.kind === 'assistant' && units[1].text, 'next');
 });
 
+test('assistant_delta persist full text replaces live prefix instead of appending', () => {
+	let state = createTranscriptState();
+	state = applyBridgeEvent(state, {type: 'turn_started', turnId: 't1', text: 'hi'});
+	state = applyBridgeEvent(state, {type: 'assistant_delta', turnId: 't1', text: 'hel'});
+	state = applyBridgeEvent(state, {type: 'assistant_delta', turnId: 't1', text: 'hello', eventSeq: 2});
+	const entry = state.entries.find(e => e.role === 'assistant')!;
+	assert.equal(entry.text, 'hello');
+});
+
+test('assistant_delta keeps live text when persist is a shorter prefix', () => {
+	let state = createTranscriptState();
+	state = applyBridgeEvent(state, {type: 'turn_started', turnId: 't1', text: 'hi'});
+	state = applyBridgeEvent(state, {type: 'assistant_delta', turnId: 't1', text: 'hello'});
+	state = applyBridgeEvent(state, {type: 'assistant_delta', turnId: 't1', text: 'hel', eventSeq: 2});
+	const entry = state.entries.find(e => e.role === 'assistant')!;
+	assert.equal(entry.text, 'hello');
+});
+
+test('assistant_delta still appends a true incremental fragment', () => {
+	let state = createTranscriptState();
+	state = applyBridgeEvent(state, {type: 'turn_started', turnId: 't1', text: 'hi'});
+	state = applyBridgeEvent(state, {type: 'assistant_delta', turnId: 't1', text: 'hel'});
+	state = applyBridgeEvent(state, {type: 'assistant_delta', turnId: 't1', text: 'lo'});
+	const entry = state.entries.find(e => e.role === 'assistant')!;
+	assert.equal(entry.text, 'hello');
+});
+
 test('checkpoint replaces the matching unit and does not touch the next step', () => {
 	let state = createTranscriptState();
 	state = applyBridgeEvent(state, {type: 'turn_started', turnId: 't1', text: 'hi'});
@@ -3257,4 +3284,51 @@ test('settled cancel + resubmit with different prompt paints new streaming turn'
 		state.entries.some(e => e.role === 'assistant' && e.turnId === 'c2' && e.status === 'streaming'),
 		'resubmit after cancel settle must paint a new streaming row'
 	);
+});
+
+test('stamped delta with an unknown turnId opens its own card instead of polluting another streaming row', () => {
+	let state = createTranscriptState();
+	state = applyBridgeEvent(state, {
+		type: 'turn_started',
+		turnId: 'run-a',
+		clientMessageId: 'client-a',
+		text: 'question a'
+	});
+	state = applyBridgeEvent(state, {type: 'assistant_delta', turnId: 'run-a', text: 'answer a'});
+	// Foreign-turn delta: turnId matches no document/entry. It must not land in
+	// run-a's streaming row via the lastDocumentId/activeRunId fallback.
+	state = applyBridgeEvent(state, {type: 'assistant_delta', turnId: 'run-b', text: 'answer b'});
+
+	const cardA = state.entries.find(e => e.role === 'assistant' && e.turnId === 'run-a');
+	assert.equal(cardA?.text, 'answer a');
+	const cardB = state.entries.find(e => e.role === 'assistant' && e.turnId === 'run-b');
+	assert.equal(cardB?.text, 'answer b');
+	assert.equal(cardB?.status, 'streaming');
+	// Follow-up deltas for the new turn keep appending to their own card.
+	state = applyBridgeEvent(state, {type: 'assistant_delta', turnId: 'run-b', text: ' more'});
+	assert.equal(
+		state.entries.find(e => e.role === 'assistant' && e.turnId === 'run-b')?.text,
+		'answer b more'
+	);
+	assert.equal(
+		state.entries.find(e => e.role === 'assistant' && e.turnId === 'run-a')?.text,
+		'answer a'
+	);
+});
+
+test('unstamped delta keeps the lastDocumentId fallback (live chrome)', () => {
+	let state = createTranscriptState();
+	state = applyBridgeEvent(state, {
+		type: 'turn_started',
+		turnId: 'run-a',
+		clientMessageId: 'client-a',
+		text: 'question a'
+	});
+	state = applyBridgeEvent(state, {type: 'assistant_delta', text: 'live '});
+	state = applyBridgeEvent(state, {type: 'assistant_delta', text: 'chrome'});
+	assert.equal(
+		state.entries.find(e => e.role === 'assistant' && e.turnId === 'run-a')?.text,
+		'live chrome'
+	);
+	assert.equal(state.entries.filter(e => e.role === 'assistant').length, 1);
 });

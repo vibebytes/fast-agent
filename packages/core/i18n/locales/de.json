@@ -268,7 +268,39 @@
         "codeLocation": "Code-Speicherort",
         "codeDescription": "Wo Dateiänderungen angewendet werden",
         "agentLocation": "Agent-Speicherort",
-        "agentDescription": "Wo Aufgaben ausgeführt werden"
+        "agentDescription": "Wo Aufgaben ausgeführt werden",
+        "edges": "Remote servers",
+        "edgesDescription": "Manage the remote servers this IDE can connect to.",
+        "add": "Add server",
+        "edit": "Edit server",
+        "empty": "No remote servers",
+        "emptyDescription": "Add a name, address, port, and access token.",
+        "formHint": "The connection URL is wss://address:port/bridge. The first add confirms the server fingerprint. The token is not part of the URL.",
+        "fingerprintTitle": "Confirm server identity",
+        "fingerprintHint": "Compare this fingerprint with the one shown on the server. Until you confirm, nothing is saved and the token is not sent.",
+        "fingerprintAccept": "Trust and continue",
+        "fingerprintReject": "Cancel",
+        "fingerprintMismatch": "The server certificate does not match the saved fingerprint.",
+        "pinRequired": "This server's identity is not confirmed. Open it in Settings and confirm the fingerprint.",
+        "tlsPlaintext": "The server is still speaking plaintext. Upgrade the engine on that machine; a LAN listen enables encryption automatically.",
+        "name": "Name",
+        "ip": "IP or host",
+        "port": "Port",
+        "token": "Token",
+        "caPem": "CA certificate (PEM)",
+        "skipVerify": "Skip certificate verification",
+        "skipVerifyWarn": "Disables TLS authentication. Use only for development self-signed servers.",
+        "test": "Test connection",
+        "testOk": "Connected",
+        "testFail": "{{code}}: {{message}}",
+        "save": "Save",
+        "mobilePairing": "Mobile pairing",
+        "mobilePairingDescription": "Pair a Fast Mobile app on the same LAN with the details below.",
+        "mobilePairingOff": "Mobile bridge is off. Start the IDE with FAST_MOBILE_BRIDGE=1 to enable it.",
+        "mobilePairingUrl": "Pairing URL",
+        "mobilePairingToken": "Pairing token",
+        "mobilePairingQrHint": "Scan this QR code in the mobile app's \"Scan to pair\" screen. The pairing code contains the access token — treat it as full access; do not screenshot or share it.",
+        "mobilePairingCopied": "Copied"
       },
       "permissions": {
         "policy": "Genehmigungsrichtlinie",
@@ -921,7 +953,12 @@
       "language": "Sprache",
       "about": "Über Fast IDE",
       "signOut": "Abmelden",
-      "searchCommands": "Suche und Befehlsmenü"
+      "searchCommands": "Suche und Befehlsmenü",
+      "remoteServers": "Remote servers",
+      "localEdge": "This machine",
+      "connecting": "Connecting…",
+      "switchEdgeConfirm": "A task is still running. Switch servers anyway? Open editors on the current server will close.",
+      "switchEdgeFailed": "Could not switch ({{code}}): {{message}}"
     },
     "sidebarMenu": {
       "open": "Öffnen",
@@ -1315,6 +1352,28 @@
       "completed": "Abgeschlossen",
       "failed": "Fehlgeschlagen",
       "cancelled": "Abgebrochen"
+    },
+    "remoteFolder": {
+      "title": "Open remote folder",
+      "subtitle": "Enter an absolute path on the remote server, or choose a folder below.",
+      "home": "Home",
+      "up": "Up",
+      "create": "New folder",
+      "namePlaceholder": "Folder name",
+      "createConfirm": "Create",
+      "cancelCreate": "Cancel",
+      "empty": "No directories",
+      "fallback": "This engine cannot list host directories. Paste an absolute path.",
+      "timeout": "Listing the directory timed out. Retry or paste an absolute path.",
+      "cancel": "Cancel",
+      "open": "Open",
+      "openFailed": "Could not open that folder",
+      "createFailed": "Could not create that folder",
+      "invalidName": "Invalid name",
+      "exists": "A folder with that name already exists",
+      "createDenied": "No permission to create a folder here",
+      "createUnknown": "This engine cannot create host directories",
+      "createTimeout": "Creating the folder timed out. Retry."
     }
   },
   "errors": {
@@ -1371,6 +1430,12 @@
       "retry_same": "Mit denselben Einstellungen erneut versuchen",
       "retry_other": "Modell wechseln und erneut versuchen",
       "fail": "Keine automatische Wiederherstellung — starte einen neuen Lauf"
+    },
+    "lease": {
+      "expired": "Engine timed out — input restored."
+    },
+    "protocol": {
+      "mismatch": "Protocol mismatch — engine events no longer parse. Reconnect or update."
     }
   },
   "slash": {

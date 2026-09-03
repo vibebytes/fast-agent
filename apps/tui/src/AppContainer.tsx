@@ -32,6 +32,7 @@ import type {RendererMode} from './theme/themeStore.js';
 import {alternateScreenAllowed} from './terminal/alternateScreen.js';
 import type {BackgroundInfo} from './terminal/backgroundDetect.js';
 import type {BridgeCommand, BridgeEvent} from './rpc/protocol.js';
+import {TERMINAL_PARSE_FAILURE_PREFIX} from './rpc/protocol.js';
 import {logHostCommandResult} from './rpc/cliLog.js';
 import {isSilentCommandResult} from './rpc/hostProtocolCommands.js';
 import {Command, matchKeybinding} from './input/keybindings.js';
@@ -420,6 +421,20 @@ export function AppContainer({initialBackground = {kind: 'unknown', hex: undefin
 				}
 			},
 			onError: message => {
+				if (message.startsWith(TERMINAL_PARSE_FAILURE_PREFIX)) {
+					const sessionId = sessionIdRef.current;
+					if (sessionId) {
+						agent.send({
+							type: 'AttachSession',
+							sessionId,
+							clientId,
+							lastEventSeq: lastEventSeqRef.current,
+							limit: 50
+						});
+					}
+					dispatch({type: 'notice', text: message});
+					return;
+				}
 				batcher.flush();
 				dispatch({type: 'error', message});
 			},

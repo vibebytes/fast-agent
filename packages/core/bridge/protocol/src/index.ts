@@ -17,3 +17,17 @@ export {
 	type SlashRoute
 } from './slashRoute.js';
 export {extractQuery} from './extractQuery.js';
+export {
+	peelEventType,
+	reportInvalidEngineLine,
+	terminalParseFailure,
+	TERMINAL_EVENT_TYPES,
+	TERMINAL_PARSE_FAILURE_PREFIX,
+	PROTOCOL_MISMATCH_PREFIX,
+	CONSECUTIVE_PARSE_FAIL_NOTICE
+} from './eventPeel.js';
+export {
+	SESSION_STREAM_EVENT_TYPES,
+	isSessionStreamEvent,
+	type SessionStreamEventType
+} from './sessionStream.js';

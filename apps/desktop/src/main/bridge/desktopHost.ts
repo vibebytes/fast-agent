@@ -698,6 +698,8 @@ export function createDesktopHost(deps: DesktopHostDeps): ProductInvokeMap {
 			return true;
 		},
 
+		'engine:diagnostics': () => hub.bridgeDiagnostics(),
+
 		'dsh:call': (method, payload, sessionId) => hub.dshCall(method, payload, sessionId),
 		'dsh:models': sessionId => getDshModels(hub.dshCall.bind(hub), sessionId),
 		'dsh:selectModel': input => selectDshModel(hub.dshCall.bind(hub), input),

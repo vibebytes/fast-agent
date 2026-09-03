@@ -13,7 +13,7 @@ import {
 	waitWhile
 } from './engineIdentity.js';
 import {isStdioTransport} from './paths.js';
-import {connectUnix, type UnixConnection} from './unixConnection.js';
+import {connectUnix, type UnixConnection, type UnixConnectionStats} from './unixConnection.js';
 import {connectWs, type RemoteBridgeConnectionOptions, type WsConnection} from './wsConnection.js';
 
 type HelloOk = Extract<BridgeEvent, {type: 'HelloOk'}>;
@@ -61,6 +61,7 @@ export type BridgeHostDeps = {
 export class BridgeHost {
 	private conn?: HostConn;
 	private unix?: UnixConnection;
+	private ws?: WsConnection;
 	private handlers?: BridgeHostHandlers;
 	private clientId = '';
 	private heartbeatTimer?: ReturnType<typeof setInterval>;
@@ -132,24 +133,32 @@ export class BridgeHost {
 			},
 			onError: (message: string) => handlers.onError(message),
 			onLog: (message: string) => handlers.onLog?.(message),
+			onDeadLetter: (info: {line: string; count: number}) => {
+				handlers.onLog?.(
+					`dead-letter (${info.count}): ${info.line.length > 240 ? `${info.line.slice(0, 240)}…` : info.line}`
+				);
+			},
 			onClose: () => {
 				if (this.swapping) return;
 				this.clearHeartbeat();
 				this.conn = undefined;
 				this.unix = undefined;
+				this.ws = undefined;
 				handlers.onClose?.();
 			}
 		};
 
 		try {
 			if (remote) {
-				this.conn = await this.connectWsImpl(remote.url, wire, {
+				const ws = await this.connectWsImpl(remote.url, wire, {
 					caPem: remote.caPem,
 					fingerprint: remote.fingerprint,
 					insecureSkipVerify: remote.insecureSkipVerify,
 					signal: remote.signal,
 					timeoutMs: Math.max(1, remoteBudget - (Date.now() - started))
 				});
+				this.ws = ws;
+				this.conn = ws;
 			} else {
 				const ensured = await this.ensureDaemonImpl({
 					...options.ensureDeps,
@@ -166,6 +175,7 @@ export class BridgeHost {
 				this.conn.close();
 				this.conn = undefined;
 				this.unix = undefined;
+				this.ws = undefined;
 				throw Object.assign(new Error('aborted'), {name: 'AbortError'});
 			}
 
@@ -259,6 +269,10 @@ export class BridgeHost {
 		return this.conn.send(command);
 	}
 
+	stats(): UnixConnectionStats {
+		return this.unix?.stats() ?? this.ws?.stats() ?? {parseFailures: 0, deadLetters: []};
+	}
+
 	stop(reason = 'client_exit'): void {
 		this.closed = true;
 		this.clearHeartbeat();
@@ -274,6 +288,7 @@ export class BridgeHost {
 		conn.close();
 		this.conn = undefined;
 		this.unix = undefined;
+		this.ws = undefined;
 		this.handlers = undefined;
 	}
 
@@ -355,6 +370,7 @@ export class BridgeHost {
 			this.conn?.close();
 			this.conn = undefined;
 			this.unix = undefined;
+			this.ws = undefined;
 			const ensured = await this.ensureDaemonImpl({
 				...options.ensureDeps,
 				env,
@@ -415,6 +431,7 @@ export class BridgeHost {
 		}
 		this.conn = undefined;
 		this.unix = undefined;
+		this.ws = undefined;
 	}
 
 	private clearHeartbeat(): void {

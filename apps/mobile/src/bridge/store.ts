@@ -1,16 +1,28 @@
 import {
   applyBridgeEvent,
+  applyLeaseExpiry,
+  applyLocalCancel,
+  CANCEL_SETTLEMENT_TIMEOUT_MS,
+  RUN_LEASE_INTERVAL_MS,
+  RUN_LEASE_TTL_MS,
   composerGate,
   createTranscriptState,
   emptySessionSeq,
   offer,
   seqTerminal,
+  type GoalCardView,
   type SessionSeq,
   type TranscriptState
 } from '@fast-ide/session-view';
-import type {BridgeCommand, BridgeEvent} from '@fastllm/bridge-protocol';
+import {isSessionStreamEvent, PROTOCOL_MISMATCH_PREFIX, type BridgeCommand, type BridgeEvent} from '@fastllm/bridge-protocol';
 
-import {BridgeClient, type ConnectionState} from './client';
+import {BridgeClient, type ConnectionState, type ParseStats} from './client';
+import {
+  foldUserEchoes,
+  goalCardFromUpdated,
+  goalKeepsBusy,
+  type UserEcho
+} from './mobile-transcript';
 import {
   activeServer,
   loadBridgeConfig,
@@ -56,6 +68,8 @@ export type SessionRecord = {
   transcript: TranscriptState;
   codeChanges: CodeChangesState;
   lastEventSeq: number;
+  /** Mobile-local Goal card from `goal_updated` (not in shared transcript projection). */
+  goalCard?: GoalCardView;
 };
 
 export type StoreSnapshot = {
@@ -70,24 +84,12 @@ export type StoreSnapshot = {
   followUps: Record<string, FollowUpsState>;
   lastSessionId: string | null;
   pendingFingerprint: {serverId: string; fingerprint: string} | null;
+  /** Catalog key shown once after lease TTL locally settles a stuck run. */
+  leaseNotice: string | null;
+  /** Host-level diagnostic from `host_error` (not session-scoped). */
+  hostNotice: string | null;
+  parseStats: ParseStats;
 };
-
-const SESSION_STREAM_EVENT_TYPES = new Set([
-  'input_accepted', 'input_rejected', 'turn_started', 'thinking_started', 'llm_request',
-  'llm_response', 'reasoning_delta', 'assistant_delta', 'final_answer', 'turn_usage',
-  'turn_finished', 'turn_cancelled', 'tool_started', 'tool_output', 'tool_finished',
-  'file_read', 'approval_requested', 'approval_resolved', 'approval_expired', 'clarify',
-  'clarify_resolved', 'question_requested', 'question_answered', 'agent_final_answer',
-  'run_done', 'run_failed', 'run_cancelled', 'run_exhausted', 'llm_network_wait',
-  'agent_call_started', 'agent_call_finished', 'task_done', 'task_failed', 'task_cancelled',
-  'child_work_changed', 'subagent_started', 'subagent_updated', 'subagent_finished',
-  'error', 'message_patched', 'plan_build_submitted', 'gap', 'checkpoint',
-  'dsh_tool_card', 'dsh_goal_changed', 'session_history_page', 'follow_up_changed'
-]);
-
-function isSessionStreamEvent(type: string): boolean {
-  return SESSION_STREAM_EVENT_TYPES.has(type);
-}
 
 function mergeSessions(current: SessionSummary[], incoming: SessionSummary[]): SessionSummary[] {
   const byId = new Map(incoming.map((s) => [s.id, s]));
@@ -130,6 +132,13 @@ class BridgeStore {
   private seqBySession = new Map<string, SessionSeq>();
   private attached = new Set<string>();
   private loadingOlder = new Set<string>();
+  /** Per-session cancel-settle watchdog. Not a singleton — switching sessions must not clobber another. */
+  private cancelSettleTimers = new Map<string, ReturnType<typeof setTimeout>>();
+  private leaseSeenAt = new Map<string, number>();
+  private leaseReconcileAt = new Map<string, number>();
+  private leaseScanTimer: ReturnType<typeof setInterval> | null = null;
+  /** Optimistic user rows, keyed by session, kept until a real user row replaces them. */
+  private echoes = new Map<string, UserEcho[]>();
   private snapshot: StoreSnapshot = {
     connection: 'idle',
     connectionDetail: null,
@@ -141,7 +150,10 @@ class BridgeStore {
     records: {},
     followUps: {},
     lastSessionId: null,
-    pendingFingerprint: null
+    pendingFingerprint: null,
+    leaseNotice: null,
+    hostNotice: null,
+    parseStats: {parseFailures: 0, deadLetters: []}
   };
 
   async start(): Promise<void> {
@@ -157,6 +169,19 @@ class BridgeStore {
       },
       onEvent: event => this.handleEvent(event),
       onOpen: () => this.onOpen(),
+      onTerminalParseFailure: message => {
+        if (message.startsWith(PROTOCOL_MISMATCH_PREFIX)) {
+          this.snapshot = {...this.snapshot, hostNotice: message};
+        }
+        for (const sessionId of this.attached) this.sendAttach(sessionId);
+        this.emit();
+      },
+      onDeadLetter: () => {
+        const stats = this.client?.stats();
+        if (!stats) return;
+        this.snapshot = {...this.snapshot, parseStats: stats};
+        this.emit();
+      },
       onUnpinnedFingerprint: fingerprint => {
         const serverId = this.config?.activeServerId;
         if (!serverId) return;
@@ -348,12 +373,22 @@ class BridgeStore {
 
   attach(sessionId: string) {
     this.attached.add(sessionId);
-    this.ensureRecord(sessionId);
+    const record = this.ensureRecord(sessionId);
+    if (record.transcript.awaitingCancelSettlement && !this.cancelSettleTimers.has(sessionId)) {
+      this.armCancelSettleTimer(sessionId);
+    }
     this.sendAttach(sessionId);
     if (this.snapshot.lastSessionId !== sessionId) {
       this.snapshot = {...this.snapshot, lastSessionId: sessionId};
       void this.saveLastSessionId(sessionId);
     }
+  }
+
+  detach(sessionId: string) {
+    this.attached.delete(sessionId);
+    this.clearCancelSettleTimer(sessionId);
+    this.leaseSeenAt.delete(sessionId);
+    this.leaseReconcileAt.delete(sessionId);
   }
 
   resyncSession(sessionId: string) {
@@ -448,6 +483,12 @@ class BridgeStore {
       clientMessageId,
       generateTitle: opts?.generateTitle
     });
+    if (sent) {
+      this.rememberUserEcho(sessionId, clientMessageId, text);
+      if (this.snapshot.leaseNotice || this.snapshot.hostNotice) {
+        this.snapshot = {...this.snapshot, leaseNotice: null, hostNotice: null};
+      }
+    }
     return {sent, clientMessageId};
   }
 
@@ -477,6 +518,26 @@ class BridgeStore {
     });
   }
 
+  answerQuestionBatch(
+    sessionId: string,
+    rpcId: string,
+    payload: {answers: Array<{id: string; selected: string[]; custom?: string}>} | {cancelled: true}
+  ): boolean {
+    const record = this.records.get(sessionId);
+    const batch = record?.transcript.questionBatches.find((q) => q.rpcId === rpcId);
+    if (!batch) return false;
+    if ('cancelled' in payload && payload.cancelled) {
+      return this.send({type: 'AnswerQuestionBatch', sessionId, rpcId, cancelled: true});
+    }
+    if (!('answers' in payload) || payload.answers.length === 0) return false;
+    return this.send({
+      type: 'AnswerQuestionBatch',
+      sessionId,
+      rpcId,
+      answers: payload.answers
+    });
+  }
+
   interruptWithMessage(sessionId: string, text: string): boolean {
     return this.send({
       type: 'InterruptWithMessage',
@@ -486,8 +547,33 @@ class BridgeStore {
     });
   }
 
-  cancelRun(sessionId: string, runId: string): boolean {
-    return this.send({type: 'CancelRun', sessionId, runId, reason: 'user-cancel'});
+  cancelRun(sessionId: string, runId?: string): boolean {
+    const record = this.ensureRecord(sessionId);
+    const id = (runId ?? record.transcript.activeRunId)?.trim();
+    const sent = id
+      ? this.send({type: 'CancelRun', sessionId, runId: id, reason: 'user-cancel'})
+      : this.send({type: 'CancelAssociated', sessionId, reason: 'user-cancel'});
+    if (!sent) return false;
+    record.transcript = applyLocalCancel(record.transcript);
+    this.armCancelSettleTimer(sessionId);
+    this.publishRecords();
+    return true;
+  }
+
+  cancelGoal(sessionId: string, goalId?: string): boolean {
+    const id = goalId?.trim() || this.records.get(sessionId)?.goalCard?.goalId;
+    if (!id) return false;
+    return this.send({type: 'CancelGoal', goalId: id});
+  }
+
+  rerunRun(sessionId: string, runId: string): boolean {
+    const id = runId.trim();
+    if (!id) return false;
+    return this.send({type: 'RerunRun', sessionId, runId: id});
+  }
+
+  continueRun(sessionId: string): boolean {
+    return this.sendUserMessage(sessionId, 'continue').sent;
   }
 
   interruptAndSay(sessionId: string, text: string): boolean {
@@ -572,6 +658,11 @@ class BridgeStore {
   }
 
   private handleEvent(event: BridgeEvent) {
+    if (event.type === 'host_error') {
+      this.snapshot = {...this.snapshot, hostNotice: event.message};
+      this.emit();
+      return;
+    }
     if (event.type === 'workspace_meta') {
       const seen = new Set<string>();
       const projects: ProjectSummary[] = [];
@@ -636,6 +727,10 @@ class BridgeStore {
       this.settleCreate(event);
       return;
     }
+    if (event.type === 'command_result' && event.name === 'CancelGoal') {
+      this.clearGoalCard(sessionIdFromEvent(event) ?? this.snapshot.lastSessionId);
+      return;
+    }
     if (event.type === 'session_restored') {
       this.send({type: 'GetWorkspaceMeta'});
     }
@@ -647,6 +742,10 @@ class BridgeStore {
 
   private applyToSession(sessionId: string, event: BridgeEvent) {
     const record = this.ensureRecord(sessionId);
+    const prevTranscript = record.transcript;
+    const prevCode = record.codeChanges;
+    const prevGoal = record.goalCard;
+    const prevFollow = this.snapshot.followUps[sessionId];
     const before = this.seqBySession.get(sessionId) ?? {
       ...emptySessionSeq(),
       lastApplied: record.lastEventSeq
@@ -665,7 +764,20 @@ class BridgeStore {
     for (const ev of result.emit) {
       record.transcript = applyBridgeEvent(record.transcript, ev);
       record.codeChanges = applyCodeChangeEvent(record.codeChanges, ev);
+      if (ev.type === 'goal_updated') record.goalCard = goalCardFromUpdated(ev);
       if (ev.type === 'session_history_page') this.loadingOlder.delete(sessionId);
+      if (
+        ev.type === 'turn_cancelled' ||
+        ev.type === 'run_cancelled' ||
+        ev.type === 'turn_finished' ||
+        ev.type === 'run_done' ||
+        ev.type === 'run_failed' ||
+        ev.type === 'run_exhausted'
+      ) {
+        this.clearCancelSettleTimer(sessionId);
+        this.noteRunLease(sessionId, record, ev.type);
+      }
+      if (ev.type === 'run_state') this.noteRunLease(sessionId, record, ev.type);
       if (ev.type === 'follow_up_changed') {
         this.snapshot = {
           ...this.snapshot,
@@ -676,7 +788,128 @@ class BridgeStore {
         };
       }
     }
+    this.foldEchoes(sessionId, record);
+    if (!record.transcript.awaitingCancelSettlement) this.clearCancelSettleTimer(sessionId);
     if (result.resync) this.sendAttach(sessionId);
+    const sameUi =
+      record.transcript === prevTranscript &&
+      record.codeChanges === prevCode &&
+      record.goalCard === prevGoal &&
+      this.snapshot.followUps[sessionId] === prevFollow;
+    if (!sameUi) this.publishRecords();
+  }
+
+  private rememberUserEcho(sessionId: string, clientMessageId: string, text: string) {
+    const pending = this.echoes.get(sessionId) ?? [];
+    if (!pending.some((e) => e.clientMessageId === clientMessageId)) {
+      pending.push({clientMessageId, text});
+      this.echoes.set(sessionId, pending);
+    }
+    const record = this.ensureRecord(sessionId);
+    this.foldEchoes(sessionId, record);
+    this.publishRecords();
+  }
+
+  private foldEchoes(sessionId: string, record: SessionRecord) {
+    const folded = foldUserEchoes(record.transcript.entries, this.echoes.get(sessionId) ?? []);
+    this.echoes.set(sessionId, folded.pending);
+    if (folded.entries !== record.transcript.entries) {
+      record.transcript = {...record.transcript, entries: folded.entries};
+    }
+  }
+
+  private noteRunLease(sessionId: string, record: SessionRecord, _type: string) {
+    this.leaseSeenAt.set(sessionId, Date.now());
+    this.leaseReconcileAt.delete(sessionId);
+    if (record.transcript.leaseAware) this.ensureLeaseScan();
+  }
+
+  private ensureLeaseScan() {
+    if (this.leaseScanTimer != null) return;
+    this.leaseScanTimer = setInterval(() => this.tickRunLeases(), 2_000);
+    const timer = this.leaseScanTimer as ReturnType<typeof setInterval> & {unref?: () => void};
+    timer.unref?.();
+  }
+
+  private hasLocalRun(t: TranscriptState): boolean {
+    return Boolean(t.activeRunId) || t.entries.some(e => e.status === 'streaming');
+  }
+
+  private leaseBusy(record: SessionRecord): boolean {
+    return this.hasLocalRun(record.transcript) || goalKeepsBusy(record.goalCard);
+  }
+
+  tickRunLeases() {
+    const now = Date.now();
+    let changed = false;
+    for (const [sessionId, record] of this.records) {
+      if (!this.attached.has(sessionId)) continue;
+      if (!record.transcript.leaseAware || !this.leaseBusy(record)) {
+        this.leaseReconcileAt.delete(sessionId);
+        continue;
+      }
+      const reconcileAt = this.leaseReconcileAt.get(sessionId);
+      if (reconcileAt != null) {
+        if (now - reconcileAt < RUN_LEASE_INTERVAL_MS) continue;
+        record.transcript = applyLeaseExpiry(record.transcript);
+        if (goalKeepsBusy(record.goalCard)) record.goalCard = undefined;
+        this.leaseReconcileAt.delete(sessionId);
+        this.snapshot = {...this.snapshot, leaseNotice: 'errors.lease.expired'};
+        changed = true;
+        continue;
+      }
+      const seen = this.leaseSeenAt.get(sessionId);
+      if (seen == null || now - seen <= RUN_LEASE_TTL_MS) continue;
+      this.sendAttach(sessionId);
+      this.leaseReconcileAt.set(sessionId, now);
+    }
+    if (changed) this.publishRecords();
+  }
+
+  consumeLeaseNotice(): string | null {
+    const note = this.snapshot.leaseNotice;
+    if (note) this.snapshot = {...this.snapshot, leaseNotice: null};
+    return note;
+  }
+
+  private armCancelSettleTimer(sessionId: string) {
+    this.clearCancelSettleTimer(sessionId);
+    this.cancelSettleTimers.set(
+      sessionId,
+      setTimeout(() => {
+        this.cancelSettleTimers.delete(sessionId);
+        this.forceCancelSettlement(sessionId);
+      }, CANCEL_SETTLEMENT_TIMEOUT_MS)
+    );
+  }
+
+  private clearCancelSettleTimer(sessionId: string) {
+    const timer = this.cancelSettleTimers.get(sessionId);
+    if (timer == null) return;
+    clearTimeout(timer);
+    this.cancelSettleTimers.delete(sessionId);
+  }
+
+  /** 12s watchdog: applyLocalCancel then settle so activeRunId actually clears. */
+  private forceCancelSettlement(sessionId: string) {
+    const record = this.records.get(sessionId);
+    if (!record?.transcript.awaitingCancelSettlement) return;
+    record.transcript = applyBridgeEvent(applyLocalCancel(record.transcript), {
+      type: 'turn_cancelled',
+      reason: 'client settlement timeout'
+    });
+    this.publishRecords();
+  }
+
+  private clearGoalCard(sessionId: string | null) {
+    if (!sessionId) return;
+    const record = this.records.get(sessionId);
+    if (!record?.goalCard) return;
+    record.goalCard = undefined;
+    this.publishRecords();
+  }
+
+  private publishRecords() {
     this.snapshot = {
       ...this.snapshot,
       records: Object.fromEntries(this.records)

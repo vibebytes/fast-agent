@@ -17,7 +17,9 @@ export default function ChatScreen() {
   const currentId = snapshot.lastSessionId ?? snapshot.sessions[0]?.id ?? null;
 
   useEffect(() => {
-    if (currentId && snapshot.connection === 'open') bridgeStore.attach(currentId);
+    if (!currentId || snapshot.connection !== 'open') return;
+    bridgeStore.attach(currentId);
+    return () => bridgeStore.detach(currentId);
   }, [currentId, snapshot.connection]);
 
   return (

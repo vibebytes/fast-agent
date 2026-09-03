@@ -241,8 +241,17 @@ export function AboutSettings() {
 	const {t} = useTranslation();
 	const [copied, setCopied] = useState(false);
 
-	const copyDiag = () => {
-		const diag = `Fast: 0.0.1 (mock-build-2026.08)\nElectron: 36.3.1\nPlatform: ${navigator.platform}\nEngine: Connected`;
+	const copyDiag = async () => {
+		let dead = '';
+		try {
+			const stats = await window.fastIde.engineDiagnostics();
+			dead = `\nParse failures: ${stats.parseFailures}\nDead letters:\n${
+				stats.deadLetters.length > 0 ? stats.deadLetters.join('\n') : '(none)'
+			}`;
+		} catch {
+			dead = '\nParse failures: (unavailable)';
+		}
+		const diag = `Fast: 0.0.1\nPlatform: ${navigator.platform}\nEngine: Connected${dead}`;
 		void navigator.clipboard.writeText(diag);
 		setCopied(true);
 		setTimeout(() => setCopied(false), 2000);

@@ -1674,6 +1674,81 @@ test('unsigned assistant_delta must not contaminate the focused Project (cross-p
 });
 
 /**
+ * P0-3: `error` with sessionId is a session-scoped failure and must ride the
+ * SESSION_STREAM demux into the owning Project's SessionController; only
+ * sessionId-less errors (host-level command failures) stay on the host path.
+ */
+test('error with sessionId routes to the owning session; without sessionId stays host-level', async () => {
+	const commands: BridgeCommand[] = [];
+	let bridge: FakeBridge | null = null;
+	const hub = new WorkspaceHub({
+		createBridge: () => {
+			bridge = createFakeBridge(commands);
+			return bridge;
+		},
+		hostCwd: mkdtempSync(path.join(tmpdir(), 'hub-host-')),
+		homeDir: mkdtempSync(path.join(tmpdir(), 'hub-home-'))
+	});
+
+	const a = mkdtempSync(path.join(tmpdir(), 'err-a-'));
+	const b = mkdtempSync(path.join(tmpdir(), 'err-b-'));
+	const seen: Array<{projectId: string; type: string}> = [];
+	const watching = () => ({
+		onEvent: (projectId: string, event: BridgeEvent) => seen.push({projectId, type: event.type}),
+		onError: () => {},
+		onExit: () => {}
+	});
+	hub.openProject(a, watching());
+	hub.openProject(b, watching());
+	await new Promise(r => setTimeout(r, 120));
+
+	const list = hub.listProjects();
+	const projA = hub.getById(list.find(p => p.path === a)!.id)!;
+	const projB = hub.getById(list.find(p => p.path === b)!.id)!;
+
+	const bind = projA.sessions.createTask('Task A');
+	projA.sessions.acceptNewSession('sess-err', bind.id);
+	projA.sessions.handleEvent({type: 'Attached', sessionId: 'sess-err', clientId: projA.clientId});
+
+	// Route errors to Project A while B is focused — demux must win over getActive().
+	hub.focusProject(projB.id);
+	seen.length = 0;
+
+	bridge!.__inject({
+		type: 'error',
+		sessionId: 'sess-err',
+		message: 'engine blew up mid-turn'
+	} as BridgeEvent);
+	await new Promise(r => setTimeout(r, 40));
+
+	assert.deepEqual(
+		seen.filter(e => e.type === 'error'),
+		[{projectId: projA.id, type: 'error'}],
+		`sessionId error must reach owning Project only; got ${JSON.stringify(seen)}`
+	);
+
+	seen.length = 0;
+	bridge!.__inject({type: 'error', message: 'host command failed'} as BridgeEvent);
+	await new Promise(r => setTimeout(r, 40));
+
+	assert.deepEqual(
+		seen.filter(e => e.type === 'error'),
+		[{projectId: 'engine', type: 'error'}],
+		`sessionId-less error must stay host-level; got ${JSON.stringify(seen)}`
+	);
+
+	seen.length = 0;
+	bridge!.__inject({type: 'host_error', message: 'Invalid command: nope'} as BridgeEvent);
+	await new Promise(r => setTimeout(r, 40));
+	assert.ok(
+		seen.some(e => e.projectId === 'engine' && e.type === 'host_error'),
+		`host_error must stay host-level; got ${JSON.stringify(seen)}`
+	);
+
+	hub.closeAll();
+});
+
+/**
  * Checkpoint push names a checkout, not a conversation, so it carries no sessionId. Falling through
  * to getActive() would tell the focused Project that another Project's change list moved.
  */
