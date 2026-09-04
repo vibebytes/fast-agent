@@ -1,5 +1,6 @@
 import {existsSync as fsExistsSync} from 'node:fs';
 import {placedEngineCli, resourcesEngineCli} from '@fastllm/bridge-client';
+import {mobileBridgeEnabled} from './mobileBridgeToken.js';
 
 export type EngineLaunch = {
 	command: string;
@@ -62,6 +63,28 @@ function withSessionArgs(base: string[], sessionArgs: string[]): string[] {
 	return [...base, ...sessionArgs];
 }
 
+export function lanWssArgs(env: NodeJS.ProcessEnv = process.env): string[] {
+	if (!mobileBridgeEnabled(env)) return [];
+	const raw = env.FAST_MOBILE_BRIDGE_PORT?.trim();
+	const port = raw ? Number(raw) : 1979;
+	if (!Number.isInteger(port) || port < 1 || port > 65535) {
+		throw new Error(`FAST_MOBILE_BRIDGE_PORT invalid: ${raw}`);
+	}
+	return ['--wss', `0.0.0.0:${port}`];
+}
+
+function alreadyHasLanWss(args: string[]): boolean {
+	if (args.includes('--wss')) return true;
+	const i = args.indexOf('--ws');
+	const hp = i >= 0 ? (args[i + 1] ?? '') : '';
+	return hp.startsWith('0.0.0.0:');
+}
+
+function withLanWss(base: string[], env: NodeJS.ProcessEnv): string[] {
+	if (alreadyHasLanWss(base)) return base;
+	return [...base, ...lanWssArgs(env)];
+}
+
 function defaultTransportArgs(
 	transport: 'unix' | 'stdio',
 	socketPath?: string
@@ -102,7 +125,7 @@ export function resolveEngineLaunch(options: ResolveEngineLaunchOptions): Engine
 			defaultTransportArgs(transport, options.socketPath);
 		return {
 			command: env.FAST_ENGINE_COMMAND,
-			args: withSessionArgs(base, sessionArgs),
+			args: withLanWss(withSessionArgs(base, sessionArgs), env),
 			cwd
 		};
 	}
@@ -112,7 +135,10 @@ export function resolveEngineLaunch(options: ResolveEngineLaunchOptions): Engine
 	if (bundled && exists(bundled)) {
 		return {
 			command: bundled,
-			args: withSessionArgs(defaultTransportArgs(transport, options.socketPath), sessionArgs),
+			args: withLanWss(
+				withSessionArgs(defaultTransportArgs(transport, options.socketPath), sessionArgs),
+				env
+			),
 			cwd
 		};
 	}
@@ -121,7 +147,10 @@ export function resolveEngineLaunch(options: ResolveEngineLaunchOptions): Engine
 	if (placed && exists(placed)) {
 		return {
 			command: placed,
-			args: withSessionArgs(defaultTransportArgs(transport, options.socketPath), sessionArgs),
+			args: withLanWss(
+				withSessionArgs(defaultTransportArgs(transport, options.socketPath), sessionArgs),
+				env
+			),
 			cwd
 		};
 	}
