@@ -538,6 +538,42 @@ test('bridgeEventSchema accepts command_result with classic statuses', () => {
 	}
 });
 
+test('bridgeEventSchema accepts GetBridgePairing command_result pairing payload', () => {
+	const parsed = bridgeEventSchema.parse({
+		type: 'command_result',
+		name: 'GetBridgePairing',
+		message: 'ok',
+		status: 'success',
+		pairing: {
+			available: true,
+			host: '192.168.1.8',
+			port: 1979,
+			serverUrl: 'wss://192.168.1.8:1979/bridge',
+			token: 'tok',
+			fingerprint: 'sha256:' + 'ab'.repeat(32),
+			pairUri: 'fast-bridge://pair?url=x&token=y&fingerprint=z'
+		}
+	});
+	assert.equal(parsed.type, 'command_result');
+	if (parsed.type === 'command_result') {
+		assert.equal(parsed.pairing?.available, true);
+		assert.equal(parsed.pairing?.port, 1979);
+		assert.equal(parsed.pairing?.reason, undefined);
+	}
+	const off = bridgeEventSchema.parse({
+		type: 'command_result',
+		name: 'GetBridgePairing',
+		message: 'NoWss',
+		status: 'success',
+		pairing: {available: false, reason: 'no_wss'}
+	});
+	assert.equal(off.type, 'command_result');
+	if (off.type === 'command_result') {
+		assert.equal(off.pairing?.available, false);
+		assert.equal(off.pairing?.reason, 'no_wss');
+	}
+});
+
 test('bridgeEventSchema accepts command_result without status (optional)', () => {
 	const parsed = bridgeEventSchema.parse({
 		type: 'command_result',
@@ -1333,6 +1369,9 @@ test('bridgeCommandSchema accepts Hello / EnsureProject / ClientHeartbeat / Shut
 
 	const status = bridgeCommandSchema.parse({type: 'GetDaemonStatus'});
 	assert.equal(status.type, 'GetDaemonStatus');
+
+	const pairing = bridgeCommandSchema.parse({type: 'GetBridgePairing'});
+	assert.equal(pairing.type, 'GetBridgePairing');
 
 	const bye = bridgeCommandSchema.parse({type: 'Goodbye', clientId: 'c1', reason: 'client_exit'});
 	assert.equal(bye.type, 'Goodbye');

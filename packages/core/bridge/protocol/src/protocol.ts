@@ -713,6 +713,7 @@ export type BridgeCommand =
 	/** Connection-level heartbeat (lease refresh without Attach). */
 	| {type: 'ClientHeartbeat'; clientId: string; atMillis?: number}
 	| {type: 'GetDaemonStatus'}
+	| {type: 'GetBridgePairing'}
 	| {type: 'Shutdown'; force?: boolean};
 
 const stringRecord = z.record(z.string(), z.string());
@@ -1607,6 +1608,18 @@ const bridgeEventPayloadSchema = z.discriminatedUnion('type', [
 				message: z.string().optional()
 			})
 			.passthrough()
+			.optional(),
+		pairing: z
+			.object({
+				available: z.boolean(),
+				reason: z.enum(['no_wss', 'loopback_only']).optional(),
+				host: z.string().optional(),
+				port: z.number().optional(),
+				serverUrl: z.string().optional(),
+				token: z.string().optional(),
+				fingerprint: z.string().optional(),
+				pairUri: z.string().optional()
+			})
 			.optional()
 	}),
 	/**
@@ -3021,6 +3034,7 @@ export const bridgeCommandSchema = z.discriminatedUnion('type', [
 		atMillis: z.number().optional()
 	}),
 	z.object({type: z.literal('GetDaemonStatus')}),
+	z.object({type: z.literal('GetBridgePairing')}),
 	z.object({
 		type: z.literal('Shutdown'),
 		force: z.boolean().optional()

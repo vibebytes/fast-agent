@@ -524,15 +524,17 @@ export type EdgeOk = {ok: true; fingerprint?: string};
 export type EdgeSelectResult = EdgeOk | EdgeFailure;
 export type EdgeTestResult = EdgeOk | EdgeFailure;
 
-/** Pairing export for the mobile app (S7.2): LAN WebSocket URL + token. */
+/** Pairing export for the mobile app (S7.2): LAN WSS URL + token + cert fingerprint. */
 export type MobilePairingInfo = {
-	/** False when the bridge is off (`FAST_MOBILE_BRIDGE=0`) or not started. */
 	available: boolean;
+	/** Desktop UI: engine down, local opt-in off, or no LAN wss. */
+	reason?: 'engine' | 'off' | 'no_lan';
 	host: string;
 	port: number;
-	/** `ws://<host>:<port>/bridge` */
+	/** `wss://<host>:<port>/bridge` */
 	serverUrl: string;
 	token: string;
+	fingerprint: string;
 };
 export type EdgeDeleteResult = EdgeOk | EdgeFailure;
 export type EdgeUpsertResult = {ok: true; id: string} | EdgeFailure;
