@@ -64,7 +64,8 @@ export type DesktopHostDeps = {
 	userData?: () => string;
 	onEdgesChanged?: () => void;
 	/** Engine pairing export via GetBridgePairing; null/undefined uses the engine-off empty. */
-	mobilePairing?: () => InvokeChannels['mobile:pairingInfo']['result'] | null;
+	mobilePairing?: () => Promise<InvokeChannels['mobile:pairingInfo']['result']> | InvokeChannels['mobile:pairingInfo']['result'] | null;
+	setLanPairing?: (enabled: boolean) => Promise<InvokeChannels['mobile:setLanPairing']['result']>;
 	probe?: typeof probeBridge;
 };
 
@@ -825,6 +826,17 @@ export function createDesktopHost(deps: DesktopHostDeps): ProductInvokeMap {
 
 		'mobile:pairingInfo': () =>
 			deps.mobilePairing?.() ?? {
+				available: false,
+				reason: 'engine',
+				host: '',
+				port: 0,
+				serverUrl: '',
+				token: '',
+				fingerprint: ''
+			},
+
+		'mobile:setLanPairing': input =>
+			deps.setLanPairing?.(input) ?? {
 				available: false,
 				reason: 'engine',
 				host: '',

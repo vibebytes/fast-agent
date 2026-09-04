@@ -102,6 +102,17 @@ test('createDesktopHost has no electron import and serves project:get', async ()
 		token: '',
 		fingerprint: ''
 	});
+
+	const setPairing = await Promise.resolve(host['mobile:setLanPairing'](true));
+	assert.deepEqual(setPairing, {
+		available: false,
+		reason: 'engine',
+		host: '',
+		port: 0,
+		serverUrl: '',
+		token: '',
+		fingerprint: ''
+	});
 });
 
 test('edges:delete of the current edge waits for local HelloOk', async () => {

@@ -99,6 +99,7 @@ export type FastIdeApi = {
 	selectEdge: (id: string) => Promise<EdgeSelectResult>;
 	testEdge: (input: EdgeTestInput) => Promise<EdgeTestResult>;
 	mobilePairingInfo: () => Promise<MobilePairingInfo>;
+	setLanPairing: (enabled: boolean) => Promise<MobilePairingInfo>;
 	onEdgesChanged: (handler: (payload: EdgesList) => void) => () => void;
 	createBlankProject: (name?: string) => Promise<string | null>;
 	getProject: () => Promise<ProjectGetResult>;

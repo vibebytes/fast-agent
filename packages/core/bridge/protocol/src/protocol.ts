@@ -714,6 +714,7 @@ export type BridgeCommand =
 	| {type: 'ClientHeartbeat'; clientId: string; atMillis?: number}
 	| {type: 'GetDaemonStatus'}
 	| {type: 'GetBridgePairing'}
+	| {type: 'SetLanPairing'; enabled: boolean}
 	| {type: 'Shutdown'; force?: boolean};
 
 const stringRecord = z.record(z.string(), z.string());
@@ -1214,6 +1215,7 @@ const bridgeEventPayloadSchema = z.discriminatedUnion('type', [
 				code: z
 					.enum([
 						'outside',
+						'exists',
 						'too-large',
 						'binary',
 						'conflict',
@@ -1244,7 +1246,8 @@ const bridgeEventPayloadSchema = z.discriminatedUnion('type', [
 					.optional(),
 				truncated: z.boolean().optional(),
 				path: z.string().optional(),
-				home: z.string().optional()
+				home: z.string().optional(),
+				name: z.string().optional()
 			})
 			.optional(),
 		/** SCM chrome payload (GitWorkspaceStatus). Optional so other command_result events still parse. */
@@ -1612,7 +1615,7 @@ const bridgeEventPayloadSchema = z.discriminatedUnion('type', [
 		pairing: z
 			.object({
 				available: z.boolean(),
-				reason: z.enum(['no_wss', 'loopback_only']).optional(),
+				reason: z.enum(['no_wss', 'loopback_only', 'off']).optional(),
 				host: z.string().optional(),
 				port: z.number().optional(),
 				serverUrl: z.string().optional(),
@@ -3035,6 +3038,10 @@ export const bridgeCommandSchema = z.discriminatedUnion('type', [
 	}),
 	z.object({type: z.literal('GetDaemonStatus')}),
 	z.object({type: z.literal('GetBridgePairing')}),
+	z.object({
+		type: z.literal('SetLanPairing'),
+		enabled: z.boolean()
+	}),
 	z.object({
 		type: z.literal('Shutdown'),
 		force: z.boolean().optional()

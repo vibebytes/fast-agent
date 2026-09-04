@@ -20,7 +20,7 @@ export type BridgeConfig = {
 const KEY = 'bridge.config.v2';
 const TOKEN_PREFIX = 'bridge.token.';
 
-export const DEFAULT_SERVER_URL = 'ws://127.0.0.1:1979/bridge';
+export const DEFAULT_SERVER_URL = 'wss://127.0.0.1:1979/bridge';
 
 function randomId(): string {
   return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;

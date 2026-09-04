@@ -535,6 +535,8 @@ export type MobilePairingInfo = {
 	serverUrl: string;
 	token: string;
 	fingerprint: string;
+	/** Engine error detail when a `SetLanPairing` switch command failed. */
+	error?: string;
 };
 export type EdgeDeleteResult = EdgeOk | EdgeFailure;
 export type EdgeUpsertResult = {ok: true; id: string} | EdgeFailure;
@@ -994,6 +996,8 @@ export type InvokeChannels = {
 	'edges:test': {args: [input: EdgeTestInput]; result: EdgeTestResult};
 	/** Mobile bridge pairing export — LAN address + token for the phone to scan. */
 	'mobile:pairingInfo': {args: []; result: MobilePairingInfo};
+	/** Toggle LAN bridge listener at runtime on the active engine. */
+	'mobile:setLanPairing': {args: [enabled: boolean]; result: MobilePairingInfo};
 	getWorkspaceFile: {args: [relativePath: string]; result: GetWorkspaceFileResult};
 	saveWorkspaceFile: {
 		args: [relativePath: string, content: string, mtime?: number, bytes?: number];

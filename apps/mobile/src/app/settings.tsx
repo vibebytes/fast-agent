@@ -89,19 +89,41 @@ export default function SettingsScreen() {
   const handleBarCodeScanned = async ({ data }: { data: string }) => {
     setScannerOpen(false);
     const parsedPayload = parsePairingPayload(data);
-    if (parsedPayload) {
-      await bridgeStore.saveServer({
-        id: `srv-${Date.now()}`,
-        serverUrl: parsedPayload.serverUrl,
-        token: parsedPayload.token,
-        label: '',
-        fingerprint: parsedPayload.fingerprint ?? undefined
-      });
-      await refreshServers();
-      Alert.alert(alertT('mobile.settings.pairSuccessTitle'), alertT('mobile.settings.pairSuccessBody', { url: parsedPayload.serverUrl }));
+    if (!parsedPayload) {
+      Alert.alert(alertT('mobile.settings.pairFailTitle'), alertT('mobile.settings.pairFailBody'));
       return;
     }
-    Alert.alert(alertT('mobile.settings.pairFailTitle'), alertT('mobile.settings.pairFailBody'));
+    const id = await bridgeStore.saveServer({
+      id: `srv-${Date.now()}`,
+      serverUrl: parsedPayload.serverUrl,
+      token: parsedPayload.token,
+      label: '',
+      fingerprint: parsedPayload.fingerprint ?? undefined
+    });
+    await refreshServers();
+    if (!id) {
+      Alert.alert(alertT('mobile.settings.pairFailTitle'), alertT('mobile.settings.pairFailBody'));
+      return;
+    }
+    const probe = await bridgeStore.testConnection({
+      serverUrl: parsedPayload.serverUrl,
+      token: parsedPayload.token,
+      fingerprint: parsedPayload.fingerprint ?? undefined
+    });
+    if (probe.ok) {
+      Alert.alert(
+        alertT('mobile.settings.pairSuccessTitle'),
+        alertT('mobile.settings.pairSuccessBody', {url: parsedPayload.serverUrl})
+      );
+      return;
+    }
+    Alert.alert(
+      alertT('mobile.settings.pairUnreachableTitle'),
+      alertT('mobile.settings.pairUnreachableBody', {
+        url: parsedPayload.serverUrl,
+        reason: formatCopy(alertT, probe.detail)
+      })
+    );
   };
 
   const openScanner = async () => {

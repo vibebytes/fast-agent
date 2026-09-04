@@ -107,7 +107,7 @@ Not an advisory. Still fine as a normal issue or PR.
 ## 4. Hardening
 
 - Run desktop / TUI as your normal user, not root.
-- Prefer unix Bridge on the same host. Desktop does not open a LAN port by default. `FAST_MOBILE_BRIDGE=1` makes **this** local spawn pass `--wss 0.0.0.0:1979`. The token is `bridge.token` (`~/.fast/run/bridge.token`), not a second file in userData.
+- Prefer unix Bridge on the same host. Desktop opens no LAN port by default; the LAN pairing listen exists only while the Settings toggle is on (runtime `SetLanPairing` bind of `wss://0.0.0.0:1979`, TLS, state kept in engine memory only, off again after restart). CLI `--wss` stays an explicit operator choice. The token is `bridge.token` (`~/.fast/run/bridge.token`), not a second file in userData.
 - Confirm the TLS fingerprint in Settings before trusting a non-loopback desktop.
 - Do not paste pairing tokens into issues, screenshots, or chat.
 - Review `extensions/` jars the same way you review a native binary.

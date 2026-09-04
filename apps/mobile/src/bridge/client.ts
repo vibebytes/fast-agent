@@ -12,6 +12,7 @@ import { rawError } from './copy';
 import {bridgeUrlIssue, normalizeBridgeUrl} from './pairing';
 import {openPinnedSocket, type PinnedWire} from './pinned-socket';
 import {probeTlsFingerprint} from './tls-pinning';
+import {wsFrameText} from './wsFrame';
 
 export type ConnectionState = 'idle' | 'connecting' | 'hello' | 'open' | 'closed' | 'rejected';
 
@@ -21,6 +22,7 @@ export type ParseStats = {
 };
 
 const HEARTBEAT_MS = 15_000;
+const CONNECT_TIMEOUT_MS = 8_000;
 const BACKOFF_MS = [1_000, 2_000, 5_000, 10_000];
 const DEAD_LETTER_CAPACITY = 100;
 
@@ -42,6 +44,7 @@ export class BridgeClient {
   private opening = false;
   private heartbeat: ReturnType<typeof setInterval> | null = null;
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+  private connectWatchdog: ReturnType<typeof setTimeout> | null = null;
   private attempt = 0;
   private disposed = false;
   private state: ConnectionState = 'idle';
@@ -104,12 +107,12 @@ export class BridgeClient {
         onMessage: (data) => this.onFrame(data),
         onError: () => this.scheduleReconnect(),
         onClose: () => {
+          this.clearConnectWatchdog();
           this.stopHeartbeat();
           if (this.wire) this.wire = null;
-          if (this.state !== 'rejected') {
-            this.setState('closed');
-            this.scheduleReconnect();
-          }
+          if (this.state === 'rejected') return;
+          if (this.state !== 'closed') this.setState('closed');
+          this.scheduleReconnect();
         }
       });
       if (this.disposed) {
@@ -117,6 +120,7 @@ export class BridgeClient {
         return;
       }
       this.wire = wire;
+      this.armConnectWatchdog(wire);
       this.setState('hello');
       this.send({
         type: 'Hello',
@@ -142,6 +146,7 @@ export class BridgeClient {
       close: () => socket.close()
     };
     this.wire = wire;
+    this.armConnectWatchdog(socket);
     socket.onopen = () => {
       this.setState('hello');
       this.send({
@@ -154,16 +159,17 @@ export class BridgeClient {
       });
     };
     socket.onmessage = (raw) => {
-      if (typeof raw.data === 'string') this.onFrame(raw.data);
+      const text = wsFrameText(raw.data);
+      if (text) this.onFrame(text);
     };
     socket.onerror = () => this.scheduleReconnect();
     socket.onclose = () => {
+      this.clearConnectWatchdog();
       this.stopHeartbeat();
       if (this.wire === wire) this.wire = null;
-      if (this.state !== 'rejected') {
-        this.setState('closed');
-        this.scheduleReconnect();
-      }
+      if (this.state === 'rejected') return;
+      if (this.state !== 'closed') this.setState('closed');
+      this.scheduleReconnect();
     };
   }
 
@@ -191,6 +197,7 @@ export class BridgeClient {
       return;
     }
     if (event.type === 'HelloOk') {
+      this.clearConnectWatchdog();
       this.attempt = 0;
       this.setState('open');
       this.startHeartbeat();
@@ -223,12 +230,29 @@ export class BridgeClient {
   close() {
     this.disposed = true;
     this.opening = false;
+    this.clearConnectWatchdog();
     this.stopHeartbeat();
     if (this.reconnectTimer) clearTimeout(this.reconnectTimer);
     this.reconnectTimer = null;
     this.wire?.close();
     this.wire = null;
-    this.setState('idle');
+    if (this.state !== 'rejected') this.setState('idle');
+  }
+
+  private armConnectWatchdog(socket: {close: () => void}) {
+    this.clearConnectWatchdog();
+    this.connectWatchdog = setTimeout(() => {
+      this.connectWatchdog = null;
+      if (this.state !== 'connecting' && this.state !== 'hello') return;
+      this.setState('closed', {code: 'timeout'});
+      socket.close();
+    }, CONNECT_TIMEOUT_MS);
+  }
+
+  private clearConnectWatchdog() {
+    if (!this.connectWatchdog) return;
+    clearTimeout(this.connectWatchdog);
+    this.connectWatchdog = null;
   }
 
   private startHeartbeat() {

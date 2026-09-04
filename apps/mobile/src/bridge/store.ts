@@ -38,6 +38,7 @@ import { rawError } from './copy';
 import {bridgeUrlIssue, normalizeBridgeUrl} from './pairing';
 import {openPinnedSocket} from './pinned-socket';
 import {probeTlsFingerprint} from './tls-pinning';
+import {wsFrameText} from './wsFrame';
 
 export type SessionSummary = {
   id: string;
@@ -156,7 +157,18 @@ class BridgeStore {
     parseStats: {parseFailures: 0, deadLetters: []}
   };
 
+  private boot: Promise<void> | null = null;
+
   async start(): Promise<void> {
+    if (this.boot) return this.boot;
+    this.boot = this.bootClient().catch(error => {
+      this.boot = null;
+      throw error;
+    });
+    return this.boot;
+  }
+
+  private async bootClient(): Promise<void> {
     this.config = await loadBridgeConfig();
     this.snapshot = {
       ...this.snapshot,
@@ -211,6 +223,7 @@ class BridgeStore {
   }
 
   async saveServer(input: Omit<SavedServer, 'id'> & {id?: string}): Promise<string> {
+    await this.start();
     if (!this.config) return '';
     const id = input.id ?? newServerId();
     const exists = this.config.servers.some((s) => s.id === id);
@@ -226,7 +239,7 @@ class BridgeStore {
       servers: exists
         ? this.config.servers.map((s) => (s.id === id ? server : s))
         : [...this.config.servers, server],
-      activeServerId: this.config.activeServerId ?? id
+      activeServerId: id
     };
     await saveBridgeConfig(this.config);
     this.reconnectIfActive(id);
@@ -354,7 +367,8 @@ class BridgeStore {
         socket.send(this.helloLine(token));
       };
       socket.onmessage = (raw) => {
-        if (typeof raw.data === 'string') this.finishHello(raw.data, finish);
+        const text = wsFrameText(raw.data);
+        if (text) this.finishHello(text, finish);
       };
       socket.onerror = () => finish(false, { code: 'cannotConnect' });
     });

@@ -108,62 +108,6 @@ test('resolveEngineLaunch does not open LAN wss by default', () => {
 	assert.equal(launch.args.includes('--wss'), false);
 });
 
-test('resolveEngineLaunch appends --wss 0.0.0.0:1979 when FAST_MOBILE_BRIDGE=1', () => {
-	const launch = resolveEngineLaunch({
-		workspaceRoot: '/tmp/ws',
-		env: {FAST_MOBILE_BRIDGE: '1'},
-		bundledEnginePath: '/opt/engine/bin/fast-cli',
-		existsSync: () => true
-	});
-	assert.deepEqual(launch.args.slice(-2), ['--wss', '0.0.0.0:1979']);
-});
-
-test('resolveEngineLaunch does not duplicate --wss already in FAST_ENGINE_ARGS', () => {
-	const launch = resolveEngineLaunch({
-		workspaceRoot: '/tmp/ws',
-		env: {
-			FAST_ENGINE_COMMAND: 'node',
-			FAST_ENGINE_ARGS: 'engine --mode bridge --wss 0.0.0.0:1979',
-			FAST_MOBILE_BRIDGE: '1'
-		}
-	});
-	assert.equal(launch.args.filter(a => a === '--wss').length, 1);
-});
-
-test('resolveEngineLaunch honors FAST_MOBILE_BRIDGE_PORT', () => {
-	const launch = resolveEngineLaunch({
-		workspaceRoot: '/tmp/ws',
-		env: {FAST_MOBILE_BRIDGE: '1', FAST_MOBILE_BRIDGE_PORT: '1980'},
-		bundledEnginePath: '/opt/engine/bin/fast-cli',
-		existsSync: () => true
-	});
-	assert.deepEqual(launch.args.slice(-2), ['--wss', '0.0.0.0:1980']);
-});
-
-test('resolveEngineLaunch skips --wss when args already have --ws 0.0.0.0', () => {
-	const launch = resolveEngineLaunch({
-		workspaceRoot: '/tmp/ws',
-		env: {
-			FAST_ENGINE_COMMAND: 'node',
-			FAST_ENGINE_ARGS: 'engine --mode bridge --ws 0.0.0.0:1979',
-			FAST_MOBILE_BRIDGE: '1'
-		}
-	});
-	assert.equal(launch.args.includes('--wss'), false);
-});
-
-test('resolveEngineLaunch still adds --wss when --ws is loopback', () => {
-	const launch = resolveEngineLaunch({
-		workspaceRoot: '/tmp/ws',
-		env: {
-			FAST_ENGINE_COMMAND: 'node',
-			FAST_ENGINE_ARGS: 'engine --mode bridge --ws 127.0.0.1:1979',
-			FAST_MOBILE_BRIDGE: '1'
-		}
-	});
-	assert.deepEqual(launch.args.slice(-2), ['--wss', '0.0.0.0:1979']);
-});
-
 test('BridgeClient reaches ready when mock engine emits ready NDJSON', async () => {
 	const stdout = new PassThrough();
 	const stdin = new PassThrough();

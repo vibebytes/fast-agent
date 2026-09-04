@@ -1,7 +1,8 @@
 import {useEffect, useMemo, useState} from 'react';
 import {useTranslation} from 'react-i18next';
-import {Check, Copy, HardDrive, LoaderCircle, Plus, Smartphone, Trash2} from 'lucide-react';
+import {AlertTriangle, Check, Copy, Eye, EyeOff, HardDrive, LoaderCircle, Plus, Smartphone, Trash2} from 'lucide-react';
 import {Input} from '@fast-ide/ui/components/input';
+import {Switch} from '@fast-ide/ui/components/switch';
 import {encodeQrMatrix} from './qr';
 import {
 	Dialog,
@@ -101,6 +102,47 @@ function CopyField({label, value, copiedLabel}: {label: string; value: string; c
 	);
 }
 
+function SecretField({
+	label,
+	value,
+	copiedLabel,
+	showLabel,
+	hideLabel
+}: {
+	label: string;
+	value: string;
+	copiedLabel: string;
+	showLabel: string;
+	hideLabel: string;
+}) {
+	const [reveal, setReveal] = useState(false);
+	const [copied, setCopied] = useState(false);
+	return (
+		<div className="grid gap-1 text-xs">
+			<span className="text-muted-foreground">{label}</span>
+			<div className="flex items-center gap-2">
+				<code className="min-w-0 flex-1 truncate rounded-md bg-muted px-2 py-1.5 font-mono">
+					{reveal ? value : '●●●●●●●●'}
+				</code>
+				<SettingsButton variant="ghost" onClick={() => setReveal(r => !r)} aria-label={reveal ? hideLabel : showLabel}>
+					{reveal ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
+				</SettingsButton>
+				<SettingsButton
+					variant="ghost"
+					onClick={() => {
+						void navigator.clipboard.writeText(value);
+						setCopied(true);
+						setTimeout(() => setCopied(false), 1500);
+					}}
+				>
+					{copied ? <Check className="size-3.5" /> : <Copy className="size-3.5" />}
+					{copied ? copiedLabel : null}
+				</SettingsButton>
+			</div>
+		</div>
+	);
+}
+
 export function ServersSettings() {
 	const {t} = useTranslation();
 	const [list, setList] = useState<EdgesList | null>(null);
@@ -123,6 +165,35 @@ export function ServersSettings() {
 	}, [list]);
 
 	const pending = Boolean(list?.pendingEdgeId);
+
+	const [lanToggle, setLanToggle] = useState<'on' | 'off' | null>(null);
+	const [lanError, setLanError] = useState<string | null>(null);
+	const lanBusy = lanToggle !== null;
+	const lanBindError = lanError ? /bind|address already in use|eaddrinuse/i.test(lanError) : false;
+	const activeEdge =
+		list?.activeId && list.activeId !== 'local'
+			? list.servers.find(s => s.id === list.activeId)
+			: undefined;
+
+	async function toggleLanPairing(enabled: boolean) {
+		if (lanToggle) return;
+		setLanToggle(enabled ? 'on' : 'off');
+		setLanError(null);
+		const timer = window.setTimeout(() => {
+			setLanToggle(null);
+			setLanError(t('settings.pages.servers.mobilePairingTimeout'));
+		}, 5000);
+		try {
+			const next = await window.fastIde.setLanPairing(enabled);
+			setPairing(next);
+			if (next.error) setLanError(next.error);
+		} catch {
+			setLanError(t('settings.pages.servers.mobilePairingFailed'));
+		} finally {
+			window.clearTimeout(timer);
+			setLanToggle(null);
+		}
+	}
 
 	function pinFor(d: Draft = draft): string | undefined {
 		return d.fingerprint || confirmedFingerprint;
@@ -290,17 +361,48 @@ export function ServersSettings() {
 				title={t('settings.pages.servers.mobilePairing')}
 				description={t('settings.pages.servers.mobilePairingDescription')}
 			>
-				{pairing?.available ? (
-					<div className="grid gap-3">
+				<SettingsRow
+					icon={Smartphone}
+					title={t('settings.pages.servers.mobilePairing')}
+					badge={
+						<span className="max-w-40 truncate rounded-full border border-border/60 bg-muted/60 px-2 py-0.5 text-[11px] text-muted-foreground">
+							{t('settings.pages.servers.mobilePairingTargetLabel')}{' '}
+							{activeEdge
+								? t('settings.pages.servers.mobilePairingTargetRemote', {name: activeEdge.name, host: activeEdge.ip})
+								: t('settings.pages.servers.mobilePairingTargetLocal')}
+						</span>
+					}
+					description={
+						pending
+							? t('settings.pages.servers.mobilePairingPendingEdge')
+							: lanToggle === 'on'
+								? t('settings.pages.servers.mobilePairingStarting')
+								: lanToggle === 'off'
+									? t('settings.pages.servers.mobilePairingStopping')
+									: undefined
+					}
+				>
+					{lanBusy ? <LoaderCircle className="size-3.5 animate-spin text-muted-foreground" /> : null}
+					<Switch
+						checked={pairing?.available ?? false}
+						disabled={lanBusy || pending}
+						aria-label={t('settings.pages.servers.mobilePairing')}
+						onCheckedChange={next => void toggleLanPairing(next)}
+					/>
+				</SettingsRow>
+				{pairing?.available && lanToggle !== 'off' ? (
+					<div className="grid gap-3 px-4 py-4">
 						<CopyField
 							label={t('settings.pages.servers.mobilePairingUrl')}
 							value={pairing.serverUrl}
 							copiedLabel={t('settings.pages.servers.mobilePairingCopied')}
 						/>
-						<CopyField
+						<SecretField
 							label={t('settings.pages.servers.mobilePairingToken')}
 							value={pairing.token}
 							copiedLabel={t('settings.pages.servers.mobilePairingCopied')}
+							showLabel={t('settings.pages.servers.mobilePairingTokenShow')}
+							hideLabel={t('settings.pages.servers.mobilePairingTokenHide')}
 						/>
 						<CopyField
 							label={t('settings.pages.servers.mobilePairingFingerprint')}
@@ -321,18 +423,46 @@ export function ServersSettings() {
 							</div>
 						</div>
 					</div>
-				) : (
-					<SettingsRow
-						icon={Smartphone}
-						title={t(
-							pairing?.reason === 'engine'
-								? 'settings.pages.servers.mobilePairingEngineOff'
-								: pairing?.reason === 'no_lan'
-									? 'settings.pages.servers.mobilePairingNoLan'
-									: 'settings.pages.servers.mobilePairingOff'
-						)}
-					/>
-				)}
+				) : lanToggle === 'on' ? (
+					<div className="flex items-center gap-2 px-4 py-4 text-xs text-muted-foreground">
+						<LoaderCircle className="size-3.5 animate-spin" />
+						{t('settings.pages.servers.mobilePairingStarting')}
+					</div>
+				) : !lanBusy ? (
+					<div className="grid gap-2 px-4 py-4">
+						<p className="text-xs text-muted-foreground">
+							{t(
+								pairing?.reason === 'engine'
+									? 'settings.pages.servers.mobilePairingEngineOff'
+									: pairing?.reason === 'no_lan'
+										? 'settings.pages.servers.mobilePairingNoLan'
+										: 'settings.pages.servers.mobilePairingOff'
+							)}
+						</p>
+						{lanError ? (
+							<div className="flex items-start gap-2 rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2">
+								<AlertTriangle className="mt-0.5 size-3.5 shrink-0 text-destructive" />
+								<div className="grid min-w-0 gap-1 text-xs">
+									<p className="font-medium text-destructive">
+										{lanBindError
+											? t('settings.pages.servers.mobilePairingBindFailed', {port: pairing?.port || 1979})
+											: lanError}
+									</p>
+									{lanBindError ? <p className="break-all text-muted-foreground">{lanError}</p> : null}
+									{!pairing?.available ? (
+										<SettingsButton
+											variant="outline"
+											className="w-fit"
+											onClick={() => void toggleLanPairing(true)}
+										>
+											{t('settings.common.retry')}
+										</SettingsButton>
+									) : null}
+								</div>
+							</div>
+						) : null}
+					</div>
+				) : null}
 			</SettingsSection>
 
 			<Dialog

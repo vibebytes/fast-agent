@@ -37,6 +37,7 @@ const api = {
 	selectEdge: (id: string) => invoke('edges:select', id),
 	testEdge: input => invoke('edges:test', input),
 	mobilePairingInfo: () => invoke('mobile:pairingInfo'),
+	setLanPairing: (enabled: boolean) => invoke('mobile:setLanPairing', enabled),
 	onEdgesChanged: handler => onPush('edges:changed', handler),
 	createBlankProject: (name?: string) => invoke('project:createBlank', name),
 	getProject: () => invoke('project:get'),

@@ -11,7 +11,6 @@ import type {
 	UiSend
 } from '@fast-ide/session-view';
 import {WorkspaceHub} from './bridge/WorkspaceHub';
-import {mobileBridgeEnabled} from './bridge/mobileBridgeToken';
 import {createDesktopHost} from './bridge/desktopHost';
 import {isDefaultProjectPath} from './bridge/defaultProject';
 import {createUiPublisher} from './bridge/uiPublisher';
@@ -90,7 +89,7 @@ const electronVault: TokenVault = {
 function persistCommittedEdge(id: string): void {
 	const filePath = edgesPath(app.getPath('userData'));
 	saveEdgesFile(filePath, commitActiveId(loadEdgesFile(filePath), id));
-	pushEdgesChanged();
+	void pushEdgesChanged();
 }
 
 const hub = new WorkspaceHub({
@@ -456,15 +455,12 @@ const productInvokes = createDesktopHost({
 	vault: electronVault,
 	userData: () => app.getPath('userData'),
 	onEdgesChanged: () => pushEdgesChanged(),
-	mobilePairing: () =>
-		hub.getBridgePairing({
-			localOptIn: mobileBridgeEnabled(process.env),
-			isRemote: hub.isRemote()
-		})
+	mobilePairing: () => hub.getBridgePairing(),
+	setLanPairing: (enabled: boolean) => hub.setLanPairing(enabled)
 });
 
-function pushEdgesChanged(): void {
-	sendToRenderer('edges:changed', productInvokes['edges:list']());
+async function pushEdgesChanged(): Promise<void> {
+	sendToRenderer('edges:changed', await productInvokes['edges:list']());
 }
 
 function bindCommittedFromDisk(): void {

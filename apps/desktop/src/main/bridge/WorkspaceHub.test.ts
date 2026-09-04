@@ -3275,7 +3275,7 @@ test('getBridgePairing is unavailable with reason engine when the daemon is down
 		hostCwd: mkdtempSync(path.join(tmpdir(), 'hub-host-')),
 		homeDir: mkdtempSync(path.join(tmpdir(), 'hub-home-'))
 	});
-	const info = await hub.getBridgePairing({localOptIn: true, isRemote: false});
+	const info = await hub.getBridgePairing();
 	assert.deepEqual(info, {
 		available: false,
 		reason: 'engine',
@@ -3301,7 +3301,7 @@ test('getBridgePairing maps an available engine snapshot', async () => {
 	hub.openProject(mkdtempSync(path.join(tmpdir(), 'proj-pair-ok-')), noopHandlers());
 	await new Promise(r => setTimeout(r, 80));
 
-	const pending = hub.getBridgePairing({localOptIn: true, isRemote: false});
+	const pending = hub.getBridgePairing();
 	await new Promise(r => setTimeout(r, 20));
 	assert.ok(commands.some(c => c.type === 'GetBridgePairing'));
 	bridge!.__inject({
@@ -3327,7 +3327,7 @@ test('getBridgePairing maps an available engine snapshot', async () => {
 	hub.closeAll();
 });
 
-test('getBridgePairing is off when local opt-in is unset and the engine has no LAN wss', async () => {
+test('getBridgePairing is off when the engine pairing is disabled', async () => {
 	const commands: BridgeCommand[] = [];
 	let bridge: FakeBridge | null = null;
 	const hub = new WorkspaceHub({
@@ -3341,14 +3341,14 @@ test('getBridgePairing is off when local opt-in is unset and the engine has no L
 	hub.openProject(mkdtempSync(path.join(tmpdir(), 'proj-pair-off-')), noopHandlers());
 	await new Promise(r => setTimeout(r, 80));
 
-	const pending = hub.getBridgePairing({localOptIn: false, isRemote: false});
+	const pending = hub.getBridgePairing();
 	await new Promise(r => setTimeout(r, 20));
 	bridge!.__inject({
 		type: 'command_result',
 		name: 'GetBridgePairing',
 		message: '',
 		status: 'accepted',
-		pairing: {available: false, reason: 'no_wss'}
+		pairing: {available: false, reason: 'off'}
 	});
 	const info = await pending;
 	assert.equal(info.available, false);
@@ -3356,7 +3356,7 @@ test('getBridgePairing is off when local opt-in is unset and the engine has no L
 	hub.closeAll();
 });
 
-test('getBridgePairing is no_lan when opt-in is on but the engine has no LAN wss', async () => {
+test('getBridgePairing is no_lan when the engine has loopback_only', async () => {
 	const commands: BridgeCommand[] = [];
 	let bridge: FakeBridge | null = null;
 	const hub = new WorkspaceHub({
@@ -3370,7 +3370,7 @@ test('getBridgePairing is no_lan when opt-in is on but the engine has no LAN wss
 	hub.openProject(mkdtempSync(path.join(tmpdir(), 'proj-pair-nolan-')), noopHandlers());
 	await new Promise(r => setTimeout(r, 80));
 
-	const pending = hub.getBridgePairing({localOptIn: true, isRemote: false});
+	const pending = hub.getBridgePairing();
 	await new Promise(r => setTimeout(r, 20));
 	bridge!.__inject({
 		type: 'command_result',
@@ -3382,5 +3382,43 @@ test('getBridgePairing is no_lan when opt-in is on but the engine has no LAN wss
 	const info = await pending;
 	assert.equal(info.available, false);
 	assert.equal(info.reason, 'no_lan');
+	hub.closeAll();
+});
+
+test('setLanPairing sends SetLanPairing command to bridge and awaits result', async () => {
+	const commands: BridgeCommand[] = [];
+	let bridge: FakeBridge | null = null;
+	const hub = new WorkspaceHub({
+		createBridge: () => {
+			bridge = createFakeBridge(commands);
+			return bridge;
+		},
+		hostCwd: mkdtempSync(path.join(tmpdir(), 'hub-host-')),
+		homeDir: mkdtempSync(path.join(tmpdir(), 'hub-home-'))
+	});
+	hub.openProject(mkdtempSync(path.join(tmpdir(), 'proj-set-lan-')), noopHandlers());
+	await new Promise(r => setTimeout(r, 80));
+
+	const pending = hub.setLanPairing(true);
+	await new Promise(r => setTimeout(r, 20));
+	assert.ok(commands.some(c => c.type === 'SetLanPairing' && (c as any).enabled === true));
+	bridge!.__inject({
+		type: 'command_result',
+		name: 'SetLanPairing',
+		message: '',
+		status: 'accepted',
+		pairing: {
+			available: true,
+			host: '192.168.1.10',
+			port: 1979,
+			serverUrl: 'wss://192.168.1.10:1979/bridge',
+			token: 'tok-2',
+			fingerprint: 'sha256:' + 'cd'.repeat(32)
+		}
+	});
+	const info = await pending;
+	assert.equal(info.available, true);
+	assert.equal(info.host, '192.168.1.10');
+	assert.equal(info.serverUrl, 'wss://192.168.1.10:1979/bridge');
 	hub.closeAll();
 });

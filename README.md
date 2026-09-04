@@ -67,7 +67,7 @@ The phone talks to a desktop Fast that is already running, on the same LAN.
 1. **Install desktop** on the computer ([1.1 Direct download](#11-direct-download)). macOS is the primary host.
 2. **Pair.** Desktop → Settings → Servers → Mobile pairing. On the phone: Settings → Scan to pair. You can paste the URL and token instead of scanning.
 
-Set `FAST_MOBILE_BRIDGE=1` and restart the IDE. That local spawn adds `--wss 0.0.0.0:1979` (port override: `FAST_MOBILE_BRIDGE_PORT`). The phone connects to the **engine** listen `wss://<lan-ip>:1979/bridge` with `bridge.token` and the TLS fingerprint from `~/.fast/tls`. Desktop does not open port 8787 and does not mint a second cert. Old QR codes that pointed at 8787 are invalid — scan again.
+In Settings → Servers, toggle **Mobile pairing** on. The desktop sends the engine a host command (`SetLanPairing`) that binds `wss://0.0.0.0:1979/bridge` TLS at runtime — no env var, no restart. The listen exists only while the toggle is on, and resets to off after an IDE / engine restart. Port `1979` is reserved for LAN pairing and is bound on demand. The phone connects to the **engine** listen `wss://<lan-ip>:1979/bridge` with `bridge.token` and the TLS fingerprint from `~/.fast/tls`. Desktop does not open port 8787 and does not mint a second cert. Old QR codes that pointed at 8787 are invalid — scan again.
 
 Guest Wi-Fi / client isolation, or a firewall blocking `1979`, will fail the connect.
 

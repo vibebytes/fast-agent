@@ -11,8 +11,10 @@
       "bundleIdentifier": "ai.fastllm.mobile",
       "infoPlist": {
         "CFBundleDisplayName": "Fast",
+        "NSLocalNetworkUsageDescription": "Fast 需要访问本地网络，才能连接同一 Wi-Fi 上的桌面应用。",
         "NSAppTransportSecurity": {
-          "NSAllowsLocalNetworking": true
+          "NSAllowsLocalNetworking": true,
+          "NSAllowsArbitraryLoads": true
         }
       }
     },

@@ -5,11 +5,11 @@ import path from 'node:path';
 import test from 'node:test';
 import type {BridgeCommand, BridgeEvent} from '@fastllm/bridge-protocol';
 import {WorkspaceHub, type WorkspaceProjectHandlers} from './WorkspaceHub.js';
-import type {BridgeClient} from './BridgeClient.js';
+import type {BridgeClient, BridgeStartOptions} from './BridgeClient.js';
 import {projectHash} from './projectHash.js';
 import {discoverHostSlashSkills} from './hostSkillDiscovery.js';
 
-type Fake = BridgeClient & {
+type Fake = Pick<BridgeClient, 'start' | 'send' | 'stop'> & {
 	commands: BridgeCommand[];
 	handlers?: {
 		onEvent: (e: BridgeEvent) => void;
@@ -24,6 +24,7 @@ function fakeBridge(failStart?: Error): Fake {
 	const fake = {
 		commands: [] as BridgeCommand[],
 		clientIds: [] as string[],
+		handlers: undefined as Fake['handlers'],
 		failStart,
 		start(_cwd: string, handlers: Fake['handlers'], opts?: {clientId?: string; remote?: {url?: string}}) {
 			fake.handlers = handlers;
@@ -616,7 +617,7 @@ test('rapid switch aborts the first candidate without persisting it', async () =
 			const id = starts;
 			return {
 				commands: [],
-				start(_c, _h, opts?: {clientId?: string}) {
+				start(_c: string, _h: {onEvent: (e: BridgeEvent) => void}, opts?: BridgeStartOptions) {
 					if (id === 1) {
 						return new Promise((_resolve, reject) => {
 							setTimeout(
@@ -890,7 +891,7 @@ test('candidate HelloOk is not persisted if a later switch supersedes it', async
 			return {
 				start(_c: string, _h: Fake['handlers']) {
 					if (id === 1) {
-						return new Promise(resolve => {
+						return new Promise<void>(resolve => {
 							setTimeout(() => {
 								_h?.onEvent({type: 'HelloOk', hostHome: '/h'});
 								resolve();

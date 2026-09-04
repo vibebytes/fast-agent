@@ -1373,6 +1373,10 @@ test('bridgeCommandSchema accepts Hello / EnsureProject / ClientHeartbeat / Shut
 	const pairing = bridgeCommandSchema.parse({type: 'GetBridgePairing'});
 	assert.equal(pairing.type, 'GetBridgePairing');
 
+	const setPairing = bridgeCommandSchema.parse({type: 'SetLanPairing', enabled: true});
+	assert.equal(setPairing.type, 'SetLanPairing');
+	assert.equal(setPairing.enabled, true);
+
 	const bye = bridgeCommandSchema.parse({type: 'Goodbye', clientId: 'c1', reason: 'client_exit'});
 	assert.equal(bye.type, 'Goodbye');
 });

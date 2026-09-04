@@ -79,6 +79,7 @@ const RegisterWaitMs = 12_000;
 const HostWaitCommands = new Set([
 	'GetSettings',
 	'GetBridgePairing',
+	'SetLanPairing',
 	'PatchSettings',
 	'ListProviders',
 	'UpsertProvider',
@@ -155,8 +156,33 @@ const HostWaitCommands = new Set([
 	'DshCall'
 ]);
 
-function pairingUnavailable(reason: 'engine' | 'off' | 'no_lan'): MobilePairingInfo {
-	return {available: false, reason, host: '', port: 0, serverUrl: '', token: '', fingerprint: ''};
+function pairingUnavailable(reason: 'engine' | 'off' | 'no_lan', error?: string): MobilePairingInfo {
+	return {available: false, reason, host: '', port: 0, serverUrl: '', token: '', fingerprint: '', ...(error ? {error} : {})};
+}
+
+type RawPairing = {
+	available?: boolean;
+	reason?: string;
+	host?: string;
+	port?: number;
+	serverUrl?: string;
+	token?: string;
+	fingerprint?: string;
+};
+
+function pairingFromRaw(raw: RawPairing | undefined | null): MobilePairingInfo {
+	if (raw?.available && raw.serverUrl && raw.token && raw.fingerprint) {
+		return {
+			available: true,
+			host: raw.host ?? '',
+			port: raw.port ?? 0,
+			serverUrl: raw.serverUrl,
+			token: raw.token,
+			fingerprint: raw.fingerprint
+		};
+	}
+	if (raw?.reason === 'loopback_only') return pairingUnavailable('no_lan');
+	return pairingUnavailable('off');
 }
 
 const WorkspaceFsCodes = new Set<string>([
@@ -2135,10 +2161,7 @@ export class WorkspaceHub {
 		}
 	}
 
-	async getBridgePairing(input: {
-		localOptIn: boolean;
-		isRemote: boolean;
-	}): Promise<MobilePairingInfo> {
+	async getBridgePairing(): Promise<MobilePairingInfo> {
 		if (!this.bridge || this.engineStatus !== 'ready') {
 			return pairingUnavailable('engine');
 		}
@@ -2160,10 +2183,28 @@ export class WorkspaceHub {
 					fingerprint: raw.fingerprint
 				};
 			}
-			if (!input.isRemote && !input.localOptIn) return pairingUnavailable('off');
-			return pairingUnavailable('no_lan');
+			if (raw?.reason === 'loopback_only') return pairingUnavailable('no_lan');
+			return pairingUnavailable('off');
 		} catch {
-			if (!input.isRemote && !input.localOptIn) return pairingUnavailable('off');
+			return pairingUnavailable('engine');
+		}
+	}
+
+	async setLanPairing(enabled: boolean): Promise<MobilePairingInfo> {
+		if (!this.bridge || this.engineStatus !== 'ready') {
+			return pairingUnavailable('engine');
+		}
+		const {token, promise} = this.waitCommandResult(['SetLanPairing']);
+		if (!this.bridge.send({type: 'SetLanPairing', enabled})) {
+			this.cancelWait(token);
+			return pairingUnavailable('engine');
+		}
+		try {
+			const event = await promise;
+			const info = pairingFromRaw(event.pairing);
+			if (event.status === 'error') return {...info, error: event.message};
+			return info;
+		} catch {
 			return pairingUnavailable('engine');
 		}
 	}
@@ -3276,7 +3317,7 @@ export class WorkspaceHub {
 				? fs.entries.map(e => ({
 						name: e.name,
 						kind: e.kind,
-						relativePath: e.relativePath,
+						relativePath: e.relativePath ?? e.path ?? '',
 						...(e.mtime != null ? {mtime: e.mtime} : {})
 					}))
 				: [];
