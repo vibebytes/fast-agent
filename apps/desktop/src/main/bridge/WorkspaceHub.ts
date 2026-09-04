@@ -25,6 +25,7 @@ import type {
 	ReviewRestored,
 	SaveWorkspaceFileResult,
 	SearchModelRow,
+	MobilePairingInfo,
 	SettingsDoc,
 	SettingsScope,
 	SkillRow,
@@ -77,6 +78,7 @@ const RegisterWaitMs = 12_000;
  */
 const HostWaitCommands = new Set([
 	'GetSettings',
+	'GetBridgePairing',
 	'PatchSettings',
 	'ListProviders',
 	'UpsertProvider',
@@ -152,6 +154,10 @@ const HostWaitCommands = new Set([
 	'GitWorkspaceStatus',
 	'DshCall'
 ]);
+
+function pairingUnavailable(reason: 'engine' | 'off' | 'no_lan'): MobilePairingInfo {
+	return {available: false, reason, host: '', port: 0, serverUrl: '', token: '', fingerprint: ''};
+}
 
 const WorkspaceFsCodes = new Set<string>([
 	'outside',
@@ -2126,6 +2132,39 @@ export class WorkspaceHub {
 			return {ok: true, settings};
 		} catch (e) {
 			return {ok: false, notice: e instanceof Error ? e.message : String(e)};
+		}
+	}
+
+	async getBridgePairing(input: {
+		localOptIn: boolean;
+		isRemote: boolean;
+	}): Promise<MobilePairingInfo> {
+		if (!this.bridge || this.engineStatus !== 'ready') {
+			return pairingUnavailable('engine');
+		}
+		const {token, promise} = this.waitCommandResult(['GetBridgePairing']);
+		if (!this.bridge.send({type: 'GetBridgePairing'})) {
+			this.cancelWait(token);
+			return pairingUnavailable('engine');
+		}
+		try {
+			const event = await promise;
+			const raw = event.pairing;
+			if (raw?.available && raw.serverUrl && raw.token && raw.fingerprint) {
+				return {
+					available: true,
+					host: raw.host ?? '',
+					port: raw.port ?? 0,
+					serverUrl: raw.serverUrl,
+					token: raw.token,
+					fingerprint: raw.fingerprint
+				};
+			}
+			if (!input.isRemote && !input.localOptIn) return pairingUnavailable('off');
+			return pairingUnavailable('no_lan');
+		} catch {
+			if (!input.isRemote && !input.localOptIn) return pairingUnavailable('off');
+			return pairingUnavailable('engine');
 		}
 	}
 

@@ -3266,3 +3266,121 @@ test('a failed RegisterWorkspace makes later review ops fail fast without re-reg
 	);
 	hub.closeAll();
 });
+
+test('getBridgePairing is unavailable with reason engine when the daemon is down', async () => {
+	const hub = new WorkspaceHub({
+		createBridge: () => {
+			throw new Error('no engine');
+		},
+		hostCwd: mkdtempSync(path.join(tmpdir(), 'hub-host-')),
+		homeDir: mkdtempSync(path.join(tmpdir(), 'hub-home-'))
+	});
+	const info = await hub.getBridgePairing({localOptIn: true, isRemote: false});
+	assert.deepEqual(info, {
+		available: false,
+		reason: 'engine',
+		host: '',
+		port: 0,
+		serverUrl: '',
+		token: '',
+		fingerprint: ''
+	});
+});
+
+test('getBridgePairing maps an available engine snapshot', async () => {
+	const commands: BridgeCommand[] = [];
+	let bridge: FakeBridge | null = null;
+	const hub = new WorkspaceHub({
+		createBridge: () => {
+			bridge = createFakeBridge(commands);
+			return bridge;
+		},
+		hostCwd: mkdtempSync(path.join(tmpdir(), 'hub-host-')),
+		homeDir: mkdtempSync(path.join(tmpdir(), 'hub-home-'))
+	});
+	hub.openProject(mkdtempSync(path.join(tmpdir(), 'proj-pair-ok-')), noopHandlers());
+	await new Promise(r => setTimeout(r, 80));
+
+	const pending = hub.getBridgePairing({localOptIn: true, isRemote: false});
+	await new Promise(r => setTimeout(r, 20));
+	assert.ok(commands.some(c => c.type === 'GetBridgePairing'));
+	bridge!.__inject({
+		type: 'command_result',
+		name: 'GetBridgePairing',
+		message: '',
+		status: 'accepted',
+		pairing: {
+			available: true,
+			host: '192.168.1.8',
+			port: 1979,
+			serverUrl: 'wss://192.168.1.8:1979/bridge',
+			token: 'tok',
+			fingerprint: 'sha256:' + 'ab'.repeat(32)
+		}
+	});
+	const info = await pending;
+	assert.equal(info.available, true);
+	assert.equal(info.host, '192.168.1.8');
+	assert.equal(info.port, 1979);
+	assert.equal(info.serverUrl, 'wss://192.168.1.8:1979/bridge');
+	assert.equal(info.token, 'tok');
+	hub.closeAll();
+});
+
+test('getBridgePairing is off when local opt-in is unset and the engine has no LAN wss', async () => {
+	const commands: BridgeCommand[] = [];
+	let bridge: FakeBridge | null = null;
+	const hub = new WorkspaceHub({
+		createBridge: () => {
+			bridge = createFakeBridge(commands);
+			return bridge;
+		},
+		hostCwd: mkdtempSync(path.join(tmpdir(), 'hub-host-')),
+		homeDir: mkdtempSync(path.join(tmpdir(), 'hub-home-'))
+	});
+	hub.openProject(mkdtempSync(path.join(tmpdir(), 'proj-pair-off-')), noopHandlers());
+	await new Promise(r => setTimeout(r, 80));
+
+	const pending = hub.getBridgePairing({localOptIn: false, isRemote: false});
+	await new Promise(r => setTimeout(r, 20));
+	bridge!.__inject({
+		type: 'command_result',
+		name: 'GetBridgePairing',
+		message: '',
+		status: 'accepted',
+		pairing: {available: false, reason: 'no_wss'}
+	});
+	const info = await pending;
+	assert.equal(info.available, false);
+	assert.equal(info.reason, 'off');
+	hub.closeAll();
+});
+
+test('getBridgePairing is no_lan when opt-in is on but the engine has no LAN wss', async () => {
+	const commands: BridgeCommand[] = [];
+	let bridge: FakeBridge | null = null;
+	const hub = new WorkspaceHub({
+		createBridge: () => {
+			bridge = createFakeBridge(commands);
+			return bridge;
+		},
+		hostCwd: mkdtempSync(path.join(tmpdir(), 'hub-host-')),
+		homeDir: mkdtempSync(path.join(tmpdir(), 'hub-home-'))
+	});
+	hub.openProject(mkdtempSync(path.join(tmpdir(), 'proj-pair-nolan-')), noopHandlers());
+	await new Promise(r => setTimeout(r, 80));
+
+	const pending = hub.getBridgePairing({localOptIn: true, isRemote: false});
+	await new Promise(r => setTimeout(r, 20));
+	bridge!.__inject({
+		type: 'command_result',
+		name: 'GetBridgePairing',
+		message: '',
+		status: 'accepted',
+		pairing: {available: false, reason: 'loopback_only'}
+	});
+	const info = await pending;
+	assert.equal(info.available, false);
+	assert.equal(info.reason, 'no_lan');
+	hub.closeAll();
+});

@@ -223,6 +223,7 @@ export type {
 	EdgeTestResult,
 	EdgeDeleteResult,
 	EdgeUpsertResult,
+	MobilePairingInfo,
 	ModelCatalogEntry,
 	ProjectGetResult,
 	ProjectSnapshot,

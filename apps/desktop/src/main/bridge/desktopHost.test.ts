@@ -91,6 +91,17 @@ test('createDesktopHost has no electron import and serves project:get', async ()
 	const snap = await Promise.resolve(host['project:get']());
 	assert.equal(snap.path, null);
 	assert.ok(Array.isArray(snap.projects));
+
+	const pairing = await Promise.resolve(host['mobile:pairingInfo']());
+	assert.deepEqual(pairing, {
+		available: false,
+		reason: 'engine',
+		host: '',
+		port: 0,
+		serverUrl: '',
+		token: '',
+		fingerprint: ''
+	});
 });
 
 test('edges:delete of the current edge waits for local HelloOk', async () => {

@@ -11,8 +11,7 @@ import type {
 	UiSend
 } from '@fast-ide/session-view';
 import {WorkspaceHub} from './bridge/WorkspaceHub';
-import {MobileBridgeServer} from './bridge/MobileBridgeServer';
-import {mobileBridgeEnabled, resolveMobileBridgeToken} from './bridge/mobileBridgeToken';
+import {mobileBridgeEnabled} from './bridge/mobileBridgeToken';
 import {createDesktopHost} from './bridge/desktopHost';
 import {isDefaultProjectPath} from './bridge/defaultProject';
 import {createUiPublisher} from './bridge/uiPublisher';
@@ -96,12 +95,6 @@ function persistCommittedEdge(id: string): void {
 
 const hub = new WorkspaceHub({
 	persistActiveId: persistCommittedEdge
-});
-const mobileBridge = new MobileBridgeServer({
-	port: Number(process.env.FAST_MOBILE_BRIDGE_PORT ?? 8787),
-	token: process.env.FAST_MOBILE_BRIDGE_TOKEN ?? '',
-	send: command => hub.getBridge()?.send(command) ?? false,
-	log: message => console.log(`[mobile-bridge] ${message}`)
 });
 let heartbeatTimer: NodeJS.Timeout | null = null;
 let restoreState: WorkspaceRestoreState = initialWorkspaceRestoreState();
@@ -356,7 +349,6 @@ function startHeartbeat(): void {
 function sharedProjectHandlers() {
 	return {
 		onEvent(projectId: string, event: BridgeEvent) {
-			mobileBridge.handleEvent(event);
 			if (event.type === 'ready') {
 				startHeartbeat();
 				void syncNotifyEnabled();
@@ -464,7 +456,11 @@ const productInvokes = createDesktopHost({
 	vault: electronVault,
 	userData: () => app.getPath('userData'),
 	onEdgesChanged: () => pushEdgesChanged(),
-	mobilePairing: () => mobileBridge.pairingInfo()
+	mobilePairing: () =>
+		hub.getBridgePairing({
+			localOptIn: mobileBridgeEnabled(process.env),
+			isRemote: hub.isRemote()
+		})
 });
 
 function pushEdgesChanged(): void {
@@ -503,17 +499,6 @@ app.whenReady().then(async () => {
 	// Apply persisted locale before tray/pet menus so cold start matches pinned pref.
 	await applyLocalePref(loadLocalePref());
 	bindCommittedFromDisk();
-	if (mobileBridgeEnabled(process.env)) {
-		mobileBridge.setToken(
-			resolveMobileBridgeToken({
-				env: process.env,
-				userDataPath: app.getPath('userData')
-			})
-		);
-		mobileBridge.start().catch(error => {
-			console.error('[mobile-bridge] failed to start', error);
-		});
-	}
 
 	protocol.handle('fast-ide-media', async request => {
 		const root = activeFsRoot();
@@ -621,7 +606,6 @@ app.whenReady().then(async () => {
 
 app.on('before-quit', () => {
 	isQuitting = true;
-	mobileBridge.stop();
 	destroyAppTray();
 	destroyPetWindow();
 });

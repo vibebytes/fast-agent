@@ -63,7 +63,7 @@ export type DesktopHostDeps = {
 	vault?: TokenVault;
 	userData?: () => string;
 	onEdgesChanged?: () => void;
-	/** Mobile bridge pairing export (S7.2); null/undefined when the bridge is off. */
+	/** Engine pairing export via GetBridgePairing; null/undefined uses the engine-off empty. */
 	mobilePairing?: () => InvokeChannels['mobile:pairingInfo']['result'] | null;
 	probe?: typeof probeBridge;
 };
@@ -826,10 +826,12 @@ export function createDesktopHost(deps: DesktopHostDeps): ProductInvokeMap {
 		'mobile:pairingInfo': () =>
 			deps.mobilePairing?.() ?? {
 				available: false,
-				host: '127.0.0.1',
+				reason: 'engine',
+				host: '',
 				port: 0,
 				serverUrl: '',
-				token: ''
+				token: '',
+				fingerprint: ''
 			}
 	};
 }
