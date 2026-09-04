@@ -296,11 +296,15 @@
         "agentDescription": "執行任務的位置",
         "mobilePairing": "手機配對",
         "mobilePairingDescription": "同一區網內的 Fast Mobile App 使用以下資訊配對。",
-        "mobilePairingOff": "手機橋接未啟用。去掉 FAST_MOBILE_BRIDGE=0 後重啟 IDE 即可開啟。",
+        "mobilePairingOff": "手機橋接未啟用。設置 FAST_MOBILE_BRIDGE=1 後重啟 IDE 即可開啟。",
         "mobilePairingUrl": "配對地址",
         "mobilePairingToken": "配對權杖",
         "mobilePairingQrHint": "在手機 App 的「掃碼配對」中掃描二維碼即可完成配對。配對碼含存取權杖，等同全部權限，請勿截圖或外傳。",
-        "mobilePairingCopied": "已複製"
+        "mobilePairingFirewallHint": "手機連不上時，請在本機防火牆或安全軟體中放行入站 TCP 連接埠 {{port}}。訪客 Wi-Fi、用戶端隔離也會擋住配對。",
+        "mobilePairingCopied": "已複製",
+        "mobilePairingNoLan": "當前引擎未對區域網路開放 wss。本機請設置 FAST_MOBILE_BRIDGE=1 後重啟；遠端請在對端以 --wss 0.0.0.0:1979 啟動。",
+        "mobilePairingEngineOff": "引擎未就緒，暫時無法匯出配對碼。",
+        "mobilePairingFingerprint": "TLS 指紋"
       },
       "permissions": {
         "policy": "核准原則",
@@ -1634,7 +1638,7 @@
       "addManual": "+ 手動設定伺服器位址與 Token",
       "collapseManual": "收起手動設定",
       "labelPlaceholder": "伺服器備註 (如：MacBook Pro)",
-      "urlPlaceholder": "WebSocket 位址 (如：ws://192.168.1.5:4040/ws)",
+      "urlPlaceholder": "WebSocket 位址 (如：wss://192.168.1.5:1979/bridge)",
       "tokenPlaceholder": "安全存取權杖 (Token)",
       "saveConnect": "儲存並連線",
       "saveEdit": "儲存修改",
@@ -1665,7 +1669,9 @@
       "cameraTitle": "需要權限",
       "cameraBody": "請在系統設定中允許使用相機以掃描配對 QR 碼。",
       "fillTitle": "提示",
-      "fillBody": "請完整填寫伺服器位址和存取權杖"
+      "fillBody": "請完整填寫伺服器位址和存取權杖",
+      "pairUnreachableTitle": "已儲存，但未連上",
+      "pairUnreachableBody": "已儲存 {{url}}，但和桌面握手失敗：{{reason}}"
     },
     "index": {
       "new": "新建",

@@ -296,11 +296,15 @@
         "save": "Save",
         "mobilePairing": "Mobile pairing",
         "mobilePairingDescription": "Pair a Fast Mobile app on the same LAN with the details below.",
-        "mobilePairingOff": "Mobile bridge is off. Restart the IDE without FAST_MOBILE_BRIDGE=0 to enable it.",
+        "mobilePairingOff": "Mobile pairing is off. Set FAST_MOBILE_BRIDGE=1 and restart the IDE to enable it.",
         "mobilePairingUrl": "Pairing URL",
         "mobilePairingToken": "Pairing token",
         "mobilePairingQrHint": "Scan this QR code in the mobile app's \"Scan to pair\" screen. The pairing code contains the access token — treat it as full access; do not screenshot or share it.",
-        "mobilePairingCopied": "Copied"
+        "mobilePairingFirewallHint": "Si le téléphone ne se connecte pas, autorisez le port TCP {{port}} entrant dans le pare-feu ou le logiciel de sécurité de cet ordinateur. Un Wi-Fi invité ou l’isolation des clients bloque aussi l’appairage.",
+        "mobilePairingCopied": "Copied",
+        "mobilePairingNoLan": "This engine is not listening for LAN wss. Locally set FAST_MOBILE_BRIDGE=1 and restart; on a remote host start the engine with --wss 0.0.0.0:1979.",
+        "mobilePairingEngineOff": "The engine is not ready, so a pairing code cannot be exported yet.",
+        "mobilePairingFingerprint": "TLS fingerprint"
       },
       "permissions": {
         "policy": "Politique d’approbation",
@@ -1634,7 +1638,7 @@
       "addManual": "+ Ajouter l’URL et le jeton du serveur",
       "collapseManual": "Masquer la configuration manuelle",
       "labelPlaceholder": "Libellé (ex. MacBook Pro)",
-      "urlPlaceholder": "URL WebSocket (ex. ws://192.168.1.5:4040/ws)",
+      "urlPlaceholder": "URL WebSocket (ex. wss://192.168.1.5:1979/bridge)",
       "tokenPlaceholder": "Jeton d’accès",
       "saveConnect": "Enregistrer et connecter",
       "saveEdit": "Enregistrer les modifications",
@@ -1665,7 +1669,9 @@
       "cameraTitle": "Autorisation requise",
       "cameraBody": "Autorisez l’appareil photo dans les réglages système pour scanner le QR.",
       "fillTitle": "Champs manquants",
-      "fillBody": "Saisissez l’URL du serveur et le jeton d’accès"
+      "fillBody": "Saisissez l’URL du serveur et le jeton d’accès",
+      "pairUnreachableTitle": "Saved, but not connected",
+      "pairUnreachableBody": "Saved {{url}}, but the desktop handshake failed: {{reason}}"
     },
     "index": {
       "new": "Nouveau",

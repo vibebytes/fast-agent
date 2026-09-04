@@ -296,11 +296,15 @@
         "save": "Save",
         "mobilePairing": "Mobile pairing",
         "mobilePairingDescription": "Pair a Fast Mobile app on the same LAN with the details below.",
-        "mobilePairingOff": "Mobile bridge is off. Restart the IDE without FAST_MOBILE_BRIDGE=0 to enable it.",
+        "mobilePairingOff": "Mobile pairing is off. Set FAST_MOBILE_BRIDGE=1 and restart the IDE to enable it.",
         "mobilePairingUrl": "Pairing URL",
         "mobilePairingToken": "Pairing token",
         "mobilePairingQrHint": "Scan this QR code in the mobile app's \"Scan to pair\" screen. The pairing code contains the access token — treat it as full access; do not screenshot or share it.",
-        "mobilePairingCopied": "Copied"
+        "mobilePairingFirewallHint": "Если телефон не подключается, разрешите входящий TCP-порт {{port}} в брандмауэре или защитном ПО этого компьютера. Гостевой Wi-Fi и изоляция клиентов тоже блокируют сопряжение.",
+        "mobilePairingCopied": "Copied",
+        "mobilePairingNoLan": "This engine is not listening for LAN wss. Locally set FAST_MOBILE_BRIDGE=1 and restart; on a remote host start the engine with --wss 0.0.0.0:1979.",
+        "mobilePairingEngineOff": "The engine is not ready, so a pairing code cannot be exported yet.",
+        "mobilePairingFingerprint": "TLS fingerprint"
       },
       "permissions": {
         "policy": "Политика подтверждений",
@@ -1634,7 +1638,7 @@
       "addManual": "+ Добавить URL и токен сервера",
       "collapseManual": "Скрыть ручную настройку",
       "labelPlaceholder": "Метка (напр. MacBook Pro)",
-      "urlPlaceholder": "WebSocket URL (напр. ws://192.168.1.5:4040/ws)",
+      "urlPlaceholder": "WebSocket URL (напр. wss://192.168.1.5:1979/bridge)",
       "tokenPlaceholder": "Токен доступа",
       "saveConnect": "Сохранить и подключить",
       "saveEdit": "Сохранить изменения",
@@ -1665,7 +1669,9 @@
       "cameraTitle": "Нужно разрешение",
       "cameraBody": "Разрешите доступ к камере в системных настройках, чтобы сканировать QR.",
       "fillTitle": "Не заполнены поля",
-      "fillBody": "Укажите URL сервера и токен доступа"
+      "fillBody": "Укажите URL сервера и токен доступа",
+      "pairUnreachableTitle": "Saved, but not connected",
+      "pairUnreachableBody": "Saved {{url}}, but the desktop handshake failed: {{reason}}"
     },
     "index": {
       "new": "Новая",

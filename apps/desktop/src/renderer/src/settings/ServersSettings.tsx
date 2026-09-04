@@ -38,24 +38,39 @@ const emptyDraft = (): Draft => ({
 
 type PinAsk = {fingerprint: string; display: string; resume: 'test' | 'save'};
 
-function PairingQr({serverUrl, token}: {serverUrl: string; token: string}) {
+function PairingQr({
+	serverUrl,
+	token,
+	fingerprint
+}: {
+	serverUrl: string;
+	token: string;
+	fingerprint: string;
+}) {
 	const matrix = useMemo(() => {
-		const payload = `fast-bridge://pair?url=${encodeURIComponent(serverUrl)}&token=${encodeURIComponent(token)}`;
+		const payload = `fast-bridge://pair?url=${encodeURIComponent(serverUrl)}&token=${encodeURIComponent(token)}&fingerprint=${encodeURIComponent(fingerprint)}`;
 		return encodeQrMatrix(payload);
-	}, [serverUrl, token]);
+	}, [serverUrl, token, fingerprint]);
 	const n = matrix.length;
+	const quiet = 4;
+	const box = n + quiet * 2;
 	return (
 		<svg
-			width={148}
-			height={148}
-			viewBox={`0 0 ${n} ${n}`}
+			width={200}
+			height={200}
+			viewBox={`0 0 ${box} ${box}`}
 			shapeRendering="crispEdges"
-			className="shrink-0 rounded-md bg-white p-1"
+			className="shrink-0 rounded-md bg-white"
 			role="img"
 			aria-label="pairing QR code"
 		>
+			<rect width={box} height={box} fill="#fff" />
 			{matrix.flatMap((row, y) =>
-				row.map((dark, x) => (dark ? <rect key={`${x}-${y}`} x={x} y={y} width={1} height={1} fill="#000" /> : null))
+				row.map((dark, x) =>
+					dark ? (
+						<rect key={`${x}-${y}`} x={x + quiet} y={y + quiet} width={1} height={1} fill="#000" />
+					) : null
+				)
 			)}
 		</svg>
 	);
@@ -105,7 +120,7 @@ export function ServersSettings() {
 
 	useEffect(() => {
 		void window.fastIde.mobilePairingInfo().then(setPairing);
-	}, []);
+	}, [list]);
 
 	const pending = Boolean(list?.pendingEdgeId);
 
@@ -287,15 +302,35 @@ export function ServersSettings() {
 							value={pairing.token}
 							copiedLabel={t('settings.pages.servers.mobilePairingCopied')}
 						/>
-						<div className="flex items-center gap-3">
-							<PairingQr serverUrl={pairing.serverUrl} token={pairing.token} />
-							<p className="text-xs text-muted-foreground">{t('settings.pages.servers.mobilePairingQrHint')}</p>
+						<CopyField
+							label={t('settings.pages.servers.mobilePairingFingerprint')}
+							value={pairing.fingerprint}
+							copiedLabel={t('settings.pages.servers.mobilePairingCopied')}
+						/>
+						<div className="flex items-start gap-3">
+							<PairingQr
+								serverUrl={pairing.serverUrl}
+								token={pairing.token}
+								fingerprint={pairing.fingerprint}
+							/>
+							<div className="grid gap-2">
+								<p className="text-xs text-muted-foreground">{t('settings.pages.servers.mobilePairingQrHint')}</p>
+								<p className="text-xs text-muted-foreground">
+									{t('settings.pages.servers.mobilePairingFirewallHint', {port: pairing.port})}
+								</p>
+							</div>
 						</div>
 					</div>
 				) : (
 					<SettingsRow
 						icon={Smartphone}
-						title={t('settings.pages.servers.mobilePairingOff')}
+						title={t(
+							pairing?.reason === 'engine'
+								? 'settings.pages.servers.mobilePairingEngineOff'
+								: pairing?.reason === 'no_lan'
+									? 'settings.pages.servers.mobilePairingNoLan'
+									: 'settings.pages.servers.mobilePairingOff'
+						)}
 					/>
 				)}
 			</SettingsSection>

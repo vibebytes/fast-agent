@@ -296,11 +296,15 @@
         "save": "Save",
         "mobilePairing": "Mobile pairing",
         "mobilePairingDescription": "Pair a Fast Mobile app on the same LAN with the details below.",
-        "mobilePairingOff": "Mobile bridge is off. Restart the IDE without FAST_MOBILE_BRIDGE=0 to enable it.",
+        "mobilePairingOff": "Mobile pairing is off. Set FAST_MOBILE_BRIDGE=1 and restart the IDE to enable it.",
         "mobilePairingUrl": "Pairing URL",
         "mobilePairingToken": "Pairing token",
         "mobilePairingQrHint": "Scan this QR code in the mobile app's \"Scan to pair\" screen. The pairing code contains the access token — treat it as full access; do not screenshot or share it.",
-        "mobilePairingCopied": "Copied"
+        "mobilePairingFirewallHint": "Se o celular não conectar, libere a porta TCP {{port}} de entrada no firewall ou no antivírus deste computador. Wi-Fi de convidados e isolamento de clientes também impedem o pareamento.",
+        "mobilePairingCopied": "Copied",
+        "mobilePairingNoLan": "This engine is not listening for LAN wss. Locally set FAST_MOBILE_BRIDGE=1 and restart; on a remote host start the engine with --wss 0.0.0.0:1979.",
+        "mobilePairingEngineOff": "The engine is not ready, so a pairing code cannot be exported yet.",
+        "mobilePairingFingerprint": "TLS fingerprint"
       },
       "permissions": {
         "policy": "Política de aprovação",
@@ -1634,7 +1638,7 @@
       "addManual": "+ Adicionar URL e token do servidor",
       "collapseManual": "Ocultar configuração manual",
       "labelPlaceholder": "Rótulo (ex.: MacBook Pro)",
-      "urlPlaceholder": "URL WebSocket (ex.: ws://192.168.1.5:4040/ws)",
+      "urlPlaceholder": "URL WebSocket (ex.: wss://192.168.1.5:1979/bridge)",
       "tokenPlaceholder": "Token de acesso",
       "saveConnect": "Salvar e conectar",
       "saveEdit": "Salvar alterações",
@@ -1665,7 +1669,9 @@
       "cameraTitle": "Permissão necessária",
       "cameraBody": "Permita o acesso à câmera nas configurações do sistema para escanear o QR.",
       "fillTitle": "Campos em falta",
-      "fillBody": "Informe a URL do servidor e o token de acesso"
+      "fillBody": "Informe a URL do servidor e o token de acesso",
+      "pairUnreachableTitle": "Saved, but not connected",
+      "pairUnreachableBody": "Saved {{url}}, but the desktop handshake failed: {{reason}}"
     },
     "index": {
       "new": "Novo",

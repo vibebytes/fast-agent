@@ -296,11 +296,15 @@
         "save": "Save",
         "mobilePairing": "Mobile pairing",
         "mobilePairingDescription": "Pair a Fast Mobile app on the same LAN with the details below.",
-        "mobilePairingOff": "Mobile bridge is off. Restart the IDE without FAST_MOBILE_BRIDGE=0 to enable it.",
+        "mobilePairingOff": "Mobile pairing is off. Set FAST_MOBILE_BRIDGE=1 and restart the IDE to enable it.",
         "mobilePairingUrl": "Pairing URL",
         "mobilePairingToken": "Pairing token",
         "mobilePairingQrHint": "Scan this QR code in the mobile app's \"Scan to pair\" screen. The pairing code contains the access token — treat it as full access; do not screenshot or share it.",
-        "mobilePairingCopied": "Copied"
+        "mobilePairingFirewallHint": "スマホが接続できない場合は、このパソコンのファイアウォールまたはセキュリティソフトで着信 TCP ポート {{port}} を許可してください。ゲスト Wi-Fi やクライアント分離でもペアリングは失敗します。",
+        "mobilePairingCopied": "Copied",
+        "mobilePairingNoLan": "This engine is not listening for LAN wss. Locally set FAST_MOBILE_BRIDGE=1 and restart; on a remote host start the engine with --wss 0.0.0.0:1979.",
+        "mobilePairingEngineOff": "The engine is not ready, so a pairing code cannot be exported yet.",
+        "mobilePairingFingerprint": "TLS fingerprint"
       },
       "permissions": {
         "policy": "承認ポリシー",
@@ -1634,7 +1638,7 @@
       "addManual": "+ サーバー URL とトークンを追加",
       "collapseManual": "手動設定を隠す",
       "labelPlaceholder": "ラベル（例：MacBook Pro）",
-      "urlPlaceholder": "WebSocket URL（例：ws://192.168.1.5:4040/ws）",
+      "urlPlaceholder": "WebSocket URL（例：wss://192.168.1.5:1979/bridge）",
       "tokenPlaceholder": "アクセストークン",
       "saveConnect": "保存して接続",
       "saveEdit": "変更を保存",
@@ -1665,7 +1669,9 @@
       "cameraTitle": "権限が必要です",
       "cameraBody": "ペアリング QR をスキャンするには、システム設定でカメラを許可してください。",
       "fillTitle": "未入力の項目があります",
-      "fillBody": "サーバー URL とアクセストークンの両方を入力してください"
+      "fillBody": "サーバー URL とアクセストークンの両方を入力してください",
+      "pairUnreachableTitle": "Saved, but not connected",
+      "pairUnreachableBody": "Saved {{url}}, but the desktop handshake failed: {{reason}}"
     },
     "index": {
       "new": "新規",

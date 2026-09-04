@@ -3,7 +3,16 @@ const DATA_CODEWORDS = [0, 19, 34, 55, 80, 108, 136, 156, 194, 232];
 const ECC_PER_BLOCK = [0, 7, 10, 15, 20, 26, 18, 20, 24, 30];
 const BLOCKS = [0, 1, 1, 1, 1, 1, 2, 2, 2, 2];
 const ALIGNMENT: number[][] = [
-	[], [6, 18], [6, 22], [6, 26], [6, 30], [6, 34], [6, 22, 38], [6, 24, 42], [6, 26, 46]
+	[],
+	[],
+	[6, 18],
+	[6, 22],
+	[6, 26],
+	[6, 30],
+	[6, 34],
+	[6, 22, 38],
+	[6, 24, 42],
+	[6, 26, 46]
 ];
 
 const EXP = new Uint8Array(512);
@@ -46,7 +55,7 @@ function rsRemainder(data: number[], divisor: number[]): number[] {
 
 function pickVersion(byteLen: number): number {
 	for (let v = 1; v <= 9; v++) {
-		if (byteLen * 8 + 12 <= DATA_CODEWORDS[v] * 8) return v;
+		if (byteLen * 8 + 16 <= DATA_CODEWORDS[v] * 8) return v;
 	}
 	throw new Error('pairing payload too long for QR');
 }
@@ -87,23 +96,37 @@ function buildCodewords(bytes: Uint8Array, version: number): number[] {
 	return out;
 }
 
-function drawFormat(grid: (boolean | null)[][], size: number, mask: number): void {
+function drawFormat(
+	grid: (boolean | null)[][],
+	isFunction: boolean[][],
+	size: number,
+	mask: number
+): void {
 	const data = (0b01 << 3) | mask;
 	let rem = data;
 	for (let i = 0; i < 10; i++) rem = (rem << 1) ^ ((rem >>> 9) * 0x537);
 	const bits = ((data << 10) | rem) ^ 0x5412;
 	const bit = (i: number) => ((bits >>> i) & 1) !== 0;
-	for (let i = 0; i <= 5; i++) grid[i][8] = bit(i);
-	grid[7][8] = bit(6);
-	grid[8][8] = bit(7);
-	grid[8][7] = bit(8);
-	for (let i = 9; i < 15; i++) grid[8][14 - i] = bit(i);
-	for (let i = 0; i < 8; i++) grid[8][size - 1 - i] = bit(i);
-	for (let i = 8; i < 15; i++) grid[size - 15 + i][8] = bit(i);
-	grid[size - 8][8] = true;
+	const set = (x: number, y: number, dark: boolean) => {
+		grid[y][x] = dark;
+		isFunction[y][x] = true;
+	};
+	for (let i = 0; i <= 5; i++) set(8, i, bit(i));
+	set(8, 7, bit(6));
+	set(8, 8, bit(7));
+	set(7, 8, bit(8));
+	for (let i = 9; i < 15; i++) set(14 - i, 8, bit(i));
+	for (let i = 0; i < 8; i++) set(size - 1 - i, 8, bit(i));
+	for (let i = 8; i < 15; i++) set(8, size - 15 + i, bit(i));
+	set(8, size - 8, true);
 }
 
-function drawVersion(grid: (boolean | null)[][], size: number, version: number): void {
+function drawVersion(
+	grid: (boolean | null)[][],
+	isFunction: boolean[][],
+	size: number,
+	version: number
+): void {
 	let rem = version;
 	for (let i = 0; i < 12; i++) rem = (rem << 1) ^ ((rem >>> 11) * 0x1f25);
 	const bits = (version << 12) | rem;
@@ -113,6 +136,8 @@ function drawVersion(grid: (boolean | null)[][], size: number, version: number):
 		const b = Math.floor(i / 3);
 		grid[b][a] = dark;
 		grid[a][b] = dark;
+		isFunction[b][a] = true;
+		isFunction[a][b] = true;
 	}
 }
 
@@ -145,9 +170,16 @@ function drawFunctionPatterns(
 	finder(3, 3);
 	finder(size - 4, 3);
 	finder(3, size - 4);
-	for (const cy of ALIGNMENT[version]) {
-		for (const cx of ALIGNMENT[version]) {
-			if (isFunction[cy][cx]) continue;
+	const align = ALIGNMENT[version];
+	for (let i = 0; i < align.length; i++) {
+		for (let j = 0; j < align.length; j++) {
+			// Skip the three finder corners. Still draw alignments that sit on the
+			// timing pattern — those overwrite timing, same as ISO/IEC 18004.
+			if (i === 0 && j === 0) continue;
+			if (i === 0 && j === align.length - 1) continue;
+			if (i === align.length - 1 && j === 0) continue;
+			const cx = align[i];
+			const cy = align[j];
 			for (let dy = -2; dy <= 2; dy++) {
 				for (let dx = -2; dx <= 2; dx++) {
 					set(cx + dx, cy + dy, Math.max(Math.abs(dx), Math.abs(dy)) !== 1);
@@ -155,8 +187,8 @@ function drawFunctionPatterns(
 			}
 		}
 	}
-	drawFormat(grid, size, 0);
-	if (version >= 7) drawVersion(grid, size, version);
+	drawFormat(grid, isFunction, size, 0);
+	if (version >= 7) drawVersion(grid, isFunction, size, version);
 }
 
 function drawCodewords(
@@ -164,14 +196,14 @@ function drawCodewords(
 	isFunction: boolean[][],
 	codewords: number[],
 	size: number
-): void {
+): number {
 	let i = 0;
+	let upward = true;
 	for (let right = size - 1; right >= 1; right -= 2) {
 		if (right === 6) right = 5;
 		for (let vert = 0; vert < size; vert++) {
 			for (let j = 0; j < 2; j++) {
 				const x = right - j;
-				const upward = ((right + 1) & 2) === 0;
 				const y = upward ? size - 1 - vert : vert;
 				if (!isFunction[y][x] && i < codewords.length * 8) {
 					grid[y][x] = ((codewords[i >>> 3] >>> (7 - (i & 7))) & 1) !== 0;
@@ -179,7 +211,9 @@ function drawCodewords(
 				}
 			}
 		}
+		upward = !upward;
 	}
+	return i;
 }
 
 function penalty(grid: (boolean | null)[][], size: number): number {
@@ -270,12 +304,16 @@ export function encodeQrMatrix(text: string): boolean[][] {
 	const modules: (boolean | null)[][] = Array.from({length: size}, () => new Array<boolean | null>(size).fill(null));
 	const isFunction = Array.from({length: size}, () => new Array<boolean>(size).fill(false));
 	drawFunctionPatterns(modules, isFunction, size, version);
-	drawCodewords(modules, isFunction, buildCodewords(bytes, version), size);
+	const codewords = buildCodewords(bytes, version);
+	const placed = drawCodewords(modules, isFunction, codewords, size);
+	if (placed !== codewords.length * 8) {
+		throw new Error(`QR v${version} placed ${placed} of ${codewords.length * 8} bits`);
+	}
 	let best: {penalty: number; grid: (boolean | null)[][]} | null = null;
 	for (let mask = 0; mask < 8; mask++) {
 		const candidate = modules.map(row => row.slice());
 		applyMask(candidate, isFunction, mask, size);
-		drawFormat(candidate, size, mask);
+		drawFormat(candidate, isFunction, size, mask);
 		const score = penalty(candidate, size);
 		if (!best || score < best.penalty) best = {penalty: score, grid: candidate};
 	}

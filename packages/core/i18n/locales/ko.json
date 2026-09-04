@@ -296,11 +296,15 @@
         "save": "Save",
         "mobilePairing": "Mobile pairing",
         "mobilePairingDescription": "Pair a Fast Mobile app on the same LAN with the details below.",
-        "mobilePairingOff": "Mobile bridge is off. Restart the IDE without FAST_MOBILE_BRIDGE=0 to enable it.",
+        "mobilePairingOff": "Mobile pairing is off. Set FAST_MOBILE_BRIDGE=1 and restart the IDE to enable it.",
         "mobilePairingUrl": "Pairing URL",
         "mobilePairingToken": "Pairing token",
         "mobilePairingQrHint": "Scan this QR code in the mobile app's \"Scan to pair\" screen. The pairing code contains the access token — treat it as full access; do not screenshot or share it.",
-        "mobilePairingCopied": "Copied"
+        "mobilePairingFirewallHint": "휴대폰이 연결되지 않으면 이 컴퓨터의 방화벽 또는 보안 소프트웨어에서 인바운드 TCP 포트 {{port}}를 허용하세요. 게스트 Wi-Fi와 클라이언트 격리도 페어링을 막습니다.",
+        "mobilePairingCopied": "Copied",
+        "mobilePairingNoLan": "This engine is not listening for LAN wss. Locally set FAST_MOBILE_BRIDGE=1 and restart; on a remote host start the engine with --wss 0.0.0.0:1979.",
+        "mobilePairingEngineOff": "The engine is not ready, so a pairing code cannot be exported yet.",
+        "mobilePairingFingerprint": "TLS fingerprint"
       },
       "permissions": {
         "policy": "승인 정책",
@@ -1634,7 +1638,7 @@
       "addManual": "+ 서버 URL 및 토큰 추가",
       "collapseManual": "수동 설정 숨기기",
       "labelPlaceholder": "레이블(예: MacBook Pro)",
-      "urlPlaceholder": "WebSocket URL(예: ws://192.168.1.5:4040/ws)",
+      "urlPlaceholder": "WebSocket URL(예: wss://192.168.1.5:1979/bridge)",
       "tokenPlaceholder": "액세스 토큰",
       "saveConnect": "저장하고 연결",
       "saveEdit": "변경 저장",
@@ -1665,7 +1669,9 @@
       "cameraTitle": "권한 필요",
       "cameraBody": "페어링 QR을 스캔하려면 시스템 설정에서 카메라를 허용하세요.",
       "fillTitle": "빠진 항목",
-      "fillBody": "서버 URL과 액세스 토큰을 모두 입력하세요"
+      "fillBody": "서버 URL과 액세스 토큰을 모두 입력하세요",
+      "pairUnreachableTitle": "Saved, but not connected",
+      "pairUnreachableBody": "Saved {{url}}, but the desktop handshake failed: {{reason}}"
     },
     "index": {
       "new": "새로 만들기",
