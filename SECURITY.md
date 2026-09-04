@@ -107,7 +107,7 @@ Not an advisory. Still fine as a normal issue or PR.
 ## 4. Hardening
 
 - Run desktop / TUI as your normal user, not root.
-- Prefer unix Bridge on the same host. The desktop LAN mobile bridge is on by default (`0.0.0.0:8787`, token in userData). Set `FAST_MOBILE_BRIDGE=0` if you do not need the phone.
+- Prefer unix Bridge on the same host. Desktop does not open a LAN port by default. `FAST_MOBILE_BRIDGE=1` makes **this** local spawn pass `--wss 0.0.0.0:1979`. The token is `bridge.token` (`~/.fast/run/bridge.token`), not a second file in userData.
 - Confirm the TLS fingerprint in Settings before trusting a non-loopback desktop.
 - Do not paste pairing tokens into issues, screenshots, or chat.
 - Review `extensions/` jars the same way you review a native binary.
@@ -129,5 +129,5 @@ See [CONTRIBUTING.md](CONTRIBUTING.md). In addition:
 
 - Do not log secrets.
 - LAN listeners fail closed without a token.
-- Tests for attach / pairing live next to the change (`MobileBridgeServer`, `desktopHost`, unix e2e).
+- Tests for attach / pairing live next to the change (`GetBridgePairing` / `WorkspaceHub`, `desktopHost`, unix e2e).
 - Mark the PR as security-sensitive in the description.

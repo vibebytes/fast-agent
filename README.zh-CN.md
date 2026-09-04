@@ -84,9 +84,9 @@ v0.3.1 预发布。**macOS** 是主路径。**Windows** 原生开发中。安装
 1. **先装桌面**（[1.1 直接下载](#11-直接下载)）。macOS 是主路径。
 2. **配对。** 桌面 → 设置 → 服务器 → 手机配对。手机：设置 → 扫码配对。也可手填地址和 token。
 
-局域网桥接随 IDE 一起启动。token 会生成并写入 userData（可用 `FAST_MOBILE_BRIDGE_TOKEN` 覆盖；默认端口 `8787`，可选 `FAST_MOBILE_BRIDGE_PORT`）。不想开时设 `FAST_MOBILE_BRIDGE=0`。
+设置 `FAST_MOBILE_BRIDGE=1` 后重启 IDE。本机 spawn 会带上 `--wss 0.0.0.0:1979`（端口可用 `FAST_MOBILE_BRIDGE_PORT` 覆盖）。手机连的是**引擎**听口 `wss://<局域网IP>:1979/bridge`，token 是 `bridge.token`，指纹来自 `~/.fast/tls`。桌面不再开 8787，也不另铸证书。旧的 8787 二维码无效，请重新扫。
 
-访客 Wi-Fi / 客户端隔离，或防火墙挡住 `8787`，都会连不上。桌面必须一直开着。
+访客 Wi-Fi / 客户端隔离，或防火墙挡住 `1979`，都会连不上。
 
 #### 1.2.2 公网（远程 CLI）
 
