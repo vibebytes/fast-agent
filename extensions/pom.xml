@@ -13,9 +13,9 @@
     <scala.binary.version>3</scala.binary.version>
     <scala.version>3.7.0</scala.version>
     <!-- Central jars 0.3.2; natives zip stays 0.3.0 (not published with the rest). -->
-    <agent-engine-api.version>0.3.3</agent-engine-api.version>
-    <agent-runtime.version>0.3.3</agent-runtime.version>
-    <agent.version>0.3.3</agent.version>
+    <agent-engine-api.version>0.3.4</agent-engine-api.version>
+    <agent-runtime.version>0.3.4</agent-runtime.version>
+    <agent.version>0.3.4</agent.version>
     <agent-natives.version>0.3.0</agent-natives.version>
     <!-- Transitional: Apple Silicon needs osx-arm64 JNI. agent-natives 0.3.0 still
          ships rocksdbjni 6.6.4 (Intel-only). Take official 9.x from Central until a

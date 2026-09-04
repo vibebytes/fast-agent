@@ -1,7 +1,7 @@
 {
 	"name": "@fast-ide/desktop",
 	"private": true,
-	"version": "0.3.3",
+	"version": "0.3.4",
 	"description": "Fast Electron desktop shell",
 	"desktopName": "Fast",
 	"type": "module",

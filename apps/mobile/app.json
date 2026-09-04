@@ -2,7 +2,7 @@
   "expo": {
     "name": "Fast",
     "slug": "mobile",
-    "version": "0.3.3",
+    "version": "0.3.4",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "mobile",
