@@ -1,6 +1,7 @@
 import type {GoalFlowMember, GoalFlowView, TranscriptEntry, TranscriptState} from './transcriptProjection.js';
 import type {GoalCardView} from './wire.js';
 import {chromePostRun} from './runChrome.js';
+import {pickIdList} from '@fastllm/bridge-protocol';
 
 /** Chat-history prose for an unconfirmed plan (natural confirm, not a Goal card). */
 export function awaitingConfirmPlan(card: GoalCardView): string {
@@ -186,4 +187,142 @@ function workflowNodes(workflowJson?: string): Array<{id: string; use: string}> 
 	} catch {
 		return [];
 	}
+}
+
+export type GoalReplyFields = {
+	id: string;
+	status: string;
+	statement?: string | null;
+	acceptance?: string | null;
+	workflowJson?: string | null;
+	membersJson?: string | null;
+	budgetJson?: string | null;
+	loopAgentId?: string | null;
+	resultSummary?: string | null;
+	currentStepIds?: string | string[] | null;
+	currentStepId?: string | string[] | null;
+	activeRunIds?: string | string[] | null;
+	activeRunId?: string | string[] | null;
+	progressJson?: string | null;
+};
+
+export type GoalPushFields = Omit<GoalReplyFields, 'id'> & {
+	goalId: string;
+	phase: GoalCardView['phase'];
+	name?: string | null;
+	escalateActions?: GoalCardView['escalateActions'];
+	reason?: string | null;
+	escalateKind?: string | null;
+};
+
+/** Keep previous when both next plural and singular are nullish. */
+function mergeIdList(
+	prev: string[] | undefined,
+	plural?: string | string[] | null,
+	singular?: string | string[] | null
+): string[] | undefined {
+	if (plural == null && singular == null) return prev;
+	return pickIdList(plural, singular);
+}
+
+export function goalCardFromPush(e: GoalPushFields): GoalCardView {
+	return {
+		goalId: e.goalId,
+		phase: e.phase,
+		status: e.status,
+		name: e.name ?? undefined,
+		statement: e.statement ?? undefined,
+		acceptance: e.acceptance ?? undefined,
+		workflowJson: e.workflowJson ?? undefined,
+		membersJson: e.membersJson ?? undefined,
+		budgetJson: e.budgetJson ?? undefined,
+		loopAgentId: e.loopAgentId ?? undefined,
+		resultSummary: e.resultSummary ?? undefined,
+		escalateActions: e.escalateActions,
+		reason: e.reason ?? undefined,
+		currentStepIds: pickIdList(e.currentStepIds, e.currentStepId),
+		activeRunIds: pickIdList(e.activeRunIds, e.activeRunId),
+		progressJson: e.progressJson ?? undefined,
+		escalateKind:
+			e.escalateKind === 'infra' || e.escalateKind === 'decision' ? e.escalateKind : undefined
+	};
+}
+
+/** A push for another goal must not clobber a live confirm card. */
+export function goalPushClobbersConfirm(prev: GoalCardView | undefined, push: GoalPushFields): boolean {
+	return (
+		!!prev &&
+		prev.goalId !== push.goalId &&
+		prev.phase === 'awaiting_confirm' &&
+		push.phase !== 'awaiting_confirm'
+	);
+}
+
+/** Goal track is not a Chat-turn straggler — lift postRun so Goal turns are not dropped. */
+export function applyGoalPush(
+	transcript: TranscriptState,
+	card: GoalCardView,
+	phase: GoalCardView['phase']
+): TranscriptState {
+	const prevFlow = transcript.goalFlow;
+	const keepLive =
+		prevFlow?.goalId === card.goalId && prevFlow.members.some(m => !m.runId.startsWith('seed-'));
+	return paintAwaitingConfirm(
+		{
+			...transcript,
+			goalFlow: keepLive ? prevFlow : goalFlowSeed(card),
+			...(phase === 'started' || phase === 'paused' || phase === 'escalated'
+				? {postRunTerminal: false}
+				: {})
+		},
+		card
+	);
+}
+
+export function patchedGoalCard(prev: GoalCardView, g: GoalReplyFields): GoalCardView {
+	return {
+		...prev,
+		status: g.status,
+		statement: g.statement ?? prev.statement,
+		acceptance: g.acceptance ?? prev.acceptance,
+		workflowJson: g.workflowJson ?? prev.workflowJson,
+		membersJson: g.membersJson ?? prev.membersJson,
+		budgetJson: g.budgetJson ?? prev.budgetJson,
+		loopAgentId: g.loopAgentId ?? prev.loopAgentId,
+		resultSummary: g.resultSummary ?? prev.resultSummary,
+		currentStepIds: mergeIdList(prev.currentStepIds, g.currentStepIds, g.currentStepId),
+		activeRunIds: mergeIdList(prev.activeRunIds, g.activeRunIds, g.activeRunId),
+		progressJson: g.progressJson ?? prev.progressJson
+	};
+}
+
+export function goalConfirmStarted(g: GoalReplyFields | undefined, message: string): boolean {
+	return (
+		g?.status === 'running' ||
+		message.includes('confirmed+started') ||
+		message.startsWith('confirmed+started')
+	);
+}
+
+export function startedGoalCardFromConfirm(
+	prev: GoalCardView | undefined,
+	g: GoalReplyFields | undefined
+): GoalCardView | undefined {
+	const card: GoalCardView = {
+		goalId: g?.id ?? prev?.goalId ?? '',
+		phase: 'started',
+		status: g?.status ?? 'running',
+		statement: g?.statement ?? prev?.statement,
+		acceptance: g?.acceptance ?? prev?.acceptance,
+		workflowJson: g?.workflowJson ?? prev?.workflowJson,
+		membersJson: g?.membersJson ?? prev?.membersJson,
+		budgetJson: g?.budgetJson ?? prev?.budgetJson,
+		loopAgentId: g?.loopAgentId ?? prev?.loopAgentId,
+		resultSummary: g?.resultSummary ?? prev?.resultSummary,
+		currentStepIds: mergeIdList(prev?.currentStepIds, g?.currentStepIds, g?.currentStepId),
+		activeRunIds: mergeIdList(prev?.activeRunIds, g?.activeRunIds, g?.activeRunId),
+		progressJson: g?.progressJson ?? prev?.progressJson
+	};
+	if (!card.goalId) return undefined;
+	return card;
 }

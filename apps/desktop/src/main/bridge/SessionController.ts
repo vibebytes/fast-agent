@@ -7,21 +7,27 @@ import {
 	applyLocalCancel,
 	awaitingConfirmPlan,
 	CANCEL_SETTLEMENT_TIMEOUT_MS,
-	RUN_LEASE_INTERVAL_MS,
-	RUN_LEASE_TTL_MS,
 	composerGate,
+	createLeaseWatch,
 	createTranscriptState,
 	emptySessionSeq,
 	goalFlowSeed,
 	goalKeepsBusy,
+	hasLocalRun,
 	offer,
 	paintAwaitingConfirm,
 	seqTerminal,
 	oldestLoadedTurnId,
-	planBuildDisplayContent,
 	shouldSoundOnSettle,
+	queueClearCommands,
+	queueEditCommands,
+	queuePauseCommand,
+	queueRemoveCommands,
+	queueReorderCommands,
+	queueSteerPlan,
 	type ComposerGate,
 	type CompletionCue,
+	type LeaseWatchHandle,
 	type DshCaps,
 	type DshGoalView,
 	type DshQueueItem,
@@ -36,7 +42,14 @@ import {
 	chromeRunId,
 	runChromeTransition
 } from '@fast-ide/session-view';
-import {applyCodeChangeEvent, createCodeChangesState, type CodeChangesState} from './codeChangesProjection.js';
+import {
+	applyCodeChangeEvent,
+	createCodeChangesState,
+	createComposerSend,
+	createTaskLifecycle,
+	parseEngineKind,
+	type CodeChangesState
+} from '@fast-ide/session-view';
 import {
 	concreteModelDisplay,
 	isPlaceholderModelDisplay,
@@ -46,10 +59,9 @@ import {
 import {matchCatalogEntry} from '../../shared/modelMatch.js';
 import {parseModelCatalog, resolveComposerChrome, type ModelCatalogEntry} from './modelCatalog.js';
 import {isSessionStreamEvent, sessionIdFromEvent} from './sessionStreamEvents.js';
-import {commandPinsSession} from './skillSlashContract.js';
 import {normalizeSlashBadge} from './hostSkillDiscovery.js';
 import {hostT} from './hostT.js';
-import {isSkillSlashName, resolveSlashRoute} from './slashRoute.js';
+import {resolveSlashRoute} from './slashRoute.js';
 import {promptLine} from './dsh/skills.js';
 import {randomUUID} from 'node:crypto';
 
@@ -183,10 +195,6 @@ function sessionDisplayTitle(info: SessionListInfo, fallback = 'Main'): string {
 	if (titled) return titled;
 	if (info.isCurrent) return fallback;
 	return info.id.length > 8 ? info.id.slice(0, 8) : info.id;
-}
-
-function parseEngineKind(raw?: string | null): TaskRecord['engineKind'] {
-	return (raw ?? '').trim().toLowerCase() === 'dsh' ? 'dsh' : 'fast';
 }
 
 /** Map a RerunRun rejection detail to a stable error code (renderer i18n key suffix). */
@@ -334,8 +342,6 @@ export type TaskCommands = {
 	consumeOpenModelPicker(): boolean;
 };
 
-const DELETE_WAIT_MS = 30_000;
-
 /** Bridge lifecycle facet (WorkspaceHub). */
 export type SessionLifecycle = {
 	handleEvent(event: BridgeEvent): TaskRecord | null;
@@ -405,14 +411,6 @@ export class SessionController implements TaskCommands, SessionLifecycle, TaskVi
 	private readonly workspaceId?: () => string | undefined;
 	private readonly projectId?: () => string | undefined;
 	private readonly requestRegister?: () => void;
-	/** Per-task Cancel Settlement watchdogs — switching tabs must not disarm others. */
-	private cancelSettleTimers = new Map<string, ReturnType<typeof setTimeout>>();
-	/** Last run_state / terminal seen, per task. Lease TTL is host-owned. */
-	private leaseSeenAt = new Map<string, number>();
-	/** Tasks waiting one heartbeat after Attach reconcile before local settle. */
-	private leaseReconcileAt = new Map<string, number>();
-	private leaseScanTimer: ReturnType<typeof setInterval> | null = null;
-	private tasks = new Map<string, TaskRecord>();
 	/** Contiguous applied cursor + pending, keyed by sessionId. */
 	private seqBySession = new Map<string, SessionSeq>();
 	private activeTaskId: string | null = null;
@@ -438,48 +436,121 @@ export class SessionController implements TaskCommands, SessionLifecycle, TaskVi
 	private awaitingModelList = false;
 	/** True once Hub applied ListProviders catalog — ignore yaml /model dumps. */
 	private catalogFromProviders = false;
-	/**
-	 * FIFO intent for each `/skills` Bridge round-trip.
-	 * Silent catalog refresh must not swallow a later user `/skills` list dump.
-	 */
-	private skillsResultMode: Array<'silent' | 'transcript'> = [];
-	/** Skip stacking silent `/skills` while one is already in flight. */
-	private silentSkillsInFlight = 0;
-	private silentSkillsStartedAt = 0;
 	/** True once Bridge `commands_available` arrived (non-empty); Host disk skills are merged in. */
 	private bridgeSlashCatalog = false;
 	private readonly discoverHostSkills?: () => SlashCatalogEntry[];
 	private helpNotice: string | null = null;
 	private pendingCompletionCue: CompletionCue | null = null;
-	/** PlanBuild Submit sent; cleared on accept path or input_rejected (PlanCard Building…). */
-	private pendingPlanBuildPlanId: string | null = null;
-	private openModelPicker = false;
-	/** Optimistic rename revert map keyed by Engine sessionId. */
-	private pendingTitleBySession = new Map<string, {taskId: string; previous: string}>();
-	/** Optimistic engineKind revert keyed by Engine sessionId. */
-	private pendingEngineBySession = new Map<string, TaskRecord['engineKind']>();
+	/**
+	 * Task create/rename/delete lifecycle + command_result settlement. The deep
+	 * module owns the task map; the Host mints rows (buildTaskEntry) and keeps
+	 * only its own chrome/watchdog state.
+	 */
+	private readonly lifecycle = createTaskLifecycle<TaskRecord>({
+		createId: () => this.createId(),
+		now: () => this.now(),
+		send: cmd => this.sendFn(cmd),
+		projectId: () => this.projectId?.(),
+		workspaceId: () => this.workspaceId?.(),
+		requestRegister: () => this.requestRegister?.(),
+		requestAttach: (task, sessionId, attempt) => {
+			this.requestAttach(task, sessionId, attempt);
+		},
+		selectTask: taskId => this.selectTask(taskId),
+		getActiveTask: () => this.getActiveTask(),
+		getActiveTaskId: () => this.activeTaskId,
+		setActiveTaskId: taskId => {
+			this.activeTaskId = taskId;
+		},
+		setActiveEngineKind: k => {
+			this.engineKind = k;
+		},
+		setHelpNotice: notice => {
+			this.helpNotice = notice;
+		},
+		onChange: () => this.onChange?.(),
+		taskBySessionId: sid => this.taskBySessionId(sid),
+		taskRunActive: task => taskRunActive(task),
+		cancelRunForTask: (task, reason) => {
+			this.cancelRunForTask(task, reason);
+		},
+		forgetTask: taskId => this.leaseWatch.forgetTask(taskId),
+		attachedSessionIds: this.attachedSessionIds,
+		seqBySession: this.seqBySession,
+		buildEntry: (id, kind, title, listOrder) => this.buildTaskEntry(id, kind, title, listOrder)
+	});
+
+	/** Per-task Cancel Settlement watchdogs — switching tabs must not disarm others. */
+	private leaseWatch!: LeaseWatchHandle;
+
+	private get tasks(): Map<string, TaskRecord> {
+		return this.lifecycle.tasks;
+	}
 	/**
 	 * Sessions for which this controller sent `generateTitle: true` and is waiting
 	 * for `input_accepted` before clearing `autoTitlePending`.
 	 */
 	private titleGenRequested = new Set<string>();
-	/** Soft-delete waiters keyed by Engine sessionId. */
-	private pendingDeleteBySession = new Map<
-		string,
-		{
-			taskId: string;
-			resolve: (result: {ok: boolean; notice?: string}) => void;
-			timer: ReturnType<typeof setTimeout>;
+	/** Composer send channel — SubmitUserMessage sampling + slash + pinned `command` + `/skills` FIFO. */
+	private readonly composer = createComposerSend<TaskRecord>({
+		createId: () => this.createId(),
+		now: () => this.now(),
+		send: cmd => this.sendFn(cmd),
+		getActiveTask: () => this.getActiveTask(),
+		commandSessionId: () => this.commandSessionId(),
+		canSubmitNow: () => this.canSubmitNow(),
+		canSubmitCommand: () => this.canSubmitCommand(),
+		describeSendBlocker: () => this.describeSendBlocker(),
+		engineKind: () => this.engineKind,
+		promptLine: (name, args) => promptLine(name, args),
+		selectModel: id => this.selectModel(id),
+		requestModelList: () => this.requestModelList(),
+		setHelpNotice: notice => {
+			this.helpNotice = notice;
+		},
+		applyRunMode: mode => this.applyRunMode(mode),
+		effort: () => this.effort,
+		onClearSlash: () => {
+			const task = this.getActiveTask();
+			if (!task) return false;
+			task.transcript = createTranscriptState();
+			task.codeChanges = createCodeChangesState();
+			this.tasks.set(task.id, task);
+			if (task.sessionId && this.attachedSessionIds.has(task.sessionId)) {
+				this.composer.sendPinnedCommand('clear', '', task.sessionId);
+			}
+			return true;
+		},
+		touchLastModified: task => this.touchLastModified(task),
+		useModelOf: (model, modelDisplay) => wireUseModel(model ?? '', modelDisplay ?? ''),
+		catalogHas: ref => this.catalogHas(ref ?? ''),
+		submitThinking: () => this.submitThinking(),
+		titleGenRequested: this.titleGenRequested,
+		seedHostSlashCatalog: () => this.seedHostSlashCatalog(),
+		slashCatalogLive: () => this.bridgeSlashCatalog && this.slashCatalog.length > 0,
+		applyEmptySlashCatalog: () => this.applyEmptySlashCatalog(),
+		markSlashCatalogHydrated: () => {
+			this.slashCatalogHydrated = true;
+		},
+		appendSkillsTranscript: message => {
+			const task = this.getActiveTask();
+			if (!task) return;
+			task.transcript = {
+				...task.transcript,
+				entries: [
+					...task.transcript.entries,
+					{id: this.createId(), role: 'assistant', text: message, status: 'done'}
+				]
+			};
+			this.tasks.set(task.id, task);
 		}
-	>();
+	});
 	/** Single-flight FetchSessionHistory per attached Session (ADR-0012). */
 	private historyInFlightSessionId: string | null = null;
 
 	/** UI should open model popover after silent catalog fetch. */
 	consumeOpenModelPicker(): boolean {
-		const v = this.openModelPicker;
-		this.openModelPicker = false;
-		return v;
+		return this.composer.takeOpenModelPicker();
 	}
 
 	constructor(deps: SessionControllerDeps) {
@@ -495,6 +566,25 @@ export class SessionController implements TaskCommands, SessionLifecycle, TaskVi
 		this.projectId = deps.projectId;
 		this.requestRegister = deps.requestRegister;
 		this.discoverHostSkills = deps.discoverHostSkills;
+		this.leaseWatch = createLeaseWatch<TaskRecord>({
+			now: () => this.now(),
+			scanIntervalMs: this.leaseScanIntervalMs,
+			cancelSettleTimeoutMs: this.cancelSettlementTimeoutMs,
+			tasks: () => this.tasks.values(),
+			busy: task => hasLocalRun(task.transcript) || goalKeepsBusy(task.goalCard),
+			sessionIdOf: task => task.sessionId,
+			onReconcile: task => {
+				if (task.sessionId) this.requestAttach(task, task.sessionId, task.lastEventSeq);
+			},
+			onExpire: task => this.settleExpiredLease(task),
+			cancelSettleDue: taskId => this.forceCancelSettlement('client settlement timeout', taskId),
+			onChange: () => this.onChange?.()
+		});
+	}
+
+	/** Forward to composer send module (skills slash hydration owns state). */
+	requestSlashCatalog(): boolean {
+		return this.composer.requestSlashCatalog();
 	}
 
 	/** Seed composer menu from disk when Bridge catalog has not arrived yet. */
@@ -541,7 +631,7 @@ export class SessionController implements TaskCommands, SessionLifecycle, TaskVi
 	 * re-Attaches — host is still running the turn.
 	 */
 	markEngineLost(reason: string, opts?: {failTurns?: boolean}): void {
-		this.clearAllCancelSettleTimers();
+		this.leaseWatch.clearAllCancelSettle();
 		this.rejectPendingDeletes(reason);
 		const failTurns = opts?.failTurns ?? true;
 		for (const task of this.tasks.values()) {
@@ -570,8 +660,7 @@ export class SessionController implements TaskCommands, SessionLifecycle, TaskVi
 		}
 		this.attachedSessionIds.clear();
 		this.restoredSessionIds.clear();
-		this.leaseSeenAt.clear();
-		this.leaseReconcileAt.clear();
+		this.leaseWatch.clearLeaseBookkeeping();
 		this.onChange?.();
 	}
 
@@ -657,11 +746,11 @@ export class SessionController implements TaskCommands, SessionLifecycle, TaskVi
 	}
 
 	createTask(title: string): TaskRecord {
-		return this.createEntry(title.trim() || 'New task', 'task');
+		return this.lifecycle.createTask(title);
 	}
 
 	createChat(title: string): TaskRecord {
-		return this.createEntry(title.trim() || 'New chat', 'chat');
+		return this.lifecycle.createChat(title);
 	}
 
 	/**
@@ -669,27 +758,7 @@ export class SessionController implements TaskCommands, SessionLifecycle, TaskVi
 	 * Requires sessionId (pendingNew Tasks cannot rename yet).
 	 */
 	renameTask(taskId: string, title: string): boolean {
-		const task = this.tasks.get(taskId);
-		if (!task?.sessionId || task.pendingNew) return false;
-		const trimmed = title.trim();
-		if (!trimmed || trimmed === task.title) return trimmed === task.title;
-		const previous = task.title;
-		task.title = trimmed;
-		this.tasks.set(taskId, task);
-		this.pendingTitleBySession.set(task.sessionId, {taskId, previous});
-		const ok = this.sendFn({
-			type: 'SetSessionTitle',
-			sessionId: task.sessionId,
-			title: trimmed
-		});
-		if (!ok) {
-			task.title = previous;
-			this.tasks.set(taskId, task);
-			this.pendingTitleBySession.delete(task.sessionId);
-			return false;
-		}
-		this.onChange?.();
-		return true;
+		return this.lifecycle.renameTask(taskId, title);
 	}
 
 	/**
@@ -697,49 +766,7 @@ export class SessionController implements TaskCommands, SessionLifecycle, TaskVi
 	 * Resolves after accepted/error `UpdateSessionStatus` (or immediately for pending create).
 	 */
 	deleteTask(taskId: string): Promise<{ok: boolean; notice?: string}> {
-		const task = this.tasks.get(taskId);
-		if (!task) return Promise.resolve({ok: false, notice: 'Task not found'});
-
-		if (task.pendingNew && !task.sessionId) {
-			const ok = this.failPendingCreate(taskId);
-			return Promise.resolve(
-				ok ? {ok: true} : {ok: false, notice: 'Cannot discard pending task'}
-			);
-		}
-
-		if (!task.sessionId || task.pendingNew) {
-			return Promise.resolve({ok: false, notice: 'Cannot delete until session is ready'});
-		}
-
-		const sessionId = task.sessionId;
-		if (this.pendingDeleteBySession.has(sessionId)) {
-			return Promise.resolve({ok: false, notice: 'Delete already in progress'});
-		}
-
-		if (taskRunActive(task) && this.attachedSessionIds.has(sessionId)) {
-			this.cancelRunForTask(task, 'cancelled before delete');
-		}
-
-		return new Promise(resolve => {
-			const timer = setTimeout(() => {
-				const pending = this.pendingDeleteBySession.get(sessionId);
-				if (!pending || pending.taskId !== taskId) return;
-				this.pendingDeleteBySession.delete(sessionId);
-				pending.resolve({ok: false, notice: 'Delete timed out'});
-			}, DELETE_WAIT_MS);
-
-			this.pendingDeleteBySession.set(sessionId, {taskId, resolve, timer});
-			const ok = this.sendFn({
-				type: 'UpdateSessionStatus',
-				sessionId,
-				status: 'deleted'
-			});
-			if (!ok) {
-				clearTimeout(timer);
-				this.pendingDeleteBySession.delete(sessionId);
-				resolve({ok: false, notice: 'Engine not connected'});
-			}
-		});
+		return this.lifecycle.deleteTask(taskId);
 	}
 
 	/** Cancel a specific Task's Associated work (active Task optional). */
@@ -758,7 +785,7 @@ export class SessionController implements TaskCommands, SessionLifecycle, TaskVi
 
 		task.transcript = applyLocalCancel(task.transcript);
 		this.tasks.set(task.id, task);
-		this.armCancelSettleTimer(task.id);
+		this.leaseWatch.armCancelSettle(task.id);
 		return this.sendFn({
 			type: 'CancelAssociated',
 			sessionId: task.sessionId,
@@ -766,71 +793,17 @@ export class SessionController implements TaskCommands, SessionLifecycle, TaskVi
 		});
 	}
 
-	private settleDelete(
-		sessionId: string,
-		result: {ok: boolean; notice?: string}
-	): void {
-		const pending = this.pendingDeleteBySession.get(sessionId);
-		if (!pending) return;
-		clearTimeout(pending.timer);
-		this.pendingDeleteBySession.delete(sessionId);
-		if (result.ok) {
-			this.applyDeletedTask(pending.taskId);
-		} else if (result.notice) {
-			this.helpNotice = result.notice;
-			this.onChange?.();
-		}
-		pending.resolve(result);
-	}
-
-	/** Remove Task after Engine accepted soft-delete; focus next sibling when needed. */
-	private applyDeletedTask(taskId: string): void {
-		const task = this.tasks.get(taskId);
-		if (!task) {
-			this.onChange?.();
-			return;
-		}
-		const ordered = this.listTasks();
-		const idx = ordered.findIndex(t => t.id === taskId);
-		if (task.sessionId) {
-			this.attachedSessionIds.delete(task.sessionId);
-			this.pendingTitleBySession.delete(task.sessionId);
-			this.seqBySession.delete(task.sessionId);
-		}
-		this.tasks.delete(taskId);
-		this.clearCancelSettleTimer(taskId);
-		this.leaseSeenAt.delete(taskId);
-		this.leaseReconcileAt.delete(taskId);
-
-		if (this.activeTaskId === taskId) {
-			const remaining = this.listTasks();
-			const next =
-				(idx >= 0 && idx < remaining.length ? remaining[idx] : undefined) ??
-				(idx > 0 ? remaining[idx - 1] : undefined) ??
-				remaining[0] ??
-				this.listChats()[0];
-			if (next) {
-				this.selectTask(next.id);
-			} else {
-				this.activeTaskId = null;
-			}
-		}
-		this.onChange?.();
-	}
-
-	/** Monotonic listOrder so each create stays newest-first and never collides. */
-	private nextListOrder(): number {
-		let n = this.now();
-		for (const t of this.tasks.values()) {
-			if (t.listOrder >= n) n = t.listOrder + 1;
-		}
-		return n;
-	}
-
-	private createEntry(title: string, kind: 'task' | 'chat'): TaskRecord {
-		const id = this.createId();
-		const listOrder = this.nextListOrder();
-		const task: TaskRecord = {
+	/**
+	 * Mint a fresh optimistic Task/Chat row (session-view supplies map insert,
+	 * focus and CreateSession send; the Host keeps only row construction).
+	 */
+	private buildTaskEntry(
+		id: string,
+		kind: 'task' | 'chat',
+		title: string,
+		listOrder: number
+	): TaskRecord {
+		return {
 			id,
 			title,
 			kind,
@@ -853,36 +826,6 @@ export class SessionController implements TaskCommands, SessionLifecycle, TaskVi
 			...(this.effort ? {effort: this.effort} : {}),
 			...(this.thinking !== undefined ? {thinking: this.thinking} : {})
 		};
-		this.tasks.set(id, task);
-		this.activeTaskId = id;
-		const projectId = this.projectId?.();
-		if (projectId) {
-			task.createRequested = true;
-			this.tasks.set(id, task);
-			this.sendCreateSession(projectId, title, id);
-		} else {
-			// Meta project id not stamped yet — ask Hub to ensure Meta + slot, then retry.
-			this.requestRegister?.();
-		}
-		return task;
-	}
-
-	/**
-	 * CreateSession payload. Path-hash on `workspaceId` is Slot bind only — Engine
-	 * `splitCreateWorkspace` never forwards hosted/boot hashes to Meta as UUID.
-	 * When Slot is live this skips GetWorkspaceMeta in adoptCreatedSession.
-	 */
-	private sendCreateSession(projectId: string, title: string, taskId: string): boolean {
-		const workspaceId = this.workspaceId?.()?.replace(/^workspace:/, '').trim();
-		const engineKind = this.tasks.get(taskId)?.engineKind;
-		return this.sendFn({
-			type: 'CreateSession',
-			projectId,
-			title,
-			taskId,
-			...(workspaceId ? {workspaceId} : {}),
-			...(engineKind === 'dsh' ? {engineKind: 'dsh'} : {})
-		});
 	}
 
 	/**
@@ -892,53 +835,17 @@ export class SessionController implements TaskCommands, SessionLifecycle, TaskVi
 	 * re-run ensureCodingProjectFull + Meta + ensureAsync on every New Task.
 	 */
 	acceptNewSession(sessionId: string, taskId: string, engineBoundHash?: string): TaskRecord | null {
-		const pending = this.tasks.get(taskId);
-		if (!pending?.pendingNew || pending.sessionId) return null;
-		const workspaceId = this.workspaceId?.()?.replace(/^workspace:/, '').trim();
-		const bound =
-			engineBoundHash?.replace(/^workspace:/, '').trim() || undefined;
-		if (workspaceId && bound && workspaceId === bound) {
-			// adoptCreatedSession already pinned — Attach restores for Thin Client.
-		} else if (workspaceId) {
-			// Slot known but Engine bind hash missing/mismatch — Bind before Attach.
-			this.sendFn({
-				type: 'BindSessionWorkspace',
-				sessionId,
-				workspaceId
-			});
-		} else {
-			this.requestRegister?.();
-		}
-		this.requestAttach(pending, sessionId, 0);
-		return pending;
+		return this.lifecycle.acceptNewSession(sessionId, taskId, engineBoundHash);
 	}
 
 	/** Drop unbound optimistic create; optionally by taskId, else the sole unbound pending. */
 	failPendingCreate(taskId?: string): boolean {
-		const target =
-			taskId != null
-				? this.tasks.get(taskId)
-				: [...this.tasks.values()].find(t => t.pendingNew && !t.sessionId);
-		if (!target?.pendingNew || target.sessionId) return false;
-		this.tasks.delete(target.id);
-		if (this.activeTaskId === target.id) {
-			const next = this.listTasks()[0] ?? this.listChats()[0];
-			this.activeTaskId = next?.id ?? null;
-		}
-		this.onChange?.();
-		return true;
+		return this.lifecycle.failPendingCreate(taskId);
 	}
 
 	/** Re-send CreateSession for a pending create once projectId is known. */
 	retryPendingNew(): boolean {
-		const task = this.getActiveTask();
-		const projectId = this.projectId?.();
-		// Skip if CreateSession already in flight — duplicate accepted results were
-		// misreported as「创建失败」while the first bind already served chat.
-		if (!task?.pendingNew || task.sessionId || !projectId || task.createRequested) return false;
-		task.createRequested = true;
-		this.tasks.set(task.id, task);
-		return this.sendCreateSession(projectId, task.title, task.id);
+		return this.lifecycle.retryPendingNew();
 	}
 
 	private restoreChromeFromTask(task: TaskRecord): void {
@@ -977,7 +884,7 @@ export class SessionController implements TaskCommands, SessionLifecycle, TaskVi
 			this.activeTaskId = taskId;
 			this.restoreChromeFromTask(task);
 			// Re-arm watchdog when returning to a task still awaiting Cancel Settlement.
-			this.syncCancelSettleTimer(task);
+			this.leaseWatch.syncCancelSettle(task);
 		}
 		// Pending create — optional focus only; Bind/Attach wait until sessionId exists.
 		if (!task.sessionId) return task;
@@ -1042,20 +949,20 @@ export class SessionController implements TaskCommands, SessionLifecycle, TaskVi
 		if (routed.kind === 'slash') {
 			const line = `/${routed.name}${routed.args ? ` ${routed.args}` : ''}`;
 			// Busy skill: Bridge SkillSlash → Session Follow-up (preserves skillSlash payload).
-			return this.handleSlash(line);
+			return this.composer.handleSlash(line);
 		}
 
 		// S2/E4: busy (Chat or Goal) → SubmitUserMessage; Session Follow-up queues.
 		// SteerGoal is Goal-drawer「捎话」only — never main Enter.
 		if (busyFollowUp) {
-			return this.submitUserText(routed.text, chips);
+			return this.composer.submitUserText(routed.text, chips);
 		}
 
 		if (!this.canSubmitNow()) {
 			this.helpNotice = this.describeSendBlocker();
 			return false;
 		}
-		return this.submitUserText(routed.text, chips);
+		return this.composer.submitUserText(routed.text, chips);
 	}
 
 	requestMentionSuggest(prefix: string, requestId: string, kinds?: string[]): boolean {
@@ -1116,22 +1023,6 @@ export class SessionController implements TaskCommands, SessionLifecycle, TaskVi
 		return undefined;
 	}
 
-	/** Same Composer sampling as SubmitUserMessage — interrupt must not fall back to leftover sticky. */
-	private composerSampling(): {useModel?: string; effort?: string; thinking?: boolean} {
-		const task = this.getActiveTask();
-		const useModel = task
-			? wireUseModel(task.model, task.modelDisplay) ??
-				(this.catalogHas(task.model) ? task.model.trim() : undefined) ??
-				(this.catalogHas(task.modelDisplay) ? task.modelDisplay.trim() : undefined)
-			: undefined;
-		const thinking = this.submitThinking();
-		return {
-			...(useModel ? {useModel} : {}),
-			...(this.effort ? {effort: this.effort} : {}),
-			...(thinking !== undefined ? {thinking} : {})
-		};
-	}
-
 	buildPlan(planId: string, name = ''): boolean {
 		const id = planId.trim();
 		if (!id) {
@@ -1142,7 +1033,7 @@ export class SessionController implements TaskCommands, SessionLifecycle, TaskVi
 			this.helpNotice = this.describeSendBlocker();
 			return false;
 		}
-		return this.submitUserText('', undefined, {planId: id, name: name.trim()});
+		return this.composer.submitUserText('', undefined, {planId: id, name: name.trim()});
 	}
 
 	/** Error-card Retry. Engine stops leftover work in the session, then replays lastSubmit. */
@@ -1153,132 +1044,6 @@ export class SessionController implements TaskCommands, SessionLifecycle, TaskVi
 			return false;
 		}
 		return this.sendFn({type: 'RerunRun', sessionId: task.sessionId, runId});
-	}
-
-	private submitUserText(
-		trimmed: string,
-		mentions?: MentionChip[],
-		planBuild?: {planId: string; name?: string}
-	): boolean {
-		const task = this.getActiveTask()!;
-		const generateTitle = task.autoTitlePending;
-		const sessionId = task.sessionId!;
-		const sampling = this.composerSampling();
-		const ok = this.sendFn({
-			type: 'SubmitUserMessage',
-			sessionId,
-			clientMessageId: this.createId(),
-			text:
-				trimmed ||
-				(planBuild ? planBuildDisplayContent(planBuild.name ?? '', planBuild.planId) : ''),
-			...sampling,
-			// PlanBuild must not rely on sticky run_mode alone (SetMode may still be in-flight).
-			...(planBuild ? {mode: 'agent'} : {}),
-			...(generateTitle ? {generateTitle: true} : {}),
-			...(mentions && mentions.length > 0 ? {mentions} : {}),
-			...(planBuild
-				? {planBuild: {planId: planBuild.planId, ...(planBuild.name ? {name: planBuild.name} : {})}}
-				: {})
-		});
-		// Only after a successful send — matches sendPinnedCommand.
-		if (ok && generateTitle) this.titleGenRequested.add(sessionId);
-		if (ok && planBuild) this.pendingPlanBuildPlanId = planBuild.planId;
-		if (ok) this.touchLastModified(task);
-		return ok;
-	}
-
-	private handleSlash(raw: string): boolean {
-		const body = raw.slice(1).trim();
-		const space = body.search(/\s/);
-		const name = (space < 0 ? body : body.slice(0, space)).toLowerCase();
-		const args = space < 0 ? '' : body.slice(space + 1).trim();
-		if (!name) {
-			this.helpNotice = 'errors.send.slash_empty';
-			return false;
-		}
-
-		if (name === 'help') {
-			this.helpNotice = 'errors.send.slash_help';
-			return true;
-		}
-		if (name === 'clear') {
-			const task = this.getActiveTask();
-			if (!task) return false;
-			task.transcript = createTranscriptState();
-			task.codeChanges = createCodeChangesState();
-			this.tasks.set(task.id, task);
-			if (task.sessionId && this.attachedSessionIds.has(task.sessionId)) {
-				this.sendPinnedCommand('clear', '', task.sessionId);
-			}
-			return true;
-		}
-		if (name === 'model') {
-			if (this.engineKind === 'dsh') return true;
-			if (args) {
-				return this.selectModel(args);
-			}
-			this.openModelPicker = true;
-			return this.requestModelList();
-		}
-		// Engine commands + SkillSlash candidates share Bridge `command` channel.
-		// Must stamp sessionId — Engine host focus may still be boot/another Task;
-		// without it SkillSlash events demux elsewhere and the UI looks dead.
-		if (this.engineKind === 'dsh' && (name === 'mode' || isSkillSlashName(name))) {
-			if (!this.canSubmitNow()) {
-				this.helpNotice = this.describeSendBlocker();
-				return false;
-			}
-			return this.submitUserText(promptLine(name, args));
-		}
-		if (!this.canSubmitCommand()) {
-			this.helpNotice = this.describeSendBlocker();
-			return false;
-		}
-		const task = this.getActiveTask()!;
-		const generateTitle = isSkillSlashName(name) && task.autoTitlePending;
-		return this.sendPinnedCommand(name, args, task.sessionId!, {
-			skillsTranscript: name === 'skills',
-			generateTitle
-		});
-	}
-
-	/**
-	 * Sole send path for Bridge `{type:command}` that can run SkillSlash.
-	 * Refuses empty sessionId so we never reproduce the silent-UI demux bug.
-	 */
-	private sendPinnedCommand(
-		name: string,
-		args: string,
-		sessionId: string,
-		opts?: {skillsTranscript?: boolean; generateTitle?: boolean}
-	): boolean {
-		const cmd: BridgeCommand = {
-			type: 'command',
-			name,
-			args,
-			sessionId,
-			...(opts?.generateTitle ? {generateTitle: true} : {})
-		};
-		if (!commandPinsSession(cmd)) {
-			this.helpNotice = 'errors.send.skill_session_not_ready';
-			return false;
-		}
-		const ok = this.sendFn(cmd);
-		if (!ok) {
-			this.helpNotice = 'errors.send.bridge_not_ready';
-			return false;
-		}
-		// Hand-typed `/plan` ≡ Mode=plan (Engine also SetMode before SkillSlash).
-		if (name.toLowerCase() === 'plan') this.applyRunMode('plan');
-		if (opts?.generateTitle) {
-			this.titleGenRequested.add(sessionId);
-		}
-		if (opts?.skillsTranscript) {
-			this.skillsResultMode.push('transcript');
-		}
-		const active = this.getActiveTask();
-		if (active?.sessionId === sessionId) this.touchLastModified(active);
-		return true;
 	}
 
 	/** Bump conversation recency without moving frozen `listOrder`. */
@@ -1327,7 +1092,7 @@ export class SessionController implements TaskCommands, SessionLifecycle, TaskVi
 		const sessionId = this.commandSessionId();
 		if (!sessionId) return false;
 		this.awaitingModelList = true;
-		return this.sendPinnedCommand('model', '', sessionId);
+		return this.composer.sendPinnedCommand('model', '', sessionId);
 	}
 
 	applyProviderCatalog(entries: ModelCatalogEntry[]): void {
@@ -1346,27 +1111,6 @@ export class SessionController implements TaskCommands, SessionLifecycle, TaskVi
 		this.onChange?.();
 	}
 
-	requestSlashCatalog(): boolean {
-		const sessionId = this.commandSessionId();
-		if (!sessionId) return false;
-		this.seedHostSlashCatalog();
-		const staleMs = 5_000;
-		if (this.silentSkillsInFlight > 0) {
-			if (this.now() - this.silentSkillsStartedAt < staleMs) return true;
-			// Hung Bridge `/skills` — drop orphan silent slot and retry.
-			this.silentSkillsInFlight = 0;
-			const orphan = this.skillsResultMode.indexOf('silent');
-			if (orphan >= 0) this.skillsResultMode.splice(orphan, 1);
-		}
-		const ok = this.sendPinnedCommand('skills', '', sessionId);
-		if (ok) {
-			this.skillsResultMode.push('silent');
-			this.silentSkillsInFlight += 1;
-			this.silentSkillsStartedAt = this.now();
-		}
-		return ok;
-	}
-
 	selectModel(modelId: string): boolean {
 		const id = modelId.trim();
 		if (!id) return false;
@@ -1381,7 +1125,7 @@ export class SessionController implements TaskCommands, SessionLifecycle, TaskVi
 		}));
 		const sessionId = this.commandSessionId();
 		if (sessionId) {
-			this.sendPinnedCommand('model', resolvedId, sessionId);
+			this.composer.sendPinnedCommand('model', resolvedId, sessionId);
 		}
 		return true;
 	}
@@ -1427,7 +1171,7 @@ export class SessionController implements TaskCommands, SessionLifecycle, TaskVi
 		if (!this.availableIds.has(k)) return false;
 		const sessionId = this.commandSessionId();
 		if (sessionId) {
-			this.pendingEngineBySession.set(sessionId, this.engineKind);
+			this.lifecycle.stageEngineChange(sessionId, this.engineKind);
 			this.sendFn({type: 'SetEngine', sessionId, engineId: k});
 		}
 		this.applyEngineKind(k);
@@ -1574,102 +1318,37 @@ export class SessionController implements TaskCommands, SessionLifecycle, TaskVi
 	removeQueueItem(itemId: string): boolean {
 		const task = this.getActiveTask();
 		if (!task?.sessionId || !this.attachedSessionIds.has(task.sessionId)) return false;
-		if (task.dshCaps?.queue) {
-			if (!(task.dshQueue ?? []).some(q => q.id === itemId)) return false;
-			return this.sendFn({type: 'Queue', sessionId: task.sessionId, itemId, action: 'remove'});
-		}
-		if (!task.queue.some(q => q.id === itemId)) return false;
-		return this.sendFn({
-			type: 'FollowUpRemove',
-			sessionId: task.sessionId,
-			itemId
-		});
+		return queueRemoveCommands(task, task.sessionId, itemId)
+			.map(cmd => this.sendFn(cmd))
+			.some(ok => ok);
 	}
 
 	clearQueue(): boolean {
 		const task = this.getActiveTask();
 		if (!task?.sessionId || !this.attachedSessionIds.has(task.sessionId)) return false;
-		if (task.dshCaps?.queue) {
-			const items = (task.dshQueue ?? []).filter(q => q.placement !== 'context');
-			if (items.length === 0) return false;
-			let any = false;
-			for (const item of items) {
-				const ok = this.sendFn({
-					type: 'Queue',
-					sessionId: task.sessionId,
-					itemId: item.id,
-					action: 'remove'
-				});
-				any = any || ok;
-			}
-			return any;
-		}
-		if (task.queue.length === 0) return false;
-		let any = false;
-		for (const item of task.queue) {
-			const ok = this.sendFn({
-				type: 'FollowUpRemove',
-				sessionId: task.sessionId,
-				itemId: item.id
-			});
-			any = any || ok;
-		}
-		return any;
+		return queueClearCommands(task, task.sessionId)
+			.map(cmd => this.sendFn(cmd))
+			.some(ok => ok);
 	}
 
 	reorderQueue(fromIndex: number, toIndex: number): boolean {
 		const task = this.getActiveTask();
 		if (!task?.sessionId || !this.attachedSessionIds.has(task.sessionId)) return false;
-		const list = task.queue;
-		if (
-			fromIndex < 0 ||
-			toIndex < 0 ||
-			fromIndex >= list.length ||
-			toIndex >= list.length ||
-			fromIndex === toIndex
-		) {
-			return false;
-		}
-		return this.sendFn({
-			type: 'FollowUpReorder',
-			sessionId: task.sessionId,
-			fromIndex,
-			toIndex
-		});
+		const [cmd] = queueReorderCommands(task, task.sessionId, fromIndex, toIndex);
+		return cmd ? this.sendFn(cmd) : false;
 	}
 
 	editQueueItem(itemId: string, text: string): boolean {
 		const task = this.getActiveTask();
 		if (!task?.sessionId || !this.attachedSessionIds.has(task.sessionId)) return false;
-		const trimmed = text.trim();
-		if (!trimmed) return false;
-		if (task.dshCaps?.queue) {
-			if (!(task.dshQueue ?? []).some(q => q.id === itemId)) return false;
-			return this.sendFn({
-				type: 'Queue',
-				sessionId: task.sessionId,
-				itemId,
-				action: 'edit',
-				text: trimmed
-			});
-		}
-		if (!task.queue.some(q => q.id === itemId)) return false;
-		return this.sendFn({
-			type: 'FollowUpUpdate',
-			sessionId: task.sessionId,
-			itemId,
-			text: trimmed
-		});
+		const [cmd] = queueEditCommands(task, task.sessionId, itemId, text);
+		return cmd ? this.sendFn(cmd) : false;
 	}
 
 	setQueuePaused(paused: boolean): boolean {
 		const task = this.getActiveTask();
 		if (!task?.sessionId || !this.attachedSessionIds.has(task.sessionId)) return false;
-		return this.sendFn({
-			type: 'FollowUpPause',
-			sessionId: task.sessionId,
-			paused
-		});
+		return this.sendFn(queuePauseCommand(task.sessionId, paused));
 	}
 
 	dshSteer(text: string): boolean {
@@ -1699,12 +1378,11 @@ export class SessionController implements TaskCommands, SessionLifecycle, TaskVi
 	interruptQueueItem(itemId: string): boolean {
 		const task = this.getActiveTask();
 		if (!task?.sessionId || !this.attachedSessionIds.has(task.sessionId)) return false;
-		if (task.dshCaps?.queue) {
-			if (!(task.dshQueue ?? []).some(q => q.id === itemId)) return false;
+		const plan = queueSteerPlan(task, itemId);
+		if (!plan) return false;
+		if (plan.kind === 'dsh') {
 			return this.sendFn({type: 'Queue', sessionId: task.sessionId, itemId, action: 'steer'});
 		}
-		const item = task.queue.find(q => q.id === itemId);
-		if (!item) return false;
 		const streaming = task.transcript.entries.some(e => e.status === 'streaming');
 		const runId = chromeRunId(task.transcript.chrome);
 		if (
@@ -1715,15 +1393,15 @@ export class SessionController implements TaskCommands, SessionLifecycle, TaskVi
 		) {
 			task.transcript = applyLocalCancel(task.transcript);
 			this.tasks.set(task.id, task);
-			this.armCancelSettleTimer(task.id);
+			this.leaseWatch.armCancelSettle(task.id);
 		}
 		return this.sendFn({
 			type: 'InterruptWithMessage',
 			sessionId: task.sessionId,
-			text: item.text,
+			text: plan.text,
 			clientMessageId: this.createId(),
 			itemId,
-			...this.composerSampling()
+			...this.composer.composerSampling()
 		});
 	}
 
@@ -1796,7 +1474,7 @@ export class SessionController implements TaskCommands, SessionLifecycle, TaskVi
 
 		task.transcript = applyLocalCancel(task.transcript);
 		this.tasks.set(task.id, task);
-		this.armCancelSettleTimer(task.id);
+		this.leaseWatch.armCancelSettle(task.id);
 
 		// Stop = CancelAssociated (FanOut BusyRoots); no Submit / no Follow-up drain (V6).
 		return this.sendFn({
@@ -1912,7 +1590,7 @@ export class SessionController implements TaskCommands, SessionLifecycle, TaskVi
 		const id = taskId ?? this.activeTaskId;
 		const task = id ? this.tasks.get(id) ?? null : null;
 		if (!task) return false;
-		this.clearCancelSettleTimer(task.id);
+		this.leaseWatch.clearCancelSettle(task.id);
 		if (!chromeAwaitingSettlement(task.transcript.chrome)) return false;
 		task.transcript = applyBridgeEvent(task.transcript, {
 			type: 'turn_cancelled',
@@ -1923,78 +1601,6 @@ export class SessionController implements TaskCommands, SessionLifecycle, TaskVi
 		return true;
 	}
 
-	private armCancelSettleTimer(taskId: string): void {
-		this.clearCancelSettleTimer(taskId);
-		this.cancelSettleTimers.set(
-			taskId,
-			setTimeout(() => {
-				this.cancelSettleTimers.delete(taskId);
-				this.forceCancelSettlement('client settlement timeout', taskId);
-			}, this.cancelSettlementTimeoutMs)
-		);
-	}
-
-	private clearCancelSettleTimer(taskId: string): void {
-		const timer = this.cancelSettleTimers.get(taskId);
-		if (timer != null) {
-			clearTimeout(timer);
-			this.cancelSettleTimers.delete(taskId);
-		}
-	}
-
-	private clearAllCancelSettleTimers(): void {
-		for (const timer of this.cancelSettleTimers.values()) clearTimeout(timer);
-		this.cancelSettleTimers.clear();
-	}
-
-	private syncCancelSettleTimer(task: TaskRecord): void {
-		if (chromeAwaitingSettlement(task.transcript.chrome)) {
-			if (!this.cancelSettleTimers.has(task.id)) {
-				this.armCancelSettleTimer(task.id);
-			}
-		} else {
-			this.clearCancelSettleTimer(task.id);
-		}
-	}
-
-	private static readonly LEASE_TERMINALS = new Set([
-		'turn_finished',
-		'turn_cancelled',
-		'run_done',
-		'run_failed',
-		'run_cancelled',
-		'run_exhausted'
-	]);
-
-	private noteRunLease(task: TaskRecord, event: BridgeEvent): void {
-		const renews =
-			event.type === 'run_state' || SessionController.LEASE_TERMINALS.has(event.type);
-		if (!renews) return;
-		this.leaseSeenAt.set(task.id, this.now());
-		this.leaseReconcileAt.delete(task.id);
-		if (task.transcript.leaseAware) this.ensureLeaseScan();
-	}
-
-	private ensureLeaseScan(): void {
-		if (this.leaseScanTimer != null || this.leaseScanIntervalMs <= 0) return;
-		this.leaseScanTimer = setInterval(() => this.tickRunLeases(), this.leaseScanIntervalMs);
-		this.leaseScanTimer.unref?.();
-	}
-
-	private stopLeaseScan(): void {
-		if (this.leaseScanTimer == null) return;
-		clearInterval(this.leaseScanTimer);
-		this.leaseScanTimer = null;
-	}
-
-	private static hasLocalRun(t: TranscriptState): boolean {
-		return Boolean(chromeRunId(t.chrome)) || t.entries.some(e => e.status === 'streaming');
-	}
-
-	private leaseBusy(task: TaskRecord): boolean {
-		return SessionController.hasLocalRun(task.transcript) || goalKeepsBusy(task.goalCard);
-	}
-
 	private settleExpiredLease(task: TaskRecord): void {
 		task.transcript = applyLeaseExpiry(task.transcript);
 		if (goalKeepsBusy(task.goalCard)) {
@@ -2003,33 +1609,12 @@ export class SessionController implements TaskCommands, SessionLifecycle, TaskVi
 		}
 		task.pendingAttach = false;
 		this.helpNotice = 'errors.lease.expired';
-		this.leaseReconcileAt.delete(task.id);
 		this.tasks.set(task.id, task);
-		this.syncCancelSettleTimer(task);
+		this.leaseWatch.syncCancelSettle(task);
 	}
 
-	/** Host-owned TTL: Attach reconcile, then local settle if the snapshot stays silent. */
 	tickRunLeases(): void {
-		const now = this.now();
-		let changed = false;
-		for (const task of [...this.tasks.values()]) {
-			if (!task.transcript.leaseAware || !this.leaseBusy(task)) {
-				this.leaseReconcileAt.delete(task.id);
-				continue;
-			}
-			const reconcileAt = this.leaseReconcileAt.get(task.id);
-			if (reconcileAt != null) {
-				if (now - reconcileAt < RUN_LEASE_INTERVAL_MS) continue;
-				this.settleExpiredLease(task);
-				changed = true;
-				continue;
-			}
-			const seen = this.leaseSeenAt.get(task.id);
-			if (seen == null || now - seen <= RUN_LEASE_TTL_MS) continue;
-			if (task.sessionId) this.requestAttach(task, task.sessionId, task.lastEventSeq);
-			this.leaseReconcileAt.set(task.id, now);
-		}
-		if (changed) this.onChange?.();
+		this.leaseWatch.tickRunLeases();
 	}
 
 	noteHelp(notice: string): void {
@@ -2083,77 +1668,9 @@ export class SessionController implements TaskCommands, SessionLifecycle, TaskVi
 	 * into Transcript / Code Changes projection.
 	 */
 	private hostEvent(event: BridgeEvent): {stop: true; task: TaskRecord | null} | {stop: false} {
-		if (event.type === 'command_result' && event.name === 'UpdateSessionStatus') {
-			const sid =
-				'sessionId' in event && typeof event.sessionId === 'string' ? event.sessionId : undefined;
-			if (sid && this.pendingDeleteBySession.has(sid)) {
-				if (event.status === 'error') {
-					this.settleDelete(sid, {
-						ok: false,
-						notice: event.message ?? 'Delete failed'
-					});
-				} else {
-					this.settleDelete(sid, {ok: true});
-				}
-				return {stop: true, task: this.getActiveTask()};
-			}
-			return {stop: true, task: this.getActiveTask()};
-		}
-
-		if (event.type === 'command_result' && event.name === 'SetSessionTitle') {
-			const sid =
-				'sessionId' in event && typeof event.sessionId === 'string' ? event.sessionId : undefined;
-			if (sid) {
-				const pending = this.pendingTitleBySession.get(sid);
-				const task =
-					(pending ? this.tasks.get(pending.taskId) : null) ??
-					this.taskBySessionId(sid) ??
-					null;
-				if (task) {
-					if (event.status === 'error' && pending) {
-						task.title = pending.previous;
-						this.helpNotice = event.message ?? 'errors.session.rename_failed';
-						this.tasks.set(task.id, task);
-					} else if (event.status !== 'error') {
-						if (pending) task.autoTitlePending = false;
-						const resolvedTitle =
-							'title' in event && typeof event.title === 'string' ? event.title.trim() : '';
-						if (resolvedTitle) {
-							task.title = resolvedTitle;
-						}
-						this.tasks.set(task.id, task);
-					}
-					this.pendingTitleBySession.delete(sid);
-					this.onChange?.();
-					return {stop: true, task};
-				}
-				this.pendingTitleBySession.delete(sid);
-			}
-			return {stop: true, task: this.getActiveTask()};
-		}
-
-		if (event.type === 'command_result' && event.name === 'SetEngineKind') {
-			const sid =
-				'sessionId' in event && typeof event.sessionId === 'string' ? event.sessionId : undefined;
-			const pending = sid ? this.pendingEngineBySession.get(sid) : undefined;
-			if (sid) this.pendingEngineBySession.delete(sid);
-			const task =
-				(sid ? this.taskBySessionId(sid) : null) ?? this.getActiveTask();
-			if (event.status === 'rejected' || event.status === 'error') {
-				if (pending != null && task) {
-					task.engineKind = pending;
-					this.tasks.set(task.id, task);
-					if (this.getActiveTask()?.id === task.id) this.engineKind = pending;
-					this.onChange?.();
-				}
-			} else if (task) {
-				const k = parseEngineKind(event.message);
-				task.engineKind = k;
-				this.tasks.set(task.id, task);
-				if (this.getActiveTask()?.id === task.id) this.engineKind = k;
-				this.onChange?.();
-			}
-			return {stop: true, task: this.getActiveTask()};
+		const routed = this.lifecycle.handleCommandResult(event);
+		if (routed.stop) {
+			return {stop: true, task: routed.task ?? this.getActiveTask()};
 		}
 
 		if (event.type === 'input_accepted') {
@@ -2181,8 +1698,8 @@ export class SessionController implements TaskCommands, SessionLifecycle, TaskVi
 				'reason' in event && typeof event.reason === 'string' && event.reason.trim()
 					? event.reason.trim()
 					: 'errors.build.rejected';
-			if (this.pendingPlanBuildPlanId) {
-				this.pendingPlanBuildPlanId = null;
+			if (this.composer.pendingPlanBuildPlanId) {
+				this.composer.clearPendingPlanBuild();
 				this.helpNotice = reason;
 			}
 			// HITL lock is a send blocker, not a failed run. Painting the engine detail as
@@ -2291,39 +1808,8 @@ export class SessionController implements TaskCommands, SessionLifecycle, TaskVi
 		}
 
 		if (event.type === 'command_result' && event.name === 'skills') {
-			const mode = this.skillsResultMode.shift() ?? 'transcript';
-			if (mode === 'silent') {
-				this.silentSkillsInFlight = Math.max(0, this.silentSkillsInFlight - 1);
-				if (!this.bridgeSlashCatalog || this.slashCatalog.length === 0) {
-					this.applyEmptySlashCatalog();
-				}
-				this.slashCatalogHydrated = true;
-				// Silent menu refresh only — never set helpNotice. Pre-SkillSlash Engines
-				// return "Unknown command: /skills"; that must not leak onto the next user send.
-				return {stop: true, task: this.getActiveTask()};
-			}
-			if (!this.bridgeSlashCatalog || this.slashCatalog.length === 0) {
-				this.applyEmptySlashCatalog();
-			}
-			this.slashCatalogHydrated = true;
-			// Intentional `/skills`: show Catalog list in the Task transcript.
-			const task = this.getActiveTask();
-			if (task && event.message?.trim()) {
-				task.transcript = {
-					...task.transcript,
-					entries: [
-						...task.transcript.entries,
-						{
-							id: this.createId(),
-							role: 'assistant',
-							text: event.message,
-							status: 'done'
-						}
-					]
-				};
-				this.tasks.set(task.id, task);
-			}
-			return {stop: true, task: task ?? this.getActiveTask()};
+			this.composer.handleSkillsResult(event);
+			return {stop: true, task: this.getActiveTask()};
 		}
 
 		// ②′ card lifecycle push — the single source for confirm/busy/escalate/completion cards.
@@ -2599,7 +2085,7 @@ export class SessionController implements TaskCommands, SessionLifecycle, TaskVi
 			'messageType' in event &&
 			event.messageType === 'plan_build'
 		) {
-			this.pendingPlanBuildPlanId = null;
+			this.composer.clearPendingPlanBuild();
 		}
 
 		if (event.type === 'dsh_caps') {
@@ -2707,8 +2193,8 @@ export class SessionController implements TaskCommands, SessionLifecycle, TaskVi
 			);
 		}
 
-		this.syncCancelSettleTimer(task);
-		this.noteRunLease(task, event);
+		this.leaseWatch.syncCancelSettle(task);
+		this.leaseWatch.noteRunLease(task, event);
 
 		return task;
 	}
@@ -2903,7 +2389,7 @@ export class SessionController implements TaskCommands, SessionLifecycle, TaskVi
 				const doomed = bySessionId.get(info.id);
 				if (doomed) {
 					bySessionId.delete(info.id);
-					this.applyDeletedTask(doomed.id);
+					this.lifecycle.applyDeletedTask(doomed.id);
 				}
 				continue;
 			}
@@ -2925,7 +2411,7 @@ export class SessionController implements TaskCommands, SessionLifecycle, TaskVi
 			}
 
 			const engineMs = info.lastModified ? Date.parse(info.lastModified) : Number.NaN;
-			const listOrder = Number.isNaN(engineMs) ? this.nextListOrder() : engineMs;
+			const listOrder = Number.isNaN(engineMs) ? this.lifecycle.nextListOrder() : engineMs;
 			const id = this.createId();
 			const task: TaskRecord = {
 				id,
@@ -3011,10 +2497,7 @@ export class SessionController implements TaskCommands, SessionLifecycle, TaskVi
 
 	reset(): void {
 		this.rejectPendingDeletes('Engine reset');
-		this.clearAllCancelSettleTimers();
-		this.stopLeaseScan();
-		this.leaseSeenAt.clear();
-		this.leaseReconcileAt.clear();
+		this.leaseWatch.dispose();
 		this.tasks.clear();
 		this.activeTaskId = null;
 		this.attachedSessionIds.clear();
@@ -3024,19 +2507,12 @@ export class SessionController implements TaskCommands, SessionLifecycle, TaskVi
 		this.slashCatalog = [];
 		this.slashCatalogHydrated = false;
 		this.bridgeSlashCatalog = false;
-		this.skillsResultMode = [];
-		this.silentSkillsInFlight = 0;
-		this.silentSkillsStartedAt = 0;
+		this.composer.resetComposerState();
 		this.awaitingModelList = false;
 		this.helpNotice = null;
-		this.openModelPicker = false;
 	}
 
 	private rejectPendingDeletes(notice: string): void {
-		for (const pending of this.pendingDeleteBySession.values()) {
-			clearTimeout(pending.timer);
-			pending.resolve({ok: false, notice});
-		}
-		this.pendingDeleteBySession.clear();
+		this.lifecycle.rejectPendingDeletes(notice);
 	}
 }

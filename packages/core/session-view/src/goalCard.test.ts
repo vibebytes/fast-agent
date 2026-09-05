@@ -1,6 +1,16 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import {awaitingConfirmPlan, goalFlowSeed, goalKeepsBusy, paintAwaitingConfirm} from './goalCard.js';
+import {
+	awaitingConfirmPlan,
+	goalCardFromPush,
+	goalConfirmStarted,
+	goalFlowSeed,
+	goalKeepsBusy,
+	goalPushClobbersConfirm,
+	paintAwaitingConfirm,
+	patchedGoalCard,
+	startedGoalCardFromConfirm
+} from './goalCard.js';
 import {IDLE_RUN_CHROME, SETTLED_RUN_CHROME} from './runChrome.js';
 import type {GoalCardView} from './wire.js';
 import type {TranscriptEntry, TranscriptState} from './transcriptProjection.js';
@@ -129,4 +139,69 @@ test('goalFlowSeed seeds workflow members and fallback', () => {
 	assert.deepEqual(fallback.members, [{runId: 'seed-g1', name: 'Goal', status: 'error'}]);
 	const finished = goalFlowSeed(card({phase: 'finished', status: 'failed'}));
 	assert.deepEqual(finished.members, [{runId: 'seed-g1', name: 'Goal', status: 'error'}]);
+});
+
+test('goalCardFromPush builds card and narrows escalateKind', () => {
+	const c = goalCardFromPush({
+		goalId: 'g2',
+		phase: 'escalated',
+		status: 'escalated',
+		escalateKind: 'weird',
+		reason: 'blocked',
+		name: 'T',
+		statement: 's'
+	});
+	assert.equal(c.escalateKind, undefined);
+	assert.equal(c.reason, 'blocked');
+	const infra = goalCardFromPush({
+		goalId: 'g2',
+		phase: 'escalated',
+		status: 'escalated',
+		escalateKind: 'infra'
+	});
+	assert.equal(infra.escalateKind, 'infra');
+});
+
+test('goalPushClobbersConfirm only for a different goal leaving confirm', () => {
+	const confirm = card({goalId: 'g1'});
+	assert.equal(goalPushClobbersConfirm(confirm, {goalId: 'g1', phase: 'started', status: 'x'}), false);
+	assert.equal(goalPushClobbersConfirm(confirm, {goalId: 'g2', phase: 'started', status: 'x'}), true);
+	assert.equal(goalPushClobbersConfirm(confirm, {goalId: 'g2', phase: 'awaiting_confirm', status: 'x'}), false);
+	assert.equal(goalPushClobbersConfirm(undefined, {goalId: 'g2', phase: 'started', status: 'x'}), false);
+});
+
+test('patchedGoalCard overrides present fields, keeps previous for nullish, merges id lists', () => {
+	const prev = card({currentStepIds: ['a'], activeRunIds: ['r1'], resultSummary: 'old'});
+	const next = patchedGoalCard(prev, {
+		id: 'g1',
+		status: 'running',
+		resultSummary: null,
+		currentStepId: ['b']
+	});
+	assert.equal(next.status, 'running');
+	assert.equal(next.resultSummary, 'old');
+	assert.deepEqual(next.currentStepIds, ['b']);
+	assert.deepEqual(next.activeRunIds, ['r1']);
+	assert.equal(next.statement, undefined);
+});
+
+test('goalConfirmStarted accepts server running or echoed tag', () => {
+	assert.equal(goalConfirmStarted({id: 'g', status: 'running'}, ''), true);
+	assert.equal(goalConfirmStarted(undefined, 'confirmed+started: ok'), true);
+	assert.equal(goalConfirmStarted(undefined, 'confirmed'), false);
+});
+
+test('startedGoalCardFromConfirm requires a goalId and merges g/prev', () => {
+	assert.equal(startedGoalCardFromConfirm(undefined, undefined), undefined);
+	const built = startedGoalCardFromConfirm(
+		card({goalId: 'g1', statement: 'plan', currentStepIds: ['a']}),
+		{id: 'g1', status: 'running', currentStepIds: ['b']}
+	);
+	assert.deepEqual(built && [built.goalId, built.phase, built.status, built.currentStepIds], [
+		'g1',
+		'started',
+		'running',
+		['b']
+	]);
+	assert.equal(built?.statement, 'plan');
 });

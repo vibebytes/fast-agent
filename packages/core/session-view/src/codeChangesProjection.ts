@@ -1,5 +1,6 @@
 import type {BridgeEvent} from '@fastllm/bridge-protocol';
-import {isWriteTool, type CodeChange} from '@fast-ide/session-view';
+import {isWriteTool} from './diff.js';
+import type {CodeChange} from './wire.js';
 
 export type CodeChangeEntry = CodeChange;
 

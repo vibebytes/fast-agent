@@ -7,10 +7,63 @@ export {
 
 export {
 	awaitingConfirmPlan,
+	goalCardFromPush,
+	goalConfirmStarted,
 	goalFlowSeed,
 	goalKeepsBusy,
-	paintAwaitingConfirm
+	goalPushClobbersConfirm,
+	paintAwaitingConfirm,
+	patchedGoalCard,
+	startedGoalCardFromConfirm,
+	applyGoalPush,
+	type GoalPushFields,
+	type GoalReplyFields
 } from './goalCard.js';
+
+export {
+	followUpQueueFrom,
+	parseEngineKind,
+	parseMentionsJson,
+	paintsCommandError,
+	sessionTitleDecision,
+	skillErrorNeedsEngineSlashHint,
+	type FollowUpQueueItem,
+	type SessionTitleReply,
+	type TitleReplyDecision
+} from './hostEvent.js';
+
+export {
+	normalizeSlashBadge,
+	mergeSlashCatalogs,
+	slashCatalogFromBridgeCommands,
+	withNormalizedBadge,
+	type BridgeCommandInfo,
+	type SlashBadgeId
+} from './slashCatalog.js';
+
+export {
+	applyCodeChangeEvent,
+	createCodeChangesState,
+	type CodeChangeEntry,
+	type CodeChangesState
+} from './codeChangesProjection.js';
+
+export {
+	projectStreamEvent,
+	type StreamProjectionInput,
+	type StreamProjectionResult
+} from './streamProjection.js';
+
+export {
+	queueClearCommands,
+	queueEditCommands,
+	queuePauseCommand,
+	queueRemoveCommands,
+	queueReorderCommands,
+	queueSteerPlan,
+	type QueueSource,
+	type QueueSteerPlan
+} from './runQueue.js';
 
 export {
 	IDLE_RUN_CHROME,
@@ -21,6 +74,17 @@ export {
 	chromeRunId,
 	runChromeTransition
 } from './runChrome.js';
+
+export {
+	LEASE_TERMINALS,
+	createLeaseWatch,
+	hasLocalRun,
+	isLeaseRenewal,
+	type LeaseTimers,
+	type LeaseWatchDeps,
+	type LeaseWatchHandle,
+	type LeaseWatchTask
+} from './leaseWatch.js';
 
 export {
 	emptySessionSeq,
@@ -86,6 +150,22 @@ export {
 	type RunState,
 	type TurnTerminal
 } from './composerGate.js';
+
+export {
+	createTaskLifecycle,
+	type DeleteResult,
+	type EngineKind,
+	type LifecycleTask,
+	type RemovableKeys,
+	type TaskLifecycleDeps
+} from './taskLifecycle.js';
+
+export {
+	createComposerSend,
+	type ComposerSampling,
+	type ComposerSendDeps,
+	type ComposerTaskLike
+} from './composerSend.js';
 
 export {
 	shouldSoundOnSettle,

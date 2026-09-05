@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {applyCodeChangeEvent, createCodeChangesState} from './codeChangesProjection.js';
+import {applyCodeChangeEvent, createCodeChangesState} from '@fast-ide/session-view';
 
 test('Code Changes stays empty for non-write Bridge events (placeholder)', () => {
 	let state = createCodeChangesState();
