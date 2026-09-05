@@ -83,8 +83,8 @@ import {ensurePlanPrefix, stripAutoPlanPrefix} from './planPrefix';
 import {clampEffort} from './effortClamp';
 import {platformModel} from './composerPlatform';
 import {helpNoticeText} from './helpNoticeText';
-import {composerModelLabel, concreteModelDisplay, isUnresolvedModelDisplay} from '../../shared/defaultModel';
-import {matchCatalogEntry, sameModelRef} from '../../shared/modelMatch';
+import {composerModelLabel, concreteModelDisplay, isUnresolvedModelDisplay} from '@fast-ide/session-view';
+import {matchCatalogEntry, sameModelRef} from '@fast-ide/session-view';
 import {enginePickerKinds, type EngineKindName} from './enginePicker';
 
 /** System blue accent (CONTEXT: #007AFF / #0A84FF). */

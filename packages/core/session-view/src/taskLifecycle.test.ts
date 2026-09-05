@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createTaskLifecycle, type LifecycleTask, type TaskLifecycleDeps} from './taskLifecycle';
+import {createSessionAttachStore} from './sessionAttach';
 import type {BridgeCommand, BridgeEvent} from '@fastllm/bridge-protocol';
 
 type Row = LifecycleTask;
@@ -13,7 +14,7 @@ function makeDeps(overrides: Partial<TaskLifecycleDeps<Row>> = {}) {
 	const active = {id: null as string | null};
 	const notices: string[] = [];
 	let changeCount = 0;
-	const attached = new Set<string>();
+	const attached = createSessionAttachStore();
 	const noopKeys = {
 		delete: () => true,
 		has: () => false
@@ -31,7 +32,7 @@ function makeDeps(overrides: Partial<TaskLifecycleDeps<Row>> = {}) {
 		requestAttach: (task, sessionId) => {
 			task.sessionId = sessionId;
 			task.pendingNew = false;
-			attached.add(sessionId);
+			attached.bind(sessionId);
 		},
 		selectTask: id => {
 			active.id = id;
@@ -149,14 +150,14 @@ test('settleDelete removes the task, clears session bookkeeping and refocuses si
 	const second = lc.createTask('Second');
 	lc.acceptNewSession('sess-b', second.id);
 	deps.selectTask(second.id);
-	deps.attachedSessionIds.add('sess-b');
+	deps.attachedSessionIds.bind('sess-b');
 	const deleting = lc.deleteTask(second.id);
 	lc.handleCommandResult(
 		asEvent({type: 'command_result', name: 'UpdateSessionStatus', sessionId: 'sess-b', status: 'accepted'})
 	);
 	assert.deepEqual(await deleting, {ok: true});
 	assert.equal(lc.tasks.has(second.id), false);
-	assert.equal(deps.attachedSessionIds.has('sess-b'), false);
+	assert.equal(deps.attachedSessionIds.isAttached('sess-b'), false);
 	assert.equal(active.id, first.id);
 });
 

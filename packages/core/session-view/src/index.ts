@@ -168,6 +168,28 @@ export {
 } from './composerSend.js';
 
 export {
+	DefaultModelDisplay,
+	composerModelLabel,
+	concreteModelDisplay,
+	isPlaceholderModelDisplay,
+	isUnresolvedModelDisplay,
+	isYamlDefaultStub,
+	wireUseModel
+} from './defaultModel.js';
+
+export {matchCatalogEntry, sameModelRef} from './modelMatch.js';
+
+export {
+	catalogEntryFor,
+	createCatalogSettings,
+	parseRunMode,
+	resolveComposerChrome,
+	type CatalogSettingsDeps,
+	type CatalogSettingsTaskLike,
+	type RunMode
+} from './catalogSettings.js';
+
+export {
 	shouldSoundOnSettle,
 	type CompletionCueInput,
 	type CompletionCueKind
@@ -375,3 +397,18 @@ export type {
 	DshSettingsPathOp,
 	DshSettingsOp
 } from './wire.js';
+
+export {
+	sessionIdFromEvent,
+	createSessionAttachStore,
+	resolveEventTask,
+	settleAttachedEvent,
+	requestSessionAttach,
+	resyncSessionAttach,
+	detachTargets,
+	type AttachableTask,
+	type SessionAttachStore,
+	type ResolveTaskDeps,
+	type SettleAttachedDeps,
+	type AttachRequest
+} from './sessionAttach.js';

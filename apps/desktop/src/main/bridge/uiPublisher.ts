@@ -12,7 +12,7 @@ import type {
 	UiSend,
 	WorkspaceFocus
 } from '@fast-ide/session-view';
-import {concreteModelDisplay} from '../../shared/defaultModel.js';
+import {concreteModelDisplay} from '@fast-ide/session-view';
 import type {SystemNotifyPort} from '../notify/systemNotifier.js';
 import type {WorkspaceHub} from './WorkspaceHub.js';
 import type {TaskView} from './SessionController.js';

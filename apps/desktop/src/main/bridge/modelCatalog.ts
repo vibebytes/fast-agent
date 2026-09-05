@@ -11,7 +11,7 @@
  */
 
 import type {ModelCatalogEntry, ProviderRow} from '@fast-ide/session-view';
-import {matchCatalogEntry} from '../../shared/modelMatch.js';
+import {matchCatalogEntry} from '@fast-ide/session-view';
 
 export type {ModelCatalogEntry};
 

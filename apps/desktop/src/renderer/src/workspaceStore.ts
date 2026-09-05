@@ -39,7 +39,7 @@ import type {
 } from './env';
 import {taskOrSessionMatch} from './openSetFocus';
 import {markTabFocusIpc, startTabFocus} from './performanceTrace';
-import {isUnresolvedModelDisplay} from '../../shared/defaultModel';
+import {isUnresolvedModelDisplay} from '@fast-ide/session-view';
 
 export type TranscriptSlice = {
 	entries: TranscriptEntry[];

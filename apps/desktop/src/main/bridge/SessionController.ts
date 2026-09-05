@@ -44,20 +44,23 @@ import {
 } from '@fast-ide/session-view';
 import {
 	applyCodeChangeEvent,
+	createCatalogSettings,
 	createCodeChangesState,
 	createComposerSend,
+	createSessionAttachStore,
 	createTaskLifecycle,
 	parseEngineKind,
-	type CodeChangesState
+	requestSessionAttach,
+	resolveEventTask,
+	resyncSessionAttach,
+	detachTargets,
+	settleAttachedEvent,
+	wireUseModel,
+	type CodeChangesState,
+	type EngineKind,
+	type RunMode
 } from '@fast-ide/session-view';
-import {
-	concreteModelDisplay,
-	isPlaceholderModelDisplay,
-	isUnresolvedModelDisplay,
-	wireUseModel
-} from '../../shared/defaultModel.js';
-import {matchCatalogEntry} from '../../shared/modelMatch.js';
-import {parseModelCatalog, resolveComposerChrome, type ModelCatalogEntry} from './modelCatalog.js';
+import {parseModelCatalog, type ModelCatalogEntry} from './modelCatalog.js';
 import {isSessionStreamEvent, sessionIdFromEvent} from './sessionStreamEvents.js';
 import {normalizeSlashBadge} from './hostSkillDiscovery.js';
 import {hostT} from './hostT.js';
@@ -67,10 +70,8 @@ import {randomUUID} from 'node:crypto';
 
 export {CANCEL_SETTLEMENT_TIMEOUT_MS} from '@fast-ide/session-view';
 export type {ComposerGate, QueueItem, SlashCatalogEntry} from '@fast-ide/session-view';
-
-function modelEntryMatches(entry: ModelCatalogEntry, id: string): boolean {
-	return matchCatalogEntry(entry, id);
-}
+import {isPlaceholderModelDisplay, isUnresolvedModelDisplay} from '@fast-ide/session-view';
+export {isPlaceholderModelDisplay, isUnresolvedModelDisplay};
 
 function parseMentionsJson(raw: string): MentionChip[] {
 	try {
@@ -205,44 +206,6 @@ export function rerunErrorCode(message?: string): string {
 	if (detail.includes('rerun_target_stale')) return 'rerun.target_stale';
 	if (detail.includes('rerun_unsupported')) return 'rerun.unsupported';
 	return 'rerun.rejected';
-}
-
-function parseRunMode(raw?: string | null): TaskRecord['runMode'] {
-	const m = (raw ?? '').trim().toLowerCase();
-	if (m === 'plan' || m === 'ask' || m === 'yolo' || m === 'agent') return m;
-	if (m === 'normal') return 'agent';
-	return 'agent';
-}
-
-export {isPlaceholderModelDisplay, isUnresolvedModelDisplay} from '../../shared/defaultModel.js';
-
-/** Prefer Engine displayName; never invent the yaml `default` alias label. */
-function resolvedModelDisplay(model: string, modelDisplay: string | undefined): string {
-	return concreteModelDisplay(model, modelDisplay);
-}
-
-/** Apply Engine sticky when present; omit effort/thinking → keep prior Task chrome. */
-function applyStickyChrome(
-	task: TaskRecord,
-	info: {
-		runMode?: string;
-		engineKind?: string | null;
-		modelSettings?: SessionListInfo['modelSettings'];
-	}
-): void {
-	if (info.runMode != null && info.runMode !== '') {
-		task.runMode = parseRunMode(info.runMode);
-	}
-	if (info.engineKind != null && info.engineKind !== '') {
-		task.engineKind = parseEngineKind(info.engineKind);
-	}
-	const ms = info.modelSettings;
-	if (!ms) return;
-	task.model = `${ms.platform}/${ms.model}`;
-	// Match Engine catalog / LLMModelLookup.displayName shape (platform/model), not bare alias.
-	task.modelDisplay = `${ms.platform}/${ms.model}`;
-	if (ms.effort) task.effort = ms.effort;
-	if (ms.thinking !== undefined) task.thinking = ms.thinking;
 }
 
 export type SessionControllerDeps = {
@@ -415,27 +378,45 @@ export class SessionController implements TaskCommands, SessionLifecycle, TaskVi
 	private seqBySession = new Map<string, SessionSeq>();
 	private activeTaskId: string | null = null;
 	/** Multi-Attach: Sessions kept live after select/create (ADR-0010 extend). */
-	private attachedSessionIds = new Set<string>();
-	/** Sessions that received at least one `session_restored` (empty turns still count). */
-	private restoredSessionIds = new Set<string>();
+	private readonly attach = createSessionAttachStore();
 
-	model = 'default';
-	/** Concrete catalog label from ListProviders — empty until the DB catalog arrives. */
-	modelDisplay = '';
-	runMode: 'agent' | 'plan' | 'ask' | 'yolo' = 'agent';
-	engineKind: 'fast' | 'dsh' = 'fast';
+	/** Sticky Composer chrome + provider catalog (delegated to session-view catalogSettings). */
+	private catalogInstance: ReturnType<typeof createCatalogSettings<TaskRecord>> | null = null;
+	private get catalog() {
+		this.catalogInstance ??= createCatalogSettings<TaskRecord>({
+			getActiveTask: () => this.getActiveTask(),
+			tasks: this.tasks,
+			onChange: () => this.onChange?.()
+		});
+		return this.catalogInstance;
+	}
+	get model(): string {
+		return this.catalog.model;
+	}
+	get modelDisplay(): string {
+		return this.catalog.modelDisplay;
+	}
+	get modelCatalog(): ModelCatalogEntry[] {
+		return this.catalog.modelCatalog;
+	}
+	get runMode(): RunMode {
+		return this.catalog.runMode;
+	}
+	get engineKind(): EngineKind {
+		return this.catalog.engineKind;
+	}
+	get effort(): string | undefined {
+		return this.catalog.effort;
+	}
+	get thinking(): boolean | undefined {
+		return this.catalog.thinking;
+	}
 	private availableIds = new Set<string>(['fast']);
-	effort?: string;
-	thinking?: boolean;
-	modelCatalog: ModelCatalogEntry[] = [];
 	slashCatalog: SlashCatalogEntry[] = [];
 	/** True after first `/skills` response (empty catalog still counts). */
 	slashCatalogHydrated = false;
 	/** Set after hydrateFromSessionsList (empty list counts). */
 	tasksHydrated = false;
-	private awaitingModelList = false;
-	/** True once Hub applied ListProviders catalog — ignore yaml /model dumps. */
-	private catalogFromProviders = false;
 	/** True once Bridge `commands_available` arrived (non-empty); Host disk skills are merged in. */
 	private bridgeSlashCatalog = false;
 	private readonly discoverHostSkills?: () => SlashCatalogEntry[];
@@ -463,7 +444,7 @@ export class SessionController implements TaskCommands, SessionLifecycle, TaskVi
 			this.activeTaskId = taskId;
 		},
 		setActiveEngineKind: k => {
-			this.engineKind = k;
+			this.catalog.applyEngineKind(k);
 		},
 		setHelpNotice: notice => {
 			this.helpNotice = notice;
@@ -475,7 +456,7 @@ export class SessionController implements TaskCommands, SessionLifecycle, TaskVi
 			this.cancelRunForTask(task, reason);
 		},
 		forgetTask: taskId => this.leaseWatch.forgetTask(taskId),
-		attachedSessionIds: this.attachedSessionIds,
+		attachedSessionIds: this.attach,
 		seqBySession: this.seqBySession,
 		buildEntry: (id, kind, title, listOrder) => this.buildTaskEntry(id, kind, title, listOrder)
 	});
@@ -516,15 +497,15 @@ export class SessionController implements TaskCommands, SessionLifecycle, TaskVi
 			task.transcript = createTranscriptState();
 			task.codeChanges = createCodeChangesState();
 			this.tasks.set(task.id, task);
-			if (task.sessionId && this.attachedSessionIds.has(task.sessionId)) {
+			if (task.sessionId && this.attach.isAttached(task.sessionId)) {
 				this.composer.sendPinnedCommand('clear', '', task.sessionId);
 			}
 			return true;
 		},
 		touchLastModified: task => this.touchLastModified(task),
 		useModelOf: (model, modelDisplay) => wireUseModel(model ?? '', modelDisplay ?? ''),
-		catalogHas: ref => this.catalogHas(ref ?? ''),
-		submitThinking: () => this.submitThinking(),
+		catalogHas: ref => this.catalog.catalogHas(ref ?? ''),
+		submitThinking: () => this.catalog.submitThinking(),
 		titleGenRequested: this.titleGenRequested,
 		seedHostSlashCatalog: () => this.seedHostSlashCatalog(),
 		slashCatalogLive: () => this.bridgeSlashCatalog && this.slashCatalog.length > 0,
@@ -611,18 +592,18 @@ export class SessionController implements TaskCommands, SessionLifecycle, TaskVi
 
 	getAttachedSessionId(): string | null {
 		const active = this.getActiveTask();
-		if (active?.sessionId && this.attachedSessionIds.has(active.sessionId)) {
+		if (active?.sessionId && this.attach.isAttached(active.sessionId)) {
 			return active.sessionId;
 		}
 		return null;
 	}
 
 	isAttached(sessionId: string): boolean {
-		return this.attachedSessionIds.has(sessionId);
+		return this.attach.isAttached(sessionId);
 	}
 
 	attachedSessionIdList(): string[] {
-		return [...this.attachedSessionIds];
+		return this.attach.ids();
 	}
 
 	/**
@@ -658,8 +639,8 @@ export class SessionController implements TaskCommands, SessionLifecycle, TaskVi
 			task.pendingAttach = false;
 			this.tasks.set(task.id, task);
 		}
-		this.attachedSessionIds.clear();
-		this.restoredSessionIds.clear();
+		this.attach.clear();
+		this.attach.clear();
 		this.leaseWatch.clearLeaseBookkeeping();
 		this.onChange?.();
 	}
@@ -705,7 +686,7 @@ export class SessionController implements TaskCommands, SessionLifecycle, TaskVi
 			task.sessionId &&
 			!task.pendingNew &&
 			!task.pendingAttach &&
-			this.attachedSessionIds.has(task.sessionId)
+			this.attach.isAttached(task.sessionId)
 		);
 	}
 
@@ -771,7 +752,7 @@ export class SessionController implements TaskCommands, SessionLifecycle, TaskVi
 
 	/** Cancel a specific Task's Associated work (active Task optional). */
 	private cancelRunForTask(task: TaskRecord, reason: string): boolean {
-		if (!task.sessionId || !this.attachedSessionIds.has(task.sessionId)) return false;
+		if (!task.sessionId || !this.attach.isAttached(task.sessionId)) return false;
 		const streaming = task.transcript.entries.some(e => e.status === 'streaming');
 		const runId = chromeRunId(task.transcript.chrome);
 		if (
@@ -849,26 +830,7 @@ export class SessionController implements TaskCommands, SessionLifecycle, TaskVi
 	}
 
 	private restoreChromeFromTask(task: TaskRecord): void {
-		// Tasks minted before Hello ready keep the "Default" stub. Heal the label only when
-		// this Task is still on the same unresolved model key — never steal another Task's model.
-		const sameKey =
-			task.model === this.model ||
-			(isPlaceholderModelDisplay(task.model) && isPlaceholderModelDisplay(this.model));
-		if (
-			sameKey &&
-			isUnresolvedModelDisplay(task.modelDisplay) &&
-			!isUnresolvedModelDisplay(this.modelDisplay)
-		) {
-			task.modelDisplay = this.modelDisplay;
-			if (isPlaceholderModelDisplay(task.model)) task.model = this.model;
-			this.tasks.set(task.id, task);
-		}
-		this.model = task.model;
-		this.modelDisplay = task.modelDisplay;
-		this.runMode = task.runMode ?? 'agent';
-		this.engineKind = task.engineKind ?? 'fast';
-		this.effort = task.effort;
-		this.thinking = task.thinking;
+		this.catalog.syncFromTask(task);
 	}
 
 	/**
@@ -897,14 +859,14 @@ export class SessionController implements TaskCommands, SessionLifecycle, TaskVi
 		}
 		// Already bound + restored — nothing to do (focus already applied above).
 		if (
-			this.attachedSessionIds.has(task.sessionId) &&
-			this.restoredSessionIds.has(task.sessionId)
+			this.attach.isAttached(task.sessionId) &&
+			this.attach.isRestored(task.sessionId)
 		) {
 			return task;
 		}
 		// Background ensureLive: already Attach'd — skip; focus path may re-Attach
 		// when session_restored never arrived (same as legacy selectTask).
-		if (this.attachedSessionIds.has(task.sessionId) && !focus) {
+		if (this.attach.isAttached(task.sessionId) && !focus) {
 			return task;
 		}
 		this.sendFn({
@@ -967,7 +929,7 @@ export class SessionController implements TaskCommands, SessionLifecycle, TaskVi
 
 	requestMentionSuggest(prefix: string, requestId: string, kinds?: string[]): boolean {
 		const task = this.getActiveTask();
-		if (!task?.sessionId || !this.attachedSessionIds.has(task.sessionId)) return false;
+		if (!task?.sessionId || !this.attach.isAttached(task.sessionId)) return false;
 		return this.sendFn({
 			type: 'MentionSuggest',
 			sessionId: task.sessionId,
@@ -1002,7 +964,7 @@ export class SessionController implements TaskCommands, SessionLifecycle, TaskVi
 		if (task.pendingNew || !task.sessionId) {
 			return 'errors.send.session_starting';
 		}
-		if (task.pendingAttach || !this.attachedSessionIds.has(task.sessionId)) {
+		if (task.pendingAttach || !this.attach.isAttached(task.sessionId)) {
 			return 'errors.send.session_not_ready';
 		}
 		const g = this.gate();
@@ -1017,10 +979,7 @@ export class SessionController implements TaskCommands, SessionLifecycle, TaskVi
 
 	/** Match Composer chrome: supportsThinking models default thinking On when sticky unset. */
 	private submitThinking(): boolean | undefined {
-		if (this.thinking !== undefined) return this.thinking;
-		const entry = this.modelCatalog.find(e => modelEntryMatches(e, this.model));
-		if (entry?.supportsThinking) return true;
-		return undefined;
+		return this.catalog.submitThinking();
 	}
 
 	buildPlan(planId: string, name = ''): boolean {
@@ -1039,7 +998,7 @@ export class SessionController implements TaskCommands, SessionLifecycle, TaskVi
 	/** Error-card Retry. Engine stops leftover work in the session, then replays lastSubmit. */
 	rerunRun(runId: string): boolean {
 		const task = this.getActiveTask();
-		if (!task?.sessionId || !this.attachedSessionIds.has(task.sessionId)) {
+		if (!task?.sessionId || !this.attach.isAttached(task.sessionId)) {
 			this.helpNotice = 'errors.send.session_not_ready';
 			return false;
 		}
@@ -1055,17 +1014,17 @@ export class SessionController implements TaskCommands, SessionLifecycle, TaskVi
 	private canSubmitCommand(): boolean {
 		const task = this.getActiveTask();
 		if (!task?.sessionId) return false;
-		return this.attachedSessionIds.has(task.sessionId);
+		return this.attach.isAttached(task.sessionId);
 	}
 
 	/** sessionId for Bridge `{type:command}` (catalog refresh + SkillSlash). */
 	private commandSessionId(): string | undefined {
 		const task = this.getActiveTask();
-		if (task?.sessionId && this.attachedSessionIds.has(task.sessionId)) {
+		if (task?.sessionId && this.attach.isAttached(task.sessionId)) {
 			return task.sessionId;
 		}
 		// Prefer any attached session so silent `/skills` still pins a workspace.
-		for (const id of this.attachedSessionIds) return id;
+		return this.attach.first();
 		return task?.sessionId ?? undefined;
 	}
 
@@ -1088,44 +1047,21 @@ export class SessionController implements TaskCommands, SessionLifecycle, TaskVi
 	}
 
 	requestModelList(): boolean {
-		if (this.catalogFromProviders) return true;
-		const sessionId = this.commandSessionId();
-		if (!sessionId) return false;
-		this.awaitingModelList = true;
-		return this.composer.sendPinnedCommand('model', '', sessionId);
+		return this.catalog.requestModelList(this.commandSessionId(), sessionId =>
+			this.composer.sendPinnedCommand('model', '', sessionId)
+		);
 	}
 
 	applyProviderCatalog(entries: ModelCatalogEntry[]): void {
-		this.catalogFromProviders = true;
-		this.awaitingModelList = false;
-		const pick = resolveComposerChrome(entries, this.model, this.modelDisplay);
-		this.modelCatalog = entries.map(e => ({
-			...e,
-			current: pick
-				? modelEntryMatches(e, pick.id) || modelEntryMatches(e, pick.display)
-				: false
-		}));
-		if (pick && (this.model !== pick.id || this.modelDisplay !== pick.display)) {
-			this.applyModel(pick.id, pick.display);
-		}
-		this.onChange?.();
+		this.catalog.applyProviderCatalog(entries);
 	}
 
 	selectModel(modelId: string): boolean {
-		const id = modelId.trim();
-		if (!id) return false;
-		const entry = this.modelCatalog.find(e => modelEntryMatches(e, id));
-		const resolvedId = entry?.id ?? id;
-		const resolvedDisplay =
-			entry?.display ?? (id.includes('/') ? id.slice(id.lastIndexOf('/') + 1) : id);
-		this.applyModel(resolvedId, resolvedDisplay);
-		this.modelCatalog = this.modelCatalog.map(e => ({
-			...e,
-			current: modelEntryMatches(e, resolvedId) || modelEntryMatches(e, resolvedDisplay)
-		}));
+		const pick = this.catalog.selectModel(modelId);
+		if (!pick) return false;
 		const sessionId = this.commandSessionId();
 		if (sessionId) {
-			this.composer.sendPinnedCommand('model', resolvedId, sessionId);
+			this.composer.sendPinnedCommand('model', pick.resolvedId, sessionId);
 		}
 		return true;
 	}
@@ -1208,103 +1144,24 @@ export class SessionController implements TaskCommands, SessionLifecycle, TaskVi
 	 * Settings/Providers know the real id.
 	 */
 	healDefaultModelDisplay(model: string, display: string): boolean {
-		if (isPlaceholderModelDisplay(display)) return false;
-		if (isUnresolvedModelDisplay(display) && !this.catalogHas(display) && !this.catalogHas(model)) {
-			return false;
-		}
-		const currentUnresolved =
-			isUnresolvedModelDisplay(this.modelDisplay) || isPlaceholderModelDisplay(this.model);
-		const notInCatalog =
-			this.modelCatalog.length > 0 &&
-			!this.catalogHas(this.model) &&
-			!this.catalogHas(this.modelDisplay);
-		if (!currentUnresolved && !notInCatalog && this.modelDisplay !== display) {
-			return false;
-		}
-		this.applyModel(model, display);
-		this.onChange?.();
-		return true;
-	}
-
-	private catalogHas(ref: string): boolean {
-		const t = ref.trim();
-		if (!t) return false;
-		return this.modelCatalog.some(e => modelEntryMatches(e, t));
+		return this.catalog.healDefaultModelDisplay(model, display);
 	}
 
 	/** Keep controller chrome + active Task model in lockstep. */
 	private applyModel(model: string, modelDisplay: string): void {
-		let resolved = resolvedModelDisplay(model, modelDisplay);
-		if (!resolved) {
-			const raw = modelDisplay.trim() || model.trim();
-			if (this.catalogHas(raw) || this.catalogHas(model)) resolved = raw;
-		}
-		if (!resolved) {
-			if (!isUnresolvedModelDisplay(this.modelDisplay)) return;
-			this.model = 'default';
-			this.modelDisplay = '';
-			const active = this.getActiveTask();
-			if (active && isUnresolvedModelDisplay(active.modelDisplay)) {
-				active.model = 'default';
-				active.modelDisplay = '';
-				this.tasks.set(active.id, active);
-			}
-			return;
-		}
-		const key =
-			wireUseModel(model, resolved) ??
-			(this.catalogHas(resolved) ? resolved : model);
-		this.model = key;
-		this.modelDisplay = resolved;
-		const active = this.getActiveTask();
-		if (active) {
-			active.model = key;
-			active.modelDisplay = resolved;
-			this.tasks.set(active.id, active);
-		}
-		if (!isUnresolvedModelDisplay(resolved)) {
-			for (const t of this.tasks.values()) {
-				if (t.id === active?.id) continue;
-				if (!isUnresolvedModelDisplay(t.modelDisplay)) continue;
-				const sameKey =
-					t.model === model ||
-					t.model === key ||
-					(isPlaceholderModelDisplay(t.model) && isPlaceholderModelDisplay(model));
-				if (!sameKey) continue;
-				t.model = key;
-				t.modelDisplay = resolved;
-				this.tasks.set(t.id, t);
-			}
-		}
+		this.catalog.applyModel(model, modelDisplay);
 	}
 
 	private applyRunMode(mode: TaskRecord['runMode']): void {
-		this.runMode = mode;
-		const task = this.getActiveTask();
-		if (!task) return;
-		task.runMode = mode;
-		this.tasks.set(task.id, task);
+		this.catalog.applyRunMode(mode);
 	}
 
 	private applyEngineKind(kind: TaskRecord['engineKind']): void {
-		this.engineKind = kind;
-		const task = this.getActiveTask();
-		if (!task) return;
-		task.engineKind = kind;
-		this.tasks.set(task.id, task);
+		this.catalog.applyEngineKind(kind);
 	}
 
 	private applySampling(effort?: string, thinking?: boolean): void {
-		if (effort !== undefined) this.effort = effort || undefined;
-		if (thinking !== undefined) this.thinking = thinking;
-		const task = this.getActiveTask();
-		if (!task) return;
-		if (effort !== undefined) {
-			if (effort) task.effort = effort;
-			else delete task.effort;
-		}
-		if (thinking !== undefined) task.thinking = thinking;
-		this.tasks.set(task.id, task);
+		this.catalog.applySampling(effort, thinking);
 	}
 
 	/**
@@ -1317,7 +1174,7 @@ export class SessionController implements TaskCommands, SessionLifecycle, TaskVi
 
 	removeQueueItem(itemId: string): boolean {
 		const task = this.getActiveTask();
-		if (!task?.sessionId || !this.attachedSessionIds.has(task.sessionId)) return false;
+		if (!task?.sessionId || !this.attach.isAttached(task.sessionId)) return false;
 		return queueRemoveCommands(task, task.sessionId, itemId)
 			.map(cmd => this.sendFn(cmd))
 			.some(ok => ok);
@@ -1325,7 +1182,7 @@ export class SessionController implements TaskCommands, SessionLifecycle, TaskVi
 
 	clearQueue(): boolean {
 		const task = this.getActiveTask();
-		if (!task?.sessionId || !this.attachedSessionIds.has(task.sessionId)) return false;
+		if (!task?.sessionId || !this.attach.isAttached(task.sessionId)) return false;
 		return queueClearCommands(task, task.sessionId)
 			.map(cmd => this.sendFn(cmd))
 			.some(ok => ok);
@@ -1333,27 +1190,27 @@ export class SessionController implements TaskCommands, SessionLifecycle, TaskVi
 
 	reorderQueue(fromIndex: number, toIndex: number): boolean {
 		const task = this.getActiveTask();
-		if (!task?.sessionId || !this.attachedSessionIds.has(task.sessionId)) return false;
+		if (!task?.sessionId || !this.attach.isAttached(task.sessionId)) return false;
 		const [cmd] = queueReorderCommands(task, task.sessionId, fromIndex, toIndex);
 		return cmd ? this.sendFn(cmd) : false;
 	}
 
 	editQueueItem(itemId: string, text: string): boolean {
 		const task = this.getActiveTask();
-		if (!task?.sessionId || !this.attachedSessionIds.has(task.sessionId)) return false;
+		if (!task?.sessionId || !this.attach.isAttached(task.sessionId)) return false;
 		const [cmd] = queueEditCommands(task, task.sessionId, itemId, text);
 		return cmd ? this.sendFn(cmd) : false;
 	}
 
 	setQueuePaused(paused: boolean): boolean {
 		const task = this.getActiveTask();
-		if (!task?.sessionId || !this.attachedSessionIds.has(task.sessionId)) return false;
+		if (!task?.sessionId || !this.attach.isAttached(task.sessionId)) return false;
 		return this.sendFn(queuePauseCommand(task.sessionId, paused));
 	}
 
 	dshSteer(text: string): boolean {
 		const task = this.getActiveTask();
-		if (!task?.sessionId || !this.attachedSessionIds.has(task.sessionId)) return false;
+		if (!task?.sessionId || !this.attach.isAttached(task.sessionId)) return false;
 		if (!task.dshCaps?.queue) return false;
 		const trimmed = text.trim();
 		if (!trimmed) return false;
@@ -1362,7 +1219,7 @@ export class SessionController implements TaskCommands, SessionLifecycle, TaskVi
 
 	dshGoalAct(action: 'pause' | 'resume' | 'complete' | 'clear'): boolean {
 		const task = this.getActiveTask();
-		if (!task?.sessionId || !this.attachedSessionIds.has(task.sessionId)) return false;
+		if (!task?.sessionId || !this.attach.isAttached(task.sessionId)) return false;
 		if (!task.dshCaps?.goal) return false;
 		const method =
 			action === 'pause'
@@ -1377,7 +1234,7 @@ export class SessionController implements TaskCommands, SessionLifecycle, TaskVi
 
 	interruptQueueItem(itemId: string): boolean {
 		const task = this.getActiveTask();
-		if (!task?.sessionId || !this.attachedSessionIds.has(task.sessionId)) return false;
+		if (!task?.sessionId || !this.attach.isAttached(task.sessionId)) return false;
 		const plan = queueSteerPlan(task, itemId);
 		if (!plan) return false;
 		if (plan.kind === 'dsh') {
@@ -1407,7 +1264,7 @@ export class SessionController implements TaskCommands, SessionLifecycle, TaskVi
 
 	decideApproval(approvalId: string, approved: boolean, reason?: string): boolean {
 		const task = this.getActiveTask();
-		if (!task?.sessionId || !this.attachedSessionIds.has(task.sessionId)) return false;
+		if (!task?.sessionId || !this.attach.isAttached(task.sessionId)) return false;
 		const approval = task.transcript.approvals.find(a => a.id === approvalId);
 		if (!approval) return false;
 		return this.sendFn({
@@ -1422,7 +1279,7 @@ export class SessionController implements TaskCommands, SessionLifecycle, TaskVi
 
 	answerQuestion(questionId: string, answer: string): boolean {
 		const task = this.getActiveTask();
-		if (!task?.sessionId || !this.attachedSessionIds.has(task.sessionId)) return false;
+		if (!task?.sessionId || !this.attach.isAttached(task.sessionId)) return false;
 		const question = task.transcript.questions.find(q => q.id === questionId);
 		if (!question) return false;
 		const trimmed = answer.trim();
@@ -1442,7 +1299,7 @@ export class SessionController implements TaskCommands, SessionLifecycle, TaskVi
 		payload: {answers: Array<{id: string; selected: string[]; custom?: string}>} | {cancelled: true}
 	): boolean {
 		const task = this.getActiveTask();
-		if (!task?.sessionId || !this.attachedSessionIds.has(task.sessionId)) return false;
+		if (!task?.sessionId || !this.attach.isAttached(task.sessionId)) return false;
 		const batch = task.transcript.questionBatches.find(q => q.rpcId === rpcId);
 		if (!batch) return false;
 		if ('cancelled' in payload && payload.cancelled) {
@@ -1464,7 +1321,7 @@ export class SessionController implements TaskCommands, SessionLifecycle, TaskVi
 
 	cancelRun(reason = 'cancelled by user'): boolean {
 		const task = this.getActiveTask();
-		if (!task?.sessionId || !this.attachedSessionIds.has(task.sessionId)) return false;
+		if (!task?.sessionId || !this.attach.isAttached(task.sessionId)) return false;
 		const streaming = task.transcript.entries.some(e => e.status === 'streaming');
 		const runId = chromeRunId(task.transcript.chrome);
 		const goalBusy = goalKeepsBusy(task.goalCard);
@@ -1788,23 +1645,21 @@ export class SessionController implements TaskCommands, SessionLifecycle, TaskVi
 		}
 
 		if (event.type === 'command_result' && event.name === 'model') {
-			if (this.catalogFromProviders) {
-				this.awaitingModelList = false;
+			if (this.catalog.catalogFromProviders) {
+				this.catalog.clearAwaitingModelList();
 				return {stop: true, task: this.getActiveTask()};
 			}
-			if (this.awaitingModelList && event.status !== 'error') {
-				this.modelCatalog = parseModelCatalog(event.message);
-				this.awaitingModelList = false;
-				const current = this.modelCatalog.find(e => e.current);
+			if (this.catalog.awaitingModelList && event.status !== 'error') {
+				const current = this.catalog.takeEngineModelList(parseModelCatalog(event.message));
 				if (current) {
 					// Prefer catalog display over alias placeholders ("default" / "Default").
-					this.applyModel(current.id, current.display);
+					this.catalog.applyModel(current.id, current.display);
 				}
 				this.onChange?.();
 				// Do not project list dump into transcript
 				return {stop: true, task: this.getActiveTask()};
 			}
-			this.awaitingModelList = false;
+			this.catalog.clearAwaitingModelList();
 		}
 
 		if (event.type === 'command_result' && event.name === 'skills') {
@@ -2051,22 +1906,12 @@ export class SessionController implements TaskCommands, SessionLifecycle, TaskVi
 		}
 
 		if (event.type === 'Attached' && event.sessionId) {
-			this.attachedSessionIds.add(event.sessionId);
-			const existing = this.taskBySessionId(event.sessionId);
-			if (existing) {
-				existing.pendingAttach = false;
-				existing.pendingNew = false;
-				this.tasks.set(existing.id, existing);
-			} else {
-				// Never claim an unbound pendingNew from a stray Attached — that was
-				// how a prior session stole a brand-new empty task (ISO-4/8).
-				const active = this.getActiveTask();
-				if (active?.pendingAttach && active.sessionId === event.sessionId) {
-					active.pendingAttach = false;
-					active.pendingNew = false;
-					this.tasks.set(active.id, active);
-				}
-			}
+			settleAttachedEvent(event, {
+				attach: this.attach,
+				findTaskBySession: sessionId => this.taskBySessionId(sessionId),
+				getActiveTask: () => this.getActiveTask(),
+				settleTask: task => this.tasks.set(task.id, task)
+			});
 			// Slash catalog: composer pulls on menu open — not on every Attached.
 			// Model catalog: Hub ListProviders, not yaml `/model`.
 		}
@@ -2134,7 +1979,7 @@ export class SessionController implements TaskCommands, SessionLifecycle, TaskVi
 				return task;
 			}
 			// Live stream only for Sessions we keep attached (multi-Attach).
-			if (!this.attachedSessionIds.has(eventSession)) {
+			if (!this.attach.isAttached(eventSession)) {
 				return task;
 			}
 		}
@@ -2167,7 +2012,7 @@ export class SessionController implements TaskCommands, SessionLifecycle, TaskVi
 			task.codeChanges = applyCodeChangeEvent(task.codeChanges, event);
 		}
 		if (event.type === 'session_restored' && eventSession) {
-			this.restoredSessionIds.add(eventSession);
+			this.attach.markRestored(eventSession);
 		}
 		if (event.type === 'session_history_page' && event.sessionId === this.historyInFlightSessionId) {
 			this.historyInFlightSessionId = null;
@@ -2254,15 +2099,10 @@ export class SessionController implements TaskCommands, SessionLifecycle, TaskVi
 		event: BridgeEvent,
 		eventSession: string | undefined
 	): TaskRecord | null {
-		if (eventSession) {
-			const bySession = this.taskBySessionId(eventSession);
-			if (bySession) return bySession;
-			if (isSessionStreamEvent(event.type)) return null;
-			if (event.type === 'session_restored' || event.type === 'session_history_page') {
-				return null;
-			}
-		}
-		return this.getActiveTask();
+		return resolveEventTask(event, eventSession, {
+			findTaskBySession: sessionId => this.taskBySessionId(sessionId),
+			getActiveTask: () => this.getActiveTask()
+		});
 	}
 
 	private taskBySessionId(sessionId: string): TaskRecord | null {
@@ -2273,38 +2113,22 @@ export class SessionController implements TaskCommands, SessionLifecycle, TaskVi
 	}
 
 	resyncAttached(): void {
-		for (const task of this.tasks.values()) {
-			if (task.sessionId && this.attachedSessionIds.has(task.sessionId)) {
-				this.requestAttach(task, task.sessionId, task.lastEventSeq);
-			}
-		}
+		resyncSessionAttach(this.attach, sessionId => this.taskBySessionId(sessionId), (task, sessionId, lastEventSeq) =>
+			this.requestAttach(task, sessionId, lastEventSeq)
+		);
 	}
 
 	private requestAttach(task: TaskRecord, sessionId: string, lastEventSeq = 0): boolean {
-		// Drop hydrate stubs that raced in for the same Session (ready/meta before bind).
-		for (const [id, other] of this.tasks) {
-			if (id !== task.id && other.sessionId === sessionId) this.tasks.delete(id);
-		}
-		task.sessionId = sessionId;
-		task.pendingNew = false;
-		task.pendingAttach = true;
-		this.tasks.set(task.id, task);
-		const ok = this.sendFn({
-			type: 'AttachSession',
+		return requestSessionAttach({
+			tasks: this.tasks,
+			task,
 			sessionId,
-			clientId: this.clientId,
 			lastEventSeq,
-			limit: 20
+			send: cmd => this.sendFn(cmd),
+			clientId: this.clientId,
+			attach: this.attach,
+			settleTask: t => this.tasks.set(t.id, t)
 		});
-		if (ok) {
-			// Match cli-ink: a successful AttachSession write is enough to treat the
-			// session as attached so SubmitUserMessage / event projection are not
-			// blocked waiting on the Attached ack (some engines delay or coalesce it).
-			this.attachedSessionIds.add(sessionId);
-			task.pendingAttach = false;
-			this.tasks.set(task.id, task);
-		}
-		return ok;
 	}
 
 	/**
@@ -2313,7 +2137,7 @@ export class SessionController implements TaskCommands, SessionLifecycle, TaskVi
 	 */
 	requestOlderHistory(): boolean {
 		const task = this.getActiveTask();
-		if (!task?.sessionId || !this.attachedSessionIds.has(task.sessionId)) return false;
+		if (!task?.sessionId || !this.attach.isAttached(task.sessionId)) return false;
 		if (!task.transcript.hasMoreOlder) return false;
 		if (this.historyInFlightSessionId === task.sessionId) return false;
 		const beforeTurnId = oldestLoadedTurnId(task.transcript);
@@ -2405,7 +2229,7 @@ export class SessionController implements TaskCommands, SessionLifecycle, TaskVi
 				) {
 					existing.lastModified = info.lastModified;
 				}
-				applyStickyChrome(existing, info);
+				this.catalog.applyStickyChrome(existing, info);
 				this.tasks.set(existing.id, existing);
 				continue;
 			}
@@ -2434,7 +2258,7 @@ export class SessionController implements TaskCommands, SessionLifecycle, TaskVi
 				runMode: 'agent',
 				engineKind: 'fast'
 			};
-			applyStickyChrome(task, info);
+			this.catalog.applyStickyChrome(task, info);
 			this.tasks.set(id, task);
 			bySessionId.set(info.id, task);
 		}
@@ -2457,33 +2281,25 @@ export class SessionController implements TaskCommands, SessionLifecycle, TaskVi
 	}
 
 	detachAll(): void {
-		const seen = new Set<string>();
-		for (const sessionId of this.attachedSessionIds) {
-			seen.add(sessionId);
+		const targets = detachTargets(
+			this.attach.ids(),
+			[...this.tasks.values()].map(task => task.sessionId)
+		);
+		for (const sessionId of targets) {
 			this.sendFn({
 				type: 'DetachSession',
 				sessionId,
 				clientId: this.clientId
 			});
 		}
-		for (const task of this.tasks.values()) {
-			if (!task.sessionId || seen.has(task.sessionId)) continue;
-			seen.add(task.sessionId);
-			this.sendFn({
-				type: 'DetachSession',
-				sessionId: task.sessionId,
-				clientId: this.clientId
-			});
-		}
-		this.attachedSessionIds.clear();
-		this.restoredSessionIds.clear();
+		this.attach.clear();
 	}
 
 	tickHeartbeat(): boolean {
-		if (this.attachedSessionIds.size === 0) return false;
+		if (this.attach.size() === 0) return false;
 		const atMillis = this.now();
 		let any = false;
-		for (const sessionId of this.attachedSessionIds) {
+		for (const sessionId of this.attach.ids()) {
 			const ok = this.sendFn({
 				type: 'Heartbeat',
 				sessionId,
@@ -2500,15 +2316,13 @@ export class SessionController implements TaskCommands, SessionLifecycle, TaskVi
 		this.leaseWatch.dispose();
 		this.tasks.clear();
 		this.activeTaskId = null;
-		this.attachedSessionIds.clear();
-		this.restoredSessionIds.clear();
-		this.modelCatalog = [];
-		this.catalogFromProviders = false;
+		this.attach.clear();
+		this.attach.clear();
 		this.slashCatalog = [];
 		this.slashCatalogHydrated = false;
 		this.bridgeSlashCatalog = false;
 		this.composer.resetComposerState();
-		this.awaitingModelList = false;
+		this.catalog.resetCatalog();
 		this.helpNotice = null;
 	}
 

@@ -1,4 +1,5 @@
 import type {BridgeCommand, BridgeEvent} from '@fastllm/bridge-protocol';
+import type {SessionAttachStore} from './sessionAttach.js';
 
 export type EngineKind = 'fast' | 'dsh';
 
@@ -46,7 +47,7 @@ export interface TaskLifecycleDeps<T extends LifecycleTask> {
 	taskRunActive(task: T): boolean;
 	cancelRunForTask(task: T, reason: string): void;
 	forgetTask(taskId: string): void;
-	attachedSessionIds: Set<string>;
+	attachedSessionIds: SessionAttachStore;
 	seqBySession: RemovableKeys;
 	buildEntry(id: string, kind: 'task' | 'chat', title: string, listOrder: number): T;
 	deleteWaitMs?: number;
@@ -135,7 +136,7 @@ export function createTaskLifecycle<T extends LifecycleTask>(deps: TaskLifecycle
 			return Promise.resolve({ok: false, notice: 'Delete already in progress'});
 		}
 
-		if (deps.taskRunActive(task) && deps.attachedSessionIds.has(sessionId)) {
+		if (deps.taskRunActive(task) && deps.attachedSessionIds.isAttached(sessionId)) {
 			deps.cancelRunForTask(task, 'cancelled before delete');
 		}
 
@@ -186,7 +187,7 @@ export function createTaskLifecycle<T extends LifecycleTask>(deps: TaskLifecycle
 		const ordered = listTasks();
 		const idx = ordered.findIndex(t => t.id === taskId);
 		if (task.sessionId) {
-			deps.attachedSessionIds.delete(task.sessionId);
+			deps.attachedSessionIds.unbind(task.sessionId);
 			pendingTitleBySession.delete(task.sessionId);
 			deps.seqBySession.delete(task.sessionId);
 		}
