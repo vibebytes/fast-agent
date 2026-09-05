@@ -89,6 +89,7 @@ public class FastBridgeTlsModule: Module {
   private var session: URLSession?
   private var task: URLSessionWebSocketTask?
   private var socketDelegate: SocketDelegate?
+  private var generation = 0
 
   public func definition() -> ModuleDefinition {
     Name("FastBridgeTls")
@@ -128,9 +129,12 @@ public class FastBridgeTlsModule: Module {
         return
       }
       self.disconnectSocket()
+      self.generation += 1
+      let gen = self.generation
       var settled = false
       let delegate = SocketDelegate(pin: pin)
       delegate.onOpen = {
+        guard gen == self.generation else { return }
         if !settled {
           settled = true
           promise.resolve(nil)
@@ -139,6 +143,7 @@ public class FastBridgeTlsModule: Module {
         self.receiveLoop()
       }
       delegate.onFail = { message in
+        guard gen == self.generation else { return }
         if !settled {
           settled = true
           promise.reject("ERR_CONNECT_FAILED", message)
@@ -147,6 +152,7 @@ public class FastBridgeTlsModule: Module {
         self.sendEvent("close", [:])
       }
       delegate.onClose = {
+        guard gen == self.generation else { return }
         self.sendEvent("close", [:])
       }
       self.socketDelegate = delegate
@@ -169,8 +175,9 @@ public class FastBridgeTlsModule: Module {
   }
 
   private func receiveLoop() {
+    let gen = generation
     task?.receive { [weak self] result in
-      guard let self else { return }
+      guard let self, gen == self.generation else { return }
       switch result {
       case .success(.string(let text)):
         self.sendEvent("message", ["data": text])
@@ -185,6 +192,7 @@ public class FastBridgeTlsModule: Module {
   }
 
   private func disconnectSocket() {
+    generation += 1
     task?.cancel(with: .goingAway, reason: nil)
     session?.invalidateAndCancel()
     task = nil

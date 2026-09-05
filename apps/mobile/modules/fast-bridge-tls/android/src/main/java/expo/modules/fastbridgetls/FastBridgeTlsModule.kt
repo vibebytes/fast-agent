@@ -10,6 +10,7 @@ import java.security.cert.CertificateException
 import java.security.cert.X509Certificate
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicInteger
 import javax.net.ssl.HostnameVerifier
 import javax.net.ssl.HttpsURLConnection
 import javax.net.ssl.SSLContext
@@ -26,6 +27,7 @@ class FastBridgeTlsModule : Module() {
   private val executor = Executors.newSingleThreadExecutor()
   private var socket: WebSocket? = null
   private var http: OkHttpClient? = null
+  private val generation = AtomicInteger(0)
 
   override fun definition() = ModuleDefinition {
     Name("FastBridgeTls")
@@ -66,6 +68,7 @@ class FastBridgeTlsModule : Module() {
     }
 
     Function("disconnect") {
+      generation.incrementAndGet()
       socket?.close(1000, "bye")
       socket = null
       http?.dispatcher?.executorService?.shutdown()
@@ -75,6 +78,7 @@ class FastBridgeTlsModule : Module() {
 
   private fun openSocket(url: String, fingerprint: String, promise: Promise) {
     val pin = normalize(fingerprint) ?: throw IllegalArgumentException("invalid fingerprint")
+    val gen = generation.incrementAndGet()
     socket?.cancel()
     socket = null
     val trust = pinningTrust(pin)
@@ -92,7 +96,10 @@ class FastBridgeTlsModule : Module() {
     socket = client.newWebSocket(
       request,
       object : WebSocketListener() {
+        private fun live() = gen == generation.get()
+
         override fun onOpen(webSocket: WebSocket, response: Response) {
+          if (!live()) return
           if (!settled) {
             settled = true
             promise.resolve(null)
@@ -101,10 +108,11 @@ class FastBridgeTlsModule : Module() {
         }
 
         override fun onMessage(webSocket: WebSocket, text: String) {
-          sendEvent("message", mapOf("data" to text))
+          if (live()) sendEvent("message", mapOf("data" to text))
         }
 
         override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
+          if (!live()) return
           if (!settled) {
             settled = true
             promise.reject("ERR_CONNECT_FAILED", t.message ?: "无法连接", t)
@@ -114,7 +122,7 @@ class FastBridgeTlsModule : Module() {
         }
 
         override fun onClosed(webSocket: WebSocket, code: Int, reason: String) {
-          sendEvent("close", emptyMap<String, Any>())
+          if (live()) sendEvent("close", emptyMap<String, Any>())
         }
       }
     )

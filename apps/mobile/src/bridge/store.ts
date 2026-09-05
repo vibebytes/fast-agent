@@ -270,18 +270,25 @@ class BridgeStore {
   }
 
   async testConnection(server: {serverUrl: string; token: string; fingerprint?: string}): Promise<{ok: boolean; detail: Copy; fingerprint?: string}> {
+    await this.start();
     const serverUrl = normalizeBridgeUrl(server.serverUrl);
     const issue = bridgeUrlIssue(serverUrl);
     if (issue) return {ok: false, detail: issue};
-    if (serverUrl.startsWith('wss://')) {
-      const probe = await probeTlsFingerprint(serverUrl, server.fingerprint ?? null);
-      if (!probe.ok) return {ok: false, detail: probe.detail};
-      if (!server.fingerprint) {
-        return {ok: false, detail: { code: 'confirmFingerprint', fingerprint: probe.fingerprint }, fingerprint: probe.fingerprint};
+    const live = this.client;
+    live?.close();
+    try {
+      if (serverUrl.startsWith('wss://')) {
+        const probe = await probeTlsFingerprint(serverUrl, server.fingerprint ?? null);
+        if (!probe.ok) return {ok: false, detail: probe.detail};
+        if (!server.fingerprint) {
+          return {ok: false, detail: { code: 'confirmFingerprint', fingerprint: probe.fingerprint }, fingerprint: probe.fingerprint};
+        }
+        return await this.testPinned(serverUrl, server.token, server.fingerprint);
       }
-      return this.testPinned(serverUrl, server.token, server.fingerprint);
+      return await this.testPlain(serverUrl, server.token);
+    } finally {
+      if (live && this.config) live.updateConfig(toClientConfig(this.config));
     }
-    return this.testPlain(serverUrl, server.token);
   }
 
   private helloLine(token: string): string {
