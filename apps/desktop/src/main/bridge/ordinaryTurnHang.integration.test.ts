@@ -12,7 +12,7 @@ import {join} from 'node:path';
 import type {BridgeCommand, BridgeEvent} from '@fastllm/bridge-protocol';
 import {SessionController} from './SessionController.js';
 import {isSessionStreamEvent} from './sessionStreamEvents.js';
-import {composerGate, applyBridgeEvent, createTranscriptState} from '@fast-ide/session-view';
+import {chromeRunId, composerGate, applyBridgeEvent, createTranscriptState} from '@fast-ide/session-view';
 
 function withSid(sessionId: string, event: BridgeEvent): BridgeEvent {
 	if (!isSessionStreamEvent(event.type)) return event;
@@ -121,7 +121,7 @@ test('Explored tools without turn_finished keeps Stop lit; Cancel unlocks submit
 	});
 	const g = composerGate(transcript, true);
 	assert.equal(g.canCancel, true);
-	assert.ok(transcript.activeRunId === runId || transcript.entries.some(e => e.status === 'streaming'));
+	assert.ok(chromeRunId(transcript.chrome) === runId || transcript.entries.some(e => e.status === 'streaming'));
 
 	assert.equal(c.cancelRun(), true);
 	c.handleEvent(withSid(sessionId, {type: 'turn_cancelled', turnId: runId, reason: 'user cancel'}));

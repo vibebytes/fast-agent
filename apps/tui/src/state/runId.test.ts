@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {canAutoDequeue, createTranscriptState} from '@fast-ide/session-view';
+import {canAutoDequeue, chromeAwaitingSettlement, createTranscriptState} from '@fast-ide/session-view';
 import {initialState, type Turn, type UiState} from './model.js';
 import {reducer} from './reducer.js';
 import {activeTurnId, engineRunId, runIdFor} from './runId.js';
@@ -47,7 +47,7 @@ test('runIdFor after local_cancel still resolves last turn via activeRunId', () 
 	state = reducer(state, {type: 'local_cancel'});
 
 	assert.equal(state.running, true, 'O1: keep running until turn_cancelled (Stopping)');
-	assert.equal(state.transcript.awaitingCancelSettlement, true);
+	assert.equal(chromeAwaitingSettlement(state.transcript.chrome), true);
 	assert.equal(state.queuePaused, true);
 	assert.equal(lastAssistant(state)?.status, 'cancelled');
 	assert.equal(activeTurnId(state), '019f-real-run', 'activeRunId stays targetable while Stopping');
@@ -55,7 +55,7 @@ test('runIdFor after local_cancel still resolves last turn via activeRunId', () 
 
 	state = reducer(state, {type: 'engine_event', event: {type: 'turn_cancelled', reason: 'stop'}});
 	assert.equal(state.running, false);
-	assert.equal(state.transcript.awaitingCancelSettlement, false);
+	assert.equal(chromeAwaitingSettlement(state.transcript.chrome), false);
 	assert.equal(state.lastTurnTerminal, 'cancelled');
 	assert.equal(state.queuePaused, true, 'queue must not auto-send after cancel');
 	assert.equal(canAutoDequeue(state.lastTurnTerminal), false);

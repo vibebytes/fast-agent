@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import type {BridgeCommand, BridgeEvent} from '@fastllm/bridge-protocol';
-import type {UiSend, WorkspaceFocus} from '@fast-ide/session-view';
+import {chromeRunId, type UiSend, type WorkspaceFocus} from '@fast-ide/session-view';
 import {SessionController} from './SessionController.js';
 import {isSessionStreamEvent} from './sessionStreamEvents.js';
 import {createUiPublisher, type UiPublisher} from './uiPublisher.js';
@@ -453,7 +453,7 @@ test('settled restore + persist approval pair of the finished turn must not reli
 	await h.settle();
 	assert.equal(h.controller.gate().canCancel, false);
 	assert.equal(h.controller.gate().runState, 'idle');
-	assert.equal(h.controller.getActiveTask()?.transcript.activeRunId, undefined);
+	assert.equal(chromeRunId(h.controller.getActiveTask()?.transcript.chrome), undefined);
 	assert.equal(h.rendererState().gate.canCancel, false);
 	assert.equal(h.rendererState().gate.runState, 'idle');
 });
@@ -496,7 +496,7 @@ test('settled restore + persist opener of the finished turn must not relight Sto
 	await h.settle();
 	assert.equal(h.controller.gate().canCancel, false);
 	assert.equal(h.controller.gate().runState, 'idle');
-	assert.equal(h.controller.getActiveTask()?.transcript.activeRunId, undefined);
+	assert.equal(chromeRunId(h.controller.getActiveTask()?.transcript.chrome), undefined);
 	assert.equal(
 		h.controller.getActiveTask()?.transcript.entries.some(e => e.status === 'streaming'),
 		false

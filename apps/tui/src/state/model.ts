@@ -277,7 +277,7 @@ export type UiState = {
 	queue: QueuedInput[];
 	/**
 	 * Bridge Transcript projection (source of truth for Engine turns, approvals,
-	 * questions, postRunTerminal, awaitingCancelSettlement).
+	 * questions, RunChrome run lifecycle).
 	 */
 	transcript: TranscriptState;
 	/**

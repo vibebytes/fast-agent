@@ -25,7 +25,11 @@ import {
 	type SessionSeq,
 	type SlashCatalogEntry,
 	type TranscriptEntry,
-	type TranscriptState
+	type TranscriptState,
+	chromeAwaitingSettlement,
+	chromePostRun,
+	chromeRunId,
+	runChromeTransition
 } from '@fast-ide/session-view';
 import {applyCodeChangeEvent, createCodeChangesState, type CodeChangesState} from './codeChangesProjection.js';
 import {
@@ -226,7 +230,7 @@ export function paintAwaitingConfirm(
 ): TranscriptState {
 	if (!card || card.phase !== 'awaiting_confirm') return transcript;
 	const streaming = transcript.entries.some(e => e.role === 'assistant' && e.status === 'streaming');
-	if (streaming && !transcript.postRunTerminal) return transcript;
+	if (streaming && !chromePostRun(transcript.chrome)) return transcript;
 	const lastUser = transcript.entries.findLastIndex(e => e.role === 'user');
 	const chats = transcript.entries.slice(lastUser + 1).filter(isChatAssistant);
 	const dedicated = [...chats].reverse().find(
@@ -749,16 +753,14 @@ export class SessionController implements TaskCommands, SessionLifecycle, TaskVi
 		for (const task of this.tasks.values()) {
 			if (
 				failTurns &&
-				(task.transcript.activeRunId ||
-					task.transcript.awaitingCancelSettlement ||
+				(chromeRunId(task.transcript.chrome) ||
+					chromeAwaitingSettlement(task.transcript.chrome) ||
 					task.transcript.entries.some(e => e.status === 'streaming'))
 			) {
 				const cancelled = applyLocalCancel(task.transcript);
 				task.transcript = {
 					...cancelled,
-					awaitingCancelSettlement: false,
-					activeRunId: undefined,
-					postRunTerminal: true,
+					chrome: runChromeTransition(cancelled.chrome, {run: 'clear', postRun: true, awaiting: 'clear'}),
 					entries: cancelled.entries.map(entry => {
 						if (entry.role !== 'assistant' || entry.status !== 'cancelled') return entry;
 						return {
@@ -950,11 +952,11 @@ export class SessionController implements TaskCommands, SessionLifecycle, TaskVi
 	private cancelRunForTask(task: TaskRecord, reason: string): boolean {
 		if (!task.sessionId || !this.attachedSessionIds.has(task.sessionId)) return false;
 		const streaming = task.transcript.entries.some(e => e.status === 'streaming');
-		const runId = task.transcript.activeRunId;
+		const runId = chromeRunId(task.transcript.chrome);
 		if (
 			!runId &&
 			!streaming &&
-			!task.transcript.awaitingCancelSettlement &&
+			!chromeAwaitingSettlement(task.transcript.chrome) &&
 			!goalKeepsBusy(task.goalCard)
 		) {
 			return false;
@@ -1910,11 +1912,11 @@ export class SessionController implements TaskCommands, SessionLifecycle, TaskVi
 		const item = task.queue.find(q => q.id === itemId);
 		if (!item) return false;
 		const streaming = task.transcript.entries.some(e => e.status === 'streaming');
-		const runId = task.transcript.activeRunId;
+		const runId = chromeRunId(task.transcript.chrome);
 		if (
 			runId ||
 			streaming ||
-			task.transcript.awaitingCancelSettlement ||
+			chromeAwaitingSettlement(task.transcript.chrome) ||
 			goalKeepsBusy(task.goalCard)
 		) {
 			task.transcript = applyLocalCancel(task.transcript);
@@ -1992,9 +1994,9 @@ export class SessionController implements TaskCommands, SessionLifecycle, TaskVi
 		const task = this.getActiveTask();
 		if (!task?.sessionId || !this.attachedSessionIds.has(task.sessionId)) return false;
 		const streaming = task.transcript.entries.some(e => e.status === 'streaming');
-		const runId = task.transcript.activeRunId;
+		const runId = chromeRunId(task.transcript.chrome);
 		const goalBusy = goalKeepsBusy(task.goalCard);
-		if (!runId && !streaming && !task.transcript.awaitingCancelSettlement && !goalBusy) {
+		if (!runId && !streaming && !chromeAwaitingSettlement(task.transcript.chrome) && !goalBusy) {
 			return false;
 		}
 
@@ -2117,7 +2119,7 @@ export class SessionController implements TaskCommands, SessionLifecycle, TaskVi
 		const task = id ? this.tasks.get(id) ?? null : null;
 		if (!task) return false;
 		this.clearCancelSettleTimer(task.id);
-		if (!task.transcript.awaitingCancelSettlement) return false;
+		if (!chromeAwaitingSettlement(task.transcript.chrome)) return false;
 		task.transcript = applyBridgeEvent(task.transcript, {
 			type: 'turn_cancelled',
 			reason
@@ -2152,7 +2154,7 @@ export class SessionController implements TaskCommands, SessionLifecycle, TaskVi
 	}
 
 	private syncCancelSettleTimer(task: TaskRecord): void {
-		if (task.transcript.awaitingCancelSettlement) {
+		if (chromeAwaitingSettlement(task.transcript.chrome)) {
 			if (!this.cancelSettleTimers.has(task.id)) {
 				this.armCancelSettleTimer(task.id);
 			}
@@ -2192,7 +2194,7 @@ export class SessionController implements TaskCommands, SessionLifecycle, TaskVi
 	}
 
 	private static hasLocalRun(t: TranscriptState): boolean {
-		return Boolean(t.activeRunId) || t.entries.some(e => e.status === 'streaming');
+		return Boolean(chromeRunId(t.chrome)) || t.entries.some(e => e.status === 'streaming');
 	}
 
 	private leaseBusy(task: TaskRecord): boolean {
@@ -2702,7 +2704,7 @@ export class SessionController implements TaskCommands, SessionLifecycle, TaskVi
 				task.transcript = {
 					...task.transcript,
 					// Confirm opens Goal track — do not keep the prior Chat turn's straggler guard.
-					postRunTerminal: ok && event.name === 'ConfirmGoal' ? false : task.transcript.postRunTerminal,
+					chrome: runChromeTransition(task.transcript.chrome, {postRun: !(ok && event.name === 'ConfirmGoal') && chromePostRun(task.transcript.chrome)}),
 					entries: [
 						...task.transcript.entries,
 						{

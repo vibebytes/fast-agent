@@ -1,9 +1,10 @@
+import {chromeRunId} from '@fast-ide/session-view';
 import type {Turn, UiState} from './model.js';
 import {approvalsFromState, questionsFromState} from './model.js';
 
 /**
  * Engine CancelRun / AnswerQuestion / DecideApproval need the server-assigned
- * run UUID. Prefer transcript.activeRunId, then pending prompts, then the
+ * run UUID. Prefer chromeRunId(transcript.chrome), then pending prompts, then the
  * streaming assistant's remapped turnId.
  */
 export function engineRunId(turn: Turn | undefined): string | undefined {
@@ -13,7 +14,7 @@ export function engineRunId(turn: Turn | undefined): string | undefined {
 
 /** Most recent still-active Bridge run id (for CancelRun while streaming). */
 export function activeTurnId(state: UiState): string | undefined {
-	if (state.transcript.activeRunId) return state.transcript.activeRunId;
+	if (chromeRunId(state.transcript.chrome)) return chromeRunId(state.transcript.chrome);
 	for (let index = state.transcript.entries.length - 1; index >= 0; index -= 1) {
 		const entry = state.transcript.entries[index];
 		if (entry?.role === 'assistant' && entry.status === 'streaming') {

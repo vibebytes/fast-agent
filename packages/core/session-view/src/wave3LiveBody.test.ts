@@ -22,6 +22,7 @@ import {
 	type SessionSeq,
 	type TranscriptState
 } from './index.js';
+import {chromePostRun} from './runChrome.js';
 
 const RUN = '01a02a9f-98d2-7e4d-bd70-48905d5660bb';
 const CMID = 'e7803bb4-76cc-4de2-92ef-405b5e04bf88';
@@ -119,7 +120,7 @@ test('wave3 in-order persist: timeline must show the review body', () => {
 		{type: 'turn_finished', turnId: RUN, success: true}
 	]);
 	assert.match(timelineBody(state), /这份计划整体质量很高/, inspect(state));
-	assert.equal(state.postRunTerminal, true);
+	assert.equal(chromePostRun(state.chrome), true);
 });
 
 test('wave3: approval + second TurnStarted must not leave the visible card body-empty', () => {
@@ -199,5 +200,5 @@ function inspect(state: TranscriptState): string {
 	const tl = toTimelineItems(state).map(i =>
 		i.kind === 'assistant' ? `assistant:${i.text.slice(0, 40)}` : i.kind
 	);
-	return JSON.stringify({rows, tl, post: state.postRunTerminal}, null, 2);
+	return JSON.stringify({rows, tl, post: chromePostRun(state.chrome)}, null, 2);
 }

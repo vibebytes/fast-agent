@@ -20,6 +20,7 @@ import {
 	type TranscriptState
 } from './transcriptProjection.js';
 import type {BridgeEvent} from '@fastllm/bridge-protocol';
+import {chromeAwaitingSettlement} from './runChrome.js';
 
 type SettledAtom = {
 	entryId: string;
@@ -229,5 +230,5 @@ test('exception: turn_cancelled / local cancel may sweep streaming entries (anno
 	const mid = state;
 	state = applyBridgeEvent(state, {type: 'turn_cancelled', turnId: 't1'});
 	assertAppendOnly(mid, state, {type: 'turn_cancelled', turnId: 't1'});
-	assert.equal(state.awaitingCancelSettlement, false);
+	assert.equal(chromeAwaitingSettlement(state.chrome), false);
 });

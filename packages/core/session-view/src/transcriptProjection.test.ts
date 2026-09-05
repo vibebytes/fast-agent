@@ -15,6 +15,7 @@ import {
 	resolveToolStatus,
 	toTimelineItems
 } from './index.js';
+import {runChromeTransition, chromeRunId, chromePostRun, chromeAwaitingSettlement} from './runChrome.js';
 
 test('Exploring search rows prefer pattern over full path', () => {
 	let state = createTranscriptState();
@@ -642,24 +643,24 @@ test('input_accepted sets activeRunId to server Run id; local cancel awaits turn
 		text: 'go'
 	});
 	// Peer/local turn_started pins activeRunId immediately so Composer Gate can enqueue.
-	assert.equal(state.activeRunId, 'client_1');
+	assert.equal(chromeRunId(state.chrome), 'client_1');
 	state = applyBridgeEvent(state, {
 		type: 'input_accepted',
 		clientMessageId: 'client_1',
 		turnId: 'client_1'
 	});
-	assert.equal(state.activeRunId, 'client_1');
+	assert.equal(chromeRunId(state.chrome), 'client_1');
 	state = applyBridgeEvent(state, {
 		type: 'input_accepted',
 		clientMessageId: 'client_1',
 		turnId: '019f-server-run'
 	});
-	assert.equal(state.activeRunId, '019f-server-run');
+	assert.equal(chromeRunId(state.chrome), '019f-server-run');
 
 	state = applyLocalCancel(state);
-	assert.equal(state.awaitingCancelSettlement, true);
+	assert.equal(chromeAwaitingSettlement(state.chrome), true);
 	assert.equal(state.entries[1]?.status, 'cancelled');
-	assert.equal(state.activeRunId, '019f-server-run', 'run id kept until settlement for diagnostics');
+	assert.equal(chromeRunId(state.chrome), '019f-server-run', 'run id kept until settlement for diagnostics');
 
 	// Late accept after local cancel must NOT unlock before turn_cancelled
 	state = applyBridgeEvent(state, {
@@ -667,11 +668,11 @@ test('input_accepted sets activeRunId to server Run id; local cancel awaits turn
 		clientMessageId: 'client_1',
 		turnId: '019f-server-run'
 	});
-	assert.equal(state.awaitingCancelSettlement, true);
+	assert.equal(chromeAwaitingSettlement(state.chrome), true);
 
 	state = applyBridgeEvent(state, {type: 'turn_cancelled', reason: 'user cancel'});
-	assert.equal(state.awaitingCancelSettlement, false);
-	assert.equal(state.activeRunId, undefined);
+	assert.equal(chromeAwaitingSettlement(state.chrome), false);
+	assert.equal(chromeRunId(state.chrome), undefined);
 });
 
 test('full-answer assistant_delta that re-emits streamed text is ignored', () => {
@@ -740,7 +741,7 @@ test('double input_accepted: entry id stays stable; deltas route via server turn
 	});
 	assert.equal(state.entries[1]?.id, entryId, 'entry id must not change after remap');
 	assert.equal(state.entries[1]?.turnId, 'server-uuid-1');
-	assert.equal(state.activeRunId, 'server-uuid-1');
+	assert.equal(chromeRunId(state.chrome), 'server-uuid-1');
 
 	state = applyBridgeEvent(state, {
 		type: 'reasoning_delta',
@@ -830,7 +831,7 @@ test('Goal finished notice turn after postRunTerminal paints a new streaming tur
 		text: 'plan ready'
 	});
 	state = applyBridgeEvent(state, {type: 'turn_finished', turnId: 'plan-1', success: true});
-	assert.equal(state.postRunTerminal, true);
+	assert.equal(chromePostRun(state.chrome), true);
 
 	state = applyBridgeEvent(state, {
 		type: 'turn_started',
@@ -838,7 +839,7 @@ test('Goal finished notice turn after postRunTerminal paints a new streaming tur
 		clientMessageId: 'goal-g1-notice',
 		text: ''
 	});
-	assert.equal(state.postRunTerminal, false);
+	assert.equal(chromePostRun(state.chrome), false);
 	state = applyBridgeEvent(state, {
 		type: 'final_answer',
 		turnId: 'goal-g1-notice',
@@ -903,7 +904,7 @@ test('error event fills assistant text but does not unlock Composer (host errors
 		clientMessageId: 'm-err',
 		turnId: 'server-run-err'
 	});
-	assert.equal(state.activeRunId, 'server-run-err');
+	assert.equal(chromeRunId(state.chrome), 'server-run-err');
 	assert.equal(composerGate(state, true).runState, 'running');
 
 	state = applyBridgeEvent(state, {
@@ -911,7 +912,7 @@ test('error event fills assistant text but does not unlock Composer (host errors
 		turnId: 't-err',
 		message: 'Replay failed: boom'
 	});
-	assert.equal(state.activeRunId, 'server-run-err');
+	assert.equal(chromeRunId(state.chrome), 'server-run-err');
 	const assistant = state.entries.find(
 		e => e.role === 'assistant' && (e.turnId === 'server-run-err' || e.clientMessageId === 'm-err')
 	);
@@ -926,7 +927,7 @@ test('error event fills assistant text but does not unlock Composer (host errors
 		success: false,
 		reason: 'insufficient_quota'
 	});
-	assert.equal(state.activeRunId, undefined);
+	assert.equal(chromeRunId(state.chrome), undefined);
 	assert.equal(composerGate(state, true).runState, 'idle');
 	assert.equal(composerGate(state, true).canSubmitNow, true);
 });
@@ -959,8 +960,8 @@ test('SkillSlash turn_finished arms postRunTerminal — straggler deltas must no
 		text: '首要建议：把 codebase-design 作为通用语言权威。'
 	});
 	state = applyBridgeEvent(state, {type: 'turn_finished', success: true, sessionId: 'sess'});
-	assert.equal(state.postRunTerminal, true);
-	assert.equal(state.activeRunId, undefined);
+	assert.equal(chromePostRun(state.chrome), true);
+	assert.equal(chromeRunId(state.chrome), undefined);
 	assert.equal(state.entries[1]?.status, 'done');
 	assert.equal(composerGate(state, true).canCancel, false);
 
@@ -1035,7 +1036,7 @@ test('run_cancelled arms postRunTerminal so stragglers never create ghost entrie
 		runId: 'run-1',
 		reason: 'user'
 	});
-	assert.equal(state.postRunTerminal, true);
+	assert.equal(chromePostRun(state.chrome), true);
 	assert.equal(state.entries[1]?.status, 'cancelled');
 	const count = state.entries.length;
 	state = applyBridgeEvent(state, {type: 'reasoning_delta', text: 'straggler'});
@@ -1066,7 +1067,7 @@ test('straggler guard lifts once the next turn starts', () => {
 		runId: 'run-1',
 		reason: 'user'
 	});
-	assert.equal(state.postRunTerminal, true);
+	assert.equal(chromePostRun(state.chrome), true);
 	state = applyBridgeEvent(state, {type: 'reasoning_delta', text: 'straggler'});
 	assert.equal(state.entries.filter(e => e.role === 'assistant').length, 1);
 
@@ -1076,7 +1077,7 @@ test('straggler guard lifts once the next turn starts', () => {
 		clientMessageId: 'm2',
 		text: 'again'
 	});
-	assert.equal(state.postRunTerminal, false);
+	assert.equal(chromePostRun(state.chrome), false);
 	state = applyBridgeEvent(state, {
 		type: 'reasoning_delta',
 		turnId: 't2',
@@ -1104,7 +1105,7 @@ test('run_done clears approvals/questions for that runId without a streaming ent
 	});
 	assert.equal(state.approvals.length, 1);
 	assert.equal(state.questions.length, 1);
-	assert.equal(state.activeRunId, 'run_1');
+	assert.equal(chromeRunId(state.chrome), 'run_1');
 	state = applyBridgeEvent(state, {
 		type: 'run_done',
 		runId: 'run_1',
@@ -1113,8 +1114,8 @@ test('run_done clears approvals/questions for that runId without a streaming ent
 	});
 	assert.equal(state.approvals.length, 0);
 	assert.equal(state.questions.length, 0);
-	assert.equal(state.activeRunId, undefined);
-	assert.ok(!state.postRunTerminal);
+	assert.equal(chromeRunId(state.chrome), undefined);
+	assert.ok(!chromePostRun(state.chrome));
 });
 
 test('approval_requested keeps optional note', () => {
@@ -1314,8 +1315,8 @@ test('foreign run_cancelled drops orphaned prompts for that run only', () => {
 		reason: 'superseded'
 	});
 	assert.equal(state.approvals.map(a => a.id).join(','), 'ap-new');
-	assert.equal(state.activeRunId, 'run-new');
-	assert.equal(state.postRunTerminal, false);
+	assert.equal(chromeRunId(state.chrome), 'run-new');
+	assert.equal(chromePostRun(state.chrome), false);
 });
 
 test('foreign run_cancelled (superseded prior) does not freeze the live Turn', () => {
@@ -1331,14 +1332,14 @@ test('foreign run_cancelled (superseded prior) does not freeze the live Turn', (
 		clientMessageId: 'client_new',
 		turnId: 'run-new'
 	});
-	assert.equal(state.activeRunId, 'run-new');
+	assert.equal(chromeRunId(state.chrome), 'run-new');
 	state = applyBridgeEvent(state, {
 		type: 'run_cancelled',
 		runId: 'run-old',
 		reason: 'superseded by new user message'
 	});
-	assert.equal(state.postRunTerminal, false);
-	assert.equal(state.activeRunId, 'run-new');
+	assert.equal(chromePostRun(state.chrome), false);
+	assert.equal(chromeRunId(state.chrome), 'run-new');
 	assert.equal(state.entries[1]?.status, 'streaming');
 	assert.equal(state.entries[1]?.text, '');
 	state = applyBridgeEvent(state, {
@@ -1444,8 +1445,8 @@ test('prior turn_finished must not drop the next live turn prose', () => {
 		1
 	);
 	state = applyBridgeEvent(state, {type: 'turn_finished', turnId: 'run-1', success: true});
-	assert.equal(state.postRunTerminal, false, 'a still-streaming turn must keep the content gate open');
-	assert.equal(state.activeRunId, 'run-2');
+	assert.equal(chromePostRun(state.chrome), false, 'a still-streaming turn must keep the content gate open');
+	assert.equal(chromeRunId(state.chrome), 'run-2');
 	state = applyBridgeEvent(state, {
 		type: 'assistant_delta',
 		turnId: 'run-2',
@@ -1455,7 +1456,7 @@ test('prior turn_finished must not drop the next live turn prose', () => {
 	assert.equal(live?.text, 'Engine → EngineRuntime → EngineSession 更好。');
 	assert.equal(live?.status, 'streaming');
 	state = applyBridgeEvent(state, {type: 'turn_finished', turnId: 'run-2', success: true});
-	assert.equal(state.postRunTerminal, true);
+	assert.equal(chromePostRun(state.chrome), true);
 	assert.equal(state.entries.find(e => e.turnId === 'run-2' && e.role === 'assistant')?.status, 'done');
 });
 
@@ -1469,7 +1470,7 @@ test('final_answer after empty settle still paints the body', () => {
 	});
 	state = applyBridgeEvent(state, {type: 'reasoning_delta', turnId: 't1', text: 'compare layers'});
 	state = applyBridgeEvent(state, {type: 'turn_finished', turnId: 't1', success: true});
-	assert.equal(state.postRunTerminal, true);
+	assert.equal(chromePostRun(state.chrome), true);
 	assert.equal(state.entries.find(e => e.role === 'assistant')?.text, '');
 	assert.equal(state.entries.find(e => e.role === 'assistant')?.reasoning, 'compare layers');
 	state = applyBridgeEvent(state, {
@@ -1505,7 +1506,7 @@ test('stray stream after restore never mutates a completed restored entry', () =
 
 test('cold session_restored settles so attach-replay TurnStarted does not relight Stop', () => {
 	let state = createTranscriptState();
-	state = {...state, activeRunId: 'stale-run', awaitingCancelSettlement: true};
+	state = {...state, chrome: runChromeTransition(state.chrome, {run: {id: 'stale-run', fromServer: false}, awaiting: true})};
 	state = applyBridgeEvent(state, {
 		type: 'session_restored',
 		sessionId: 'sess-1',
@@ -1520,9 +1521,9 @@ test('cold session_restored settles so attach-replay TurnStarted does not religh
 		totalTurnCount: 1
 	});
 	assert.equal(state.entries.find(e => e.role === 'assistant')?.status, 'done');
-	assert.equal(state.activeRunId, undefined);
-	assert.equal(state.awaitingCancelSettlement, false);
-	assert.equal(state.postRunTerminal, true, 'settled restore must arm the straggler guard');
+	assert.equal(chromeRunId(state.chrome), undefined);
+	assert.equal(chromeAwaitingSettlement(state.chrome), false);
+	assert.equal(chromePostRun(state.chrome), true, 'settled restore must arm the straggler guard');
 	assert.equal(composerGate(state, true).runState, 'idle');
 	assert.equal(composerGate(state, true).canCancel, false);
 
@@ -1532,7 +1533,7 @@ test('cold session_restored settles so attach-replay TurnStarted does not religh
 		0,
 		'empty persist TurnStarted must not spawn a streaming row after cold restore'
 	);
-	assert.equal(state.activeRunId, undefined);
+	assert.equal(chromeRunId(state.chrome), undefined);
 	assert.equal(composerGate(state, true).canCancel, false);
 	assert.equal(composerGate(state, true).runState, 'idle');
 });
@@ -1589,8 +1590,8 @@ test('settled restore + persist TurnStarted with user text must not relight Stop
 		0,
 		'persist opener with the restored prompt must not spawn a new streaming row'
 	);
-	assert.equal(state.activeRunId, undefined);
-	assert.equal(state.postRunTerminal, true);
+	assert.equal(chromeRunId(state.chrome), undefined);
+	assert.equal(chromePostRun(state.chrome), true);
 	assert.equal(composerGate(state, true).canCancel, false);
 	assert.equal(composerGate(state, true).runState, 'idle');
 });
@@ -1710,7 +1711,7 @@ test('settled restore + persist input_accepted must not set activeRunId', () => 
 		clientMessageId: 'client-old',
 		eventSeq: 81
 	});
-	assert.equal(state.activeRunId, undefined);
+	assert.equal(chromeRunId(state.chrome), undefined);
 	assert.equal(composerGate(state, true).canCancel, false);
 	assert.equal(composerGate(state, true).runState, 'idle');
 });
@@ -1730,7 +1731,7 @@ test('settled restore + persist approval pair must not relight Stop', () => {
 		hasMoreOlder: false,
 		totalTurnCount: 1
 	});
-	assert.equal(state.postRunTerminal, true);
+	assert.equal(chromePostRun(state.chrome), true);
 	state = applyBridgeEvent(state, {
 		type: 'approval_requested',
 		id: '01a01981-6014-7118-93d9-ce8ff5bdbadf',
@@ -1740,7 +1741,7 @@ test('settled restore + persist approval pair must not relight Stop', () => {
 		eventSeq: 5454
 	});
 	assert.equal(state.approvals.length, 1, 'pending card still paints so a live wait can resolve');
-	assert.equal(state.activeRunId, undefined, 'settled restore must not arm Stop from persist approval');
+	assert.equal(chromeRunId(state.chrome), undefined, 'settled restore must not arm Stop from persist approval');
 	assert.equal(composerGate(state, true).runState, 'idle');
 	assert.equal(composerGate(state, true).canCancel, false);
 	state = applyBridgeEvent(state, {
@@ -1751,7 +1752,7 @@ test('settled restore + persist approval pair must not relight Stop', () => {
 		eventSeq: 5455
 	});
 	assert.equal(state.approvals.length, 0);
-	assert.equal(state.activeRunId, undefined);
+	assert.equal(chromeRunId(state.chrome), undefined);
 	assert.equal(composerGate(state, true).runState, 'idle');
 	assert.equal(composerGate(state, true).canCancel, false);
 });
@@ -1771,8 +1772,8 @@ test('live approval_requested still arms activeRunId so resolve can resume Stop'
 		tool: 'shell',
 		description: 'rm'
 	});
-	assert.equal(state.activeRunId, 'run-live');
-	assert.equal(state.postRunTerminal, false);
+	assert.equal(chromeRunId(state.chrome), 'run-live');
+	assert.equal(chromePostRun(state.chrome), false);
 	assert.equal(composerGate(state, true).canCancel, false, 'prompt lock extinguishes Stop');
 	state = applyBridgeEvent(state, {
 		type: 'approval_resolved',
@@ -1780,7 +1781,7 @@ test('live approval_requested still arms activeRunId so resolve can resume Stop'
 		runId: 'run-live',
 		approved: true
 	});
-	assert.equal(state.activeRunId, 'run-live');
+	assert.equal(chromeRunId(state.chrome), 'run-live');
 	assert.equal(composerGate(state, true).runState, 'running');
 	assert.equal(composerGate(state, true).canCancel, true);
 });
@@ -1794,15 +1795,15 @@ test('user turn_started after settled restore lifts the guard', () => {
 		hasMoreOlder: false,
 		totalTurnCount: 1
 	});
-	assert.equal(state.postRunTerminal, true);
+	assert.equal(chromePostRun(state.chrome), true);
 	state = applyBridgeEvent(state, {
 		type: 'turn_started',
 		turnId: 'client-2',
 		clientMessageId: 'client-2',
 		text: '下一句'
 	});
-	assert.equal(state.postRunTerminal, false);
-	assert.equal(state.activeRunId, 'client-2');
+	assert.equal(chromePostRun(state.chrome), false);
+	assert.equal(chromeRunId(state.chrome), 'client-2');
 	assert.equal(composerGate(state, true).runState, 'running');
 });
 
@@ -2096,7 +2097,7 @@ test('background_task_output accumulates LiveProc preview and survives postRunTe
 	assert.equal(state.liveProcs?.[0]?.outputPreview, 'compiling...\ndone\n');
 
 	// Cancel/settlement must not drop P1 deltas for cross-run bg procs.
-	state = {...state, postRunTerminal: true};
+	state = {...state, chrome: runChromeTransition(state.chrome, {postRun: true})};
 	state = applyBridgeEvent(state, {
 		type: 'background_task_output',
 		procId: 'p1',
@@ -2132,7 +2133,7 @@ test('Fg proc_updated enters liveProcs; status exit removes without needing canc
 	assert.equal(state.liveProcs?.[0]?.procId, 'fg-1');
 
 	// Drawer stop is KillProc → terminal proc_updated; must not clear via run cancel fields.
-	state = {...state, postRunTerminal: false};
+	state = {...state, chrome: runChromeTransition(state.chrome, {postRun: false})};
 	state = applyBridgeEvent(state, {
 		type: 'proc_updated',
 		procId: 'fg-1',
@@ -2140,7 +2141,7 @@ test('Fg proc_updated enters liveProcs; status exit removes without needing canc
 		reason: 'user_stopped'
 	});
 	assert.equal(state.liveProcs?.length, 0);
-	assert.equal(state.postRunTerminal, false);
+	assert.equal(chromePostRun(state.chrome), false);
 });
 
 test('slash-only skill user text is a command timeline row', () => {
@@ -2305,7 +2306,7 @@ test('L1 Goal agent_call with goalId updates goalFlow status and never paints a 
 	});
 	state = applyBridgeEvent(state, {type: 'assistant_delta', turnId: 't1', text: 'Goal 已启动'});
 	state = applyBridgeEvent(state, {type: 'turn_finished', turnId: 't1', success: true});
-	assert.equal(state.postRunTerminal, true);
+	assert.equal(chromePostRun(state.chrome), true);
 
 	// After chat settle, L1 agent_call still updates status (passes postRunTerminal).
 	state = applyBridgeEvent(state, {
@@ -2929,7 +2930,7 @@ test('run_done after river TurnStarted remaps turnId off the run id must extingu
 		0,
 		'run_done must seal the remapped streaming row'
 	);
-	assert.equal(state.activeRunId, undefined);
+	assert.equal(chromeRunId(state.chrome), undefined);
 	assert.equal(composerGate(state, true).canCancel, false, 'Stop must go out when the run completes');
 });
 
@@ -2986,7 +2987,7 @@ test('sequenced empty TurnStarted after settle does not relight Stop', () => {
 		state.entries.filter(e => e.role === 'assistant' && e.status === 'streaming').length,
 		0
 	);
-	assert.equal(state.postRunTerminal, true);
+	assert.equal(chromePostRun(state.chrome), true);
 	assert.equal(composerGate(state, true).canCancel, false);
 	assert.equal(composerGate(state, true).runState, 'idle');
 });
@@ -3065,7 +3066,7 @@ test('goal_step_conclusion and goal_outcome structured turns project after chat 
 	let state = createTranscriptState();
 	state = applyBridgeEvent(state, {type: 'turn_started', turnId: 't1', text: 'go'});
 	state = applyBridgeEvent(state, {type: 'turn_finished', turnId: 't1', success: true});
-	assert.equal(state.postRunTerminal, true);
+	assert.equal(chromePostRun(state.chrome), true);
 
 	state = applyBridgeEvent(state, {
 		type: 'turn_started',
@@ -3076,8 +3077,8 @@ test('goal_step_conclusion and goal_outcome structured turns project after chat 
 		goalId: 'g1',
 		stepId: 'verify'
 	});
-	assert.equal(state.postRunTerminal, true, 'goal system turn must not clear postRunTerminal');
-	assert.equal(state.activeRunId, undefined, 'goal system turn must not arm Stop');
+	assert.equal(chromePostRun(state.chrome), true, 'goal system turn must not clear postRunTerminal');
+	assert.equal(chromeRunId(state.chrome), undefined, 'goal system turn must not arm Stop');
 	const stepEntry = state.entries.find(e => e.turnId === 'goal-step-r1-conclusion');
 	assert.equal(stepEntry?.messageType, 'goal_step_conclusion');
 	assert.equal(stepEntry?.goalAgentName, 'reviewer');
@@ -3252,8 +3253,8 @@ test('settled restore + live new turn with fresh prompt paints and arms run', ()
 		text: 'ask B',
 		eventSeq: 1
 	});
-	assert.equal(state.postRunTerminal, false);
-	assert.equal(state.activeRunId, 'tb');
+	assert.equal(chromePostRun(state.chrome), false);
+	assert.equal(chromeRunId(state.chrome), 'tb');
 	assert.ok(
 		state.entries.some(e => e.role === 'assistant' && e.turnId === 'tb' && e.status === 'streaming'),
 		'live new turn on a freshly restored session must paint a streaming row'
@@ -3271,7 +3272,7 @@ test('settled cancel + resubmit with different prompt paints new streaming turn'
 	});
 	state = applyLocalCancel(state);
 	state = applyBridgeEvent(state, {type: 'turn_cancelled', reason: 'stop', eventSeq: 2});
-	assert.equal(state.postRunTerminal, true);
+	assert.equal(chromePostRun(state.chrome), true);
 	state = applyBridgeEvent(state, {
 		type: 'turn_started',
 		turnId: 'c2',
@@ -3279,7 +3280,7 @@ test('settled cancel + resubmit with different prompt paints new streaming turn'
 		text: '继续',
 		eventSeq: 3
 	});
-	assert.equal(state.postRunTerminal, false);
+	assert.equal(chromePostRun(state.chrome), false);
 	assert.ok(
 		state.entries.some(e => e.role === 'assistant' && e.turnId === 'c2' && e.status === 'streaming'),
 		'resubmit after cancel settle must paint a new streaming row'

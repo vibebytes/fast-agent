@@ -38,7 +38,7 @@ import {isSilentCommandResult} from './rpc/hostProtocolCommands.js';
 import {Command, matchKeybinding} from './input/keybindings.js';
 import {FOOTER_ITEMS} from './components/dialogs/FooterConfigDialog.js';
 import {DeltaBatcher} from './rpc/DeltaBatcher.js';
-import {CANCEL_SETTLEMENT_TIMEOUT_MS, canFlushQueuedInput, composerGate, seqTerminal} from '@fast-ide/session-view';
+import {CANCEL_SETTLEMENT_TIMEOUT_MS, canFlushQueuedInput, chromeAwaitingSettlement, composerGate, seqTerminal} from '@fast-ide/session-view';
 import {createTuiStreamSeq} from './rpc/tuiStreamSeq.js';
 import type {UiState} from './state/model.js';
 
@@ -536,12 +536,12 @@ export function AppContainer({initialBackground = {kind: 'unknown', hex: undefin
 
 	/** ADR-0007: unlock Composer if turn_cancelled never arrives (~12s, matches Fast IDE). */
 	useEffect(() => {
-		if (!state.transcript.awaitingCancelSettlement) return;
+		if (!chromeAwaitingSettlement(state.transcript.chrome)) return;
 		const timer = setTimeout(() => {
 			dispatch({type: 'force_cancel_settlement', reason: 'client settlement timeout'});
 		}, CANCEL_SETTLEMENT_TIMEOUT_MS);
 		return () => clearTimeout(timer);
-	}, [state.transcript.awaitingCancelSettlement]);
+	}, [state.transcript.chrome]);
 
 	const submitInput = useCallback((text: string, mentions?: MentionChip[]) => {
 		setInputHistory(current => appendHistoryEntry(text, current));

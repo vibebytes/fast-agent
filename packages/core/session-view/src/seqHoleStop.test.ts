@@ -13,6 +13,7 @@ import {
 	emptySessionSeq,
 	offer
 } from './index.js';
+import {chromeRunId, chromePostRun} from './runChrome.js';
 
 function projectThroughOffer(events: BridgeEvent[]) {
 	let seq = emptySessionSeq();
@@ -51,7 +52,7 @@ test('offer → project: CommandLoop turn_finished without eventSeq extinguishes
 		state.entries.filter(e => e.role === 'assistant' && e.status === 'streaming').length,
 		0
 	);
-	assert.equal(state.activeRunId, undefined);
+	assert.equal(chromeRunId(state.chrome), undefined);
 	assert.equal(composerGate(state, true).canCancel, false, 'Stop must go out after CommandLoop settle');
 	assert.equal(composerGate(state, true).runState, 'idle');
 });
@@ -72,7 +73,7 @@ test('offer → project: persist run_done with a seq hole extinguishes Stop', ()
 		state.entries.filter(e => e.role === 'assistant' && e.status === 'streaming').length,
 		0
 	);
-	assert.equal(state.activeRunId, undefined);
+	assert.equal(chromeRunId(state.chrome), undefined);
 	assert.equal(composerGate(state, true).canCancel, false, 'Stop must go out even when seq 2 never arrives');
 });
 
@@ -390,8 +391,8 @@ test('offer → project: settled restore + persist opener with user text stays i
 		} as BridgeEvent,
 		{type: 'assistant_delta', turnId: 'run-9', text: '剩余 3 项 [~] 及原因', eventSeq: 94}
 	]);
-	assert.equal(state.postRunTerminal, true);
-	assert.equal(state.activeRunId, undefined);
+	assert.equal(chromePostRun(state.chrome), true);
+	assert.equal(chromeRunId(state.chrome), undefined);
 	assert.equal(
 		state.entries.filter(e => e.role === 'assistant' && e.status === 'streaming').length,
 		0
@@ -418,8 +419,8 @@ test('offer → project: cold session_restored then persist TurnStarted stays id
 		{type: 'turn_started', turnId: 'run-9', text: '', eventSeq: 1} as BridgeEvent,
 		{type: 'turn_started', turnId: 'run-9', text: ''} as BridgeEvent
 	]);
-	assert.equal(state.postRunTerminal, true);
-	assert.equal(state.activeRunId, undefined);
+	assert.equal(chromePostRun(state.chrome), true);
+	assert.equal(chromeRunId(state.chrome), undefined);
 	assert.equal(
 		state.entries.filter(e => e.role === 'assistant' && e.status === 'streaming').length,
 		0

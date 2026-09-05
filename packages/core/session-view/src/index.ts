@@ -6,6 +6,16 @@ export {
 } from './chatDocument.js';
 
 export {
+	IDLE_RUN_CHROME,
+	SETTLED_RUN_CHROME,
+	chromeAwaitingSettlement,
+	chromeFromServer,
+	chromePostRun,
+	chromeRunId,
+	runChromeTransition
+} from './runChrome.js';
+
+export {
 	emptySessionSeq,
 	eventSeqOf,
 	offer,

@@ -9,6 +9,7 @@ import {
 	type ComposerGate
 } from './composerGate.js';
 import {createTranscriptState, type TranscriptState} from './transcriptProjection.js';
+import {IDLE_RUN_CHROME, runChromeTransition} from './runChrome.js';
 
 function gate(partial: Partial<TranscriptState>, sessionReady = true): ComposerGate {
 	return composerGate({...createTranscriptState(), ...partial}, sessionReady);
@@ -92,7 +93,7 @@ test('idle + not ready → nothing', () => {
 });
 
 test('running (activeRunId) → enqueue, cancel; no direct submit', () => {
-	assert.deepEqual(gate({activeRunId: 'run-1'}), {
+	assert.deepEqual(gate({chrome: runChromeTransition(IDLE_RUN_CHROME, {run: {id: 'run-1', fromServer: false}})}), {
 		runState: 'running',
 		canSubmitNow: false,
 		canEnqueue: true,
@@ -121,7 +122,7 @@ test('running (streaming entry) → enqueue, cancel', () => {
 });
 
 test('stopping → enqueue allowed, cancel stays, no direct submit, Composer unlocked', () => {
-	assert.deepEqual(gate({activeRunId: 'run-1', awaitingCancelSettlement: true}), {
+	assert.deepEqual(gate({chrome: runChromeTransition(IDLE_RUN_CHROME, {run: {id: 'run-1', fromServer: false}, awaiting: true})}), {
 		runState: 'stopping',
 		canSubmitNow: false,
 		canEnqueue: true,
@@ -132,7 +133,7 @@ test('stopping → enqueue allowed, cancel stays, no direct submit, Composer unl
 });
 
 test('stopping without activeRunId still Stopping', () => {
-	const g = gate({awaitingCancelSettlement: true});
+	const g = gate({chrome: runChromeTransition(IDLE_RUN_CHROME, {awaiting: true})});
 	assert.equal(g.runState, 'stopping');
 	assert.equal(g.canEnqueue, true);
 	assert.equal(g.canCancel, true);
@@ -141,7 +142,7 @@ test('stopping without activeRunId still Stopping', () => {
 
 test('prompt lock: waiting for user is idle — Stop off, composer locked', () => {
 	const g = gate({
-		activeRunId: 'run-1',
+		chrome: runChromeTransition(IDLE_RUN_CHROME, {run: {id: 'run-1', fromServer: false}}),
 		approvals: [{id: 'ap1', runId: 'run-1', tool: 'shell', description: 'run'}]
 	});
 	assert.equal(g.runState, 'idle');
@@ -155,7 +156,7 @@ test('prompt lock: waiting for user is idle — Stop off, composer locked', () =
 test('question_requested path: activeRunId + streaming + question → Stop off', () => {
 	// Mirrors Bridge events after SkillSlash ask_user_question (grilling).
 	const g = gate({
-		activeRunId: '019f-host',
+		chrome: runChromeTransition(IDLE_RUN_CHROME, {run: {id: '019f-host', fromServer: false}}),
 		questions: [{id: 'q1', runId: '019f-host', question: 'Which candidate?', options: []}],
 		entries: [
 			{
@@ -175,7 +176,7 @@ test('question_requested path: activeRunId + streaming + question → Stop off',
 
 test('questionBatches lock Composer and extinguish Stop', () => {
 	const g = gate({
-		activeRunId: 'run-1',
+		chrome: runChromeTransition(IDLE_RUN_CHROME, {run: {id: 'run-1', fromServer: false}}),
 		questionBatches: [{rpcId: 'rpc-1', runId: 'run-1', questions: [{id: 'q1', question: 'Go?'}]}],
 		entries: [
 			{
@@ -206,7 +207,7 @@ test('prompt lock on idle blocks submit', () => {
 
 test('stopping + prompt: Stopping wins for runState, prompt still locks', () => {
 	const g = gate({
-		awaitingCancelSettlement: true,
+		chrome: runChromeTransition(IDLE_RUN_CHROME, {awaiting: true}),
 		approvals: [{id: 'ap1', runId: 'run-1', tool: 'shell', description: 'run'}]
 	});
 	assert.equal(g.runState, 'stopping');

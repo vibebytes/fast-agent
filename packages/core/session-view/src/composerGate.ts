@@ -4,6 +4,7 @@
  */
 
 import {createTranscriptState, type TranscriptState} from './transcriptProjection.js';
+import {IDLE_RUN_CHROME, chromeAwaitingSettlement, chromeRunId, runChromeTransition} from './runChrome.js';
 
 /** Default matches Engine ~10s hard timeout + small buffer. */
 export const CANCEL_SETTLEMENT_TIMEOUT_MS = 12_000;
@@ -77,10 +78,10 @@ export function composerGate(
 		transcript.approvals.length > 0 ||
 		transcript.questions.length > 0 ||
 		transcript.questionBatches.length > 0;
-	const stopping = Boolean(transcript.awaitingCancelSettlement);
+	const stopping = chromeAwaitingSettlement(transcript.chrome);
 	const hasRun =
 		!leaseExpired &&
-		(Boolean(transcript.activeRunId) ||
+		(Boolean(chromeRunId(transcript.chrome)) ||
 			transcript.entries.some(e => e.status === 'streaming'));
 
 	// Waiting for user (question / approval) is not model execution. Fast IDE Stop is
@@ -110,9 +111,10 @@ export function composerGateFromRunFlags(flags: ComposerRunFlags): ComposerGate 
 			approvals: flags.approvals,
 			questions: flags.questions,
 			questionBatches: flags.questionBatches ?? [],
-			activeRunId:
-				flags.running && !flags.awaitingCancelSettlement ? 'active' : undefined,
-			awaitingCancelSettlement: flags.awaitingCancelSettlement
+			chrome: runChromeTransition(IDLE_RUN_CHROME, {
+				run: flags.running ? {id: 'active', fromServer: false} : 'clear',
+				awaiting: flags.awaitingCancelSettlement
+			})
 		},
 		flags.sessionReady,
 		flags.leaseExpired ?? false

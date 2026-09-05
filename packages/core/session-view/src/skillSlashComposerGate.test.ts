@@ -9,6 +9,7 @@ import assert from 'node:assert/strict';
 import {test} from 'node:test';
 import {applyBridgeEvent, createTranscriptState} from './transcriptProjection.js';
 import {composerGate} from './composerGate.js';
+import {chromeRunId, chromePostRun} from './runChrome.js';
 
 function skillSlashLive(clientId: string, hostRunId: string) {
 	let state = createTranscriptState();
@@ -42,7 +43,7 @@ test('SkillSlash content without turn_finished keeps Composer running → next m
 	assert.equal(gate.runState, 'running');
 	assert.equal(gate.canEnqueue, true);
 	assert.equal(gate.canSubmitNow, false);
-	assert.ok(state.activeRunId === '019f-host' || state.entries.some(e => e.status === 'streaming'));
+	assert.ok(chromeRunId(state.chrome) === '019f-host' || state.entries.some(e => e.status === 'streaming'));
 });
 
 test('turn_finished after SkillSlash unlocks Composer (submit now, no enqueue)', () => {
@@ -52,7 +53,7 @@ test('turn_finished after SkillSlash unlocks Composer (submit now, no enqueue)',
 	assert.equal(gate.runState, 'idle');
 	assert.equal(gate.canSubmitNow, true);
 	assert.equal(gate.canEnqueue, false);
-	assert.equal(state.activeRunId, undefined);
+	assert.equal(chromeRunId(state.chrome), undefined);
 	assert.equal(
 		state.entries.some(e => e.status === 'streaming'),
 		false
@@ -109,7 +110,7 @@ test('pipeline: question → answer → resume streaming → turn_finished resto
 	assert.equal(state.questions.length, 0);
 	// After answer, activeRunId remains until turn_finished; without streaming yet
 	// gate may still see activeRunId as running.
-	assert.ok(state.activeRunId === '019f-pipe-host');
+	assert.ok(chromeRunId(state.chrome) === '019f-pipe-host');
 
 	state = applyBridgeEvent(state, {
 		type: 'assistant_delta',
@@ -156,7 +157,7 @@ test('approval_requested clears streaming and extinguishes Stop', () => {
 test('SkillSlash wire turn_finished (no turnId) arms postRunTerminal and unlocks Composer', () => {
 	let state = skillSlashLive('client-wire', '019f-wire-host');
 	state = applyBridgeEvent(state, {type: 'turn_finished', success: true, sessionId: 'sess'});
-	assert.equal(state.postRunTerminal, true);
+	assert.equal(chromePostRun(state.chrome), true);
 	const gate = composerGate(state, true);
 	assert.equal(gate.runState, 'idle');
 	assert.equal(gate.canCancel, false);
@@ -211,7 +212,7 @@ test('after SkillSlash end, straggler assistant_delta/tool_* must not re-light S
 test('turn_finished success:false still arms straggler guard and extinguishes Stop', () => {
 	let state = skillSlashLive('client-fail', '019f-fail-host');
 	state = applyBridgeEvent(state, {type: 'turn_finished', success: false});
-	assert.equal(state.postRunTerminal, true);
+	assert.equal(chromePostRun(state.chrome), true);
 	assert.equal(state.entries.find(e => e.role === 'assistant')?.status, 'error');
 	state = applyBridgeEvent(state, {
 		type: 'assistant_delta',
@@ -225,7 +226,7 @@ test('turn_finished success:false still arms straggler guard and extinguishes St
 test('next SkillSlash turn after postRunTerminal lifts guard and can run again', () => {
 	let state = skillSlashLive('client-n1', '019f-n1-host');
 	state = applyBridgeEvent(state, {type: 'turn_finished', success: true});
-	assert.equal(state.postRunTerminal, true);
+	assert.equal(chromePostRun(state.chrome), true);
 	state = applyBridgeEvent(state, {
 		type: 'assistant_delta',
 		turnId: '019f-n1-host',
@@ -243,7 +244,7 @@ test('next SkillSlash turn after postRunTerminal lifts guard and can run again',
 		clientMessageId: 'client-n2',
 		text: '/grilling again'
 	});
-	assert.equal(state.postRunTerminal, false);
+	assert.equal(chromePostRun(state.chrome), false);
 	state = applyBridgeEvent(state, {
 		type: 'input_accepted',
 		clientMessageId: 'client-n2',

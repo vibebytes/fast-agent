@@ -1,7 +1,10 @@
 import {
 	applyBridgeEvent,
 	applyLocalCancel,
+	chromeAwaitingSettlement,
+	chromePostRun,
 	createTranscriptState,
+	runChromeTransition,
 	type TranscriptEntry,
 	type TranscriptState
 } from '@fast-ide/session-view';
@@ -185,7 +188,14 @@ export function reducer(state: UiState, action: UiAction): UiState {
 		case 'clear':
 			return {
 				...state,
-				transcript: createTranscriptState(),
+				transcript: {
+					...createTranscriptState(),
+					chrome: runChromeTransition(state.transcript.chrome, {
+						run: 'clear',
+						postRun: true,
+						awaiting: false
+					})
+				},
 				localTurns: [],
 				nextStreamSeq: 0,
 				entryStreamSeq: {},
@@ -233,13 +243,12 @@ export function reducer(state: UiState, action: UiAction): UiState {
 			};
 		case 'force_cancel_settlement':
 			// Last-resort unlock when Bridge never emits turn_cancelled (ADR-0007 watchdog).
-			if (!state.transcript.awaitingCancelSettlement) return state;
+			if (!chromeAwaitingSettlement(state.transcript.chrome)) return state;
 			return {
 				...state,
 				transcript: {
 					...state.transcript,
-					awaitingCancelSettlement: false,
-					postRunTerminal: true,
+					chrome: runChromeTransition(state.transcript.chrome, {awaiting: 'clear', postRun: true}),
 					approvals: [],
 					questions: []
 				},
@@ -681,8 +690,8 @@ function applyEvent(state: UiState, event: BridgeEvent): UiState {
 								),
 								progressJson: g?.progressJson ?? prev?.progressJson
 							},
-							// Goal track is not a Chat-turn straggler — lift postRunTerminal.
-							transcript: {...withTranscript.transcript, postRunTerminal: false}
+							// Goal track is not a Chat-turn straggler — lift the postRun guard.
+							transcript: {...withTranscript.transcript, chrome: runChromeTransition(withTranscript.transcript.chrome, {postRun: false})}
 						};
 					}
 				}
@@ -876,7 +885,7 @@ function applyEvent(state: UiState, event: BridgeEvent): UiState {
 			};
 		}
 		case 'run_cancelled': {
-			if (withTranscript.transcript.awaitingCancelSettlement) {
+			if (chromeAwaitingSettlement(withTranscript.transcript.chrome)) {
 				return {
 					...withTranscript,
 					agentRuns: [],
@@ -900,7 +909,7 @@ function applyEvent(state: UiState, event: BridgeEvent): UiState {
 			}
 			const runId = event.runId ?? event.agentId;
 			if (state.agentRuns.some(ar => ar.runId === runId)) return withTranscript;
-			if (withTranscript.transcript.postRunTerminal) return withTranscript;
+			if (chromePostRun(withTranscript.transcript.chrome)) return withTranscript;
 			const parent = state.agentRuns.find(ar => ar.runId === event.parentRunId);
 			const runningRoot = parent ? undefined : state.agentRuns.find(ar =>
 				ar.status === 'running' && !state.agentRuns.some(other => other.runId === ar.parentRunId));
@@ -1017,7 +1026,7 @@ function applyEvent(state: UiState, event: BridgeEvent): UiState {
 				goalCard: card,
 				status: `goal ${event.phase}`,
 				transcript: liftGuard
-					? {...withTranscript.transcript, postRunTerminal: false}
+					? {...withTranscript.transcript, chrome: runChromeTransition(withTranscript.transcript.chrome, {postRun: false})}
 					: withTranscript.transcript
 			};
 		}
@@ -1031,8 +1040,7 @@ function applyEvent(state: UiState, event: BridgeEvent): UiState {
 function seedOptimisticTurn(transcript: TranscriptState, text: string, clientMessageId: string): TranscriptState {
 	return {
 		...transcript,
-		postRunTerminal: false,
-		awaitingCancelSettlement: false,
+		chrome: runChromeTransition(transcript.chrome, {postRun: false, awaiting: 'clear'}),
 		entries: [
 			...transcript.entries,
 			{

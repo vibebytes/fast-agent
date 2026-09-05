@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import type {BridgeCommand, BridgeEvent} from '@fastllm/bridge-protocol';
-import {createTranscriptState, toTimelineItems} from '@fast-ide/session-view';
+import {SETTLED_RUN_CHROME, chromePostRun, createTranscriptState, runChromeTransition, toTimelineItems} from '@fast-ide/session-view';
 import {SessionController, goalFlowSeed, paintAwaitingConfirm} from './SessionController.js';
 
 /**
@@ -65,7 +65,7 @@ test('goal_updated awaiting_confirm opens the confirm card on the owning task', 
 test('paintAwaitingConfirm fills empty settled chat with plan + 请确认', () => {
 	const settled = {
 		...createTranscriptState(),
-		postRunTerminal: true,
+		chrome: SETTLED_RUN_CHROME,
 		entries: [{id: 'a1', role: 'assistant' as const, text: '', status: 'done' as const}]
 	};
 	const next = paintAwaitingConfirm(settled, {
@@ -85,7 +85,7 @@ test('paintAwaitingConfirm fills empty settled chat with plan + 请确认', () =
 test('paintAwaitingConfirm does not overwrite model confirmation prose', () => {
 	const hasText = {
 		...createTranscriptState(),
-		postRunTerminal: true,
+		chrome: SETTLED_RUN_CHROME,
 		entries: [
 			{id: 'a1', role: 'assistant' as const, text: '方案已写好，请确认。', status: 'done' as const}
 		]
@@ -111,7 +111,7 @@ test('paintAwaitingConfirm appends a reply after the tool turn — not orphan pr
 	};
 	const dumped = {
 		...createTranscriptState(),
-		postRunTerminal: true,
+		chrome: SETTLED_RUN_CHROME,
 		entries: [
 			{
 				id: 'u1',
@@ -160,7 +160,7 @@ test('paintAwaitingConfirm appends a reply after the tool turn — not orphan pr
 test('paintAwaitingConfirm leaves a tool-turn assistant segment as the confirm reply', () => {
 	const settled = {
 		...createTranscriptState(),
-		postRunTerminal: true,
+		chrome: SETTLED_RUN_CHROME,
 		entries: [
 			{id: 'u1', role: 'user' as const, text: '/goal', status: 'done' as const},
 			{
@@ -193,7 +193,7 @@ test('paintAwaitingConfirm leaves a tool-turn assistant segment as the confirm r
 test('paintAwaitingConfirm keeps tool-turn preamble and still appends confirm', () => {
 	const settled = {
 		...createTranscriptState(),
-		postRunTerminal: true,
+		chrome: SETTLED_RUN_CHROME,
 		entries: [
 			{id: 'u1', role: 'user' as const, text: '/goal', status: 'done' as const},
 			{
@@ -223,7 +223,7 @@ test('goal_updated awaiting_confirm after chat settle paints confirm prose; gate
 	const task = controller.getActiveTask()!;
 	task.transcript = {
 		...task.transcript,
-		postRunTerminal: true,
+		chrome: SETTLED_RUN_CHROME,
 		entries: [{id: 'a1', role: 'assistant', text: '', status: 'done'}]
 	};
 	controller.handleEvent(goalUpdated());
@@ -241,7 +241,7 @@ test('goal_updated awaiting_confirm after a tool turn appends confirm below Proc
 	const task = controller.getActiveTask()!;
 	task.transcript = {
 		...task.transcript,
-		postRunTerminal: true,
+		chrome: SETTLED_RUN_CHROME,
 		entries: [
 			{id: 'u1', role: 'user', text: '/goal ship', status: 'done'},
 			{
@@ -310,7 +310,7 @@ test('accepted ConfirmGoal result keeps the card as started and paints the outco
 	assert.equal(task?.goalCard?.status, 'running');
 	assert.equal(task?.goalCard?.goalId, 'g1');
 	assert.ok(task?.transcript.entries.some(e => e.text?.includes('confirmed+started')));
-	assert.equal(task?.transcript.postRunTerminal, false, 'Goal track must lift Chat straggler guard');
+	assert.equal(chromePostRun(task?.transcript.chrome), false, 'Goal track must lift Chat straggler guard');
 	// Busy A′: Goal owns chrome; composer stays open for steer (not CancelRun).
 	assert.equal(controller.gate().runState, 'running');
 	assert.equal(controller.gate().canSubmitNow, true);
@@ -332,7 +332,7 @@ test('after ConfirmGoal, Goal step turn_started + tool events paint into the tra
 	controller.handleEvent(goalUpdated());
 	// Simulate prior Chat turn settle (SkillSlash / plan) arming the straggler guard.
 	const task0 = controller.getActiveTask()!;
-	task0.transcript = {...task0.transcript, postRunTerminal: true};
+	task0.transcript = {...task0.transcript, chrome: runChromeTransition(task0.transcript.chrome, {postRun: true})};
 	controller.handleEvent({
 		type: 'command_result',
 		name: 'ConfirmGoal',

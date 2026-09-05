@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {homedir} from 'node:os';
 import {join} from 'node:path';
+import {chromeAwaitingSettlement} from '@fast-ide/session-view';
 import {initialState} from './model.js';
 import {reducer} from './reducer.js';
 import {turnsToTimeline} from './timeline/turnAdapter.js';
@@ -524,11 +525,11 @@ test('force_cancel_settlement unlocks when turn_cancelled never arrives', () => 
 	state = reducer(state, {type: 'submit_user', text: 'long running', clientMessageId: 'client_1'});
 	state = reducer(state, {type: 'engine_event', event: {type: 'input_accepted', clientMessageId: 'client_1', turnId: 'turn_1'}});
 	state = reducer(state, {type: 'local_cancel'});
-	assert.equal(state.transcript.awaitingCancelSettlement, true);
+	assert.equal(chromeAwaitingSettlement(state.transcript.chrome), true);
 	assert.equal(state.running, true);
 
 	state = reducer(state, {type: 'force_cancel_settlement', reason: 'client settlement timeout'});
-	assert.equal(state.transcript.awaitingCancelSettlement, false);
+	assert.equal(chromeAwaitingSettlement(state.transcript.chrome), false);
 	assert.equal(state.running, false);
 	assert.equal(state.lastTurnTerminal, 'cancelled');
 	assert.equal(state.queuePaused, true);

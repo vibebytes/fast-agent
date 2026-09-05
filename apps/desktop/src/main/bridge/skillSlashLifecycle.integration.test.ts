@@ -10,6 +10,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import type {BridgeCommand, BridgeEvent} from '@fastllm/bridge-protocol';
 import {SessionController} from './SessionController.js';
+import {chromePostRun} from '@fast-ide/session-view';
 import {isSessionStreamEvent} from './sessionStreamEvents.js';
 
 function withSid(sessionId: string, event: BridgeEvent): BridgeEvent {
@@ -165,7 +166,7 @@ test('INTEGRATION: SkillSlash wire turn_finished (no turnId) + stream stragglers
 	c.handleEvent(withSid('sess-straggle', {type: 'turn_finished', success: true}));
 
 	assert.equal(c.gate().canCancel, false);
-	assert.equal(c.getActiveTask()?.transcript.postRunTerminal, true);
+	assert.equal(chromePostRun(c.getActiveTask()?.transcript.chrome), true);
 
 	c.handleEvent(
 		withSid('sess-straggle', {
@@ -355,7 +356,7 @@ test('INTEGRATION: turn_finished success:false + stragglers → Stop off, next s
 	bootSkillSession(c, 'sess-fail');
 	skillSlashLive(c, 'sess-fail', 'client-fail', '019f-host-fail');
 	c.handleEvent(withSid('sess-fail', {type: 'turn_finished', success: false}));
-	assert.equal(c.getActiveTask()?.transcript.postRunTerminal, true);
+	assert.equal(chromePostRun(c.getActiveTask()?.transcript.chrome), true);
 	assert.equal(c.gate().canCancel, false);
 
 	c.handleEvent(
@@ -391,7 +392,7 @@ test('INTEGRATION: after SkillSlash end + stragglers, second turn_started lifts 
 	assert.equal(c.gate().canCancel, false);
 
 	skillSlashLive(c, 'sess-2nd', 'client-b', '019f-host-b', '/grilling round 2');
-	assert.equal(c.getActiveTask()?.transcript.postRunTerminal, false);
+	assert.equal(chromePostRun(c.getActiveTask()?.transcript.chrome), false);
 	assert.equal(c.gate().runState, 'running');
 	assert.equal(c.gate().canCancel, true);
 

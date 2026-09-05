@@ -23,6 +23,7 @@ import {
 	type SessionSeq,
 	type TranscriptState
 } from './index.js';
+import {chromePostRun} from './runChrome.js';
 
 const RUN1 = '01a02e34-864e-7e6a-9ade-628b5c282713';
 const CMID1 = '51bc8282-8248-47a7-8cbe-90b39713cdc3';
@@ -66,7 +67,7 @@ function inspect(state: TranscriptState): string {
 		if (i.kind === 'processStack') return `processStack:${i.stepCount}`;
 		return i.kind;
 	});
-	return JSON.stringify({rows, tl, post: state.postRunTerminal}, null, 2);
+	return JSON.stringify({rows, tl, post: chromePostRun(state.chrome)}, null, 2);
 }
 
 function cancelledOpener(): BridgeEvent[] {

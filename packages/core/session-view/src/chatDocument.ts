@@ -1,3 +1,5 @@
+import {entryMatchesKey} from './turnIdentity.js';
+import {chromePostRun, chromeRunId} from './runChrome.js';
 import type {TranscriptEntry, TranscriptState} from './transcriptProjection.js';
 
 /**
@@ -44,9 +46,9 @@ export function documentCard(
 	}
 	return (
 		cardById(state, state.lastDocumentId) ??
-		cardById(state, state.activeRunId) ??
+		cardById(state, chromeRunId(state.chrome)) ??
 		[...state.entries].reverse().find(e => isChatAssistant(e) && e.status === 'streaming') ??
-		(state.postRunTerminal
+		(chromePostRun(state.chrome)
 			? [...state.entries].reverse().find(e => isChatAssistant(e) && !e.text.trim())
 			: undefined)
 	);
@@ -63,16 +65,13 @@ function cardById(
 		if (e.role !== 'assistant') continue;
 		if (!opts.anyMessage && e.messageType) continue;
 		if (!opts.allowCancelled && e.status === 'cancelled') continue;
-		if (e.turnId === id || e.clientMessageId === id) return e;
+		if (entryMatchesKey(e, id)) return e;
 	}
 	return undefined;
 }
 
 function sameCard(state: TranscriptState, documentId: string, runId: string): boolean {
 	return state.entries.some(
-		e =>
-			e.role === 'assistant' &&
-			(e.turnId === runId || e.clientMessageId === runId) &&
-			(e.turnId === documentId || e.clientMessageId === documentId)
+		e => e.role === 'assistant' && entryMatchesKey(e, runId) && entryMatchesKey(e, documentId)
 	);
 }

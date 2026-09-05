@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import {test} from 'node:test';
 import {applyBridgeEvent, createTranscriptState} from './transcriptProjection.js';
 import {composerGate} from './composerGate.js';
+import {chromeRunId} from './runChrome.js';
 
 function live(): ReturnType<typeof createTranscriptState> {
 	let state = createTranscriptState();
@@ -69,7 +70,7 @@ test('run_state idle snapshot locally settles a busy transcript', () => {
 		state: 'idle',
 		ts: 2
 	});
-	assert.equal(state.activeRunId, undefined);
+	assert.equal(chromeRunId(state.chrome), undefined);
 	assert.equal(state.leaseAware, false);
 	assert.equal(state.entries.some(e => e.status === 'streaming'), false);
 	assert.equal(composerGate(state, true).runState, 'idle');
@@ -84,7 +85,7 @@ test('run_state idle does not settle a new run that never saw a heartbeat', () =
 		ts: 1
 	});
 	assert.equal(state.leaseAware, false);
-	assert.equal(state.activeRunId, 'run-1');
+	assert.equal(chromeRunId(state.chrome), 'run-1');
 	assert.equal(composerGate(state, true).runState, 'running');
 });
 
@@ -106,7 +107,7 @@ test('turn_started clears leaseAware from the previous run', () => {
 	});
 	assert.equal(state.leaseAware, false);
 	state = applyBridgeEvent(state, {type: 'run_state', state: 'idle', ts: 3});
-	assert.equal(state.activeRunId, 'run-2');
+	assert.equal(chromeRunId(state.chrome), 'run-2');
 	assert.equal(composerGate(state, true).runState, 'running');
 });
 
@@ -126,7 +127,7 @@ test('run_state running snapshot revives a locally settled chat run', () => {
 		state: 'running',
 		ts: 3
 	});
-	assert.equal(state.activeRunId, 'run-1');
+	assert.equal(chromeRunId(state.chrome), 'run-1');
 	assert.equal(state.entries.some(e => e.status === 'streaming'), true);
 	assert.equal(composerGate(state, true).runState, 'running');
 });
@@ -147,7 +148,7 @@ test('run_state waiting snapshot revives a locally settled chat run', () => {
 		state: 'waiting',
 		ts: 3
 	});
-	assert.equal(state.activeRunId, 'run-1');
+	assert.equal(chromeRunId(state.chrome), 'run-1');
 	assert.equal(state.entries.some(e => e.status === 'streaming'), true);
 	assert.equal(composerGate(state, true).runState, 'running');
 });

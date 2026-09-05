@@ -8,7 +8,7 @@
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {canAutoDequeue, composerGate} from '@fast-ide/session-view';
+import {canAutoDequeue, chromeAwaitingSettlement, chromePostRun, composerGate} from '@fast-ide/session-view';
 import {initialState, type UiState} from './model.js';
 import {reducer} from './reducer.js';
 import {runIdFor} from './runId.js';
@@ -52,7 +52,7 @@ test('Cancel before host remap: local_cancel still targets clientMessageId (rema
 	const hostRunId = '019f-host-run-race';
 	let state = applyEvents(initialState, skillSlashEvents(clientId, hostRunId, false));
 	state = reducer(state, {type: 'local_cancel'});
-	assert.equal(state.transcript.awaitingCancelSettlement, true);
+	assert.equal(chromeAwaitingSettlement(state.transcript.chrome), true);
 	assert.equal(runIdFor(state), clientId, 'CancelRun payload would still be client id before remap');
 	assert.notEqual(runIdFor(state), hostRunId);
 });
@@ -146,7 +146,7 @@ test('SkillSlash turn_finished without turnId: stragglers must not re-light Stop
 		type: 'engine_event',
 		event: {type: 'turn_finished', success: true, sessionId: 'sess'}
 	});
-	assert.equal(state.transcript.postRunTerminal, true);
+	assert.equal(chromePostRun(state.transcript.chrome), true);
 	assert.equal(composerGate(state.transcript, true).canCancel, false);
 
 	const textBefore = state.transcript.entries.find(e => e.role === 'assistant')?.text;

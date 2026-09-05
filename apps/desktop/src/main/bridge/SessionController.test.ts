@@ -2,6 +2,9 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
 	applyBridgeEvent,
+	chromeAwaitingSettlement,
+	chromeFromServer,
+	chromeRunId,
 	createTranscriptState,
 	type TranscriptState
 } from '@fast-ide/session-view';
@@ -887,7 +890,7 @@ test('transcript projection tracks tools approvals and questions', () => {
 	assert.equal(tools[0]?.status, 'success');
 	assert.equal(state.approvals[0]?.id, 'ap1');
 	assert.equal(state.questions[0]?.id, 'q1');
-	assert.equal(state.activeRunId, 'run-1');
+	assert.equal(chromeRunId(state.chrome), 'run-1');
 });
 
 test('SessionController emits DecideApproval AnswerQuestion CancelAssociated', () => {
@@ -1240,7 +1243,7 @@ test('cancel → CancelAssociated; turn_cancelled unlocks; no host drain (V6)', 
 		clientMessageId: 'client_1',
 		turnId: '019f-server-run'
 	}));
-	assert.equal(controller.getActiveTask()?.transcript.activeRunId, '019f-server-run');
+	assert.equal(chromeRunId(controller.getActiveTask()?.transcript.chrome), '019f-server-run');
 	assert.equal(controller.isRunActive(), true);
 	assert.equal(controller.canSubmitNow(), false);
 
@@ -1259,7 +1262,7 @@ test('cancel → CancelAssociated; turn_cancelled unlocks; no host drain (V6)', 
 	assert.equal(controller.cancelRun('stop'), true);
 	const cancel = sent.find(c => c.type === 'CancelAssociated');
 	assert.ok(cancel && cancel.type === 'CancelAssociated');
-	assert.equal(controller.getActiveTask()?.transcript.awaitingCancelSettlement, true);
+	assert.equal(chromeAwaitingSettlement(controller.getActiveTask()?.transcript.chrome), true);
 	assert.equal(controller.isRunActive(), true);
 	assert.equal(controller.canSubmitNow(), false);
 	assert.equal(controller.canEnqueue(), true, 'Stopping allows Follow-up submit');
@@ -1269,7 +1272,7 @@ test('cancel → CancelAssociated; turn_cancelled unlocks; no host drain (V6)', 
 
 	sent.length = 0;
 	controller.handleEvent(withSid('sess', {type: 'turn_cancelled', reason: 'stop', eventSeq: 2}));
-	assert.equal(controller.getActiveTask()?.transcript.awaitingCancelSettlement, false);
+	assert.equal(chromeAwaitingSettlement(controller.getActiveTask()?.transcript.chrome), false);
 	assert.equal(controller.isRunActive(), false);
 	assert.equal(controller.canSubmitNow(), true);
 	assert.equal(controller.getActiveTask()?.queue.length, 1, 'projection unchanged until follow_up_changed');
@@ -1317,11 +1320,11 @@ test('cancel settlement timeout unlocks submit when turn_cancelled never arrives
 		turnId: '019f-server-run'
 	}));
 	assert.equal(controller.cancelRun('stop'), true);
-	assert.equal(controller.getActiveTask()?.transcript.awaitingCancelSettlement, true);
+	assert.equal(chromeAwaitingSettlement(controller.getActiveTask()?.transcript.chrome), true);
 	assert.equal(controller.canSubmitNow(), false);
 
 	await new Promise(r => setTimeout(r, 80));
-	assert.equal(controller.getActiveTask()?.transcript.awaitingCancelSettlement, false);
+	assert.equal(chromeAwaitingSettlement(controller.getActiveTask()?.transcript.chrome), false);
 	assert.equal(controller.isRunActive(), false);
 	assert.equal(controller.canSubmitNow(), true);
 	assert.ok(changes >= 1, 'onChange must fire so UI can unlock');
@@ -1349,7 +1352,7 @@ test('cancel settlement timers are per-task: arming B does not disarm A', async 
 		text: 'run a'
 	}));
 	assert.equal(controller.cancelRun('stop'), true);
-	assert.equal(controller.listTasks().find(t => t.id === a.id)?.transcript.awaitingCancelSettlement, true);
+	assert.equal(chromeAwaitingSettlement(controller.listTasks().find(t => t.id === a.id)?.transcript.chrome), true);
 
 	const b = controller.createTask('B');
 	controller.acceptNewSession('sess-b', b.id);
@@ -1363,16 +1366,16 @@ test('cancel settlement timers are per-task: arming B does not disarm A', async 
 		text: 'run b'
 	}));
 	assert.equal(controller.cancelRun('stop'), true);
-	assert.equal(controller.listTasks().find(t => t.id === b.id)?.transcript.awaitingCancelSettlement, true);
-	assert.equal(controller.listTasks().find(t => t.id === a.id)?.transcript.awaitingCancelSettlement, true);
+	assert.equal(chromeAwaitingSettlement(controller.listTasks().find(t => t.id === b.id)?.transcript.chrome), true);
+	assert.equal(chromeAwaitingSettlement(controller.listTasks().find(t => t.id === a.id)?.transcript.chrome), true);
 
 	await new Promise(r => setTimeout(r, 80));
 	assert.equal(
-		controller.listTasks().find(t => t.id === a.id)?.transcript.awaitingCancelSettlement,
+		chromeAwaitingSettlement(controller.listTasks().find(t => t.id === a.id)?.transcript.chrome),
 		false,
 		'A watchdog must fire even after B armed its own'
 	);
-	assert.equal(controller.listTasks().find(t => t.id === b.id)?.transcript.awaitingCancelSettlement, false);
+	assert.equal(chromeAwaitingSettlement(controller.listTasks().find(t => t.id === b.id)?.transcript.chrome), false);
 });
 
 test('run lease expiry attaches then locally settles after grace', () => {
@@ -1421,7 +1424,7 @@ test('run lease expiry attaches then locally settles after grace', () => {
 
 	now += 5_000;
 	controller.tickRunLeases();
-	assert.equal(controller.getActiveTask()?.transcript.activeRunId, undefined);
+	assert.equal(chromeRunId(controller.getActiveTask()?.transcript.chrome), undefined);
 	assert.equal(controller.gate().runState, 'idle');
 	assert.equal(controller.canSubmitNow(), true);
 	assert.equal(controller.consumeHelpNotice(), 'errors.lease.expired');
@@ -1532,7 +1535,7 @@ test('run lease expires a Goal-only overlay after grace', () => {
 	}));
 	assert.equal(controller.gate().runState, 'running');
 	assert.equal(controller.gate().canCancel, false);
-	assert.equal(controller.getActiveTask()?.transcript.activeRunId, undefined);
+	assert.equal(chromeRunId(controller.getActiveTask()?.transcript.chrome), undefined);
 
 	now = 1_000 + 16_000;
 	sent.length = 0;
@@ -1565,15 +1568,15 @@ test('cancel without server Run id still sends CancelAssociated (V6 Stop)', () =
 	controller.handleEvent(withSid('sess', {type: 'turn_started', turnId: 'client_only', text: 'early', eventSeq: 1}));
 	// Peer-turn pin keeps Composer Gate honest but is NOT a server Run id —
 	// Stop uses CancelAssociated over the whole FanOut, never CancelRun('client_only').
-	assert.equal(controller.getActiveTask()?.transcript.activeRunId, 'client_only');
-	assert.equal(controller.getActiveTask()?.transcript.activeRunFromServer, false);
+	assert.equal(chromeRunId(controller.getActiveTask()?.transcript.chrome), 'client_only');
+	assert.equal(chromeFromServer(controller.getActiveTask()?.transcript.chrome), false);
 
 	assert.equal(controller.cancelRun('stop'), true);
 	assert.equal(sent.some(c => c.type === 'CancelRun'), false);
 	assert.equal(sent.some(c => c.type === 'CancelSession'), false);
 	const cancel = sent.find(c => c.type === 'CancelAssociated');
 	assert.ok(cancel && cancel.type === 'CancelAssociated');
-	assert.equal(controller.getActiveTask()?.transcript.awaitingCancelSettlement, true);
+	assert.equal(chromeAwaitingSettlement(controller.getActiveTask()?.transcript.chrome), true);
 });
 
 test('killProc sends KillProc and clears liveProcs optimistically', () => {
@@ -2554,8 +2557,8 @@ test('markEngineLost fails in-flight streaming turn and clears cancel settlement
 	controller.markEngineLost('Engine exited (1)');
 	const task = controller.getActiveTask()!;
 	assert.equal(controller.isRunActive(), false);
-	assert.equal(task.transcript.awaitingCancelSettlement, false);
-	assert.equal(task.transcript.activeRunId, undefined);
+	assert.equal(chromeAwaitingSettlement(task.transcript.chrome), false);
+	assert.equal(chromeRunId(task.transcript.chrome), undefined);
 	assert.equal(controller.getAttachedSessionId(), null);
 	const assistant = task.transcript.entries.find(e => e.role === 'assistant');
 	assert.ok(assistant);
@@ -2822,7 +2825,7 @@ test('interruptQueueItem seals the streaming turn like cancelRun', () => {
 	assert.equal(controller.interruptQueueItem('fu-cut'), true);
 	assert.ok(sent.some(c => c.type === 'InterruptWithMessage' && c.itemId === 'fu-cut'));
 	const transcript = controller.getActiveTask()!.transcript;
-	assert.equal(transcript.awaitingCancelSettlement, true);
+	assert.equal(chromeAwaitingSettlement(transcript.chrome), true);
 	const assistant = transcript.entries.find(e => e.role === 'assistant');
 	assert.ok(assistant);
 	assert.equal(assistant!.status, 'cancelled');

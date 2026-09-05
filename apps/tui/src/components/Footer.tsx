@@ -1,4 +1,5 @@
 import React, {useEffect, useState} from 'react';
+import {chromeAwaitingSettlement} from '@fast-ide/session-view';
 import {Box, Text} from 'ink';
 import os from 'node:os';
 import type {FooterConfig, FooterItemId, UiState} from '../state/model.js';
@@ -34,7 +35,7 @@ function tildeify(path: string): string {
 }
 
 export const defaultFooterItems: FooterItem[] = [
-	{id: 'e2e-state', priority: -1, side: 'left', render: s => process.env.FAST_E2E_STATE === '1' ? `e2e:${s.inputMode}:${s.transcript.awaitingCancelSettlement ? 'stopping' : s.running ? 'running' : 'idle'}` : undefined},
+	{id: 'e2e-state', priority: -1, side: 'left', render: s => process.env.FAST_E2E_STATE === '1' ? `e2e:${s.inputMode}:${chromeAwaitingSettlement(s.transcript.chrome) ? 'stopping' : s.running ? 'running' : 'idle'}` : undefined},
 	{id: 'errors', priority: 0, side: 'left', render: s => s.errors.length > 0 ? `errors:${s.errors.length}` : undefined},
 	// Proactive liveness: the user learns the engine is gone BEFORE pressing a
 	// key into a dead approval dialog, not 10s after.
@@ -44,7 +45,7 @@ export const defaultFooterItems: FooterItem[] = [
 	{id: 'queue', priority: 2, side: 'left', render: s => s.queue.length > 0 ? `queue:${s.queue.length}` : undefined},
 	// Idle says nothing (gemini/claude-code style); only surface abnormal states.
 	{id: 'task', priority: 3, side: 'left', render: (s, metrics) =>
-		s.transcript.awaitingCancelSettlement
+		chromeAwaitingSettlement(s.transcript.chrome)
 			? 'stopping'
 			: s.running
 				? (metrics.runningLabel ?? 'running')

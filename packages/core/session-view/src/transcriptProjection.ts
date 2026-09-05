@@ -7,6 +7,24 @@ import {
 } from './plan.js';
 import {normalizeToolOutput, parseExitCode, resolveToolStatus} from './toolOutput.js';
 import {documentCard, forgetDocument, rememberDocument} from './chatDocument.js';
+import {
+	chromeAwaitingSettlement,
+	chromePostRun,
+	chromeRunId,
+	IDLE_RUN_CHROME,
+	runChromeTransition,
+	type RunChrome
+} from './runChrome.js';
+import {
+	bareRunId,
+	entryMatchesKey,
+	entryTurnIdIs,
+	isGoalNoticeId,
+	isScheduledId,
+	sameRunId,
+	sameTurn,
+	serverRunIdOf
+} from './turnIdentity.js';
 
 export type ToolCallView = {
 	id: string;
@@ -251,21 +269,8 @@ export type TranscriptState = {
 	questionBatches: PendingQuestionBatch[];
 	/** DSH child Work cards. Optional on old IPC/cache snapshots. */
 	subagents: TranscriptSubagent[];
-	/** Latest server Run id for CancelRun when present. */
-	activeRunId?: string;
-	/**
-	 * True only when `activeRunId` was confirmed by the Engine (input_accepted remap /
-	 * run-scoped Engine events). A peer-turn pin (turn_started turnId, Composer Gate
-	 * bookkeeping) is NOT server-confirmed — CancelRun with such an id would target a
-	 * non-existent Run; callers must fall back to CancelSession.
-	 */
-	activeRunFromServer?: boolean;
-	/**
-	 * After local cancel, turn settle, or a settled `session_restored` (no live
-	 * streaming), ignore content deltas / persist TurnStarted / persist prompt
-	 * openers that would re-arm Stop until the next user turn (cli-ink postRunTerminal).
-	 */
-	postRunTerminal?: boolean;
+	/** Stop-chrome lifecycle (CONTEXT.md → RunChrome): idle / active / cancelPending / sealedRun / settled. */
+	chrome: RunChrome;
 	/**
 	 * User prompts painted by the last settled `session_restored` snapshot.
 	 * Replayed openers repeating one of these are attach replay, not a new turn.
@@ -276,8 +281,6 @@ export type TranscriptState = {
 	 * Survives settle / approval; cleared on cancel of this run or the next submit.
 	 */
 	lastDocumentId?: string;
-	/** Stopping: awaiting Bridge `turn_cancelled` after local cancel. */
-	awaitingCancelSettlement?: boolean;
 	/** Last run_state replica from the engine (lease / attach snapshot). */
 	runLease?: {
 		runId?: string;
@@ -314,6 +317,7 @@ export function createTranscriptState(): TranscriptState {
 		questions: [],
 		questionBatches: [],
 		subagents: [],
+		chrome: IDLE_RUN_CHROME,
 		hasMoreOlder: false,
 		liveProcs: [],
 		liveTasks: [],
@@ -359,8 +363,7 @@ export function applyLocalCancel(state: TranscriptState): TranscriptState {
 		approvals: state.approvals.filter(a => !a.runId),
 		questions: [],
 		questionBatches: state.questionBatches.filter(q => !q.runId),
-		postRunTerminal: true,
-		awaitingCancelSettlement: true,
+		chrome: runChromeTransition(state.chrome, {postRun: true, awaiting: true}),
 		entries: state.entries.map(entry => {
 			if (entry.role !== 'assistant' || entry.status !== 'streaming') return entry;
 			return {
@@ -381,7 +384,7 @@ function eventGoalId(event: BridgeEvent): string | undefined {
 }
 
 export function applyBridgeEvent(state: TranscriptState, event: BridgeEvent): TranscriptState {
-	if (state.postRunTerminal && CONTENT_EVENTS.has(event.type)) {
+	if (chromePostRun(state.chrome) && CONTENT_EVENTS.has(event.type)) {
 		// L1 Goal agent_call still updates chat status after the Chat turn sealed.
 		const gid = eventGoalId(event);
 		const goalCall =
@@ -394,7 +397,7 @@ export function applyBridgeEvent(state: TranscriptState, event: BridgeEvent): Tr
 				e =>
 					e.role === 'assistant' &&
 					e.status === 'streaming' &&
-					(e.turnId === event.turnId || e.clientMessageId === event.turnId) &&
+					entryMatchesKey(e, event.turnId) &&
 					(e.messageType === 'goal_step_conclusion' || e.messageType === 'goal_outcome')
 			);
 		// Settle can race ahead of the document (held deltas / late final_answer).
@@ -415,7 +418,7 @@ export function applyBridgeEvent(state: TranscriptState, event: BridgeEvent): Tr
 			// after a plan Chat seal still paint (they are not chat replay). A live NEW
 			// turn (unknown id, unseen prompt) must still paint — first turn on a
 			// freshly restored empty session and cancel→resubmit depend on it.
-			if (state.postRunTerminal && isAttachReplayChatOpener(event)) {
+			if (chromePostRun(state.chrome) && isAttachReplayChatOpener(event)) {
 				if (isKnownTurnOpener(state, event)) return state;
 			}
 			if (goalMsg) {
@@ -465,9 +468,8 @@ export function applyBridgeEvent(state: TranscriptState, event: BridgeEvent): Tr
 							...(goalStatus ? {goalStatus} : {})
 						}
 					],
-					// Keep chat Stop / postRunTerminal as they were — Goal notices are not a run.
-					postRunTerminal: state.postRunTerminal,
-					awaitingCancelSettlement: false
+					// Keep chat Stop chrome as it was — Goal notices are not a run.
+					chrome: runChromeTransition(state.chrome, {awaiting: false})
 				};
 			}
 			// Idempotent: double input_accepted remaps turnId; a later turn_started
@@ -477,9 +479,7 @@ export function applyBridgeEvent(state: TranscriptState, event: BridgeEvent): Tr
 					e =>
 						e.role === 'assistant' &&
 						e.status === 'streaming' &&
-						((event.clientMessageId &&
-							(e.clientMessageId === event.clientMessageId || e.turnId === event.clientMessageId)) ||
-							(event.turnId && (e.turnId === event.turnId || e.clientMessageId === event.turnId)))
+						sameTurn(e, event)
 				) ??
 				riverEchoAssistant(state, event) ??
 				resumeSealedAssistant(state, event) ??
@@ -497,14 +497,13 @@ export function applyBridgeEvent(state: TranscriptState, event: BridgeEvent): Tr
 			if (existingAssistant) {
 				// Persist TurnStarted (empty text) after settle must not clear postRunTerminal
 				// or the Composer Stop relights on attach replay.
-				if (state.postRunTerminal && isRiverTurnStarted(event)) return state;
+				if (chromePostRun(state.chrome) && isRiverTurnStarted(event)) return state;
 				return {
 					...rememberDocument(
 						state,
 						existingAssistant.turnId ?? event.turnId ?? event.clientMessageId
 					),
-					postRunTerminal: false,
-					awaitingCancelSettlement: false,
+					chrome: runChromeTransition(state.chrome, {postRun: false, awaiting: false}),
 					entries: state.entries.map(entry => {
 						const matchesAssistant = entry === existingAssistant;
 						const matchesUser =
@@ -513,8 +512,9 @@ export function applyBridgeEvent(state: TranscriptState, event: BridgeEvent): Tr
 								entry.turnId === existingAssistant.turnId ||
 								entry.turnId === existingAssistant.clientMessageId);
 						if (!matchesAssistant && !matchesUser) return entry;
-						const schedOrigin =
-							event.clientMessageId?.startsWith('sched-') ? 'scheduler_generated' : entry.origin;
+						const schedOrigin = isScheduledId(event.clientMessageId)
+							? 'scheduler_generated'
+							: entry.origin;
 						const persistRiver =
 							typeof event.eventSeq === 'number' &&
 							event.eventSeq > 0 &&
@@ -545,7 +545,7 @@ export function applyBridgeEvent(state: TranscriptState, event: BridgeEvent): Tr
 			// River/persist TurnStarted is an opener, not a user turn. After the chat
 			// message has settled, attaching or replaying that seq must not spawn a
 			// new streaming row (Composer Stop stays lit with a finished bubble).
-			if (state.postRunTerminal && isRiverTurnStarted(event)) return state;
+			if (chromePostRun(state.chrome) && isRiverTurnStarted(event)) return state;
 			// Seal any orphaned streaming assistant from a prior turn that never received
 			// turn_finished/turn_cancelled (e.g. silent LLM stream drop). Without this the
 			// patchAssistant fallback would route the new turn's deltas into the stale entry,
@@ -558,8 +558,7 @@ export function applyBridgeEvent(state: TranscriptState, event: BridgeEvent): Tr
 					? sealStreamingAsDone(entry)
 					: entry
 			);
-			const schedOrigin =
-				event.clientMessageId?.startsWith('sched-') ? 'scheduler_generated' : undefined;
+			const schedOrigin = isScheduledId(event.clientMessageId) ? 'scheduler_generated' : undefined;
 			const userText = (event.text ?? '').trim()
 				? event.text!
 				: planBuildFields
@@ -590,42 +589,40 @@ export function applyBridgeEvent(state: TranscriptState, event: BridgeEvent): Tr
 				tools: [],
 				segments: []
 			});
-			// Peer turns (IDE → ink) never seed optimistic activeRunId; pin turnId so Composer Gate enqueues.
-			return {
-				...rememberDocument(state, event.turnId ?? event.clientMessageId),
-				entries,
-				activeRunId: event.turnId ?? state.activeRunId,
-				activeRunFromServer: event.turnId ? false : state.activeRunFromServer,
-				postRunTerminal: false,
-				awaitingCancelSettlement: false,
-				leaseAware: false,
-				runLease: undefined
-			};
+				// Peer turns (IDE → ink) never seed optimistic activeRunId; pin turnId so
+				// Composer Gate enqueues.
+				return {
+					...rememberDocument(state, event.turnId ?? event.clientMessageId),
+					entries,
+					chrome: event.turnId
+						? runChromeTransition(state.chrome, {
+								run: {id: event.turnId, fromServer: false},
+								postRun: false,
+								awaiting: false
+							})
+						: runChromeTransition(state.chrome, {postRun: false, awaiting: false}),
+					leaseAware: false,
+					runLease: undefined
+				};
 		}
 		case 'input_accepted': {
 			if (!event.turnId && !event.clientMessageId) return state;
 			// Attach replay of the last Accept must not relight Stop on a settled restore.
-			if (state.postRunTerminal && !state.entries.some(e => e.status === 'streaming')) return state;
+			if (chromePostRun(state.chrome) && !state.entries.some(e => e.status === 'streaming'))
+				return state;
 			// Second accept remaps client id → server Run id (cli-ink serverTurnId).
 			// Entry `id` stays stable (TUI <Static> / VirtualTranscript keys).
 			// Do NOT clear awaitingCancelSettlement here — a late accept after local
 			// cancel would unlock Composer before turn_cancelled (Cancel Settlement).
-			const serverRunId =
-				event.turnId &&
-				event.clientMessageId &&
-				event.turnId !== event.clientMessageId
-					? event.turnId
-					: undefined;
+			const serverRunId = serverRunIdOf(event);
 			return {
 				...rememberDocument(state, serverRunId ?? event.turnId ?? event.clientMessageId),
-				activeRunId: serverRunId ?? state.activeRunId,
-				activeRunFromServer: serverRunId ? true : state.activeRunFromServer,
+				chrome: serverRunId
+					? runChromeTransition(state.chrome, {run: {id: serverRunId, fromServer: true}})
+					: state.chrome,
 				entries: state.entries.map(entry => {
-					const matchesClient =
-						Boolean(event.clientMessageId) &&
-						(entry.clientMessageId === event.clientMessageId ||
-							entry.turnId === event.clientMessageId);
-					const matchesTurn = Boolean(event.turnId) && entry.turnId === event.turnId;
+					const matchesClient = entryMatchesKey(entry, event.clientMessageId);
+					const matchesTurn = entryTurnIdIs(entry, event.turnId);
 					if (!matchesClient && !matchesTurn) return entry;
 					if (entry.role === 'assistant' && entry.status !== 'streaming') return entry;
 					return {
@@ -681,12 +678,13 @@ export function applyBridgeEvent(state: TranscriptState, event: BridgeEvent): Tr
 				// straggler guard as turn_finished so persist TurnStarted cannot
 				// reopen a streaming row and relight Composer Stop.
 				...(live
-					? {postRunTerminal: state.postRunTerminal}
+					? {chrome: state.chrome}
 					: {
-							postRunTerminal: true,
-							activeRunId: undefined,
-							activeRunFromServer: false,
-							awaitingCancelSettlement: false
+							chrome: runChromeTransition(state.chrome, {
+								run: 'clear',
+								postRun: true,
+								awaiting: false
+							})
 						})
 			};
 		}
@@ -770,7 +768,7 @@ export function applyBridgeEvent(state: TranscriptState, event: BridgeEvent): Tr
 			// streaming card after settle would relight Composer Stop.
 			if (
 				event.turnId &&
-				!state.postRunTerminal &&
+				!chromePostRun(state.chrome) &&
 				!documentCard(state, event.turnId, {strictTurn: true})
 			) {
 				// Late remap: when the current run's streaming row still carries the
@@ -784,17 +782,13 @@ export function applyBridgeEvent(state: TranscriptState, event: BridgeEvent): Tr
 					candidate.status === 'streaming' &&
 					(!candidate.turnId || candidate.turnId === candidate.clientMessageId);
 				if (candidate && unconfirmed) {
-					const oldKeys = new Set(
-						[candidate.turnId, candidate.clientMessageId].filter(
-							(k): k is string => Boolean(k)
-						)
-					);
-					const wasActive = Boolean(state.activeRunId && oldKeys.has(state.activeRunId));
+					const wasActive = entryMatchesKey(candidate, chromeRunId(state.chrome));
 					return rememberDocument(
 						{
 							...state,
-							activeRunId: wasActive ? event.turnId : state.activeRunId,
-							activeRunFromServer: wasActive ? true : state.activeRunFromServer,
+							chrome: wasActive
+								? runChromeTransition(state.chrome, {run: {id: event.turnId, fromServer: true}})
+								: state.chrome,
 							entries: state.entries.map(entry => {
 								if (entry === candidate) {
 									return {
@@ -804,10 +798,7 @@ export function applyBridgeEvent(state: TranscriptState, event: BridgeEvent): Tr
 										turnId: event.turnId
 									};
 								}
-								const pairedUser =
-									entry.role === 'user' &&
-									((entry.turnId && oldKeys.has(entry.turnId)) ||
-										(entry.clientMessageId && oldKeys.has(entry.clientMessageId)));
+								const pairedUser = entry.role === 'user' && sameTurn(entry, candidate);
 								return pairedUser ? {...entry, turnId: event.turnId} : entry;
 							})
 						},
@@ -858,13 +849,15 @@ export function applyBridgeEvent(state: TranscriptState, event: BridgeEvent): Tr
 			const patched = patchAssistant(
 				{
 					...state,
-					activeRunId: finishesActive ? undefined : state.activeRunId,
-					activeRunFromServer: finishesActive ? false : state.activeRunFromServer,
-					awaitingCancelSettlement: false,
+					chrome: runChromeTransition(
+						state.chrome,
+						finishesActive
+							? {run: 'clear', postRun: true, awaiting: false}
+							: {postRun: true, awaiting: false}
+					),
 					approvals: state.approvals.filter(a => !a.runId),
 					questions: [],
-					questionBatches: state.questionBatches.filter(q => !q.runId),
-					postRunTerminal: true
+					questionBatches: state.questionBatches.filter(q => !q.runId)
 				},
 				event.turnId,
 				entry => {
@@ -896,9 +889,9 @@ export function applyBridgeEvent(state: TranscriptState, event: BridgeEvent): Tr
 			const keepActive = stillStreaming && !finishesActive;
 			return {
 				...patched,
-				postRunTerminal: !stillStreaming,
-				activeRunId: keepActive ? state.activeRunId : undefined,
-				activeRunFromServer: keepActive ? state.activeRunFromServer : false,
+				chrome: keepActive
+					? runChromeTransition(patched.chrome, {postRun: false})
+					: runChromeTransition(patched.chrome, {run: 'clear', postRun: !stillStreaming}),
 				leaseAware: keepActive ? state.leaseAware : false,
 				runLease: keepActive ? state.runLease : undefined
 			};
@@ -906,15 +899,16 @@ export function applyBridgeEvent(state: TranscriptState, event: BridgeEvent): Tr
 		case 'turn_cancelled': {
 			return {
 				...forgetDocument(state),
-				activeRunId: undefined,
-				activeRunFromServer: false,
-				awaitingCancelSettlement: false,
+				chrome: runChromeTransition(state.chrome, {
+					run: 'clear',
+					postRun: true,
+					awaiting: false
+				}),
 				leaseAware: false,
 				runLease: undefined,
 				approvals: state.approvals.filter(a => !a.runId),
 				questions: [],
 				questionBatches: state.questionBatches.filter(q => !q.runId),
-				postRunTerminal: true,
 				entries: state.entries.map(entry => {
 					if (entry.role !== 'assistant') return entry;
 					if (entry.status !== 'streaming' && entry.status !== 'cancelled') return entry;
@@ -1143,10 +1137,7 @@ export function applyBridgeEvent(state: TranscriptState, event: BridgeEvent): Tr
 			const entries = state.entries.map(entry => {
 				if (entry.role !== 'assistant' || entry.status !== 'streaming') return entry;
 				const sameRun =
-					entry.turnId === runId ||
-					entry.clientMessageId === runId ||
-					entry.turnId === state.activeRunId ||
-					entry.clientMessageId === state.activeRunId;
+					entryMatchesKey(entry, runId) || entryMatchesKey(entry, chromeRunId(state.chrome));
 				return sameRun ? {...entry, status: 'done' as const} : entry;
 			});
 			return {
@@ -1183,10 +1174,7 @@ export function applyBridgeEvent(state: TranscriptState, event: BridgeEvent): Tr
 			const entries = state.entries.map(entry => {
 				if (entry.role !== 'assistant' || entry.status !== 'streaming') return entry;
 				const sameRun =
-					entry.turnId === runId ||
-					entry.clientMessageId === runId ||
-					entry.turnId === state.activeRunId ||
-					entry.clientMessageId === state.activeRunId;
+					entryMatchesKey(entry, runId) || entryMatchesKey(entry, chromeRunId(state.chrome));
 				return sameRun ? {...entry, status: 'done' as const} : entry;
 			});
 			return {
@@ -1215,10 +1203,7 @@ export function applyBridgeEvent(state: TranscriptState, event: BridgeEvent): Tr
 			const entries = state.entries.map(entry => {
 				if (entry.role !== 'assistant' || entry.status !== 'streaming') return entry;
 				const sameRun =
-					entry.turnId === runId ||
-					entry.clientMessageId === runId ||
-					entry.turnId === state.activeRunId ||
-					entry.clientMessageId === state.activeRunId;
+					entryMatchesKey(entry, runId) || entryMatchesKey(entry, chromeRunId(state.chrome));
 				return sameRun ? {...entry, status: 'done' as const} : entry;
 			});
 			return {
@@ -1328,17 +1313,14 @@ export function applyBridgeEvent(state: TranscriptState, event: BridgeEvent): Tr
 			// runId always drop, even when there is no streaming assistant entry yet
 			// (approval/question can arrive before turn_started reconciliation).
 			const runId = event.runId;
-			const touchesActive = Boolean(runId) && state.activeRunId === runId;
+			const touchesActive = Boolean(runId) && chromeRunId(state.chrome) === runId;
 			const isFail = event.type === 'run_failed' || event.type === 'run_exhausted';
 			const matchesEntry = (entry: TranscriptEntry): boolean =>
-				Boolean(runId) && (entry.turnId === runId || entry.clientMessageId === runId);
+				Boolean(runId) && entryMatchesKey(entry, runId);
 			// Compact / catalog miss can fail before input_accepted remaps client id →
 			// server run id. Seal the live streaming row anyway so ErrorCard lights.
 			const matchesLiveStream = (entry: TranscriptEntry): boolean =>
-				isFail &&
-				entry.status === 'streaming' &&
-				Boolean(state.activeRunId) &&
-				(entry.turnId === state.activeRunId || entry.clientMessageId === state.activeRunId);
+				isFail && entry.status === 'streaming' && entryMatchesKey(entry, chromeRunId(state.chrome));
 			// Failures must seal even after the row was mis-closed as `done` (FailRun
 			// after the stream died). Success/cancel still only touch the live stream.
 			const sealsEntry = (entry: TranscriptEntry): boolean =>
@@ -1386,9 +1368,12 @@ export function applyBridgeEvent(state: TranscriptState, event: BridgeEvent): Tr
 					};
 					return {
 						...forgetDocument(state, runId),
-						activeRunId: state.activeRunId === runId ? undefined : state.activeRunId,
-						activeRunFromServer: state.activeRunId === runId ? false : state.activeRunFromServer,
-						postRunTerminal: true,
+						chrome: runChromeTransition(
+							state.chrome,
+							chromeRunId(state.chrome) === runId
+								? {run: 'clear', postRun: true, awaiting: false}
+								: {postRun: true}
+						),
 						approvals: nextApprovals,
 						questions: nextQuestions,
 						questionBatches: nextBatches,
@@ -1420,13 +1405,15 @@ export function applyBridgeEvent(state: TranscriptState, event: BridgeEvent): Tr
 				e => e.role === 'assistant' && e.status === 'streaming'
 			);
 			const extinguishActive =
-				state.activeRunId === runId || (isFail && Boolean(state.activeRunId) && !stillStreaming && hasMatch);
+				chromeRunId(state.chrome) === runId ||
+				(isFail && Boolean(chromeRunId(state.chrome)) && !stillStreaming && hasMatch);
 			return {
 				...forgetDocument(state, runId),
-				activeRunId: extinguishActive ? undefined : state.activeRunId,
-				activeRunFromServer: extinguishActive ? false : state.activeRunFromServer,
 				// Only arm straggler guard when this settle closed the last streaming row.
-				postRunTerminal: stillStreaming ? false : hasMatch ? true : state.postRunTerminal,
+				chrome: runChromeTransition(state.chrome, {
+					run: extinguishActive ? 'clear' : 'keep',
+					postRun: stillStreaming ? false : hasMatch ? true : 'keep'
+				}),
 				leaseAware: stillStreaming ? state.leaseAware : false,
 				runLease: stillStreaming ? state.runLease : undefined,
 				approvals: nextApprovals,
@@ -1602,7 +1589,7 @@ export function applyBridgeEvent(state: TranscriptState, event: BridgeEvent): Tr
 				return {...next, leaseAware: false};
 			}
 			const marked = {...state, runLease, leaseAware: true as const};
-			if (state.awaitingCancelSettlement && event.state === 'running') return marked;
+			if (chromeAwaitingSettlement(state.chrome) && event.state === 'running') return marked;
 			if (
 				!localBusy(marked) &&
 				event.runId &&
@@ -1621,10 +1608,7 @@ export function applyBridgeEvent(state: TranscriptState, event: BridgeEvent): Tr
 export function applyLeaseExpiry(state: TranscriptState): TranscriptState {
 	return {
 		...forgetDocument(state),
-		activeRunId: undefined,
-		activeRunFromServer: false,
-		awaitingCancelSettlement: false,
-		postRunTerminal: true,
+		chrome: runChromeTransition(state.chrome, {run: 'clear', postRun: true, awaiting: false}),
 		leaseAware: false,
 		runLease: {state: 'idle'},
 		entries: state.entries.map(entry => {
@@ -1641,7 +1625,7 @@ export function applyLeaseExpiry(state: TranscriptState): TranscriptState {
 }
 
 function localBusy(state: TranscriptState): boolean {
-	return Boolean(state.activeRunId) || state.entries.some(e => e.status === 'streaming');
+	return Boolean(chromeRunId(state.chrome)) || state.entries.some(e => e.status === 'streaming');
 }
 
 /** Attach snapshot said the chat run is still live after a local idle settle. */
@@ -1658,10 +1642,11 @@ function reviveChatRun(state: TranscriptState, runId: string): TranscriptState {
 	if (!revived) return state;
 	return {
 		...state,
-		activeRunId: runId,
-		activeRunFromServer: true,
-		postRunTerminal: false,
-		awaitingCancelSettlement: false,
+		chrome: runChromeTransition(state.chrome, {
+			run: {id: runId, fromServer: true},
+			postRun: false,
+			awaiting: false
+		}),
 		entries
 	};
 }
@@ -1765,9 +1750,10 @@ function applyPlanBuildSubmitted(
 				segments: []
 			}
 		],
-		activeRunId: runId || state.activeRunId,
-		activeRunFromServer: Boolean(runId) || state.activeRunFromServer,
-		postRunTerminal: false,
+		chrome: runChromeTransition(state.chrome, {
+			...(runId ? {run: {id: runId, fromServer: true}} : {}),
+			postRun: false
+		}),
 		lastDocumentId: turnKey
 	};
 }
@@ -1837,7 +1823,7 @@ function findPlanHostEntryIndex(entries: TranscriptEntry[], turnId?: string): nu
 		for (let i = entries.length - 1; i >= 0; i -= 1) {
 			const e = entries[i]!;
 			if (e.role !== 'assistant') continue;
-			if (e.turnId === turnId || e.clientMessageId === turnId) return i;
+			if (entryMatchesKey(e, turnId)) return i;
 		}
 	}
 	for (let i = entries.length - 1; i >= 0; i -= 1) {
@@ -1964,20 +1950,14 @@ function entriesFromRestoredTurns(
 
 /** Cold/settled restore: history is done and no assistant is still streaming. */
 function settledAttachReplay(state: TranscriptState): boolean {
-	return Boolean(state.postRunTerminal) && !state.entries.some(e => e.status === 'streaming');
+	return chromePostRun(state.chrome) && !state.entries.some(e => e.status === 'streaming');
 }
 
 /** Persist prompt replay after settle must paint the card, but must not re-arm Stop. */
-function armRunIfLive(
-	state: TranscriptState,
-	runId: string
-): Pick<TranscriptState, 'activeRunId' | 'activeRunFromServer'> {
-	if (settledAttachReplay(state)) {
-		return {activeRunId: state.activeRunId, activeRunFromServer: state.activeRunFromServer};
-	}
+function armRunIfLive(state: TranscriptState, runId: string): Pick<TranscriptState, 'chrome'> {
+	if (settledAttachReplay(state)) return {chrome: state.chrome};
 	return {
-		activeRunId: runId || state.activeRunId,
-		activeRunFromServer: runId ? true : state.activeRunFromServer
+		chrome: runChromeTransition(state.chrome, runId ? {run: {id: runId, fromServer: true}} : {})
 	};
 }
 
@@ -1988,7 +1968,7 @@ function isKnownTurnOpener(
 	event: Extract<BridgeEvent, {type: 'turn_started'}>
 ): boolean {
 	const key = event.turnId ?? event.clientMessageId ?? '';
-	if (key && state.entries.some(e => e.turnId === key || e.clientMessageId === key)) {
+	if (key && state.entries.some(e => entryMatchesKey(e, key))) {
 		return true;
 	}
 	const text = (event.text ?? '').trim();
@@ -2002,7 +1982,7 @@ function isAttachReplayChatOpener(event: BridgeEvent): boolean {
 	if (event.messageType === 'goal_step_conclusion' || event.messageType === 'goal_outcome') return false;
 	if (event.messageType === 'plan_build') return false;
 	const turn = event.turnId ?? event.clientMessageId ?? '';
-	if (/^goal-.+-notice$/.test(turn) || /^goal-step-.+-conclusion$/.test(turn)) return false;
+	if (isGoalNoticeId(turn)) return false;
 	if (typeof event.eventSeq === 'number' && event.eventSeq > 0) return true;
 	return isRiverTurnStarted(event);
 }
@@ -2017,7 +1997,7 @@ function isRiverTurnStarted(
 	if (event.messageType === 'goal_step_conclusion' || event.messageType === 'goal_outcome')
 		return false;
 	const turn = event.turnId ?? event.clientMessageId ?? '';
-	if (/^goal-.+-notice$/.test(turn) || /^goal-step-.+-conclusion$/.test(turn)) return false;
+	if (isGoalNoticeId(turn)) return false;
 	return true;
 }
 
@@ -2027,13 +2007,11 @@ function riverEchoAssistant(state: TranscriptState, event: BridgeEvent): Transcr
 	if ((event.text ?? '').trim()) return undefined;
 	if (event.clientMessageId) return undefined;
 	if (event.messageType === 'plan_build') return undefined;
-	if (!state.activeRunId) return undefined;
+	const runId = chromeRunId(state.chrome);
+	if (!runId) return undefined;
 	return state.entries.find(
 		e =>
-			e.role === 'assistant' &&
-			e.status === 'streaming' &&
-			!e.messageType &&
-			(e.turnId === state.activeRunId || e.clientMessageId === state.activeRunId)
+			e.role === 'assistant' && e.status === 'streaming' && !e.messageType && entryMatchesKey(e, runId)
 	);
 }
 
@@ -2438,19 +2416,6 @@ function upsertGoalFlowMember(
 	return {...state, goalFlow: {goalId: member.goalId, members: [...others, next]}};
 }
 
-/**
- * Wire `child_work_changed.id` is a WorkId (`run:<uuid>`); `agent_call_*` stores the bare
- * uuid on `tool.agentRunId`. Normalize both forms before matching.
- */
-function bareRunId(id: string): string {
-	return id.startsWith('run:') ? id.slice(4) : id;
-}
-
-function sameRunId(a: string | undefined, b: string): boolean {
-	if (!a) return false;
-	return a === b || bareRunId(a) === bareRunId(b);
-}
-
 function statusFromChildWork(status: string): ToolCallView['status'] {
 	const s = status.toLowerCase();
 	if (s === 'cancelled' || s === 'canceled' || s === 'expired' || s === 'killed') return 'cancelled';
@@ -2502,13 +2467,11 @@ function patchSubagentRowFromChildWork(
 
 function finishesActiveRun(state: TranscriptState, turnId: string | undefined): boolean {
 	if (!turnId) return true;
-	if (!state.activeRunId) return true;
-	if (state.activeRunId === turnId) return true;
+	const activeRun = chromeRunId(state.chrome);
+	if (!activeRun) return true;
+	if (activeRun === turnId) return true;
 	return state.entries.some(
-		e =>
-			e.role === 'assistant' &&
-			(e.turnId === turnId || e.clientMessageId === turnId) &&
-			(e.turnId === state.activeRunId || e.clientMessageId === state.activeRunId)
+		e => e.role === 'assistant' && entryMatchesKey(e, turnId) && entryMatchesKey(e, activeRun)
 	);
 }
 
@@ -2536,7 +2499,7 @@ function resumeSealedAssistant(
 	state: TranscriptState,
 	event: BridgeEvent
 ): TranscriptEntry | undefined {
-	if (state.postRunTerminal) return undefined;
+	if (chromePostRun(state.chrome)) return undefined;
 	if (event.type !== 'turn_started') return undefined;
 	if (event.messageType === 'plan_build') return undefined;
 	if (event.messageType === 'goal_step_conclusion' || event.messageType === 'goal_outcome')
@@ -2544,12 +2507,7 @@ function resumeSealedAssistant(
 	for (let i = state.entries.length - 1; i >= 0; i -= 1) {
 		const e = state.entries[i]!;
 		if (e.role !== 'assistant' || e.status !== 'done' || e.messageType) continue;
-		const sameClient =
-			Boolean(event.clientMessageId) &&
-			(e.clientMessageId === event.clientMessageId || e.turnId === event.clientMessageId);
-		const sameTurn =
-			Boolean(event.turnId) && (e.turnId === event.turnId || e.clientMessageId === event.turnId);
-		if (sameClient || sameTurn) return e;
+		if (entryMatchesKey(e, event.clientMessageId) || entryMatchesKey(e, event.turnId)) return e;
 	}
 	return undefined;
 }
@@ -2558,16 +2516,15 @@ function resumeSealedAssistant(
 function keepLiveProse(restored: TranscriptEntry[], live: TranscriptEntry[]): TranscriptEntry[] {
 	return restored.map(entry => {
 		if (entry.role !== 'assistant' || entry.text.trim()) return entry;
-		const src = [...live].reverse().find(
-			e =>
-				e.role === 'assistant' &&
-				e.status !== 'cancelled' &&
-				e.text.trim() &&
-				(e.turnId === entry.turnId ||
-					e.clientMessageId === entry.turnId ||
-					(entry.clientMessageId &&
-						(e.turnId === entry.clientMessageId || e.clientMessageId === entry.clientMessageId)))
-		);
+		const src = [...live]
+			.reverse()
+			.find(
+				e =>
+					e.role === 'assistant' &&
+					e.status !== 'cancelled' &&
+					e.text.trim() &&
+					sameTurn(e, entry)
+			);
 		if (!src) return entry;
 		const hasAssistantSeg = (entry.segments ?? []).some(
 			s => s.kind === 'assistant' && s.text.trim()
@@ -2590,9 +2547,7 @@ function hydrateLiveAssistant(
 	turns: Parameters<typeof entriesFromRestoredTurns>[0]
 ): TranscriptEntry {
 	if (live.text.trim()) return live;
-	const rt = turns.find(
-		t => t.turnId === live.turnId || t.turnId === live.clientMessageId
-	);
+	const rt = turns.find(t => entryMatchesKey(live, t.turnId));
 	if (!rt?.assistantText.trim()) return live;
 	const seeded = entriesFromRestoredTurns([rt]).find(e => e.role === 'assistant');
 	if (!seeded) return live;
