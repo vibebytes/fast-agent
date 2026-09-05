@@ -6,6 +6,13 @@ export {
 } from './chatDocument.js';
 
 export {
+	awaitingConfirmPlan,
+	goalFlowSeed,
+	goalKeepsBusy,
+	paintAwaitingConfirm
+} from './goalCard.js';
+
+export {
 	IDLE_RUN_CHROME,
 	SETTLED_RUN_CHROME,
 	chromeAwaitingSettlement,

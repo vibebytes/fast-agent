@@ -1,8 +1,16 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import type {BridgeCommand, BridgeEvent} from '@fastllm/bridge-protocol';
-import {SETTLED_RUN_CHROME, chromePostRun, createTranscriptState, runChromeTransition, toTimelineItems} from '@fast-ide/session-view';
-import {SessionController, goalFlowSeed, paintAwaitingConfirm} from './SessionController.js';
+import {
+	SETTLED_RUN_CHROME,
+	chromePostRun,
+	createTranscriptState,
+	goalFlowSeed,
+	paintAwaitingConfirm,
+	runChromeTransition,
+	toTimelineItems
+} from '@fast-ide/session-view';
+import {SessionController} from './SessionController.js';
 
 /**
  * ②′ Goal card lifecycle in the IDE main process — same semantics as the TUI card:

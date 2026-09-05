@@ -1,12 +1,14 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import type {BridgeCommand, BridgeEvent} from '@fastllm/bridge-protocol';
-import {createTranscriptState, toTimelineItems} from '@fast-ide/session-view';
 import {
-	SessionController,
+	createTranscriptState,
 	goalKeepsBusy,
-	paintAwaitingConfirm
-} from './SessionController.js';
+	paintAwaitingConfirm,
+	toTimelineItems,
+	type TranscriptEntry
+} from '@fast-ide/session-view';
+import {SessionController} from './SessionController.js';
 
 /**
  * Regression lock for Goal pre-start confirm (natural chat, not a card).
@@ -141,8 +143,8 @@ test('paintAwaitingConfirm is idempotent and keeps confirm off the tool turn', (
 	const once = paintAwaitingConfirm(planTurn(), card);
 	const twice = paintAwaitingConfirm(once, card);
 	assert.equal(twice.entries.length, once.entries.length);
-	assert.equal(twice.entries.find(e => e.id === 'a-plan')?.text.trim(), '');
-	const confirm = twice.entries.filter(e => e.role === 'assistant' && e.text.includes('请确认'));
+	assert.equal(twice.entries.find((e: TranscriptEntry) => e.id === 'a-plan')?.text.trim(), '');
+	const confirm = twice.entries.filter((e: TranscriptEntry) => e.role === 'assistant' && e.text.includes('请确认'));
 	assert.equal(confirm.length, 1);
 	assert.notEqual(confirm[0]?.id, 'a-plan');
 });
