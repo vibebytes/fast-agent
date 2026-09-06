@@ -35,18 +35,26 @@ export function selectDshModel(
 export function asModels(value: unknown): DshModelsValue | null {
 	if (!value || typeof value !== 'object') return null;
 	const v = value as Record<string, unknown>;
-	const current = v.current;
-	if (!current || typeof current !== 'object') return null;
-	const c = current as Record<string, unknown>;
-	if (typeof c.provider !== 'string' || typeof c.model !== 'string') return null;
+	const current = pickSelection(v.current) ?? pickSelection(v.default);
+	if (!current) return null;
+	const routable =
+		v.routable === true ||
+		(Array.isArray(v.routableProviders) && v.routableProviders.length > 0);
 	return {
-		current: {
-			provider: c.provider,
-			model: c.model,
-			...(typeof c.reasoningEffort === 'string' ? {reasoningEffort: c.reasoningEffort} : {})
-		},
-		routable: v.routable === true,
+		current,
+		routable,
 		groups: Array.isArray(v.groups) ? (v.groups as DshModelsValue['groups']) : [],
 		failures: Array.isArray(v.failures) ? (v.failures as DshModelsValue['failures']) : []
+	};
+}
+
+function pickSelection(value: unknown): DshSelection | null {
+	if (!value || typeof value !== 'object') return null;
+	const c = value as Record<string, unknown>;
+	if (typeof c.provider !== 'string' || typeof c.model !== 'string') return null;
+	return {
+		provider: c.provider,
+		model: c.model,
+		...(typeof c.reasoningEffort === 'string' ? {reasoningEffort: c.reasoningEffort} : {})
 	};
 }

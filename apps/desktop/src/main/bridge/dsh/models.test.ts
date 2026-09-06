@@ -43,6 +43,20 @@ test('asModels treats missing groups as empty and routable only when true', () =
 	});
 });
 
+test('asModels accepts modelCatalog default and routableProviders', () => {
+	const parsed = asModels({
+		default: {provider: 'deepseek', model: 'deepseek-chat'},
+		groups,
+		routableProviders: ['deepseek']
+	});
+	assert.deepEqual(parsed, {
+		current: {provider: 'deepseek', model: 'deepseek-chat'},
+		routable: true,
+		groups,
+		failures: []
+	});
+});
+
 test('getDshModels parses session.models and keeps groups', async () => {
 	const hops: Array<{method: string; payload?: Record<string, unknown>; sessionId?: string}> = [];
 	const result = await getDshModels(async (method, payload, sessionId) => {

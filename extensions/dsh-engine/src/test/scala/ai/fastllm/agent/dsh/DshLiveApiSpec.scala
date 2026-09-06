@@ -1,6 +1,5 @@
 package ai.fastllm.agent.dsh
 
-import ai.fastllm.agent.dsh.http.DshHttp
 import io.circe.Json
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.matchers.should.Matchers
@@ -18,7 +17,7 @@ class DshLiveApiSpec extends AnyFunSuite with Matchers:
   test("DshHttp settings.describe returns live DSH namespaces"):
     val live = LiveDsh.open
     try
-      val remote = DshHttp(Future.successful(live.port))
+      val remote = live.http()
       try
         val json = await(remote.call("settings.describe", Json.obj()))
         json.hcursor.get[Boolean]("ok").toOption.get shouldBe true
@@ -32,7 +31,7 @@ class DshLiveApiSpec extends AnyFunSuite with Matchers:
   test("DshFace settings.describe does not wait for mux and keeps live value"):
     val live = LiveDsh.open
     try
-      val remote = DshHttp(Future.successful(live.port), muxReadySec = 1)
+      val remote = live.http(muxReadySec = 1)
       val face = DshFace(remote, _ => "/tmp", DshLoop(remote, _ => "/tmp"))
       val json = await(face.dispatch("settings.describe", Json.obj(), None))
       json.hcursor.get[Boolean]("ok").toOption.get shouldBe true
@@ -44,7 +43,7 @@ class DshLiveApiSpec extends AnyFunSuite with Matchers:
   test("DshHttp agentPreset.list returns live presets"):
     val live = LiveDsh.open
     try
-      val remote = DshHttp(Future.successful(live.port))
+      val remote = live.http()
       try
         val json = await(remote.call("agentPreset.list", Json.obj()))
         json.hcursor.get[Boolean]("ok").toOption.get shouldBe true

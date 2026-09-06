@@ -37,7 +37,12 @@ fi
 if [[ -f "$root/.fast-engine-id" ]]; then
 	export FAST_ENGINE_ID="$(tr -d '\n' <"$root/.fast-engine-id")"
 fi
+runtime_root=()
+if [[ -n "${FAST_RUNTIME_ROOT:-}" ]]; then
+	runtime_root=(-Dfast.runtime.root="$FAST_RUNTIME_ROOT")
+fi
 exec "$java" --add-opens=java.base/java.nio=ALL-UNNAMED \
+	"${runtime_root[@]}" \
 	-Dfast.engines.yaml="$conf/engines.yaml" \
 	-Dfast.extensions.yaml="$conf/extensions.yaml" \
 	-Dfast.extensions="$exts" \
@@ -71,7 +76,9 @@ if "%FAST_USE_SYSTEM_JAVA%"=="1" (
 if exist "%ROOT%\.fast-engine-id" (
 	set /p FAST_ENGINE_ID=<"%ROOT%\.fast-engine-id"
 )
-"%JAVA%" --add-opens=java.base/java.nio=ALL-UNNAMED -Dfast.engines.yaml="%CONF%\engines.yaml" -Dfast.extensions.yaml="%CONF%\extensions.yaml" -Dfast.extensions="%EXTS%" -cp "%ROOT%\lib\*" ai.fastllm.agent.cli.CliApp %*
+set "RUNTIME_ROOT="
+if defined FAST_RUNTIME_ROOT set "RUNTIME_ROOT=-Dfast.runtime.root=%FAST_RUNTIME_ROOT%"
+"%JAVA%" --add-opens=java.base/java.nio=ALL-UNNAMED %RUNTIME_ROOT% -Dfast.engines.yaml="%CONF%\engines.yaml" -Dfast.extensions.yaml="%CONF%\extensions.yaml" -Dfast.extensions="%EXTS%" -cp "%ROOT%\lib\*" ai.fastllm.agent.cli.CliApp %*
 EOF
 cp -f "$bin/fast-cli.bat" "$bin/fast.bat"
 echo "patched $bin/fast-cli to use bundled jre"

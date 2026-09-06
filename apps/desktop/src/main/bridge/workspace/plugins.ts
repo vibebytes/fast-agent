@@ -46,6 +46,15 @@ function ledgerFromEvent(event: CommandResult): ExtWireNote[] {
 	return Array.isArray(raw) ? raw : [];
 }
 
+/** Install waits on npm. Enable/Start wait on DSH `$events` ready (`EngineAdmin.startNow` is 20s). */
+export function engineWriteTimeout(
+	type: Parameters<WorkspacePlugins['writeEngine']>[0]
+): number {
+	if (type === 'InstallEngine') return 15 * 60_000;
+	if (type === 'EnableEngine' || type === 'StartEngine') return 60_000;
+	return 12_000;
+}
+
 export function createPlugins(lane: PluginLane): WorkspacePlugins {
 	const readyLane: HostLane = {
 		...lane,
@@ -87,8 +96,7 @@ export function createPlugins(lane: PluginLane): WorkspacePlugins {
 			return {ok: true, engines};
 		},
 		async writeEngine(type, id) {
-			const timeoutMs = type === 'InstallEngine' ? 15 * 60_000 : 12_000;
-			const r = await hostRequest(readyLane, [type], {type, id}, {timeoutMs});
+			const r = await hostRequest(readyLane, [type], {type, id}, {timeoutMs: engineWriteTimeout(type)});
 			if (!r.ok) return r;
 			if (r.event.status === 'error' || r.event.status === 'rejected') {
 				return {ok: false, notice: r.event.message};

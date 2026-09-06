@@ -112,9 +112,7 @@ class EngsStore {
 			const next = this.view.engines.map(row => {
 				if (row.id !== log.engineId) return row;
 				const installLog = [...(row.installLog ?? []), log].slice(-200);
-				const program = row.program === 'missing' ? 'installing' : row.program;
-				const actions = program === 'installing' ? ['cancel'] : row.actions;
-				return {...row, installLog, program, actions};
+				return {...row, installLog};
 			});
 			this.setView({...this.view, engines: next});
 		});

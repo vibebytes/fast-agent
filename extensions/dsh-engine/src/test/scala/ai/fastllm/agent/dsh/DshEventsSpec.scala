@@ -128,6 +128,10 @@ class DshEventsSpec extends AnyFunSuite with Matchers:
     val mux = Json.obj("payload" -> Json.obj("event" -> inner))
     dshEvents(Sid, Rid, mux, DshFold()).events shouldBe List(AssistantDelta(Sid, Rid, "x", Some("1:1")))
 
+  test("assistant/live-chunk is the same river as assistant/chunk"):
+    val inner = parse("""{"type":"assistant/live-chunk","data":{"turn":1,"step":1,"chunk":{"type":"text-delta","index":0,"text":"x"}}}""").toOption.get
+    dshEvents(Sid, Rid, inner, DshFold()).events shouldBe List(AssistantDelta(Sid, Rid, "x", Some("1:1")))
+
   test("dshRows wrap payloadJson so SessionEventStream can read type"):
     val rows = dshRows(Sid, Rid, load("text-turn.jsonl"))
     rows.map(_.seq) shouldBe List(1L, 2L, 3L, 4L, 5L, 6L, 7L)

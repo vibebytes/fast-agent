@@ -55,7 +55,7 @@ def dshEvents(sessionId: String, runId: String, event: Json, fold: DshFold): Dsh
         ),
         fold.copy(hasTodoPlan = false)
       )
-    case "assistant/chunk" =>
+    case "assistant/chunk" | "assistant/live-chunk" =>
       chunkStep(sessionId, runId, data, fold)
     case "assistant/message" =>
       val u = usageOf(data.hcursor.downField("usage").focus.getOrElse(Json.Null))

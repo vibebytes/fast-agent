@@ -1,7 +1,7 @@
 package ai.fastllm.agent.dsh
 
 import ai.fastllm.agent.channel.{Admit, AgentAttachProtocol, AgentLoop}
-import ai.fastllm.agent.dsh.proc.DshProcess
+import ai.fastllm.agent.dsh.proc.{argvOf, DshProcess}
 import ai.fastllm.agent.engine.{
   Engine, EngineCallResult, EngineCapabilities, EngineConfig, EngineHost, EngineId, EngineRuntime,
   EngineSession, EngineSessionContext
@@ -40,10 +40,10 @@ object DshEngine:
 
   def processOf(config: EngineConfig): Option[DshProcess] =
     val port = DshRoots.port(config)
-    val cfgCmd = config("command").flatMap(_.asString).map(_.trim).filter(_.nonEmpty)
-    val envCmd = sys.env.get("FAST_DSH_COMMAND").map(_.trim).filter(_.nonEmpty)
-    val local = DshRoots.command()
-    val cmd = cfgCmd.orElse(envCmd).orElse(local).filterNot(DshRoots.rejectsNpx)
+    val cfgCmd = config("command").flatMap(_.asString).map(_.trim).filter(_.nonEmpty).map(argvOf)
+    val envCmd = sys.env.get("FAST_DSH_COMMAND").map(_.trim).filter(_.nonEmpty).map(argvOf)
+    val local = DshRoots.argv()
+    val cmd = cfgCmd.orElse(envCmd).orElse(local).filterNot(a => DshRoots.rejectsNpx(a.mkString(" ")))
     if DshProbe.ready("127.0.0.1", port) then Some(DshProcess.attach(port))
     else if cmd.isDefined && DshRoots.installed() then Some(DshProcess.spawn(cmd.get))
     else None

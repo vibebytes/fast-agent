@@ -8,6 +8,8 @@ import java.nio.file.{Files, Path, Paths}
 import java.util.concurrent.TimeUnit
 import scala.util.control.NonFatal
 
+val DshNpmPackage: String = "@deepseek-ai/dsh@0.1.2-rc.1"
+
 final class DshInstall extends EngineInstall:
   def id: EngineId = EngineId("dsh")
   def run(root: Path, emit: EngineLog => Unit, cancelled: () => Boolean): Either[String, Unit] =
@@ -19,7 +21,7 @@ final class DshInstall extends EngineInstall:
       val home = Paths.get(sys.props.getOrElse("user.home", "."))
       val npm = NpmLocator.resolve(env, home, p => Files.exists(p)).getOrElse("npm")
       emit(EngineLog("install", s"npm: $npm", 0))
-      val pb = ProcessBuilder(npm, "install", "@deepseek-ai/dsh")
+      val pb = ProcessBuilder(npm, "install", DshNpmPackage)
       pb.directory(root.toFile)
       pb.environment().put("PATH", NpmLocator.childPath(env, npm))
       val proc = pb.start()

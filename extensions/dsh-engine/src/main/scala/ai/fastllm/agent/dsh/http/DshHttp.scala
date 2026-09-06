@@ -6,159 +6,61 @@ import io.circe.syntax.*
 
 import org.slf4j.LoggerFactory
 
-import java.net.URI
+import java.net.{CookieManager, URI}
 import java.net.http.{HttpClient, HttpRequest, HttpResponse, WebSocket}
 import java.nio.charset.StandardCharsets
 import java.time.Duration
-import java.util.UUID
-import java.util.concurrent.{CompletableFuture, CompletionStage, TimeUnit}
+import java.util.concurrent.{CompletableFuture, CompletionStage, ConcurrentHashMap, TimeUnit}
 import java.util.concurrent.atomic.AtomicBoolean
 import scala.concurrent.{ExecutionContext, Future, Promise}
+import scala.jdk.CollectionConverters.*
 import scala.jdk.FutureConverters.*
 import scala.util.control.NonFatal
 
-val UnaryMethods: Set[String] =
-  Set(
-    "host.describe",
-    "session.create",
-    "session.prompt",
-    "session.cancel",
-    "session.history",
-    "session.models",
-    "session.selectModel",
-    "session.list",
-    "session.updateQueue",
-    "session.attachment",
-    "subagent.list",
-    "subagent.history",
-    "subagent.prompt",
-    "subagent.interrupt",
-    "goal.create",
-    "goal.edit",
-    "goal.pause",
-    "goal.resume",
-    "goal.complete",
-    "goal.clear",
-    "skill.list",
-    "settings.describe",
-    "settings.openDocument",
-    "settings.update",
-    "settings.replace",
-    "settings.mutate",
-    "credentials.describe",
-    "credentials.set",
-    "credentials.unset",
-    "llm.providers",
-    "llm.models",
-    "llm.discoverModels",
-    "agentPreset.list",
-    "agentPreset.select",
-    "agentPreset.read",
-    "agentPreset.copy",
-    "agentPreset.openDocument",
-    "agentPreset.remove",
-    "pluginInventory.list"
-  )
-
-def unaryEnvelope(method: String, payload: Json): Json =
-  Json.obj(
-    "type" -> "client-request".asJson,
-    "rpcId" -> UUID.randomUUID().toString.asJson,
-    "method" -> method.asJson,
-    "payload" -> payload
-  )
-
-def peel(status: Int, body: Json): Json =
-  if status >= 400 then Json.obj("ok" -> Json.False, "error" -> Json.obj("code" -> "internal".asJson))
-  else
-    body.hcursor.downField("result").focus match
-      case Some(result) =>
-        result.hcursor.get[Boolean]("ok") match
-          case Right(false) =>
-            val err = result.hcursor.downField("error").focus.getOrElse(Json.obj("code" -> "internal".asJson))
-            Json.obj("ok" -> Json.False, "error" -> err)
-          case _ =>
-            Json.obj("ok" -> Json.True, "value" -> result.hcursor.downField("value").focus.getOrElse(Json.obj()))
-      case None =>
-        body.hcursor.get[Boolean]("ok") match
-          case Right(false) => body
-          case _            => Json.obj("ok" -> Json.True, "value" -> body.hcursor.downField("value").focus.getOrElse(body))
-
-def muxFrame(raw: Json): Json =
-  raw.hcursor.get[String]("type").toOption match
-    case Some("server-request") => raw.hcursor.downField("payload").focus.getOrElse(raw)
-    case _                      => raw
-
-/** Host `/api` over loopback HTTP + mux WebSocket. Completions hop onto `ec`. */
-class DshHttp(portOf: Future[Int], muxReadySec: Long = 5)(using ec: ExecutionContext) extends Client:
+/** Host `/api` over Connection / Typert Remote. Completions hop onto `ec`. */
+class DshHttp(
+    portOf: Future[Int],
+    muxReadySec: Long = 5,
+    tokenOf: Future[Option[String]] = Future.successful(None)
+)(using ec: ExecutionContext) extends Client:
   private lazy val log = LoggerFactory.getLogger(getClass)
+  private val cookies = CookieManager()
   private val http = HttpClient.newBuilder()
     .version(HttpClient.Version.HTTP_1_1)
     .connectTimeout(Duration.ofSeconds(5))
+    .followRedirects(HttpClient.Redirect.NORMAL)
+    .cookieHandler(cookies)
     .executor(r => ec.execute(r))
     .build()
   private val stopped = AtomicBoolean(false)
   private val muxOpening = AtomicBoolean(false)
+  private val authed = Promise[Unit]()
   private val muxOpen = Promise[Unit]()
   @volatile private var emitMux: Json => Unit = _ => ()
   @volatile private var emitHost: Json => Unit = _ => ()
   @volatile private var socket: Option[WebSocket] = None
-  @volatile private var hostSocket: Option[WebSocket] = None
+  @volatile private var clientId: String = ""
+  private val followIds = ConcurrentHashMap.newKeySet[String]()
+  private val lives = ConcurrentHashMap[String, LiveAttempt]()
+  private val cursors = ConcurrentHashMap[String, java.lang.Long]()
+  private val snapshots = ConcurrentHashMap[String, Json]()
+  private val pendingSid = ConcurrentHashMap[String, String]()
 
   def call(method: String, payload: Json): Future[Json] =
     if !UnaryMethods.contains(method) then
       Future.successful(Json.obj("ok" -> Json.False, "error" -> Json.obj("code" -> "internal".asJson)))
     else
       portOf.flatMap: port =>
-        val body = unaryEnvelope(method, payload).noSpaces
-        val req = HttpRequest.newBuilder()
-          .uri(URI.create(s"http://127.0.0.1:$port/api/$method"))
-          .timeout(Duration.ofSeconds(30))
-          .header("Content-Type", "application/json")
-          .POST(HttpRequest.BodyPublishers.ofString(body, StandardCharsets.UTF_8))
-          .build()
-        http.sendAsync(req, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8)).asScala
-          .map: res =>
-            val json = io.circe.parser.parse(res.body()).getOrElse(Json.obj())
-            peel(res.statusCode(), json)
-          .recover:
-            case NonFatal(e) =>
-              log.warn(s"dsh unary $method: ${e.getClass.getSimpleName}: ${e.getMessage}")
-              Json.obj("ok" -> Json.False, "error" -> Json.obj("code" -> "internal".asJson))
+        ensureCookie(port).flatMap: _ =>
+          cachedHistory(method, payload) match
+            case Some(value) => Future.successful(Json.obj("ok" -> Json.True, "value" -> value))
+            case None => post(port, method, pagePayload(method, payload))
 
   def reply(rpcId: String, value: Json): Future[Unit] =
-    respond(rpcId, Json.obj("ok" -> Json.True, "value" -> value))
+    postResult(rpcId, value, rejected = false)
 
   override def replyCancel(rpcId: String): Future[Unit] =
-    respond(rpcId, Json.obj("ok" -> Json.False, "error" -> Json.obj("code" -> "cancelled".asJson)))
-
-  private def respond(rpcId: String, result: Json): Future[Unit] =
-    portOf.flatMap: port =>
-      val body = Json.obj(
-        "type" -> "client-response".asJson,
-        "rpcId" -> rpcId.asJson,
-        "result" -> result
-      ).noSpaces
-      val req = HttpRequest.newBuilder()
-        .uri(URI.create(s"http://127.0.0.1:$port/api/respond"))
-        .timeout(Duration.ofSeconds(30))
-        .header("Content-Type", "application/json")
-        .POST(HttpRequest.BodyPublishers.ofString(body, StandardCharsets.UTF_8))
-        .build()
-      http.sendAsync(req, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8)).asScala.flatMap: res =>
-        val json = io.circe.parser.parse(res.body()).getOrElse(Json.obj())
-        val peeled = peel(res.statusCode(), json)
-        peeled.hcursor.get[Boolean]("ok") match
-          case Right(false) =>
-            val code = peeled.hcursor.downField("error").get[String]("code").toOption.getOrElse("internal")
-            Future.failed(RuntimeException(code))
-          case _ =>
-            peeled.hcursor.downField("value").get[Boolean]("accepted") match
-              case Right(false) =>
-                val reason =
-                  peeled.hcursor.downField("value").get[String]("reason").toOption.getOrElse("not-pending")
-                Future.failed(RuntimeException(reason))
-              case _ => Future.unit
+    postResult(rpcId, Json.obj(), rejected = true)
 
   def listen(channel: String)(emit: Json => Unit): Unit =
     channel match
@@ -169,29 +71,134 @@ class DshHttp(portOf: Future[Int], muxReadySec: Long = 5)(using ec: ExecutionCon
   def ready: Future[Unit] =
     if muxOpen.isCompleted then muxOpen.future
     else
-      log.info("dsh ready: host.describe")
-      call("host.describe", Json.obj()).flatMap: json =>
-        json.hcursor.get[Boolean]("ok") match
-          case Right(false) =>
-            val code = json.hcursor.downField("error").get[String]("code").toOption.getOrElse("internal")
-            Future.failed(RuntimeException(s"dsh host.describe: $code"))
-          case _ =>
-            openMux()
-            val cf = new CompletableFuture[Void]()
-            muxOpen.future.onComplete:
-              case scala.util.Success(_) => cf.complete(null)
-              case scala.util.Failure(e) => cf.completeExceptionally(e)
-            cf.orTimeout(muxReadySec, TimeUnit.SECONDS).asScala.map(_ => ())
-              .recoverWith:
-                case NonFatal(e) => Future.failed(RuntimeException(s"dsh mux: ${e.getMessage}", e))
+      tokenOf.flatMap:
+        case None | Some("") =>
+          Future.failed(RuntimeException("dsh token missing"))
+        case Some(tok) =>
+          log.info("dsh ready: cookie + $events")
+          portOf.flatMap: port =>
+            authorize(port, tok).flatMap: _ =>
+              openMux()
+              val cf = new CompletableFuture[Void]()
+              muxOpen.future.onComplete:
+                case scala.util.Success(_) => cf.complete(null)
+                case scala.util.Failure(e) => cf.completeExceptionally(e)
+              cf.orTimeout(muxReadySec, TimeUnit.SECONDS).asScala.map(_ => ())
+                .recoverWith:
+                  case NonFatal(e) => Future.failed(RuntimeException(s"dsh mux: ${e.getMessage}", e))
 
   def close(): Unit =
     stopped.set(true)
-    (socket.toList ++ hostSocket.toList).foreach: ws =>
+    socket.foreach: ws =>
       try ws.sendClose(WebSocket.NORMAL_CLOSURE, "close").join()
       catch case NonFatal(_) => ()
     socket = None
-    hostSocket = None
+
+  private def post(port: Int, method: String, payload: Json): Future[Json] =
+    val slash = remoteOf(method).getOrElse(method.replace('.', '/'))
+    val req = HttpRequest.newBuilder()
+      .uri(URI.create(s"http://127.0.0.1:$port/api/$slash"))
+      .timeout(Duration.ofSeconds(30))
+      .header("Content-Type", "application/json")
+      .POST(HttpRequest.BodyPublishers.ofString(unaryEnvelope(method, payload).noSpaces, StandardCharsets.UTF_8))
+      .build()
+    http.sendAsync(req, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8)).asScala
+      .map: res =>
+        val json = io.circe.parser.parse(res.body()).getOrElse(Json.obj())
+        afterUnary(method, payload, peel(res.statusCode(), json))
+      .recover:
+        case NonFatal(e) =>
+          log.warn(s"dsh unary $method: ${e.getClass.getSimpleName}: ${e.getMessage}")
+          Json.obj("ok" -> Json.False, "error" -> Json.obj("code" -> "internal".asJson))
+
+  private def cachedHistory(method: String, payload: Json): Option[Json] =
+    if method != "session.history" && method != "session.page" then None
+    else
+      val sid = payload.hcursor.get[String]("sessionId").toOption.getOrElse("")
+      Option(snapshots.get(sid))
+
+  private def pagePayload(method: String, payload: Json): Json =
+    method match
+      case "session.history" | "session.page" | "subagent.history" =>
+        val sid = payload.hcursor.get[String]("sessionId").toOption.getOrElse("")
+        watch(sid)
+        val through =
+          payload.hcursor.get[Long]("throughSeq").toOption
+            .orElse(Option(cursors.get(sid)).map(_.longValue))
+            .getOrElse(0L)
+        payload.deepMerge(Json.obj("throughSeq" -> through.asJson))
+      case _ => payload
+
+  private def postResult(rpcId: String, value: Json, rejected: Boolean): Future[Unit] =
+    val eventId = value.hcursor.get[String]("eventId")
+      .orElse(value.hcursor.get[String]("approvalId"))
+      .orElse(value.hcursor.get[String]("rpcId"))
+      .getOrElse(rpcId)
+    val args = eventResultArgs(clientId, eventId, value, rejected)
+    call("$events.result", args).flatMap: json =>
+      json.hcursor.get[Boolean]("ok") match
+        case Right(false) =>
+          val code = json.hcursor.downField("error").get[String]("code").toOption.getOrElse("internal")
+          Future.failed(RuntimeException(code))
+        case _ => Future.unit
+
+  private def ensureCookie(port: Int): Future[Unit] =
+    if authed.isCompleted then authed.future
+    else
+      tokenOf.flatMap:
+        case Some(tok) if tok.nonEmpty => authorize(port, tok)
+        case _                         =>
+          authed.trySuccess(())
+          Future.unit
+
+  private def authorize(port: Int, token: String): Future[Unit] =
+    if authed.isCompleted then authed.future
+    else
+      val req = HttpRequest.newBuilder()
+        .uri(URI.create(s"http://127.0.0.1:$port/?token=$token"))
+        .timeout(Duration.ofSeconds(10))
+        .GET()
+        .build()
+      http.sendAsync(req, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8)).asScala
+        .map: res =>
+          val code = res.statusCode()
+          if code == 401 || code == 403 || code >= 400 then
+            throw RuntimeException(s"dsh auth: HTTP $code")
+          authed.trySuccess(())
+          ()
+        .recover:
+          case NonFatal(e) =>
+            authed.tryFailure(e)
+            throw e
+
+  private def afterUnary(method: String, payload: Json, peeled: Json): Json =
+    val ok = peeled.hcursor.get[Boolean]("ok").toOption.contains(true)
+    val value = peeled.hcursor.downField("value").focus.getOrElse(Json.obj())
+    if ok then
+      method match
+        case "session.create" =>
+          val sid = value.hcursor.get[String]("sessionId").toOption
+            .orElse(payload.hcursor.get[String]("sessionId").toOption)
+            .getOrElse("")
+          watch(sid)
+        case "session.prompt" | "session.cancel" | "session.selectModel" =>
+          payload.hcursor.get[String]("sessionId").foreach(watch)
+        case "subagent.list" =>
+          childIds(value).foreach(watch)
+        case "session.history" | "session.page" | "subagent.history" =>
+          return Json.obj("ok" -> Json.True, "value" -> historyValue(value))
+        case _ => ()
+    peeled
+
+  private def watch(sessionId: String): Unit =
+    val sid = sessionId.trim
+    if sid.isEmpty || !followIds.add(sid) then ()
+    else sendFollow(sid)
+
+  private def sendFollow(sessionId: String): Unit =
+    socket.foreach: ws =>
+      try ws.sendText(openFrame(s"follow:$sessionId", "session/follow", followArgs(sessionId)).noSpaces, true)
+      catch case NonFatal(e) => log.warn(s"dsh follow $sessionId: ${e.getMessage}")
 
   private def openMux(): Unit =
     if stopped.get() || socket.isDefined || !muxOpening.compareAndSet(false, true) then ()
@@ -200,7 +207,7 @@ class DshHttp(portOf: Future[Int], muxReadySec: Long = 5)(using ec: ExecutionCon
         if stopped.get() then muxOpening.set(false)
         else
           http.newWebSocketBuilder()
-            .buildAsync(URI.create(s"ws://127.0.0.1:$port/api/events.mux"), MuxListen())
+            .buildAsync(URI.create(s"ws://127.0.0.1:$port/api/remote.mux"), MuxListen())
             .whenComplete: (ws, err) =>
               muxOpening.set(false)
               if err != null then
@@ -210,62 +217,76 @@ class DshHttp(portOf: Future[Int], muxReadySec: Long = 5)(using ec: ExecutionCon
               else
                 log.info("dsh mux open")
                 socket = Some(ws)
-                muxOpen.trySuccess(())
-                openHost(port)
 
   private def reopen(): Unit =
     if stopped.get() then ()
     else
-      call("host.describe", Json.obj()).foreach(_ => openMux())
+      tokenOf.foreach:
+        case Some(tok) if tok.nonEmpty =>
+          portOf.foreach: port =>
+            authorize(port, tok).foreach(_ => openMux())
+        case _ => ()
 
-  private def reopenHost(): Unit =
-    if stopped.get() then ()
-    else
-      call("host.describe", Json.obj()).foreach(_ => portOf.foreach(openHost))
+  private def onRemote(raw: Json): Unit =
+    raw.hcursor.get[String]("type").toOption.getOrElse("") match
+      case "item" =>
+        val streamId = raw.hcursor.get[String]("streamId").toOption.getOrElse("")
+        val value = raw.hcursor.downField("value").focus.getOrElse(Json.obj())
+        onItem(streamId, value)
+      case "error" =>
+        val err = raw.hcursor.downField("error").focus.getOrElse(Json.obj())
+        emitMux(Json.obj("type" -> "stream/error".asJson, "error" -> err))
+      case "end" =>
+        raw.hcursor.get[String]("streamId").toOption.filter(_.startsWith("follow:")).foreach: id =>
+          followIds.remove(id.stripPrefix("follow:"))
+      case _ => ()
 
-  private def openHost(port: Int): Unit =
-    if stopped.get() || hostSocket.isDefined then ()
-    else
-      http.newWebSocketBuilder()
-        .buildAsync(URI.create(s"ws://127.0.0.1:$port/api/events.host"), HostListen())
-        .whenComplete: (ws, err) =>
-          if err != null then
-            log.warn(s"dsh host handshake: ${err.getMessage}")
-            if !stopped.get() then reopenHost()
-          else if !stopped.get() then
-            log.info("dsh host open")
-            hostSocket = Some(ws)
+  private def onItem(streamId: String, value: Json): Unit =
+    if streamId == "events" || streamId.isEmpty then onEvents(value)
+    else if streamId == "control" then projectControl(value).foreach(emitMux)
+    else if streamId.startsWith("follow:") then onFollow(streamId.stripPrefix("follow:"), value)
+    else ()
 
-  private class HostListen extends WebSocket.Listener:
-    private val buf = StringBuilder()
+  private def onEvents(value: Json): Unit =
+    value.hcursor.get[String]("type").toOption.getOrElse("") match
+      case "ready" =>
+        clientId = value.hcursor.get[String]("clientId").toOption.getOrElse("")
+        socket.foreach: ws =>
+          try ws.sendText(openFrame("control", "session/control").noSpaces, true)
+          catch case NonFatal(e) => log.warn(s"dsh control: ${e.getMessage}")
+        followIds.asScala.foreach(sendFollow)
+        muxOpen.trySuccess(())
+      case "cancel" =>
+        val eventId = value.hcursor.get[String]("eventId").toOption.getOrElse("")
+        val sid = Option(pendingSid.remove(eventId)).getOrElse("")
+        projectEvents(value.deepMerge(Json.obj("sessionId" -> sid.asJson))).foreach(emitMux)
+      case _ =>
+        projectEvents(value).foreach: frame =>
+          frame.hcursor.get[String]("rpcId").orElse(frame.hcursor.get[String]("approvalId")).foreach: id =>
+            frame.hcursor.get[String]("sessionId").foreach(sid => pendingSid.put(id, sid))
+          if frame.hcursor.get[String]("type").toOption.contains("host/agent-error") then emitHost(frame)
+          else emitMux(frame)
 
-    override def onOpen(ws: WebSocket): Unit =
-      ws.request(1)
-
-    override def onText(ws: WebSocket, data: CharSequence, last: Boolean): CompletionStage[?] =
-      buf.append(data)
-      if last then
-        val text = buf.toString
-        buf.clear()
-        io.circe.parser.parse(text).toOption.foreach: json =>
-          ec.execute(() => emitHost(json))
-      ws.request(1)
-      null
-
-    override def onClose(ws: WebSocket, status: Int, reason: String): CompletionStage[?] =
-      hostSocket = None
-      if !stopped.get() then reopenHost()
-      null
-
-    override def onError(ws: WebSocket, error: Throwable): Unit =
-      hostSocket = None
-      if !stopped.get() then reopenHost()
+  private def onFollow(sessionId: String, value: Json): Unit =
+    if value.hcursor.get[String]("type").toOption.contains("snapshot") then
+      val hist = snapshotHistory(sessionId, value)
+      snapshots.put(sessionId, hist)
+      value.hcursor.get[Long]("cursor").foreach(c => cursors.put(sessionId, c))
+    val prev = Option(lives.get(sessionId))
+    val (frames, next) = projectFollow(sessionId, value, prev)
+    next match
+      case Some(a) => lives.put(sessionId, a)
+      case None    => lives.remove(sessionId)
+    frames.foreach: frame =>
+      frame.hcursor.downField("event").get[Long]("seq").foreach(s => cursors.put(sessionId, s))
+      emitMux(frame)
 
   private class MuxListen extends WebSocket.Listener:
     private val buf = StringBuilder()
 
     override def onOpen(ws: WebSocket): Unit =
-      muxOpen.trySuccess(())
+      try ws.sendText(openFrame("events", "$events").noSpaces, true)
+      catch case NonFatal(e) => log.warn(s"dsh events open: ${e.getMessage}")
       ws.request(1)
 
     override def onText(ws: WebSocket, data: CharSequence, last: Boolean): CompletionStage[?] =
@@ -274,7 +295,7 @@ class DshHttp(portOf: Future[Int], muxReadySec: Long = 5)(using ec: ExecutionCon
         val text = buf.toString
         buf.clear()
         io.circe.parser.parse(text).toOption.foreach: json =>
-          ec.execute(() => emitMux(json))
+          ec.execute(() => onRemote(json))
       ws.request(1)
       null
 

@@ -166,7 +166,7 @@ class DshLoop(
             else
               liveOf(cmd.sessionId) match
                 case Some(live) =>
-                  prompt(cmd.sessionId, "queue", cmd.text, cmd.images).map:
+                  prompt(cmd.sessionId, "queue", cmd.text, cmd.images, cmd.clientMessageId).map:
                     case Right(_) => Admit.Steered(live)
                     case Left(e)  => Admit.Rejected(e)
                 case None =>
@@ -225,7 +225,7 @@ class DshLoop(
     else
       liveOf(cmd.sessionId) match
         case Some(live) =>
-          prompt(cmd.sessionId, "steer", cmd.text, cmd.images).map:
+          prompt(cmd.sessionId, "steer", cmd.text, cmd.images, java.util.UUID.randomUUID().toString).map:
             case Right(_) => Admit.Steered(live)
             case Left(e)  => Admit.Rejected(e)
         case None => Future.successful(Admit.Rejected("no live run"))
@@ -323,7 +323,8 @@ class DshLoop(
       sessionId: String,
       mode: String,
       text: String,
-      images: List[AgentAttachProtocol.SubmitImage] = Nil
+      images: List[AgentAttachProtocol.SubmitImage] = Nil,
+      requestId: String
   ): Future[Either[String, Unit]] =
     val parts =
       Json.obj("type" -> "text".asJson, "text" -> text.asJson) +:
@@ -334,7 +335,8 @@ class DshLoop(
       Json.obj(
         "sessionId" -> sessionId.asJson,
         "mode" -> mode.asJson,
-        "content" -> Json.fromValues(parts)
+        "content" -> Json.fromValues(parts),
+        "requestId" -> requestId.asJson
       )
     ).map(json => valueOf(json).map(_ => ()))
 
@@ -462,7 +464,7 @@ class DshLoop(
   private def startTurn(cmd: AgentAttachProtocol.Command.SubmitUserMessage): Future[Admit] =
     liveOf(cmd.sessionId) match
       case Some(live) =>
-        prompt(cmd.sessionId, "queue", cmd.text, cmd.images).map:
+        prompt(cmd.sessionId, "queue", cmd.text, cmd.images, cmd.clientMessageId).map:
           case Right(_) => Admit.Accepted(live)
           case Left(e)  => Admit.Rejected(e)
       case None =>
@@ -470,7 +472,7 @@ class DshLoop(
         if !claimLive(cmd.sessionId, runId) then
           liveOf(cmd.sessionId) match
             case Some(live) =>
-              prompt(cmd.sessionId, "queue", cmd.text, cmd.images).map:
+              prompt(cmd.sessionId, "queue", cmd.text, cmd.images, cmd.clientMessageId).map:
                 case Right(_) => Admit.Accepted(live)
                 case Left(e)  => Admit.Rejected(e)
             case None => Future.successful(Admit.Rejected("cwd missing"))
@@ -478,18 +480,19 @@ class DshLoop(
           onTurnBegin(cmd.sessionId, runId).transformWith:
             case Failure(e) =>
               log.error(s"dsh turn begin capture failed session=${cmd.sessionId} run=$runId: ${e.getMessage}", e)
-              afterBegin(cmd.sessionId, runId, cmd.text, cmd.images)
+              afterBegin(cmd.sessionId, runId, cmd.text, cmd.images, cmd.clientMessageId)
             case Success(_) =>
-              afterBegin(cmd.sessionId, runId, cmd.text, cmd.images)
+              afterBegin(cmd.sessionId, runId, cmd.text, cmd.images, cmd.clientMessageId)
 
   private def afterBegin(
       sessionId: String,
       runId: String,
       text: String,
-      images: List[AgentAttachProtocol.SubmitImage]
+      images: List[AgentAttachProtocol.SubmitImage],
+      requestId: String
   ): Future[Admit] =
     if liveOf(sessionId).contains(runId) then
-      prompt(sessionId, "queue", text, images).transform:
+      prompt(sessionId, "queue", text, images, requestId).transform:
         case Success(Right(_)) => Success(Admit.Accepted(runId))
         case Success(Left(e)) =>
           failAdmitted(sessionId, runId, e)

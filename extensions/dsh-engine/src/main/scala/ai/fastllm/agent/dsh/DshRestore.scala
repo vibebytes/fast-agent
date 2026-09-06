@@ -13,7 +13,10 @@ final case class DshHistory(
 
 /** Peel `session.history` value.events into raw SessionEvents. */
 def historyEvents(value: Json): List[Json] =
-  value.hcursor.downField("events").as[List[Json]].toOption.getOrElse(Nil).map: item =>
+  val items = value.hcursor.downField("events").as[List[Json]]
+    .orElse(value.hcursor.downField("records").as[List[Json]])
+    .toOption.getOrElse(Nil)
+  items.map: item =>
     item.hcursor.downField("event").focus.getOrElse(item)
 
 /** Linear restore: user/assistant/tools; last open todo → Plan; title out of band; compaction skipped. */

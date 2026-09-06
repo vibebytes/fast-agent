@@ -30,6 +30,7 @@ class DshLoopSpec extends AnyFunSuite with Matchers:
     await(loop.submit(submit("c1", "hi"))) shouldBe Admit.Accepted(s"$Sid:c1")
     methods(remote).count(_ == "session.create") shouldBe 1
     methods(remote) should contain("session.prompt")
+    remote.calls.filter(_._1 == "session.prompt").last._2.hcursor.get[String]("requestId").toOption.get shouldBe "c1"
 
   test("submit still rejects structured skillSlash"):
     val loop = DshLoop(FakeClient(), _ => Cwd)

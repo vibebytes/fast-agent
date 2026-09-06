@@ -56,7 +56,7 @@ class DshLiveSubagentSettleSpec extends AnyFunSuite with Matchers:
 
   test("live mux: after child turn/end DshLoop must leave 运行中"):
     val live = LiveDsh.open
-    val http = DshHttp(Future.successful(live.port))
+    val http = live.http()
     val mux = ConcurrentLinkedQueue[Json]()
     val remote = TeeClient(http, mux.add)
     val cwd = Files.createTempDirectory("dsh-settle-")
@@ -109,7 +109,7 @@ class DshLiveSubagentSettleSpec extends AnyFunSuite with Matchers:
 
   private def liveKnown(): Option[Tape] =
     LiveDsh.attachExisting.flatMap: live =>
-      val http = DshHttp(Future.successful(live.port))
+      val http = live.http()
       try
         await(http.ready)
         val items = value(await(http.call("session.list", Json.obj())))

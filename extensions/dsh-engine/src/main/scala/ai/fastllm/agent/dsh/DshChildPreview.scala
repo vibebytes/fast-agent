@@ -28,7 +28,7 @@ def dshPreviewDelta(data: Json, tpe: String): Option[String] =
   tpe match
     case "tool/call" => Some(toolCallLine(data))
     case "tool/result" => toolResultLine(data)
-    case "assistant/chunk" =>
+    case "assistant/chunk" | "assistant/live-chunk" =>
       val chunk = data.hcursor.downField("chunk").focus.getOrElse(Json.obj())
       chunk.hcursor.get[String]("type").toOption match
         case Some("text-delta") => chunk.hcursor.get[String]("text").toOption.filter(_.nonEmpty)

@@ -27,7 +27,7 @@ object DshBoot:
       process: Option[DshProcess] = DshProcess.of
   )(using ExecutionContext): Option[DshBoot] =
     process.map: proc =>
-      val remote = DshHttp(proc.port)
+      val remote = DshHttp(proc.port, tokenOf = proc.token)
       val loop = DshLoop(remote, cwdOf, onTitle, onTurnBegin, onTurnEnd, onChildOpen, onError, onGoal)
       val face = DshFace(remote, cwdOf, loop)
       remote.ready.onComplete:

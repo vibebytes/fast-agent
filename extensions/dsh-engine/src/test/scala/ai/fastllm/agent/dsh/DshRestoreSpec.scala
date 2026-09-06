@@ -57,6 +57,11 @@ class DshRestoreSpec extends AnyFunSuite with Matchers:
     val value = parse(s"""{"events":[{"event":${inner.noSpaces},"view":{"for":"call","view":{"card":"x"}}}],"hasMore":false}""").toOption.get
     historyEvents(value) shouldBe List(inner)
 
+  test("history value peels page records"):
+    val inner = load("text-turn.jsonl").head
+    val value = parse(s"""{"records":[{"type":"event","event":${inner.noSpaces}}],"hasMore":false}""").toOption.get
+    historyEvents(value) shouldBe List(inner)
+
   test("window keeps the latest user turns; beforeTurnId pages older"):
     val rows = (1 to 3).toList.flatMap: n =>
       List(

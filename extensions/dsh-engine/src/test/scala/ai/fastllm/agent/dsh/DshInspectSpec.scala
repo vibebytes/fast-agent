@@ -1,7 +1,7 @@
 package ai.fastllm.agent.dsh
 
 import ai.fastllm.agent.dsh.proc.DshProcess
-import ai.fastllm.agent.engine.{EngineConfig, ProcessPhase, ProgramPhase}
+import ai.fastllm.agent.engine.{EngineConfig, EngineId, ProcessPhase, ProgramPhase}
 import com.sun.net.httpserver.{HttpExchange, HttpServer}
 import io.circe.Json
 import org.scalatest.BeforeAndAfterEach
@@ -28,6 +28,24 @@ class DshInspectSpec extends AnyFunSuite with Matchers with BeforeAndAfterEach:
     probe.program shouldBe ProgramPhase.Missing
     probe.process shouldBe ProcessPhase.None
     probe.runningDetail shouldBe None
+
+  test("install pins the Connection cohort"):
+    DshNpmPackage shouldBe "@deepseek-ai/dsh@0.1.2-rc.1"
+
+  test("inspect root follows FAST_RUNTIME_ROOT when sysprop is absent"):
+    val runtime = Files.createTempDirectory("dsh-env-root-")
+    val home = Files.createTempDirectory("dsh-home-")
+    val envRoot = DshRoots.at(EngineId("dsh"), Some(runtime.toString), home.toString)
+    envRoot shouldBe runtime.resolve("engines/dsh")
+    Files.createDirectories(envRoot)
+    Files.writeString(envRoot.resolve(".installed"), "ok")
+    DshRoots.installed(envRoot) shouldBe true
+    DshRoots.at(EngineId("dsh"), None, home.toString) shouldBe home.resolve(".fast/engines/dsh")
+    val src = List(
+      Path.of("src/main/scala/ai/fastllm/agent/dsh/DshRoots.scala"),
+      Path.of("extensions/dsh-engine/src/main/scala/ai/fastllm/agent/dsh/DshRoots.scala")
+    ).find(p => Files.isRegularFile(p)).getOrElse(fail("DshRoots.scala"))
+    Files.readString(src) should include("""sys.env.get("FAST_RUNTIME_ROOT")""")
 
   test("complete user root is installed"):
     val root = DshRoots.of()
@@ -86,6 +104,7 @@ class DshInspectSpec extends AnyFunSuite with Matchers with BeforeAndAfterEach:
     Files.writeString(root.resolve("node_modules/@deepseek-ai/dsh/package.json"), "{}")
     val cmd = DshRoots.command(root).get
     cmd should not include "npx --yes"
+    DshRoots.argv(root).get.head shouldBe root.resolve("node_modules/.bin/dsh").toAbsolutePath.toString
     DshRoots.rejectsNpx("npx --yes @deepseek-ai/dsh web") shouldBe true
 
   private def closedPort(): Int =

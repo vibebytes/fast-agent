@@ -176,6 +176,37 @@ test('install is optimistic installing and late logs do not rewind installed', a
 	assert.equal(after?.installLog?.at(-1)?.text, 'late');
 });
 
+test('late logs after a finished install do not flip missing back to installing', async () => {
+	let finishInstall: ((value: {ok: true; engines: EngineRow[]}) => void) | null = null;
+	const handlers: Array<(log: {engineId: string; stream: 'stdout' | 'stderr'; text: string; seq: number}) => void> =
+		[];
+	engStore.bindApi(
+		api({
+			listEngines: async () => ({ok: true, engines: [row({id: 'dsh', program: 'missing'})]}),
+			onEngineInstallLog: handler => {
+				handlers.push(handler);
+				return () => undefined;
+			},
+			installEngine: () =>
+				new Promise(resolve => {
+					finishInstall = resolve;
+				})
+		})
+	);
+	engStore.setEngineReady(true);
+	await engStore.list();
+	const pending = engStore.install('dsh');
+	finishInstall?.({
+		ok: true,
+		engines: [row({id: 'dsh', program: 'missing', actions: ['install'], installLog: []})]
+	});
+	assert.equal(await pending, true);
+	for (const h of handlers) {
+		h({engineId: 'dsh', stream: 'stdout', text: 'added 523 packages in 3m', seq: 9});
+	}
+	assert.equal(engStore.getSnapshot().engines.find(r => r.id === 'dsh')?.program, 'missing');
+});
+
 test('install logs append then result replaces program', async () => {
 	const handlers: Array<(log: {engineId: string; stream: 'stdout' | 'stderr'; text: string; seq: number}) => void> =
 		[];

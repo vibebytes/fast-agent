@@ -1,7 +1,7 @@
 package ai.fastllm.agent.dsh
 
 import ai.fastllm.agent.dsh.http.DshHttp
-import ai.fastllm.agent.dsh.proc.DshProcess
+import ai.fastllm.agent.dsh.proc.{DshProcess, launchToken}
 import io.circe.Json
 
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -10,8 +10,11 @@ import scala.concurrent.{Await, Future}
 import scala.util.control.NonFatal
 
 /** Live DSH web on loopback. Attach if reachable; spawn only when `FAST_DSH_COMMAND` is set. */
-final class LiveDsh(val port: Int, spawned: Option[DshProcess]):
+final class LiveDsh(val port: Int, spawned: Option[DshProcess], val token: Option[String] = None):
   def close(): Unit = spawned.foreach(_.close())
+
+  def http(muxReadySec: Long = 5): DshHttp =
+    DshHttp(Future.successful(port), muxReadySec, Future.successful(token))
 
 object LiveDsh:
   def open: LiveDsh =
@@ -30,7 +33,8 @@ object LiveDsh:
           )
 
   def attachExisting: Option[LiveDsh] =
-    candidates.distinct.find(reachable).map(p => LiveDsh(p, None))
+    val tok = launchToken
+    candidates.distinct.find(p => reachable(p, tok)).map(p => LiveDsh(p, None, tok))
 
   private def candidates: List[Int] =
     (sys.props.get("fast.dsh.port").toList ++
@@ -49,16 +53,21 @@ object LiveDsh:
             s"live DSH required: start `npx @deepseek-ai/dsh web` or set FAST_DSH_PORT (${e.getMessage})",
             e
           )
-    if !reachable(port) then
+    val tok =
+      try Await.result(proc.token, 2.seconds)
+      catch case NonFatal(_) => None
+    if !reachable(port, tok) then
       proc.close()
-      throw RuntimeException(s"spawned DSH on $port but host.describe failed")
-    LiveDsh(port, Some(proc))
+      throw RuntimeException(s"spawned DSH on $port but settings.describe failed")
+    LiveDsh(port, Some(proc), tok)
 
-  def reachable(port: Int): Boolean =
-    val remote = DshHttp(Future.successful(port))
-    try
-      val json = Await.result(remote.call("host.describe", Json.obj()), 4.seconds)
-      json.hcursor.get[Boolean]("ok").toOption.contains(true)
-    catch
-      case NonFatal(_) => false
-    finally remote.close()
+  def reachable(port: Int, token: Option[String] = launchToken): Boolean =
+    if token.forall(_.isEmpty) then false
+    else
+      val remote = DshHttp(Future.successful(port), tokenOf = Future.successful(token))
+      try
+        val json = Await.result(remote.call("settings.describe", Json.obj()), 8.seconds)
+        json.hcursor.get[Boolean]("ok").toOption.contains(true)
+      catch
+        case NonFatal(_) => false
+      finally remote.close()
