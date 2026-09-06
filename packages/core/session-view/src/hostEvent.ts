@@ -27,7 +27,8 @@ export function followUpQueueFrom(itemsJson: string): FollowUpQueueItem[] {
 		const parsed = JSON.parse(itemsJson) as unknown;
 		if (!Array.isArray(parsed)) return [];
 		return parsed
-			.filter((m): m is Record<string, unknown> => m != null && typeof m === 'object' && typeof m.id === 'string')
+			.filter((m): m is Record<string, unknown> & {id: string} =>
+				m != null && typeof m === 'object' && typeof m.id === 'string')
 			.map(m => ({
 				id: m.id,
 				text: String(m.text ?? ''),
