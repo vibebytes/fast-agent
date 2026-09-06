@@ -5,9 +5,12 @@ import {
   CANCEL_SETTLEMENT_TIMEOUT_MS,
   RUN_LEASE_INTERVAL_MS,
   RUN_LEASE_TTL_MS,
+  chromeAwaitingSettlement,
+  chromeRunId,
   composerGate,
   createTranscriptState,
   emptySessionSeq,
+  hasLocalRun,
   offer,
   seqTerminal,
   type GoalCardView,
@@ -395,7 +398,7 @@ class BridgeStore {
   attach(sessionId: string) {
     this.attached.add(sessionId);
     const record = this.ensureRecord(sessionId);
-    if (record.transcript.awaitingCancelSettlement && !this.cancelSettleTimers.has(sessionId)) {
+    if (chromeAwaitingSettlement(record.transcript.chrome) && !this.cancelSettleTimers.has(sessionId)) {
       this.armCancelSettleTimer(sessionId);
     }
     this.sendAttach(sessionId);
@@ -570,7 +573,7 @@ class BridgeStore {
 
   cancelRun(sessionId: string, runId?: string): boolean {
     const record = this.ensureRecord(sessionId);
-    const id = (runId ?? record.transcript.activeRunId)?.trim();
+    const id = (runId ?? chromeRunId(record.transcript.chrome))?.trim();
     const sent = id
       ? this.send({type: 'CancelRun', sessionId, runId: id, reason: 'user-cancel'})
       : this.send({type: 'CancelAssociated', sessionId, reason: 'user-cancel'});
@@ -810,7 +813,7 @@ class BridgeStore {
       }
     }
     this.foldEchoes(sessionId, record);
-    if (!record.transcript.awaitingCancelSettlement) this.clearCancelSettleTimer(sessionId);
+    if (!chromeAwaitingSettlement(record.transcript.chrome)) this.clearCancelSettleTimer(sessionId);
     if (result.resync) this.sendAttach(sessionId);
     const sameUi =
       record.transcript === prevTranscript &&
@@ -852,12 +855,8 @@ class BridgeStore {
     timer.unref?.();
   }
 
-  private hasLocalRun(t: TranscriptState): boolean {
-    return Boolean(t.activeRunId) || t.entries.some(e => e.status === 'streaming');
-  }
-
   private leaseBusy(record: SessionRecord): boolean {
-    return this.hasLocalRun(record.transcript) || goalKeepsBusy(record.goalCard);
+    return hasLocalRun(record.transcript) || goalKeepsBusy(record.goalCard);
   }
 
   tickRunLeases() {
@@ -911,10 +910,10 @@ class BridgeStore {
     this.cancelSettleTimers.delete(sessionId);
   }
 
-  /** 12s watchdog: applyLocalCancel then settle so activeRunId actually clears. */
+  /** 12s watchdog: applyLocalCancel then settle so chrome run id actually clears. */
   private forceCancelSettlement(sessionId: string) {
     const record = this.records.get(sessionId);
-    if (!record?.transcript.awaitingCancelSettlement) return;
+    if (!chromeAwaitingSettlement(record?.transcript.chrome)) return;
     record.transcript = applyBridgeEvent(applyLocalCancel(record.transcript), {
       type: 'turn_cancelled',
       reason: 'client settlement timeout'

@@ -1,6 +1,6 @@
 import type {GoalFlowMember, GoalFlowView, TranscriptEntry, TranscriptState} from './transcriptProjection.js';
 import type {GoalCardView} from './wire.js';
-import {chromePostRun} from './runChrome.js';
+import {chromePostRun, runChromeTransition} from './runChrome.js';
 import {pickIdList} from '@fastllm/bridge-protocol';
 
 /** Chat-history prose for an unconfirmed plan (natural confirm, not a Goal card). */
@@ -267,13 +267,12 @@ export function applyGoalPush(
 	const prevFlow = transcript.goalFlow;
 	const keepLive =
 		prevFlow?.goalId === card.goalId && prevFlow.members.some(m => !m.runId.startsWith('seed-'));
+	const lift = phase === 'started' || phase === 'paused' || phase === 'escalated';
 	return paintAwaitingConfirm(
 		{
 			...transcript,
 			goalFlow: keepLive ? prevFlow : goalFlowSeed(card),
-			...(phase === 'started' || phase === 'paused' || phase === 'escalated'
-				? {postRunTerminal: false}
-				: {})
+			chrome: lift ? runChromeTransition(transcript.chrome, {postRun: false}) : transcript.chrome
 		},
 		card
 	);

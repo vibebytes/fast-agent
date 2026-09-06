@@ -76,6 +76,18 @@ export {
 } from './runChrome.js';
 
 export {
+	bareRunId,
+	entryMatchesKey,
+	entryTurnIdIs,
+	isGoalNoticeId,
+	isScheduledId,
+	sameRunId,
+	sameTurn,
+	serverRunIdOf,
+	type TurnKey
+} from './turnIdentity.js';
+
+export {
 	LEASE_TERMINALS,
 	createLeaseWatch,
 	hasLocalRun,

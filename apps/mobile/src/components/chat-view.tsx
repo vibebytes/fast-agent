@@ -1,5 +1,6 @@
 import { FlashList } from '@shopify/flash-list';
 import {
+  chromeRunId,
   composerGate,
   countDiffStats,
   parseDiffWithLineNumbers,
@@ -435,7 +436,7 @@ function StopControl({
   return (
     <Pressable
       onPress={() => {
-        if (canStopRun) bridgeStore.cancelRun(sessionId, record.transcript.activeRunId);
+        if (canStopRun) bridgeStore.cancelRun(sessionId, chromeRunId(record.transcript.chrome));
         else bridgeStore.cancelGoal(sessionId, record.goalCard?.goalId);
       }}
       className={className}

@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import type {BridgeCommand, BridgeEvent} from '@fastllm/bridge-protocol';
 import {
+	SETTLED_RUN_CHROME,
 	createTranscriptState,
 	goalKeepsBusy,
 	paintAwaitingConfirm,
@@ -56,7 +57,7 @@ function boot(): {controller: SessionController; sent: BridgeCommand[]} {
 function planTurn() {
 	return {
 		...createTranscriptState(),
-		postRunTerminal: true as const,
+		chrome: SETTLED_RUN_CHROME,
 		entries: [
 			{id: 'u1', role: 'user' as const, text: '/goal 做官网', status: 'done' as const},
 			{

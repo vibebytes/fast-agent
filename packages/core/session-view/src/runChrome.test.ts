@@ -11,6 +11,8 @@ import {
 	SETTLED_RUN_CHROME,
 	type RunChrome
 } from './runChrome.js';
+import {applyBridgeEvent, applyLocalCancel, createTranscriptState} from './transcriptProjection.js';
+import {hasLocalRun} from './leaseWatch.js';
 
 const active = (runId: string, fromServer = false): RunChrome => ({phase: 'active', runId, fromServer});
 const cancelPending = (runId?: string): RunChrome =>
@@ -112,6 +114,24 @@ test('turn_started arms a fresh run without server trust', () => {
 test('lease expiry and cold restore settle outright', () => {
 	assert.deepEqual(runChromeTransition(active('r1'), {run: 'clear', postRun: true, awaiting: false}), SETTLED_RUN_CHROME);
 	assert.deepEqual(runChromeTransition(sealedRun('r1'), {run: 'clear', postRun: true, awaiting: false}), SETTLED_RUN_CHROME);
+});
+
+test('local cancel arms cancelPending so hosts read chrome, not removed flags', () => {
+	let transcript = createTranscriptState();
+	transcript = applyBridgeEvent(transcript, {
+		type: 'turn_started',
+		turnId: 'run-1',
+		clientMessageId: 'run-1',
+		text: 'hi'
+	});
+	assert.equal(chromeRunId(transcript.chrome), 'run-1');
+	assert.equal(hasLocalRun(transcript), true);
+	assert.equal(chromeAwaitingSettlement(transcript.chrome), false);
+
+	const cancelled = applyLocalCancel(transcript);
+	assert.equal(chromeAwaitingSettlement(cancelled.chrome), true);
+	assert.equal(chromeRunId(cancelled.chrome), 'run-1');
+	assert.equal(hasLocalRun(cancelled), true);
 });
 
 test('revive arms the run from engine state', () => {

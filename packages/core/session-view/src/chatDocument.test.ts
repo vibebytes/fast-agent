@@ -35,9 +35,18 @@ test('documentCard prefers lastDocumentId over a cancelled opener', () => {
 
 test('documentCard still finds the approval-sealed card (status done, run live)', () => {
 	const sealed = assistant({id: 'a1', turnId: 'run-2', status: 'done', text: ''});
-	const state = {...rememberDocument(withCards(sealed), 'run-2'), activeRunId: 'run-2'};
+	const state = {
+		...rememberDocument(withCards(sealed), 'run-2'),
+		chrome: {phase: 'active' as const, runId: 'run-2', fromServer: true}
+	};
 	assert.equal(documentCard(state)?.id, 'a1');
 	assert.equal(documentCard(state, 'run-2')?.id, 'a1');
+	const viaChrome = {
+		...createTranscriptState(),
+		entries: [sealed],
+		chrome: {phase: 'active' as const, runId: 'run-2', fromServer: true}
+	};
+	assert.equal(documentCard(viaChrome)?.id, 'a1', 'chromeRunId finds the live card when lastDocumentId is unset');
 });
 
 test('forgetDocument only closes the matching run', () => {

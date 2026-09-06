@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
+	applyGoalPush,
 	awaitingConfirmPlan,
 	goalCardFromPush,
 	goalConfirmStarted,
@@ -11,7 +12,14 @@ import {
 	patchedGoalCard,
 	startedGoalCardFromConfirm
 } from './goalCard.js';
-import {IDLE_RUN_CHROME, SETTLED_RUN_CHROME} from './runChrome.js';
+import {applyBridgeEvent} from './transcriptProjection.js';
+import {
+	chromePostRun,
+	chromeRunId,
+	IDLE_RUN_CHROME,
+	SETTLED_RUN_CHROME,
+	type RunChrome
+} from './runChrome.js';
 import type {GoalCardView} from './wire.js';
 import type {TranscriptEntry, TranscriptState} from './transcriptProjection.js';
 
@@ -204,4 +212,58 @@ test('startedGoalCardFromConfirm requires a goalId and merges g/prev', () => {
 		['b']
 	]);
 	assert.equal(built?.statement, 'plan');
+});
+
+const sealedRun = (runId: string): RunChrome => ({phase: 'sealedRun', runId, fromServer: true});
+
+test('applyGoalPush lifts postRun on started/paused/escalated so Goal content is not dropped', () => {
+	const settled = state(
+		[entry({id: 'u1', role: 'user', text: '/goal'}), entry({id: 'a1', role: 'assistant', text: 'plan'})],
+		SETTLED_RUN_CHROME
+	);
+	const started = applyGoalPush(settled, card({phase: 'started', status: 'running'}), 'started');
+	assert.equal(chromePostRun(started.chrome), false);
+	assert.equal(started.chrome.phase, 'idle');
+	assert.equal(started.goalFlow?.goalId, 'g1');
+
+	const afterDelta = applyBridgeEvent(started, {
+		type: 'assistant_delta',
+		turnId: 'goal-run-1',
+		text: '执行中'
+	} as never);
+	assert.ok(
+		afterDelta.entries.some(e => e.text.includes('执行中')),
+		'Goal assistant_delta after a settled chat must land, not be dropped as a straggler'
+	);
+
+	const paused = applyGoalPush(settled, card({phase: 'paused', status: 'paused'}), 'paused');
+	assert.equal(chromePostRun(paused.chrome), false);
+	const escalated = applyGoalPush(
+		settled,
+		card({phase: 'escalated', status: 'escalated', escalateKind: 'decision'}),
+		'escalated'
+	);
+	assert.equal(chromePostRun(escalated.chrome), false);
+});
+
+test('applyGoalPush keeps settled chrome on confirm/finished and preserves a sealed run id when lifting', () => {
+	const settled = state(
+		[entry({id: 'u1', role: 'user', text: '/goal'}), entry({id: 'a1', role: 'assistant', text: ''})],
+		SETTLED_RUN_CHROME
+	);
+	const confirm = applyGoalPush(settled, card(), 'awaiting_confirm');
+	assert.equal(confirm.chrome, SETTLED_RUN_CHROME);
+	assert.ok(confirm.entries.some(e => e.text.includes('请确认是否开始执行')));
+
+	const finished = applyGoalPush(settled, card({phase: 'finished', status: 'passed'}), 'finished');
+	assert.equal(finished.chrome, SETTLED_RUN_CHROME);
+	assert.equal(chromePostRun(finished.chrome), true);
+
+	const live = applyGoalPush(
+		state([entry({id: 'a1', role: 'assistant', text: 'done', status: 'done'})], sealedRun('chat-1')),
+		card({phase: 'started', status: 'running'}),
+		'started'
+	);
+	assert.equal(chromePostRun(live.chrome), false);
+	assert.equal(chromeRunId(live.chrome), 'chat-1');
 });
