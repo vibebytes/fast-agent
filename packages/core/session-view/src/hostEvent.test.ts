@@ -9,17 +9,19 @@ import {
 	skillErrorNeedsEngineSlashHint
 } from './hostEvent.js';
 
-test('followUpQueueFrom sorts by id, parses mentions, drops malformed rows', () => {
+test('followUpQueueFrom sorts by order, parses mentions, drops malformed rows', () => {
 	const q = followUpQueueFrom(
 		JSON.stringify([
-			{id: 'b', text: 'second', mentionsJson: '[{"kind":"skill","locator":"plan"}]'},
-			{id: 'a', text: 'first'},
+			{id: 'b', text: 'second', order: 2, mentionsJson: '[{"kind":"skill","locator":"plan"}]'},
+			{id: 'a', text: 'first', order: 1},
+			{id: 'c', text: 'unordered'},
 			{id: '', text: 'no id'},
+			{id: 7, text: 'numeric id'},
 			'nope'
 		])
 	);
-	assert.deepEqual(q.map(x => x.id), ['a', 'b']);
-	assert.deepEqual(q[1].mentions, [{kind: 'skill', locator: 'plan'}]);
+	assert.deepEqual(q.map(x => x.id), ['c', 'a', 'b']);
+	assert.deepEqual(q[2].mentions, [{kind: 'skill', locator: 'plan'}]);
 });
 
 test('followUpQueueFrom tolerates garbage json', () => {

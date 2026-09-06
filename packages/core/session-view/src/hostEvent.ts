@@ -27,16 +27,22 @@ export function followUpQueueFrom(itemsJson: string): FollowUpQueueItem[] {
 		const parsed = JSON.parse(itemsJson) as unknown;
 		if (!Array.isArray(parsed)) return [];
 		return parsed
-			.filter((m): m is Record<string, unknown> => m != null && typeof m === 'object')
+			.filter((m): m is Record<string, unknown> => m != null && typeof m === 'object' && typeof m.id === 'string')
 			.map(m => ({
-				id: String(m.id ?? ''),
+				id: m.id,
 				text: String(m.text ?? ''),
+				order: typeof m.order === 'number' ? m.order : 0,
 				...(typeof m.mentionsJson === 'string' && m.mentionsJson
 					? {mentions: parseMentionsJson(m.mentionsJson)}
 					: {})
 			}))
-			.filter(m => m.id.length > 0 && m.text.length > 0)
-			.sort((a, b) => a.id.localeCompare(b.id));
+			.filter(m => m.id.length > 0)
+			.sort((a, b) => a.order - b.order)
+			.map(({id, text, mentions}) => ({
+				id,
+				text,
+				...(mentions ? {mentions} : {})
+			}));
 	} catch (err) {
 		console.error('[follow_up_changed] bad itemsJson', err);
 		return [];

@@ -17,6 +17,7 @@ export type LifecycleTask = {
 	pendingNew: boolean;
 	createRequested?: boolean;
 	autoTitlePending?: boolean;
+	lastModified?: string | null;
 	engineKind?: EngineKind;
 };
 
@@ -27,6 +28,37 @@ export type RemovableKeys = {
 };
 
 export type DeleteResult = {ok: boolean; notice?: string};
+
+/** Sticky session chrome as seen on Engine sessions_list / meta rows. */
+export type SessionMetaInfo = {
+	id: string;
+	title?: string | null;
+	status?: string;
+	lastModified?: string;
+	isCurrent?: boolean;
+	runMode?: string;
+	engineKind?: string | null;
+	modelSettings?: {
+		platform: string;
+		model: string;
+		effort?: string;
+		thinking?: boolean;
+	} | null;
+};
+
+export type HydrateOptions<T extends LifecycleTask> = {
+	model(): string;
+	modelDisplay(): string;
+	applyStickyChrome(task: T, info: SessionMetaInfo): void;
+	buildStub(
+		id: string,
+		info: SessionMetaInfo,
+		listOrder: number,
+		model: string,
+		modelDisplay: string
+	): T;
+	restoreChrome(task: T): void;
+};
 
 export interface TaskLifecycleDeps<T extends LifecycleTask> {
 	createId(): string;
@@ -323,6 +355,93 @@ export function createTaskLifecycle<T extends LifecycleTask>(deps: TaskLifecycle
 		pendingDeleteBySession.clear();
 	};
 
+	/** Drop every task row and optimistic pending entry (Engine reset / HMR rebuild). */
+	const reset = (): void => {
+		for (const pending of pendingDeleteBySession.values()) clearTimeout(pending.timer);
+		pendingTitleBySession.clear();
+		pendingEngineBySession.clear();
+		pendingDeleteBySession.clear();
+		tasks.clear();
+	};
+
+	/**
+	 * Session inventory: upsert stubs for existing Engine sessions.
+	 * Never claims an unbound optimistic New row — only CreateSession command_result binds.
+	 *
+	 * List-order contract (host `listTasks`):
+	 * 1. Sort key is `listOrder` only (desc). Never `pendingNew`, never live Engine timestamps.
+	 * 2. `listOrder` is set once (create or first stub hydrate) and never moved.
+	 * 3. `lastModified` may advance when Meta `updatedAt` is newer (renderer conversation order).
+	 * 4. A racing inventory stub for the same sessionId is dropped when acceptNewSession attaches.
+	 */
+	const hydrateSessions = (sessions: SessionMetaInfo[], opts: HydrateOptions<T>): void => {
+		const bySessionId = new Map<string, T>();
+		for (const task of tasks.values()) {
+			if (task.sessionId) bySessionId.set(task.sessionId, task);
+		}
+
+		const ordered = [...sessions].sort((a, b) =>
+			(b.lastModified ?? '').localeCompare(a.lastModified ?? '')
+		);
+
+		for (const info of ordered) {
+			if (info.status === 'deleted') {
+				const doomed = bySessionId.get(info.id);
+				if (doomed) {
+					bySessionId.delete(info.id);
+					applyDeletedTask(doomed.id);
+				}
+				continue;
+			}
+
+			const named = info.title?.trim() || '';
+			const existing = bySessionId.get(info.id);
+			if (existing) {
+				if (named) existing.title = named;
+				if (existing.kind !== 'task') existing.kind = 'task';
+				if (
+					info.lastModified &&
+					(!existing.lastModified || info.lastModified > existing.lastModified)
+				) {
+					existing.lastModified = info.lastModified;
+				}
+				opts.applyStickyChrome(existing, info);
+				tasks.set(existing.id, existing);
+				continue;
+			}
+
+			const engineMs = info.lastModified ? Date.parse(info.lastModified) : Number.NaN;
+			const listOrder = Number.isNaN(engineMs) ? nextListOrder() : engineMs;
+			const task = opts.buildStub(
+				deps.createId(),
+				info,
+				listOrder,
+				opts.model(),
+				opts.modelDisplay()
+			);
+			opts.applyStickyChrome(task, info);
+			tasks.set(task.id, task);
+			bySessionId.set(info.id, task);
+		}
+
+		const select = (task: T): void => {
+			deps.setActiveTaskId(task.id);
+			opts.restoreChrome(task);
+		};
+
+		const activeId = deps.getActiveTaskId();
+		if (activeId) {
+			const active = tasks.get(activeId);
+			if (active) select(active);
+			return;
+		}
+
+		const currentInfo = ordered.find(s => s.isCurrent) ?? ordered[0];
+		if (!currentInfo) return;
+		const current = bySessionId.get(currentInfo.id);
+		if (current) select(current);
+	};
+
 	/**
 	 * Settle optimistic task writes for command_result events:
 	 * UpdateSessionStatus (delete), SetSessionTitle (rename), SetEngineKind.
@@ -416,6 +535,8 @@ export function createTaskLifecycle<T extends LifecycleTask>(deps: TaskLifecycle
 		applyDeletedTask,
 		stageEngineChange,
 		rejectPendingDeletes,
+		hydrateSessions,
+		reset,
 		handleCommandResult
 	};
 }

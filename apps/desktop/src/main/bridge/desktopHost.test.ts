@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import {test} from 'node:test';
 import {createDesktopHost} from './desktopHost.js';
-import {isSessionStreamEvent} from './sessionStreamEvents.js';
+import {isSessionStreamEvent} from './sessionEvents.js';
 import {WorkspaceHub} from './WorkspaceHub.js';
 import {createUiPublisher} from './uiPublisher.js';
 

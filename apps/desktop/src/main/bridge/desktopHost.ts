@@ -6,7 +6,7 @@ import {dirname, join} from 'node:path';
 import type {InvokeChannel, InvokeChannels} from '@fast-ide/session-view';
 import {classifyProbeError, probeBridge} from '@fastllm/bridge-client';
 import type {WorkspaceHub, WorkspaceProjectHandlers} from './WorkspaceHub.js';
-import type {TaskCommands} from './SessionController.js';
+import type {TaskCommands} from './sessionContracts.js';
 import {getDshModels, selectDshModel} from './dsh/models.js';
 import {settingsCall} from './dsh/settings.js';
 import {listDshSkills} from './dsh/skills.js';

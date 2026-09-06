@@ -15,8 +15,8 @@ import type {
 import {concreteModelDisplay} from '@fast-ide/session-view';
 import type {SystemNotifyPort} from '../notify/systemNotifier.js';
 import type {WorkspaceHub} from './WorkspaceHub.js';
-import type {TaskView} from './SessionController.js';
-import {rerunErrorCode} from './SessionController.js';
+import type {TaskView} from './sessionContracts.js';
+import {rerunErrorCode} from './sessionContracts.js';
 import {
 	CONTENT_PATCH_COALESCE_MS,
 	classifyBridgeEventForUi,

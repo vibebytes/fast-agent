@@ -11,7 +11,7 @@ import assert from 'node:assert/strict';
 import type {BridgeCommand, BridgeEvent} from '@fastllm/bridge-protocol';
 import {SessionController} from './SessionController.js';
 import {chromePostRun} from '@fast-ide/session-view';
-import {isSessionStreamEvent} from './sessionStreamEvents.js';
+import {isSessionStreamEvent} from './sessionEvents.js';
 
 function withSid(sessionId: string, event: BridgeEvent): BridgeEvent {
 	if (!isSessionStreamEvent(event.type)) return event;

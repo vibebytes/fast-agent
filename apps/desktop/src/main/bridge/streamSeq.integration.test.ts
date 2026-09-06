@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import type {BridgeCommand, BridgeEvent} from '@fastllm/bridge-protocol';
 import {chromeRunId, type UiSend, type WorkspaceFocus} from '@fast-ide/session-view';
 import {SessionController} from './SessionController.js';
-import {isSessionStreamEvent} from './sessionStreamEvents.js';
+import {isSessionStreamEvent} from './sessionEvents.js';
 import {createUiPublisher, type UiPublisher} from './uiPublisher.js';
 import type {WorkspaceHub} from './WorkspaceHub.js';
 import {

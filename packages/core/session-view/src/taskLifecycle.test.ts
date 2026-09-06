@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {createTaskLifecycle, type LifecycleTask, type TaskLifecycleDeps} from './taskLifecycle';
+import {createTaskLifecycle, type LifecycleTask, type SessionMetaInfo, type TaskLifecycleDeps} from './taskLifecycle';
 import {createSessionAttachStore} from './sessionAttach';
 import type {BridgeCommand, BridgeEvent} from '@fastllm/bridge-protocol';
 
@@ -235,3 +235,106 @@ test('SetEngineKind rejected result reverts staged engineKind', () => {
 	assert.equal(task.engineKind, 'fast');
 	assert.deepEqual(reverted, ['fast']);
 });
+
+test('hydrateSessions upserts stubs, selects isCurrent and restores chrome', () => {
+	const {deps} = makeDeps();
+	const lc = createTaskLifecycle(deps);
+	deps.taskBySessionId = sid => {
+		for (const t of lc.tasks.values()) if (t.sessionId === sid) return t;
+		return null;
+	};
+	const restored: string[] = [];
+	const opts = {
+		model: () => 'm-1',
+		modelDisplay: () => 'Model One',
+		applyStickyChrome: () => undefined,
+		buildStub: (id: string, info: SessionMetaInfo, listOrder: number, model: string) => ({
+			id,
+			title: info.title?.trim() || info.id.slice(0, 8),
+			kind: 'task' as const,
+			sessionId: info.id,
+			listOrder,
+			pendingNew: false,
+			model
+		}),
+		restoreChrome: (task: Row) => restored.push(task.id)
+	};
+	lc.hydrateSessions(
+		[
+			{id: 'sess-b', title: '  Beta ', lastModified: iso(1_600_000_001_000)},
+			{id: 'sess-a', title: 'Alpha', lastModified: iso(1_600_000_002_000), isCurrent: true}
+		],
+		opts
+	);
+	assert.equal(lc.tasks.size, 2);
+	const alpha = deps.taskBySessionId('sess-a');
+	const beta = deps.taskBySessionId('sess-b');
+	assert.ok(alpha && beta);
+	assert.equal(alpha.title, 'Alpha');
+	assert.equal(alpha.listOrder, 1_600_000_002_000);
+	assert.equal(beta!.listOrder, 1_600_000_001_000);
+	assert.equal(deps.getActiveTaskId(), alpha.id);
+	assert.deepEqual(restored, [alpha.id]);
+
+	lc.hydrateSessions([{id: 'sess-a', title: 'Renamed', lastModified: iso(1_600_000_003_000)}], opts);
+	assert.equal(lc.tasks.size, 2);
+	assert.equal(deps.taskBySessionId('sess-a')!.title, 'Renamed');
+	assert.equal(deps.taskBySessionId('sess-a')!.lastModified, iso(1_600_000_003_000));
+});
+
+test('hydrateSessions drops deleted sessions and never claims unbound pending rows', () => {
+	const {deps} = makeDeps();
+	const lc = createTaskLifecycle(deps);
+	deps.taskBySessionId = sid => {
+		for (const t of lc.tasks.values()) if (t.sessionId === sid) return t;
+		return null;
+	};
+	const opts = {
+		model: () => 'm-1',
+		modelDisplay: () => 'Model One',
+		applyStickyChrome: () => undefined,
+		buildStub: (id: string, info: SessionMetaInfo, listOrder: number, model: string) => ({
+			id,
+			title: info.title ?? info.id,
+			kind: 'task' as const,
+			sessionId: info.id,
+			listOrder,
+			pendingNew: false,
+			model
+		}),
+		restoreChrome: () => undefined
+	};
+	const optimistic = lc.createTask('Optimistic');
+	lc.hydrateSessions([{id: 'sess-a', title: 'A', lastModified: iso(1)}], opts);
+	assert.ok(deps.taskBySessionId('sess-a'));
+	assert.equal(optimistic.pendingNew, true);
+	assert.equal(optimistic.sessionId, null);
+
+	lc.hydrateSessions([{id: 'sess-a', status: 'deleted'}], opts);
+	assert.equal(deps.taskBySessionId('sess-a'), null);
+	assert.ok(lc.tasks.has(optimistic.id));
+	assert.equal(deps.getActiveTaskId(), optimistic.id);
+});
+
+test('reset clears tasks, pending title/engine staging and attach bookkeeping', () => {
+	const {deps} = makeDeps();
+	const lc = createTaskLifecycle(deps);
+	const task = lc.createTask('Doomed');
+	lc.acceptNewSession('sess-a', task.id);
+	lc.stageEngineChange('sess-a', 'dsh');
+	lc.reset();
+	assert.equal(lc.tasks.size, 0);
+
+	const again = lc.createTask('Fresh');
+	again.engineKind = 'dsh';
+	lc.acceptNewSession('sess-a', again.id);
+	const stop = lc.handleCommandResult(
+		asEvent({type: 'command_result', name: 'SetEngineKind', sessionId: 'sess-a', status: 'rejected'})
+	);
+	assert.equal(stop.stop, true);
+	assert.equal(again.engineKind, 'dsh', 'stale staged engine must not survive reset');
+});
+
+function iso(millis: number): string {
+	return new Date(millis).toISOString();
+}

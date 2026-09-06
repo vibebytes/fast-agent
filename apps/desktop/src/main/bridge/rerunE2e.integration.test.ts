@@ -15,7 +15,8 @@ import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import type {BridgeCommand, BridgeEvent} from '@fastllm/bridge-protocol';
 import {BridgeClient} from './BridgeClient.js';
-import {SessionController, rerunErrorCode} from './SessionController.js';
+import {SessionController} from './SessionController.js';
+import {rerunErrorCode} from './sessionContracts.js';
 
 const mockEnginePath = path.resolve(
 	path.dirname(fileURLToPath(import.meta.url)),

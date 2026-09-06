@@ -19,6 +19,7 @@ export const hasLocalRun = (t: TranscriptState): boolean =>
 	Boolean(chromeRunId(t.chrome)) || t.entries.some(e => e.status === 'streaming');
 
 export type LeaseTimers = {
+	now: () => number;
 	setTimeout: (fn: () => void, ms: number) => unknown;
 	clearTimeout: (handle: unknown) => void;
 	setInterval: (fn: () => void, ms: number) => unknown;
@@ -26,6 +27,7 @@ export type LeaseTimers = {
 };
 
 const nodeTimers: LeaseTimers = {
+	now: () => Date.now(),
 	setTimeout: (fn, ms) => setTimeout(fn, ms),
 	clearTimeout: handle => clearTimeout(handle as ReturnType<typeof setTimeout>),
 	setInterval: (fn, ms) => {

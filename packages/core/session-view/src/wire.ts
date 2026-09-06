@@ -185,6 +185,15 @@ export type DshGoalView = {
 	text: string;
 };
 
+export function dshGoalFromEvent(e: {
+	operation: string;
+	phase: string;
+	title: string;
+	text: string;
+}): DshGoalView {
+	return {operation: e.operation, phase: e.phase, title: e.title, text: e.text};
+}
+
 /**
  * ②′ Goal card snapshot for the active Task — mirrors Bridge `goal_updated`.
  * awaiting_confirm → confirm card; started → busy banner; escalated → escalate card;

@@ -11,7 +11,7 @@ import {homedir} from 'node:os';
 import {join} from 'node:path';
 import type {BridgeCommand, BridgeEvent} from '@fastllm/bridge-protocol';
 import {SessionController} from './SessionController.js';
-import {isSessionStreamEvent} from './sessionStreamEvents.js';
+import {isSessionStreamEvent} from './sessionEvents.js';
 import {chromeRunId, composerGate, applyBridgeEvent, createTranscriptState} from '@fast-ide/session-view';
 
 function withSid(sessionId: string, event: BridgeEvent): BridgeEvent {

@@ -17,7 +17,7 @@ import {SessionController} from './SessionController.js';
 import {WorkspaceHub} from './WorkspaceHub.js';
 import {BridgeClient} from './BridgeClient.js';
 import {projectHash} from './projectHash.js';
-import {isSessionStreamEvent} from './sessionStreamEvents.js';
+import {isSessionStreamEvent} from './sessionEvents.js';
 
 function withSid(sessionId: string, event: BridgeEvent): BridgeEvent {
 	if (!isSessionStreamEvent(event.type)) return event;

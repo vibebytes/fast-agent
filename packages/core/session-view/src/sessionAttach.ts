@@ -180,3 +180,31 @@ export function resyncSessionAttach<T extends AttachableTask>(
 		if (task) request(task, sessionId, task.lastEventSeq);
 	}
 }
+
+/** Detach everything the Host knows about (engine lost / reset), then drop the attach set. */
+export function detachAllSessions(
+	attach: SessionAttachStore,
+	taskSessionIds: Iterable<string | null | undefined>,
+	send: (command: BridgeCommand) => boolean,
+	clientId: string
+): void {
+	for (const sessionId of detachTargets(attach.ids(), taskSessionIds)) {
+		send({type: 'DetachSession', sessionId, clientId});
+	}
+	attach.clear();
+}
+
+/** Heartbeat every attached session; true when at least one write went out. */
+export function heartbeatAttached(
+	attach: SessionAttachStore,
+	send: (command: BridgeCommand) => boolean,
+	clientId: string,
+	atMillis: number
+): boolean {
+	if (attach.size() === 0) return false;
+	let any = false;
+	for (const sessionId of attach.ids()) {
+		any = send({type: 'Heartbeat', sessionId, clientId, atMillis}) || any;
+	}
+	return any;
+}

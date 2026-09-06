@@ -44,13 +44,14 @@ import {CONNECT_DEADLINE_MS, LOCAL_EDGE_ID, edgeCapabilities, type EdgeCapabilit
 import {isReservedDefaultFolder, sameRemotePath} from './remotePaths.js';
 import {discoverHostSlashSkills} from './hostSkillDiscovery.js';
 import {isLocalSaveEcho, rememberLocalSave} from './localSaveEcho.js';
-import {isUnresolvedModelDisplay} from '@fast-ide/session-view';
+import {isUnresolvedModelDisplay, isPlaceholderModelDisplay} from '@fast-ide/session-view';
 import {catalogFromProviders} from './modelCatalog.js';
-import {isPlaceholderModelDisplay, pickIdList, SessionController} from './SessionController.js';
+import {SessionController} from './SessionController.js';
+import {pickIdList} from '@fastllm/bridge-protocol';
 import {matchCatalogEntry} from '@fast-ide/session-view';
 import {defaultProjectPath, defaultProjectPathOnHost, isDefaultProjectPath} from './defaultProject.js';
 import {projectHash} from './projectHash.js';
-import {isSessionStreamEvent, sessionIdFromEvent} from './sessionStreamEvents.js';
+import {isSessionStreamEvent, sessionIdFromEvent} from './sessionEvents.js';
 
 export type {AmbientRule, EngineHostStatus, ProjectSnapshot, ProjectStatus};
 

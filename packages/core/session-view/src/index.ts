@@ -155,8 +155,10 @@ export {
 	createTaskLifecycle,
 	type DeleteResult,
 	type EngineKind,
+	type HydrateOptions,
 	type LifecycleTask,
 	type RemovableKeys,
+	type SessionMetaInfo,
 	type TaskLifecycleDeps
 } from './taskLifecycle.js';
 
@@ -398,6 +400,8 @@ export type {
 	DshSettingsOp
 } from './wire.js';
 
+export {dshGoalFromEvent} from './wire.js';
+
 export {
 	sessionIdFromEvent,
 	createSessionAttachStore,
@@ -406,6 +410,8 @@ export {
 	requestSessionAttach,
 	resyncSessionAttach,
 	detachTargets,
+	detachAllSessions,
+	heartbeatAttached,
 	type AttachableTask,
 	type SessionAttachStore,
 	type ResolveTaskDeps,

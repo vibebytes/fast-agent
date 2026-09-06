@@ -10,7 +10,7 @@ import {
 } from '@fast-ide/session-view';
 import type {BridgeCommand, BridgeEvent} from '@fastllm/bridge-protocol';
 import {SessionController} from './SessionController.js';
-import {isSessionStreamEvent} from './sessionStreamEvents.js';
+import {isSessionStreamEvent} from './sessionEvents.js';
 import {assertSkillCommandPinned} from './skillSlashContract.js';
 
 /** Stamp sessionId on session-stream events for post-demux unit tests. */

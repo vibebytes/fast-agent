@@ -3,7 +3,9 @@ import {test} from 'node:test';
 import type {BridgeCommand, BridgeEvent} from '@fastllm/bridge-protocol';
 import {
 	createSessionAttachStore,
+	detachAllSessions,
 	detachTargets,
+	heartbeatAttached,
 	requestSessionAttach,
 	resolveEventTask,
 	sessionIdFromEvent,
@@ -195,4 +197,48 @@ test('detachTargets dedupes attached first then bound tasks in order', () => {
 	const targets = detachTargets(['s1', 's2'], [null, 's2', 's3', undefined]);
 	assert.deepEqual(targets, ['s1', 's2', 's3']);
 	assert.deepEqual(detachTargets([], []), []);
+});
+
+test('detachAllSessions sends DetachSession per attached id and clears the store', () => {
+	const attach = createSessionAttachStore();
+	attach.bind('s1');
+	attach.bind('s2');
+	const sent: BridgeCommand[] = [];
+	detachAllSessions(attach, [null, 's2', 's3'], cmd => {
+		sent.push(cmd);
+		return true;
+	}, 'cli');
+	assert.deepEqual(
+		sent.map(c => (c as {type: string; sessionId: string; clientId: string})),
+		[
+			{type: 'DetachSession', sessionId: 's1', clientId: 'cli'},
+			{type: 'DetachSession', sessionId: 's2', clientId: 'cli'},
+			{type: 'DetachSession', sessionId: 's3', clientId: 'cli'}
+		]
+	);
+	assert.equal(attach.size(), 0);
+});
+
+test('heartbeatAttached emits one Heartbeat per attached session', () => {
+	const attach = createSessionAttachStore();
+	assert.equal(heartbeatAttached(attach, () => true, 'cli', 5), false);
+	attach.bind('s1');
+	attach.bind('s2');
+	const sent: BridgeCommand[] = [];
+	assert.equal(
+		heartbeatAttached(
+			attach,
+			cmd => {
+				sent.push(cmd);
+				return true;
+			},
+			'cli',
+			1_700_000_000_000
+		),
+		true
+	);
+	assert.deepEqual(sent.map(c => (c as {type: string; sessionId: string})), [
+		{type: 'Heartbeat', sessionId: 's1', clientId: 'cli', atMillis: 1_700_000_000_000},
+		{type: 'Heartbeat', sessionId: 's2', clientId: 'cli', atMillis: 1_700_000_000_000}
+	]);
 });
