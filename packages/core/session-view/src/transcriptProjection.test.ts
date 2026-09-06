@@ -1358,6 +1358,38 @@ test('foreign run_cancelled (superseded prior) does not freeze the live Turn', (
 	assert.equal(state.approvals.length, 1);
 });
 
+test('foreign turn_cancelled (superseded prior) does not freeze the live Turn', () => {
+	let state = createTranscriptState();
+	state = applyBridgeEvent(state, {
+		type: 'turn_started',
+		turnId: 'client_new',
+		clientMessageId: 'client_new',
+		text: 'continue'
+	});
+	state = applyBridgeEvent(state, {
+		type: 'input_accepted',
+		clientMessageId: 'client_new',
+		turnId: 'run-new'
+	});
+	state = applyBridgeEvent(state, {
+		type: 'assistant_delta',
+		turnId: 'run-new',
+		text: 'still answering'
+	});
+	assert.equal(chromeRunId(state.chrome), 'run-new');
+	assert.equal(composerGate(state, true).canCancel, true);
+	state = applyBridgeEvent(state, {
+		type: 'turn_cancelled',
+		turnId: 'run-old',
+		reason: 'superseded by new user message'
+	});
+	assert.equal(chromePostRun(state.chrome), false, 'foreign cancel must not arm postRun');
+	assert.equal(chromeRunId(state.chrome), 'run-new');
+	assert.equal(state.entries[1]?.status, 'streaming');
+	assert.equal(state.entries[1]?.text, 'still answering');
+	assert.equal(composerGate(state, true).canCancel, true, 'Stop must stay lit on the live turn');
+});
+
 test('session_restored mid-run keeps the in-flight streaming entry', () => {
 	let state = createTranscriptState();
 	state = applyBridgeEvent(state, {

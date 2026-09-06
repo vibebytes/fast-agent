@@ -8,7 +8,7 @@ const here = dirname(fileURLToPath(import.meta.url));
 const fastRoot = join(here, '../../../../../');
 
 const consumers = [
-	['Desktop', 'apps/desktop/src/main/bridge/sessionStreamEvents.ts'],
+	['Desktop', 'apps/desktop/src/main/bridge/sessionEvents.ts'],
 	['Mobile', 'apps/mobile/src/bridge/store.ts'],
 	['TUI', 'apps/tui/src/state/reducer.ts']
 ] as const;

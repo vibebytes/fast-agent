@@ -350,7 +350,32 @@ export function applyTurnFinished(
 	};
 }
 
-export function applyTurnCancelled(state: TranscriptState): TranscriptState {
+export function applyTurnCancelled(
+	state: TranscriptState,
+	event: Extract<BridgeEvent, {type: 'turn_cancelled'}>
+): TranscriptState {
+	if (event.turnId && !finishesActiveRun(state, event.turnId)) {
+		return {
+			...state,
+			approvals: state.approvals.filter(a => !a.runId || a.runId !== event.turnId),
+			questions: state.questions.filter(q => q.runId !== event.turnId),
+			questionBatches: state.questionBatches.filter(q => !q.runId || q.runId !== event.turnId),
+			entries: state.entries.map(entry => {
+				if (entry.role !== 'assistant') return entry;
+				if (entry.status !== 'streaming' && entry.status !== 'cancelled') return entry;
+				if (!entryMatchesKey(entry, event.turnId)) return entry;
+				const sealed = sealOpenThinking(entry);
+				const {waitState: _w, ...rest} = sealed;
+				return {
+					...rest,
+					status: 'cancelled',
+					tools: (entry.tools ?? []).map(t =>
+						t.status === 'running' ? {...t, status: 'cancelled'} : t
+					)
+				};
+			})
+		};
+	}
 	return {
 		...forgetDocument(state),
 		chrome: runChromeTransition(state.chrome, {

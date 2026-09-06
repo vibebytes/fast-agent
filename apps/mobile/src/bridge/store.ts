@@ -913,7 +913,7 @@ class BridgeStore {
   /** 12s watchdog: applyLocalCancel then settle so chrome run id actually clears. */
   private forceCancelSettlement(sessionId: string) {
     const record = this.records.get(sessionId);
-    if (!chromeAwaitingSettlement(record?.transcript.chrome)) return;
+    if (!record || !chromeAwaitingSettlement(record.transcript.chrome)) return;
     record.transcript = applyBridgeEvent(applyLocalCancel(record.transcript), {
       type: 'turn_cancelled',
       reason: 'client settlement timeout'

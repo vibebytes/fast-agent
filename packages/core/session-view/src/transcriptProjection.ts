@@ -133,7 +133,7 @@ export function applyBridgeEvent(state: TranscriptState, event: BridgeEvent): Tr
 		case 'turn_finished':
 			return applyTurnFinished(state, event);
 		case 'turn_cancelled':
-			return applyTurnCancelled(state);
+			return applyTurnCancelled(state, event);
 		case 'error':
 			return applyError(state, event);
 		case 'dsh_tool_card':
