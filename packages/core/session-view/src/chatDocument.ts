@@ -1,6 +1,6 @@
 import {entryMatchesKey} from './turnIdentity.js';
 import {chromePostRun, chromeRunId} from './runChrome.js';
-import type {TranscriptEntry, TranscriptState} from './transcriptProjection.js';
+import type {TranscriptEntry, TranscriptState} from './transcript/state.js';
 
 /**
  * One user chat run owns one assistant card (the document slot).
