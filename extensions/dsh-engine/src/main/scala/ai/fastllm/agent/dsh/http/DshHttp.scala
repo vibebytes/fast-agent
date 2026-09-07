@@ -162,7 +162,9 @@ class DshHttp(
       http.sendAsync(req, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8)).asScala
         .map: res =>
           val code = res.statusCode()
-          if code == 401 || code == 403 || code >= 400 then
+          if code == 401 || code == 403 then
+            throw RuntimeException("dsh token rejected (token 可能已轮换：官方 dsh 重启后换新，在引擎设置重贴，或关闭官方 web 改由引擎托管 spawn)")
+          else if code >= 400 then
             throw RuntimeException(s"dsh auth: HTTP $code")
           authed.trySuccess(())
           ()
@@ -182,7 +184,10 @@ class DshHttp(
             .getOrElse("")
           watch(sid)
         case "session.prompt" | "session.cancel" | "session.selectModel" =>
-          payload.hcursor.get[String]("sessionId").foreach(watch)
+          payload.hcursor.get[String]("sessionId").foreach: sid =>
+            snapshots.remove(sid)
+            followIds.remove(sid)
+            watch(sid)
         case "subagent.list" =>
           childIds(value).foreach(watch)
         case "session.history" | "session.page" | "subagent.history" =>
@@ -294,8 +299,10 @@ class DshHttp(
       if last then
         val text = buf.toString
         buf.clear()
-        io.circe.parser.parse(text).toOption.foreach: json =>
-          ec.execute(() => onRemote(json))
+        io.circe.parser.parse(text) match
+          case Right(json) => ec.execute(() => onRemote(json))
+          case Left(err) =>
+            log.warn(s"dsh mux json: ${err.getMessage} bytes=${text.length}")
       ws.request(1)
       null
 

@@ -326,6 +326,8 @@ export type WorkspaceFocus = {
 	modelCatalog: ModelCatalogEntry[];
 	runMode?: 'agent' | 'plan' | 'ask' | 'yolo';
 	engineKind?: 'fast' | 'dsh';
+	/** Registry-available engine ids for the Composer picker. */
+	availableEngineIds?: string[];
 	effort?: string;
 	thinking?: boolean;
 	slashCatalog: SlashCatalogEntry[];

@@ -105,6 +105,64 @@ class DshLoopSpec extends AnyFunSuite with Matchers:
       "RunCompleted"
     )
 
+  test("persist-high afterSeq still yields the DSH river once — CommandLoop maxSeq is a different clock"):
+    val remote = FakeClient()
+    val loop = DshLoop(remote, _ => Cwd)
+    await(loop.submit(submit("c1", "你是谁")))
+    remote.emit(Sid, ev("turn/start", 1, """{"turn":1}"""))
+    remote.emit(
+      Sid,
+      ev(
+        "assistant/message",
+        2,
+        """{"turn":1,"step":1,"message":{"role":"assistant","content":[{"type":"text","text":"我是 DeepSeek Harness"}]}}"""
+      )
+    )
+    remote.emit(Sid, ev("turn/end", 3, """{"turn":1,"reason":{"kind":"completed"}}"""))
+    val first = await(loop.events(Sid, 20)).filter(_.seq > 0)
+    payloadTypes(first) should contain("CheckpointEvent")
+    payloadTypes(first) should contain("RunCompleted")
+    // CommandLoop persistCursor and Host lastApplied share this clock. Native DSH
+    // buffer seq 1..n would be dropped as "already applied" after SetEngine/attach.
+    first.map(_.seq) shouldBe (21L to (20L + first.size)).toList
+    payloadTypes(await(loop.events(Sid, first.last.seq))) shouldBe Nil
+    payloadTypes(await(loop.events(Sid, Long.MaxValue))).filter(_ != "dsh_caps") shouldBe Nil
+
+  test("0.1.2 page after submit: block-end + assistant/message + turn/end reach the Fast river"):
+    val remote = FakeClient()
+    val loop = DshLoop(remote, _ => Cwd)
+    await(loop.bind(Sid, Cwd))
+    await(loop.submit(submit("c1", "你是谁"))) shouldBe Admit.Accepted(s"$Sid:c1")
+    remote.emit(Sid, ev("turn/start", 1, """{"turn":1}"""))
+    remote.emit(
+      Sid,
+      ev(
+        "assistant/chunk",
+        2,
+        """{"turn":1,"step":1,"chunk":{"type":"block-end","index":1,"block":{"type":"text","text":"我是 DeepSeek Harness"}}}"""
+      )
+    )
+    remote.emit(
+      Sid,
+      ev(
+        "assistant/message",
+        3,
+        """{"turn":1,"step":1,"message":{"role":"assistant","content":[{"type":"text","text":"我是 DeepSeek Harness"}]}}"""
+      )
+    )
+    remote.emit(Sid, ev("turn/end", 4, """{"turn":1,"reason":{"kind":"completed"}}"""))
+    val rows = await(loop.events(Sid, 0)).filter(_.seq > 0)
+    payloadTypes(rows) should contain("CheckpointEvent")
+    payloadTypes(rows) should contain("RunCompleted")
+    val ckpt = rows.exists(r =>
+      payloadType(r) == "CheckpointEvent" && payloadString(r, "content").contains("DeepSeek Harness")
+    )
+    val delta = rows.exists(r =>
+      payloadType(r) == "AssistantDelta" && payloadString(r, "text").contains("DeepSeek Harness")
+    )
+    ckpt shouldBe true
+    delta shouldBe true
+
   test("events hole sentinel: afterSeq behind bufferFloor is not an empty idle"):
     val remote = FakeClient()
     val loop = DshLoop(remote, _ => Cwd, bufferCap = 3)
@@ -1423,6 +1481,24 @@ class DshLoopSpec extends AnyFunSuite with Matchers:
     val texts = await(loop.events(Sid, 0)).collect:
       case r if payloadType(r) == "AssistantDelta" => payloadString(r, "text")
     texts shouldBe List("Hel", "lo")
+
+  test("subscribed fill reads peeled session.page events (historyValue shape)"):
+    val remote = FakeClient()
+    val inner = ev(
+      "assistant/chunk",
+      3,
+      """{"turn":1,"step":1,"chunk":{"type":"text-delta","index":0,"text":"peeled"}}"""
+    )
+    remote.history = Json.obj(
+      "ok" -> Json.True,
+      "value" -> Json.obj("events" -> Json.arr(inner), "hasMore" -> Json.False)
+    )
+    val loop = DshLoop(remote, _ => Cwd)
+    await(loop.submit(submit("c1", "hi")))
+    remote.emitSubscribed(Sid, 8)
+    val texts = await(loop.events(Sid, 0)).collect:
+      case r if payloadType(r) == "AssistantDelta" => payloadString(r, "text")
+    texts should contain("peeled")
 
   test("batched afterSeq replay equals a full read"):
     val remote = FakeClient()

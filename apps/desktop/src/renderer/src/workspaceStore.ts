@@ -335,7 +335,7 @@ function isPlaceholderModelDisplay(display: string | undefined): boolean {
 }
 
 /**
- * Structural `tasks:changed`: lists + engine/catalog only.
+ * Structural `tasks:changed`: lists + engine catalog only.
  * Never owns focus (`activeTaskId` / `activeKind`). Gate/queue stay focus-scoped;
  * model chrome may still upgrade off the "Default" stub when Engine resolves.
  */
@@ -365,13 +365,13 @@ function applyTasksStructure(state: WorkspaceState, meta: TasksMeta): WorkspaceS
 			meta.slashCatalogHydrated !== undefined
 				? meta.slashCatalogHydrated
 				: state.slashCatalogHydrated,
+		availableEngineIds: meta.availableEngineIds ?? state.availableEngineIds ?? ['fast'],
 		...(applyModelChrome
 			? {
 					model: meta.model,
 					modelDisplay: meta.modelDisplay,
 					runMode: meta.runMode ?? 'agent',
 					engineKind: meta.engineKind ?? 'fast',
-					availableEngineIds: meta.availableEngineIds ?? state.availableEngineIds ?? ['fast'],
 					effort: meta.effort,
 					thinking: meta.thinking
 				}
@@ -529,6 +529,7 @@ export function reduceWorkspace(state: WorkspaceState, event: WorkspaceEvent): W
 				modelDisplay: snap.modelDisplay,
 				...(snap.runMode ? {runMode: snap.runMode} : {}),
 				...(snap.engineKind ? {engineKind: snap.engineKind} : {}),
+				...(snap.availableEngineIds ? {availableEngineIds: snap.availableEngineIds} : {}),
 				...(snap.effort !== undefined ? {effort: snap.effort} : {}),
 				...(snap.thinking !== undefined ? {thinking: snap.thinking} : {})
 			};
@@ -692,6 +693,7 @@ export function reduceWorkspace(state: WorkspaceState, event: WorkspaceEvent): W
 				modelCatalog: p.modelCatalog,
 				runMode: p.runMode,
 				engineKind: p.engineKind,
+				availableEngineIds: p.availableEngineIds,
 				effort: p.effort,
 				thinking: p.thinking,
 				slashCatalog: p.slashCatalog ?? [],

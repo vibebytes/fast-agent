@@ -113,6 +113,8 @@ class DshLoop(
   private var listTick = 0L
   private var listBegan = Map.empty[String, Long]
   private var listFresh = Map.empty[String, Long]
+  /** Last DSH river seq handed to a poller. Persist `maxSeq` can sit ahead of this clock. */
+  private var delivered = Map.empty[String, Long]
   private val ingress = OrderedEventIngress[DshBatch](DshRows(), nowMs)
 
   remote.listen("mux"): json =>
@@ -250,14 +252,28 @@ class DshLoop(
 
   def events(sessionId: String, afterSeq: Long): Future[List[EventRow]] =
     Future.successful:
-      lock.synchronized(ingress.tick())
-      val b = snapshot(sessionId)
-      val rows = b.map(_.rows).getOrElse(Vector.empty)
-      val snaps = b.map(x => x.live.values.toList ++ x.uiLive.values.toList).getOrElse(Nil)
-      val floor = rows.headOption.map(_.seq)
-      if afterSeq > 0 && floor.exists(f => afterSeq < f - 1) then
-        snaps ++ List(dshGap(floor.get, rows.last.seq))
-      else snaps ++ rows.filter(_.seq > afterSeq).toList
+      lock.synchronized:
+        ingress.tick()
+        val b = snapshot(sessionId)
+        val rows = b.map(_.rows).getOrElse(Vector.empty)
+        val snaps = b.map(x => x.live.values.toList ++ x.uiLive.values.toList).getOrElse(Nil)
+        val floor = rows.headOption.map(_.seq)
+        val high = rows.lastOption.map(_.seq).getOrElse(0L)
+        if afterSeq == Long.MaxValue then snaps
+        else if afterSeq > 0 && floor.exists(f => afterSeq < f - 1) then
+          snaps ++ List(dshGap(floor.get, rows.last.seq))
+        else
+          val cursor = if afterSeq > high then delivered.getOrElse(sessionId, 0L) else afterSeq
+          val raw = rows.filter(_.seq > cursor).toList
+          raw.lastOption.foreach(r => delivered = delivered.updated(sessionId, r.seq))
+          // Persist `maxSeq` and Host `lastApplied` are one clock; the DSH buffer is
+          // another. Hand the poller contiguous seqs after `afterSeq` so persistCursor
+          // advances and Fast UI does not drop eventSeq 1..n as already applied.
+          val out =
+            if afterSeq > high then
+              raw.zipWithIndex.map((r, i) => r.copy(seq = afterSeq + i + 1))
+            else raw
+          snaps ++ out
 
   def restore(sessionId: String, beforeTurnId: Option[String], limit: Int): Future[ChannelMessageWindow] =
     val lim = if limit <= 0 then 20 else limit
@@ -349,8 +365,7 @@ class DshLoop(
         whenReady(remote.call("session.history", Json.obj("sessionId" -> sessionId.asJson))):
           case Success(json) =>
             valueOf(json).toOption.foreach: value =>
-              value.hcursor.downField("events").as[List[Json]].toOption.getOrElse(Nil).foreach: item =>
-                item.hcursor.downField("event").focus.foreach(onParentEvent(sessionId, _))
+              historyEvents(value).foreach(onParentEvent(sessionId, _))
           case Failure(e) =>
             log.warn(s"dsh session.history: ${e.getMessage}", e)
 

@@ -1,6 +1,8 @@
 package ai.fastllm.agent.dsh.proc
 
 import ai.fastllm.agent.dsh.DshRoots
+import ai.fastllm.agent.engine.EngineId
+import io.circe.Json
 
 import java.io.{BufferedReader, InputStreamReader}
 import java.nio.charset.StandardCharsets
@@ -26,15 +28,61 @@ def tokenOf(line: String): Option[String] =
 def bannerOf(line: String): Option[(Int, Option[String])] =
   portOf(line).map(_ -> tokenOf(line))
 
+final case class TokenSource(token: Option[String], from: Option[String], probed: List[String])
+
+/** Probe order (§5.2): config.token → config.tokenFile → fast.dsh.token → FAST_DSH_TOKEN → root1/.token → root2/.token. */
+def sources(
+    config: Option[Map[String, Json]] = None,
+    props: Map[String, String] = sys.props.toMap,
+    env: Map[String, String] = sys.env.toMap
+): TokenSource =
+  val probed = List.newBuilder[String]
+  var found: Option[(String, String)] = None
+  def consider(label: String, raw: Option[String]): Unit =
+    if found.isEmpty then
+      probed += label
+      raw.flatMap(normalize).foreach: t =>
+        found = Some(label -> t)
+  val cfg = config.getOrElse(Map.empty)
+  consider("config.token", cfg.get("token").flatMap(_.asString))
+  cfg.get("tokenFile").flatMap(_.asString).map(_.trim).filter(_.nonEmpty).foreach: p =>
+    val raw = readFile(Path.of(p))
+    val label = if raw.isDefined then s"config.tokenFile=$p" else s"config.tokenFile=$p(missing)"
+    consider(label, raw)
+  consider("fast.dsh.token", props.get("fast.dsh.token"))
+  consider("FAST_DSH_TOKEN", env.get("FAST_DSH_TOKEN"))
+  val (root1, root2) = rootsOf(props, env)
+  consider(s"${root1}/.token", readFile(root1.resolve(".token")))
+  if root2 != root1 then consider(s"${root2}/.token", readFile(root2.resolve(".token")))
+  found match
+    case Some((from, t)) => TokenSource(Some(t), Some(from), probed.result())
+    case None            => TokenSource(None, None, probed.result())
+
+/** Explicit sources (first four) are pinned into a spawned child env; file sources are not. */
+def explicitSource(from: String): Boolean =
+  List("config.token", "config.tokenFile", "fast.dsh.token", "FAST_DSH_TOKEN").exists(from.startsWith)
+
 /** `fast.dsh.token` / `FAST_DSH_TOKEN` / engines/dsh/.token, or a pasted `/?token=` URL. */
-def launchToken: Option[String] =
-  val raw = sys.props.get("fast.dsh.token")
-    .orElse(sys.env.get("FAST_DSH_TOKEN"))
-    .orElse(tokenFile)
-    .map(_.trim)
-    .filter(_.nonEmpty)
-  raw.flatMap: v =>
-    TokenQ.findFirstMatchIn(v).map(_.group(1)).orElse(Some(v))
+def launchToken: Option[String] = sources(None).token
+
+private def normalize(raw: String): Option[String] =
+  val t = raw.trim
+  if t.isEmpty then None
+  else TokenQ.findFirstMatchIn(t).map(_.group(1)).orElse:
+    if t.contains("://") then None else Some(t)
+
+private def readFile(p: Path): Option[String] =
+  try
+    if Files.isRegularFile(p) then Some(Files.readString(p).trim)
+    else None
+  catch case NonFatal(_) => None
+
+private def rootsOf(props: Map[String, String], env: Map[String, String]): (Path, Path) =
+  val home = props.getOrElse("user.home", ".")
+  val runtime = props.get("fast.runtime.root").orElse(env.get("FAST_RUNTIME_ROOT"))
+  val root1 = DshRoots.at(EngineId("dsh"), runtime, home)
+  val root2 = DshRoots.at(EngineId("dsh"), None, home)
+  (root1, root2)
 
 def rememberToken(token: String): Unit =
   val t = token.trim
@@ -49,13 +97,6 @@ def rememberToken(token: String): Unit =
       lockToken(dest)
     catch
       case NonFatal(e) => System.err.println(s"dsh remember token: ${e.getMessage}")
-
-private def tokenFile: Option[String] =
-  try
-    val p = DshRoots.of().resolve(".token")
-    if Files.isRegularFile(p) then Some(Files.readString(p).trim)
-    else None
-  catch case NonFatal(_) => None
 
 private def lockToken(dest: Path): Unit =
   try Files.setPosixFilePermissions(dest, PosixFilePermissions.fromString("rw-------"))
@@ -82,7 +123,7 @@ def argvOf(command: String): List[String] =
   out.result()
 
 /** Resident DSH process or an already-bound loopback port. Lifetime = JVM, not IDE client count. */
-class DshProcess private (attach: Option[Int], argv: List[String]):
+class DshProcess private (attach: Option[Int], argv: List[String], config: Option[Map[String, Json]] = None):
   private val lock = new AnyRef
   private val portP = Promise[Int]()
   private val tokenP = Promise[Option[String]]()
@@ -116,13 +157,23 @@ class DshProcess private (attach: Option[Int], argv: List[String]):
     attach match
       case Some(p) =>
         portP.trySuccess(p)
-        tokenP.trySuccess(launchToken)
+        val ts = sources(config)
+        ts.token match
+          case Some(t) =>
+            rememberToken(t)
+            tokenP.trySuccess(Some(t))
+          case None =>
+            tokenP.tryFailure(RuntimeException(s"dsh token missing (probed: ${ts.probed.mkString(", ")})"))
       case None =>
         if argv.isEmpty then
           portP.tryFailure(IllegalStateException("FAST_DSH_COMMAND empty"))
           tokenP.trySuccess(None)
         else
           val pb = ProcessBuilder(argv*)
+          val ts = sources(config)
+          if ts.from.exists(explicitSource) then
+            ts.token.foreach: t =>
+              pb.environment().put("FAST_DSH_TOKEN", t)
           pb.redirectErrorStream(true)
           val proc = pb.start()
           child = Some(proc)
@@ -151,9 +202,9 @@ class DshProcess private (attach: Option[Int], argv: List[String]):
     finally in.close()
 
 object DshProcess:
-  def attach(port: Int): DshProcess = DshProcess(Some(port), Nil)
-  def spawn(argv: List[String]): DshProcess = DshProcess(None, argv)
-  def spawn(command: String = DefaultCommand): DshProcess = spawn(argvOf(command))
+  def attach(port: Int, config: Option[Map[String, Json]] = None): DshProcess = DshProcess(Some(port), Nil, config)
+  def spawn(argv: List[String], config: Option[Map[String, Json]] = None): DshProcess = DshProcess(None, argv, config)
+  def spawn(command: String): DshProcess = spawn(argvOf(command))
 
   /** Composition root: only when port or command is set. Official 3080 is `of`, not auto-enabled. */
   def wanted: Option[DshProcess] =

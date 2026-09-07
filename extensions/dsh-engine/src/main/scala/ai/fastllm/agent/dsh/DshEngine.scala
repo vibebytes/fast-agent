@@ -44,8 +44,8 @@ object DshEngine:
     val envCmd = sys.env.get("FAST_DSH_COMMAND").map(_.trim).filter(_.nonEmpty).map(argvOf)
     val local = DshRoots.argv()
     val cmd = cfgCmd.orElse(envCmd).orElse(local).filterNot(a => DshRoots.rejectsNpx(a.mkString(" ")))
-    if DshProbe.ready("127.0.0.1", port) then Some(DshProcess.attach(port))
-    else if cmd.isDefined && DshRoots.installed() then Some(DshProcess.spawn(cmd.get))
+    if DshProbe.ready("127.0.0.1", port) then Some(DshProcess.attach(port, Some(config.fields)))
+    else if cmd.isDefined && DshRoots.installed() then Some(DshProcess.spawn(cmd.get, Some(config.fields)))
     else None
 
 final class DshRuntime(boot: DshBoot)(using ExecutionContext) extends EngineRuntime:

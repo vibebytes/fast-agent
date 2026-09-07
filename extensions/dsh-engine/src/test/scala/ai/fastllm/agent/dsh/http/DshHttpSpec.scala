@@ -195,6 +195,22 @@ class DshHttpSpec extends AnyFunSuite with Matchers:
       kind shouldBe "rejected"
     finally server.stop(0)
 
+  test("authorize 401 or 403 surfaces dsh token rejected"):
+    val server = HttpServer.create(InetSocketAddress("127.0.0.1", 0), 0)
+    server.createContext(
+      "/",
+      (ex: HttpExchange) =>
+        ex.sendResponseHeaders(403, -1)
+        ex.close()
+    )
+    server.start()
+    try
+      val port = server.getAddress.getPort
+      val remote = DshHttp(Future.successful(port), muxReadySec = 1, tokenOf = Future.successful(Some("stale-token")))
+      val ex = intercept[Exception](await(remote.ready))
+      ex.getMessage should include("dsh token rejected")
+    finally server.stop(0)
+
   private def await[A](f: Future[A]): A = Await.result(f, 4.seconds)
 
   private def serve(handler: (String, String) => (Int, String)): (Int, HttpServer) =

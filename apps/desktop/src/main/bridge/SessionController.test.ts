@@ -1857,14 +1857,45 @@ test('requestSlashCatalog does not mark silent when send fails', () => {
 	controller.handleEvent({type: 'Attached', sessionId: 'sess', clientId: 'cli'});
 
 	assert.equal(controller.requestSlashCatalog(), false);
-	// Unmatched command_result must still reach transcript (default transcript mode).
+	// Failed silent refresh must not flip later dumps into transcript.
 	controller.handleEvent({
 		type: 'command_result',
 		name: 'skills',
 		message: 'Skills (1)\n──\n  explain-code',
 		status: 'success'
 	});
-	assert.ok((controller.getActiveTask()?.transcript.entries.length ?? 0) > 0);
+	assert.equal(controller.getActiveTask()?.transcript.entries.length, 0);
+});
+
+test('unsolicited skills dump after SetEngine stays out of transcript', () => {
+	const controller = new SessionController({
+		clientId: 'cli',
+		projectId: () => 'proj-1',
+		workspaceId: () => 'ws-1',
+		send: () => true,
+		createId: () => 'id-1'
+	});
+	const task = controller.createTask('T');
+	controller.acceptNewSession('sess', task.id, 'ws-1');
+	controller.handleEvent({type: 'Attached', sessionId: 'sess', clientId: 'cli'});
+	controller.setAvailableEngines(['fast', 'dsh']);
+	assert.equal(controller.setEngineKind('dsh'), true);
+	controller.handleEvent({
+		type: 'command_result',
+		name: 'SetEngineKind',
+		message: 'dsh',
+		status: 'success',
+		sessionId: 'sess'
+	});
+	controller.handleEvent({
+		type: 'command_result',
+		name: 'skills',
+		message:
+			'Skills (69)\n────────────────────────────────────────\n  research\n\nRun with /<skill-name> [args] (activates skill, then continues in this session).',
+		status: 'success',
+		sessionId: 'sess'
+	});
+	assert.equal(controller.getActiveTask()?.transcript.entries.length, 0);
 });
 
 test('silent /skills Unknown command does not leak into next send notice', () => {

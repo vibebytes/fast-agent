@@ -57,6 +57,7 @@ import {createReview, type WorkspaceReview} from './workspace/review.js';
 import {createCheckout, type WorkspaceCheckout} from './workspace/checkout.js';
 import {createComposerHeal, type ComposerHeal} from './workspace/composerHeal.js';
 import {createAdopt, isEchoProbePath, type WorkspaceAdopt} from './workspace/adopt.js';
+import {pickerEngineIds} from './workspace/enginePickerIds.js';
 
 export type {AmbientRule, EngineHostStatus, ProjectSnapshot, ProjectStatus};
 
@@ -174,6 +175,8 @@ export class WorkspaceHub {
 	private composerCatalogSync: Promise<void> | null = null;
 	private rebindTimer: ReturnType<typeof setTimeout> | null = null;
 	private rebindResetTimer: ReturnType<typeof setTimeout> | null = null;
+	private lastPickerEngineIds: string[] = ['fast'];
+	private pickerRefreshTimers: ReturnType<typeof setTimeout>[] = [];
 	private rebindAttempts = 0;
 	private shuttingDown = false;
 	/** Host connection id learned from our own Save echoes (`workspace_file_changed.connectionId`). */
@@ -915,6 +918,9 @@ export class WorkspaceHub {
 			clearTimeout(this.rebindResetTimer);
 			this.rebindResetTimer = null;
 		}
+		this.clearPickerRefresh();
+		this.lastPickerEngineIds = ['fast'];
+		this.hostWait.cancelAll();
 		for (const id of [...this.projects.keys()]) {
 			this.projects.get(id)?.sessions.detachAll();
 			this.projects.delete(id);
@@ -1180,15 +1186,37 @@ export class WorkspaceHub {
 		return this.checkout.gitWorkspaceStatus(force);
 	}
 	private applyAvailable(rows: EngineWireRow[]): void {
-		const fromRows = rows.filter(r => r.inRegistry).map(r => r.id);
+		this.lastPickerEngineIds = pickerEngineIds(rows);
 		for (const project of this.projects.values()) {
-			const next = new Set(project.sessions.availableEngineIds());
-			for (const id of fromRows) next.add(id);
-			for (const row of rows) {
-				if (!row.inRegistry) next.delete(row.id);
-			}
-			if (!next.has('fast')) next.add('fast');
-			project.sessions.setAvailableEngines([...next]);
+			project.sessions.setAvailableEngines(this.lastPickerEngineIds);
+		}
+	}
+
+	private stampAvailableEngines(sessions: SessionController): void {
+		sessions.setAvailableEngines(this.lastPickerEngineIds);
+	}
+
+	private refreshPickerEngines(handlers: WorkspaceProjectHandlers): void {
+		void this.listEngines().then(() => {
+			const id = this.getActive()?.id ?? 'engine';
+			handlers.onSessionsChanged?.(id);
+		});
+	}
+
+	private clearPickerRefresh(): void {
+		for (const timer of this.pickerRefreshTimers) clearTimeout(timer);
+		this.pickerRefreshTimers = [];
+	}
+
+	private schedulePickerRefresh(handlers: WorkspaceProjectHandlers): void {
+		this.clearPickerRefresh();
+		for (const ms of [2_000, 6_000]) {
+			this.pickerRefreshTimers.push(
+				setTimeout(() => {
+					if (this.shuttingDown || this.engineStatus !== 'ready') return;
+					this.refreshPickerEngines(handlers);
+				}, ms)
+			);
 		}
 	}
 
@@ -1271,6 +1299,7 @@ export class WorkspaceHub {
 		this.projects.set(id, project);
 		this.activeProjectId = id;
 		sessions.seedHostSlashCatalog();
+		this.stampAvailableEngines(sessions);
 		// Apply engine-level model chrome from a prior Hello ready (no sessionId path).
 		if (this.lastReady) sessions.handleEvent(this.lastReady);
 		if (this.engineHandlers) void this.composerHeal.refreshComposerChrome(this.engineHandlers);
@@ -1329,6 +1358,7 @@ export class WorkspaceHub {
 		};
 		this.projects.set(id, project);
 		sessions.seedHostSlashCatalog();
+		this.stampAvailableEngines(sessions);
 		return project;
 	}
 
@@ -1644,6 +1674,10 @@ export class WorkspaceHub {
 				this.bridge?.send({type: 'RegisterWorkspace', path: project.path});
 			}
 			this.requestWorkspaceMeta();
+			this.refreshPickerEngines(handlers);
+			this.schedulePickerRefresh(handlers);
+		} else if (wasReconnecting) {
+			this.refreshPickerEngines(handlers);
 		}
 	}
 

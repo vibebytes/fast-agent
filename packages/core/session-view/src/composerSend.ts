@@ -150,7 +150,7 @@ export function createComposerSend<T extends ComposerTaskLike>(deps: ComposerSen
 	};
 
 	const handleSkillsResult = (event: {message?: string}): void => {
-		const mode = skillsResultMode.shift() ?? 'transcript';
+		const mode = skillsResultMode.shift() ?? 'silent';
 		if (mode === 'silent') silentSkillsInFlight = Math.max(0, silentSkillsInFlight - 1);
 		if (!deps.slashCatalogLive()) deps.applyEmptySlashCatalog();
 		deps.markSlashCatalogHydrated();

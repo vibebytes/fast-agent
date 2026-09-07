@@ -130,6 +130,7 @@ export type HostWait = {
 	wait: HostLane['wait'];
 	waitRequest: HostLane['waitRequest'];
 	cancel: (token: string) => void;
+	cancelAll: () => void;
 	resolveByName: (event: CommandResult, checkoutProjectId?: string) => void;
 	resolveByRequestId: (event: CommandResult) => void;
 };
@@ -186,6 +187,18 @@ export function createHostWait(opts: {requestWaitMs: number; defaultTimeoutMs?: 
 			byRequest.delete(token);
 			clearTimeout(req.timer);
 			req.reject(new Error('send failed'));
+		},
+		cancelAll() {
+			for (const entry of byName.values()) {
+				clearTimeout(entry.timer);
+				entry.reject(new Error('engine shutting down'));
+			}
+			byName.clear();
+			for (const entry of byRequest.values()) {
+				clearTimeout(entry.timer);
+				entry.reject(new Error('engine shutting down'));
+			}
+			byRequest.clear();
 		},
 		resolveByName(event, checkoutProjectId) {
 			const eventProjectId =

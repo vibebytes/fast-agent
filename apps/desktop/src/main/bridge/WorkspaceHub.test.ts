@@ -390,6 +390,45 @@ function noopHandlers() {
 	};
 }
 
+function engineRow(
+	id: string,
+	patch: Partial<{
+		kind: 'builtin' | 'extension';
+		adapter: 'ready' | 'disabled' | 'failed';
+		program: 'builtin' | 'installed' | 'missing' | 'installing';
+		process: 'none' | 'stopped' | 'running';
+		inRegistry: boolean;
+		isDefault: boolean;
+		actions: string[];
+	}> = {}
+) {
+	return {
+		id,
+		kind: id === 'fast' ? ('builtin' as const) : ('extension' as const),
+		adapter: 'ready' as const,
+		program: id === 'fast' ? ('builtin' as const) : ('installed' as const),
+		process: id === 'fast' ? ('none' as const) : ('stopped' as const),
+		isDefault: id === 'fast',
+		inRegistry: id === 'fast',
+		actions: [] as string[],
+		...patch
+	};
+}
+
+/** First-ready ListEngines waiter must be settled before a test issues its own list. */
+async function settleReadyEngines(bridge: FakeBridge | null, commands: BridgeCommand[]): Promise<void> {
+	await new Promise(r => setTimeout(r, 80));
+	if (!bridge || !commands.some(c => c.type === 'ListEngines')) return;
+	bridge.__inject({
+		type: 'command_result',
+		name: 'ListEngines',
+		message: '1 engine',
+		status: 'accepted',
+		engines: [engineRow('fast', {inRegistry: true})]
+	});
+	await new Promise(r => setTimeout(r, 20));
+}
+
 test('isDefaultProjectPath accepts $HOME/fast_workspace/.default_project', () => {
 	const home = '/Users/test';
 	assert.equal(isDefaultProjectPath(defaultProjectPath(home), home), true);
@@ -2636,7 +2675,7 @@ test('listEngines forwards engine rows like listExtensions', async () => {
 	});
 	const root = mkdtempSync(path.join(tmpdir(), 'proj-eng-'));
 	hub.openProject(root, noopHandlers());
-	await new Promise(r => setTimeout(r, 80));
+	await settleReadyEngines(bridge, commands);
 
 	const pending = hub.listEngines();
 	await new Promise(r => setTimeout(r, 20));
@@ -2679,6 +2718,75 @@ test('listEngines forwards engine rows like listExtensions', async () => {
 	hub.closeAll();
 });
 
+test('listEngines offers dsh when adapter is ready even if not yet inRegistry', async () => {
+	const commands: BridgeCommand[] = [];
+	let bridge: FakeBridge | null = null;
+	const hub = new WorkspaceHub({
+		createBridge: () => {
+			bridge = createFakeBridge(commands);
+			return bridge;
+		},
+		hostCwd: mkdtempSync(path.join(tmpdir(), 'hub-host-')),
+		homeDir: mkdtempSync(path.join(tmpdir(), 'hub-home-'))
+	});
+	const root = mkdtempSync(path.join(tmpdir(), 'proj-eng-ready-'));
+	hub.openProject(root, noopHandlers());
+	await new Promise(r => setTimeout(r, 80));
+	assert.ok(commands.some(c => c.type === 'ListEngines'));
+
+	bridge!.__inject({
+		type: 'command_result',
+		name: 'ListEngines',
+		message: '2 engines',
+		status: 'accepted',
+		engines: [
+			engineRow('fast', {inRegistry: true}),
+			engineRow('dsh', {inRegistry: false, process: 'stopped', actions: ['start']})
+		]
+	});
+	await new Promise(r => setTimeout(r, 20));
+	assert.ok(hub.getActive()?.sessions.availableEngineIds().includes('dsh'));
+	hub.closeAll();
+});
+
+test('new project inherits picker engines from last ListEngines', async () => {
+	const commands: BridgeCommand[] = [];
+	let bridge: FakeBridge | null = null;
+	const hub = new WorkspaceHub({
+		createBridge: () => {
+			bridge = createFakeBridge(commands);
+			return bridge;
+		},
+		hostCwd: mkdtempSync(path.join(tmpdir(), 'hub-host-')),
+		homeDir: mkdtempSync(path.join(tmpdir(), 'hub-home-'))
+	});
+	const first = mkdtempSync(path.join(tmpdir(), 'proj-eng-a-'));
+	hub.openProject(first, noopHandlers());
+	await new Promise(r => setTimeout(r, 80));
+	assert.ok(commands.some(c => c.type === 'ListEngines'));
+
+	bridge!.__inject({
+		type: 'command_result',
+		name: 'ListEngines',
+		message: '2 engines',
+		status: 'accepted',
+		engines: [
+			engineRow('fast', {inRegistry: true}),
+			engineRow('dsh', {inRegistry: true, process: 'running', actions: ['stop']})
+		]
+	});
+	await new Promise(r => setTimeout(r, 20));
+	assert.ok(hub.getActive()?.sessions.availableEngineIds().includes('dsh'));
+
+	const second = mkdtempSync(path.join(tmpdir(), 'proj-eng-b-'));
+	const opened = hub.openProject(second, noopHandlers());
+	assert.ok(
+		hub.getById(opened.id)?.sessions.availableEngineIds().includes('dsh'),
+		'late-opened project must keep DSH in the engine picker'
+	);
+	hub.closeAll();
+});
+
 test('listEngines still runs when host status is error but bridge is up', async () => {
 	const commands: BridgeCommand[] = [];
 	let bridge: FakeBridge | null = null;
@@ -2692,7 +2800,7 @@ test('listEngines still runs when host status is error but bridge is up', async 
 	});
 	const root = mkdtempSync(path.join(tmpdir(), 'proj-eng-fail-'));
 	hub.openProject(root, noopHandlers());
-	await new Promise(r => setTimeout(r, 80));
+	await settleReadyEngines(bridge, commands);
 	hub.failEngine('restore timeout');
 	assert.equal(hub.getEngineStatus().status, 'error');
 
@@ -2737,7 +2845,7 @@ test('writeEngine forwards Enable/Start and merges engines; Busy/Denied stay not
 	});
 	const root = mkdtempSync(path.join(tmpdir(), 'proj-eng-w-'));
 	hub.openProject(root, noopHandlers());
-	await new Promise(r => setTimeout(r, 80));
+	await settleReadyEngines(bridge, commands);
 
 	const enablePending = hub.writeEngine('EnableEngine', 'dsh');
 	await new Promise(r => setTimeout(r, 20));

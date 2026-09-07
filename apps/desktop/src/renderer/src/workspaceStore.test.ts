@@ -65,6 +65,63 @@ test('tasks:changed upgrades Default modelDisplay even without focus match', () 
 	assert.deepEqual(state.queue, [], 'queue stays focus-scoped');
 });
 
+test('tasks:changed applies availableEngineIds even when focus does not match', () => {
+	const state = fold([
+		focus({activeTaskId: 't1', focusEpoch: 1}),
+		{
+			type: 'tasks:changed',
+			payload: {
+				tasks: [{id: 't2', title: 'Other', active: true}],
+				chats: [],
+				defaultTasks: [],
+				activeTaskId: 't2',
+				activeKind: 'task',
+				gate: runningGate,
+				model: 'default',
+				modelDisplay: 'Default',
+				modelCatalog: [],
+				slashCatalog: [],
+				slashCatalogHydrated: false,
+				queue: [],
+				queuePaused: false,
+				availableEngineIds: ['fast', 'dsh']
+			}
+		}
+	]);
+	assert.deepEqual(state.availableEngineIds, ['fast', 'dsh']);
+	assert.equal(state.activeTaskId, 't1');
+	assert.equal(state.engineKind, 'fast');
+});
+
+test('workspace:focus applies availableEngineIds', () => {
+	const state = fold([
+		{
+			type: 'workspace:focus',
+			payload: {
+				focusEpoch: 1,
+				projects: [],
+				activeProjectId: null,
+				project: null,
+				tasks: [{id: 't1', title: 'T', active: true}],
+				chats: [],
+				defaultTasks: [],
+				activeTaskId: 't1',
+				activeKind: 'task',
+				gate: idleGate,
+				model: 'default',
+				modelDisplay: 'Default',
+				modelCatalog: [],
+				slashCatalog: [],
+				slashCatalogHydrated: false,
+				queue: [],
+				queuePaused: false,
+				availableEngineIds: ['fast', 'dsh']
+			}
+		}
+	]);
+	assert.deepEqual(state.availableEngineIds, ['fast', 'dsh']);
+});
+
 function tasksMeta(partial: {
 	activeTaskId: string | null;
 	gate?: typeof idleGate;

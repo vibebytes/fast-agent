@@ -57,6 +57,10 @@ def dshEvents(sessionId: String, runId: String, event: Json, fold: DshFold): Dsh
       )
     case "assistant/chunk" | "assistant/live-chunk" =>
       chunkStep(sessionId, runId, data, fold)
+    case "chunkrow/text-chunks" =>
+      DshStep(List(AssistantDelta(sessionId, runId, rowTexts(data), unitOf(data))), fold)
+    case "chunkrow/reasoning-chunks" =>
+      DshStep(List(ReasoningDelta(sessionId, runId, rowTexts(data), unitOf(data))), fold)
     case "assistant/message" =>
       val u = usageOf(data.hcursor.downField("usage").focus.getOrElse(Json.Null))
       val next =
@@ -147,6 +151,16 @@ private def chunkStep(sessionId: String, runId: String, data: Json, fold: DshFol
     case "reasoning-delta" =>
       val text = chunk.hcursor.get[String]("text").toOption.getOrElse("")
       DshStep(List(ReasoningDelta(sessionId, runId, text, unitOf(data))), fold)
+    case "block-end" =>
+      val block = chunk.hcursor.downField("block")
+      val text = block.get[String]("text").toOption.getOrElse("")
+      block.get[String]("type").toOption match
+        case Some("reasoning") =>
+          DshStep(List(ReasoningDelta(sessionId, runId, text, unitOf(data))), fold)
+        case Some("text") =>
+          DshStep(List(AssistantDelta(sessionId, runId, text, unitOf(data))), fold)
+        case _ =>
+          DshStep(Nil, fold)
     case "usage" =>
       val next =
         (for
@@ -159,6 +173,9 @@ private def chunkStep(sessionId: String, runId: String, data: Json, fold: DshFol
 
 private def unitOf(data: Json): Option[String] =
   turnStep(data).map((t, s) => s"$t:$s")
+
+private def rowTexts(data: Json): String =
+  data.hcursor.downField("texts").as[List[String]].toOption.getOrElse(Nil).mkString
 
 def contentTexts(blocks: List[Json]): String =
   blocks.flatMap: b =>

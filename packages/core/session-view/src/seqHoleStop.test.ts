@@ -112,6 +112,64 @@ test('offer → project: sequenced river TurnStarted + checkpoint + run_done ext
 	assert.equal(composerGate(state, true).runState, 'idle');
 });
 
+test('offer → project: DSH buffer seq 1 is dropped after persist lastApplied — blank transcript, Stop stays', () => {
+	// SetEngine / Attach already stamped persist 1..20. DSH river still numbers from 1.
+	// turn_finished carrying that leftover seq is also <= lastApplied, so Stop never clears.
+	const events: BridgeEvent[] = [
+		{
+			type: 'turn_started',
+			turnId: 'client-1',
+			clientMessageId: 'client-1',
+			text: '你是谁'
+		},
+		{type: 'input_accepted', turnId: 'sess-1:client-1', clientMessageId: 'client-1'},
+		{type: 'thinking_started', turn: 1, maxTurns: 50},
+		{type: 'turn_started', turnId: 'sess-1:client-1', text: '', eventSeq: 1},
+		{type: 'assistant_delta', turnId: 'sess-1:client-1', text: '我是 DeepSeek Harness', eventSeq: 2},
+		{type: 'checkpoint', unitId: '1:1', content: '我是 DeepSeek Harness', eventSeq: 3},
+		{type: 'run_done', runId: 'sess-1:client-1', success: true, summary: '', eventSeq: 4},
+		{type: 'turn_finished', turnId: 'sess-1:client-1', success: true, eventSeq: 4}
+	];
+	let seq = {...emptySessionSeq(), lastApplied: 20};
+	let state = createTranscriptState();
+	for (const ev of events) {
+		const r = offer(seq, ev);
+		seq = r.state;
+		for (const out of r.emit) state = applyBridgeEvent(state, out);
+	}
+	assert.equal(state.entries.find(e => e.role === 'assistant')?.text ?? '', '');
+	assert.equal(composerGate(state, true).canCancel, true);
+	assert.equal(composerGate(state, true).runState, 'running');
+});
+
+test('offer → project: persist-contiguous DSH seqs after lastApplied paint and clear Stop', () => {
+	const events: BridgeEvent[] = [
+		{
+			type: 'turn_started',
+			turnId: 'client-1',
+			clientMessageId: 'client-1',
+			text: '你是谁'
+		},
+		{type: 'input_accepted', turnId: 'sess-1:client-1', clientMessageId: 'client-1'},
+		{type: 'thinking_started', turn: 1, maxTurns: 50},
+		{type: 'turn_started', turnId: 'sess-1:client-1', text: '', eventSeq: 21},
+		{type: 'assistant_delta', turnId: 'sess-1:client-1', text: '我是 DeepSeek Harness', eventSeq: 22, unitId: '1:1'},
+		{type: 'checkpoint', unitId: '1:1', content: '我是 DeepSeek Harness', eventSeq: 23},
+		{type: 'run_done', runId: 'sess-1:client-1', success: true, summary: '', eventSeq: 24},
+		{type: 'turn_finished', turnId: 'sess-1:client-1', success: true}
+	];
+	let seq = {...emptySessionSeq(), lastApplied: 20};
+	let state = createTranscriptState();
+	for (const ev of events) {
+		const r = offer(seq, ev);
+		seq = r.state;
+		for (const out of r.emit) state = applyBridgeEvent(state, out);
+	}
+	assert.equal(state.entries.find(e => e.role === 'assistant')?.text, '我是 DeepSeek Harness');
+	assert.equal(composerGate(state, true).canCancel, false);
+	assert.equal(composerGate(state, true).runState, 'idle');
+});
+
 test('offer → project: late sequenced TurnStarted after settle must not relight Stop', () => {
 	const {state} = projectThroughOffer([
 		...dshLiveThenRiver,

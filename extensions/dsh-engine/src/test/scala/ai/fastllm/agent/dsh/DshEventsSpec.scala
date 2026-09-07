@@ -218,6 +218,30 @@ class DshEventsSpec extends AnyFunSuite with Matchers:
     dshEvents(Sid, Rid, List(host)).events shouldBe Nil
     dshEvents(Sid, Rid, List(queue)).events.map(_.getClass.getSimpleName) should not contain "dsh_queue"
 
+  test("block-end text becomes AssistantDelta so Fast UI can paint without text-delta"):
+    val ev = parse(
+      """{"type":"assistant/chunk","seq":251,"data":{"turn":1,"step":1,"chunk":{"type":"block-end","index":1,"block":{"type":"text","text":"我是 DeepSeek Harness"}}}}"""
+    ).toOption.get
+    dshEvents(Sid, Rid, ev, DshFold()).events shouldBe List(AssistantDelta(Sid, Rid, "我是 DeepSeek Harness", Some("1:1")))
+
+  test("block-end reasoning becomes ReasoningDelta"):
+    val ev = parse(
+      """{"type":"assistant/chunk","seq":250,"data":{"turn":1,"step":1,"chunk":{"type":"block-end","index":0,"block":{"type":"reasoning","text":"who are you"}}}}"""
+    ).toOption.get
+    dshEvents(Sid, Rid, ev, DshFold()).events shouldBe List(ReasoningDelta(Sid, Rid, "who are you", Some("1:1")))
+
+  test("chunkrow/text-chunks joins tokens into AssistantDelta"):
+    val ev = parse(
+      """{"type":"chunkrow/text-chunks","seq":114,"data":{"turn":1,"step":1,"index":1,"texts":["我是"," Deep","Seek"]}}"""
+    ).toOption.get
+    dshEvents(Sid, Rid, ev, DshFold()).events shouldBe List(AssistantDelta(Sid, Rid, "我是 DeepSeek", Some("1:1")))
+
+  test("chunkrow/reasoning-chunks joins tokens into ReasoningDelta"):
+    val ev = parse(
+      """{"type":"chunkrow/reasoning-chunks","seq":15,"data":{"turn":1,"step":1,"index":0,"texts":["The"," user"]}}"""
+    ).toOption.get
+    dshEvents(Sid, Rid, ev, DshFold()).events shouldBe List(ReasoningDelta(Sid, Rid, "The user", Some("1:1")))
+
   private def fold(name: String): DshStep = dshEvents(Sid, Rid, load(name))
 
   private def typesOf(name: String): List[String] =
