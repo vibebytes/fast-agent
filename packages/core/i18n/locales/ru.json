@@ -315,7 +315,36 @@
         "mobilePairingFailed": "Не удалось изменить спаривание по LAN.",
         "mobilePairingBindFailed": "Порт {{port}} уже занят. Освободите его и повторите попытку.",
         "mobilePairingTokenShow": "Показать токен",
-        "mobilePairingTokenHide": "Скрыть токен"
+        "mobilePairingTokenHide": "Скрыть токен",
+        "cloudflareTab": "Туннель Cloudflare",
+        "cloudflareTabLan": "LAN",
+        "cloudflareIdle": "Включите туннель Cloudflare, чтобы сопрячь телефон без установки чего-либо на него.",
+        "cloudflareStarting": "Подключение к edge Cloudflare…",
+        "cloudflareStopping": "Остановка туннеля…",
+        "cloudflareUrl": "Публичный URL",
+        "cloudflarePublicHint": "Этот адрес доступен из интернета. Токен — единственный ключ доступа; не сообщайте его никому.",
+        "cloudflareQrHint": "Отсканируйте QR-код приложением на телефоне. После перезапуска URL меняется — отсканируйте снова.",
+        "pairingQrAria": "QR-код сопряжения",
+        "cloudflareHideQr": "Скрыть QR-код",
+        "cloudflareShowQr": "Показать QR-код",
+        "cloudflareQrHidden": "QR-код скрыт — нажмите, чтобы показать",
+        "cloudflareQrBlurred": "Размыто после простоя — нажмите, чтобы восстановить",
+        "cloudflareCopyFullPairing": "Копировать полный текст сопряжения",
+        "cloudflareCopyFullConfirm": "Полный текст сопряжения содержит токен доступа. Любой, у кого он есть, сможет подключиться. Всё равно скопировать?",
+        "cloudflareStart": "Запустить туннель Cloudflare",
+        "cloudflareStop": "Остановить туннель",
+        "cloudflareStopConfirm": "Остановить туннель Cloudflare? Подключённые телефоны будут отключены.",
+        "cloudflareRemoteUnsupported": "Туннель Cloudflare сейчас поддерживает только локальный движок (сейчас: {{name}}).",
+        "cloudflareSwitchLocal": "Переключиться на локальный движок",
+        "cloudflareSwitchLan": "Переключиться на LAN",
+        "cloudflareFailed": {
+          "remote": "Туннель Cloudflare сейчас поддерживает только локальный движок",
+          "spawn": "Не удалось запустить процесс cloudflared.",
+          "download": "Не удалось загрузить бинарник cloudflared.",
+          "timeout": "Истекло время ожидания URL туннеля.",
+          "origin": "Порт loopback движка недоступен.",
+          "crash": "Процесс туннеля постоянно падает."
+        }
       },
       "permissions": {
         "policy": "Политика подтверждений",
@@ -1635,7 +1664,9 @@
       "cannotConnect": "Не удалось подключиться",
       "timeout": "Время ожидания соединения истекло",
       "helloOk": "Подключено",
-      "helloReject": "Отклонено"
+      "helloReject": "Отклонено",
+      "urlExpired": "Тайм-аут подключения: адрес сервера мог измениться (URL быстрого туннеля меняется при перезапуске)",
+      "authFailed": "Аутентификация отклонена: токен больше недействителен — отсканируйте заново"
     },
     "settings": {
       "title": "Параметры",
@@ -1682,7 +1713,15 @@
       "fillTitle": "Не заполнены поля",
       "fillBody": "Укажите URL сервера и токен доступа",
       "pairUnreachableTitle": "Saved, but not connected",
-      "pairUnreachableBody": "Saved {{url}}, but the desktop handshake failed: {{reason}}"
+      "pairUnreachableBody": "Saved {{url}}, but the desktop handshake failed: {{reason}}",
+      "transport_lan": "LAN",
+      "transport_tailscale": "Tailscale",
+      "transport_cloudflare": "Cloudflare",
+      "lastConnectedNever": "Не подключался",
+      "lastConnectedNow": "Только что подключено",
+      "lastConnectedMinutes": "Подключено {{count}} мин назад",
+      "lastConnectedHours": "Подключено {{count}} ч назад",
+      "lastConnectedDays": "Подключено {{count}} дн назад"
     },
     "index": {
       "new": "Новая",
@@ -1796,7 +1835,16 @@
     },
     "pairing": {
       "confirmFingerprint": "Подтвердите отпечаток сертификата: {{fingerprint}}",
-      "confirmFingerprintShort": "Подтвердите отпечаток сертификата сервера"
+      "confirmFingerprintShort": "Подтвердите отпечаток сертификата сервера",
+      "pairAuthFailed": "Подключение отклонено — отсканируйте на компьютере заново",
+      "pairUrlExpired": "Тайм-аут — адрес мог смениться; отсканируйте на компьютере заново"
+    },
+    "conn": {
+      "authFailed": "Токен отклонён — отсканируйте QR-код заново",
+      "urlExpired": "Адрес сервера мог измениться — отсканируйте заново",
+      "reconnecting": "Переподключение…",
+      "unreachable": "Не удаётся подключиться к серверу",
+      "rescanHint": "Отсканируйте QR-код на компьютере заново"
     }
   }
 }

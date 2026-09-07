@@ -1,5 +1,5 @@
 import type {BridgeCommand, BridgeEvent} from '@fastllm/bridge-protocol';
-import type {SessionListInfo} from '@fast-ide/session-view';
+import type {SessionListInfo} from './sessionContracts.js';
 import {
 	applyBridgeEvent,
 	applyCodeChangeEvent,

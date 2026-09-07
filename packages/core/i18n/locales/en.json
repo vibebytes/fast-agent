@@ -315,7 +315,36 @@
         "mobilePairingFailed": "Failed to update LAN pairing.",
         "mobilePairingBindFailed": "Port {{port}} is already in use. Free the port and retry.",
         "mobilePairingTokenShow": "Reveal token",
-        "mobilePairingTokenHide": "Hide token"
+        "mobilePairingTokenHide": "Hide token",
+        "cloudflareTab": "Cloudflare tunnel",
+        "cloudflareTabLan": "LAN",
+        "cloudflareIdle": "Turn on the Cloudflare tunnel to pair your phone without installing anything on it.",
+        "cloudflareStarting": "Connecting to Cloudflare edge…",
+        "cloudflareStopping": "Stopping tunnel…",
+        "cloudflareUrl": "Public URL",
+        "cloudflarePublicHint": "This address is reachable over the public internet. The token is the only access credential — do not share it.",
+        "cloudflareQrHint": "Scan this QR code in the mobile app. The tunnel URL changes after a restart, so re-scan then.",
+        "pairingQrAria": "Pairing QR code",
+        "cloudflareHideQr": "Hide QR code",
+        "cloudflareShowQr": "Show QR code",
+        "cloudflareQrHidden": "QR code hidden — click to show",
+        "cloudflareQrBlurred": "Blurred after inactivity — click to restore",
+        "cloudflareCopyFullPairing": "Copy full pairing text",
+        "cloudflareCopyFullConfirm": "The full pairing text contains the access token. Anyone who has it can connect to your machine. Copy anyway?",
+        "cloudflareStart": "Start Cloudflare tunnel",
+        "cloudflareStop": "Stop tunnel",
+        "cloudflareStopConfirm": "Stop the Cloudflare tunnel? Connected phones will be disconnected.",
+        "cloudflareRemoteUnsupported": "Cloudflare tunnel currently supports only the local engine (current: {{name}}).",
+        "cloudflareSwitchLocal": "Switch to local engine",
+        "cloudflareSwitchLan": "Switch to LAN",
+        "cloudflareFailed": {
+          "remote": "Cloudflare Tunnel currently only supports the local engine",
+          "spawn": "Could not start the cloudflared process.",
+          "download": "Could not download the cloudflared binary.",
+          "timeout": "Timed out waiting for the tunnel URL.",
+          "origin": "The engine loopback port is not reachable.",
+          "crash": "The tunnel process kept crashing."
+        }
       },
       "permissions": {
         "policy": "Approval policy",
@@ -1635,7 +1664,9 @@
       "cannotConnect": "Cannot connect",
       "timeout": "Connection timed out",
       "helloOk": "Connected",
-      "helloReject": "Rejected"
+      "helloReject": "Rejected",
+      "urlExpired": "Connection timed out: the server address may have changed (quick tunnel URLs rotate on restart)",
+      "authFailed": "Authentication rejected: the token is no longer valid — please re-scan"
     },
     "settings": {
       "title": "Preferences",
@@ -1682,7 +1713,15 @@
       "cameraTitle": "Permission needed",
       "cameraBody": "Allow camera access in system settings to scan the pairing QR code.",
       "fillTitle": "Missing fields",
-      "fillBody": "Enter both the server URL and access token"
+      "fillBody": "Enter both the server URL and access token",
+      "transport_lan": "LAN",
+      "transport_tailscale": "Tailscale",
+      "transport_cloudflare": "Cloudflare",
+      "lastConnectedNever": "Never connected",
+      "lastConnectedNow": "Just connected",
+      "lastConnectedMinutes": "Connected {{count}} min ago",
+      "lastConnectedHours": "Connected {{count}} h ago",
+      "lastConnectedDays": "Connected {{count}} d ago"
     },
     "index": {
       "new": "New",
@@ -1796,7 +1835,16 @@
     },
     "pairing": {
       "confirmFingerprint": "Confirm certificate fingerprint: {{fingerprint}}",
-      "confirmFingerprintShort": "Confirm the server certificate fingerprint"
+      "confirmFingerprintShort": "Confirm the server certificate fingerprint",
+      "pairAuthFailed": "Connection rejected — please re-scan on the desktop",
+      "pairUrlExpired": "Connection timed out — the address may have rotated; re-scan on the desktop"
+    },
+    "conn": {
+      "authFailed": "Token rejected — please re-scan the QR code",
+      "urlExpired": "Server address may have changed — please re-scan",
+      "reconnecting": "Reconnecting…",
+      "unreachable": "Cannot reach the server",
+      "rescanHint": "Re-scan the QR code on the desktop"
     }
   }
 }

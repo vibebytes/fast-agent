@@ -1,7 +1,7 @@
 /**
  * Push + invoke channel maps. InvokeChannels is the intersection of the domain halves.
  */
-import type {EdgesList} from './desktop.js';
+import type {CloudflareTunnelStatus, EdgesList} from './desktop.js';
 import type {InvokeHost} from './invokeHost.js';
 import type {InvokeOrg} from './invokeOrg.js';
 import type {InvokeSession} from './invokeSession.js';
@@ -46,6 +46,8 @@ export type PushChannels = {
 	'completion:cue': CompletionCue;
 	/** Remote edge catalog / active / pending changed. */
 	'edges:changed': EdgesList;
+	/** Cloudflare Tunnel 状态变更（主进程 push，§cloudflare-tunnel-pairing.md §4.5.2）。 */
+	'cloudflareTunnel:changed': CloudflareTunnelStatus;
 };
 
 export type InvokeDesktop = InvokeHost & InvokeOrg;

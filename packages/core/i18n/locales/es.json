@@ -315,7 +315,36 @@
         "mobilePairingFailed": "No se pudo actualizar el emparejamiento LAN.",
         "mobilePairingBindFailed": "El puerto {{port}} ya está en uso. Libéralo y reintenta.",
         "mobilePairingTokenShow": "Mostrar token",
-        "mobilePairingTokenHide": "Ocultar token"
+        "mobilePairingTokenHide": "Ocultar token",
+        "cloudflareTab": "Túnel Cloudflare",
+        "cloudflareTabLan": "LAN",
+        "cloudflareIdle": "Active el túnel Cloudflare para emparejar su teléfono sin instalar nada en él.",
+        "cloudflareStarting": "Conectando con el borde de Cloudflare…",
+        "cloudflareStopping": "Deteniendo el túnel…",
+        "cloudflareUrl": "URL pública",
+        "cloudflarePublicHint": "Esta dirección es accesible desde Internet. El token es la única credencial de acceso: no lo comparta.",
+        "cloudflareQrHint": "Escanee este código QR con la app del teléfono. La URL cambia tras un reinicio; escanéelo de nuevo entonces.",
+        "pairingQrAria": "Código QR de emparejamiento",
+        "cloudflareHideQr": "Ocultar el código QR",
+        "cloudflareShowQr": "Mostrar el código QR",
+        "cloudflareQrHidden": "Código QR oculto: haz clic para mostrarlo",
+        "cloudflareQrBlurred": "Desenfocado por inactividad: haz clic para restaurar",
+        "cloudflareCopyFullPairing": "Copiar el texto de emparejamiento completo",
+        "cloudflareCopyFullConfirm": "El texto de emparejamiento completo contiene el token de acceso. Quien lo tenga podrá conectarse. ¿Copiar de todos modos?",
+        "cloudflareStart": "Iniciar túnel Cloudflare",
+        "cloudflareStop": "Detener túnel",
+        "cloudflareStopConfirm": "¿Detener el túnel Cloudflare? Los teléfonos conectados se desconectarán.",
+        "cloudflareRemoteUnsupported": "El túnel Cloudflare solo admite actualmente el motor local (actual: {{name}}).",
+        "cloudflareSwitchLocal": "Cambiar al motor local",
+        "cloudflareSwitchLan": "Cambiar a LAN",
+        "cloudflareFailed": {
+          "remote": "El túnel Cloudflare actualmente solo admite el motor local",
+          "spawn": "No se pudo iniciar el proceso cloudflared.",
+          "download": "No se pudo descargar el binario de cloudflared.",
+          "timeout": "Se agotó el tiempo de espera de la URL del túnel.",
+          "origin": "El puerto loopback del motor no es accesible.",
+          "crash": "El proceso del túnel se bloqueó repetidamente."
+        }
       },
       "permissions": {
         "policy": "Política de aprobación",
@@ -1635,7 +1664,9 @@
       "cannotConnect": "No se puede conectar",
       "timeout": "Tiempo de conexión agotado",
       "helloOk": "Conectado",
-      "helloReject": "Rechazado"
+      "helloReject": "Rechazado",
+      "urlExpired": "Tiempo de conexión agotado: la dirección puede haber cambiado (las URL de túnel rápido rotan al reiniciar)",
+      "authFailed": "Autenticación rechazada: el token ya no es válido; vuelve a escanear"
     },
     "settings": {
       "title": "Preferencias",
@@ -1682,7 +1713,15 @@
       "fillTitle": "Faltan campos",
       "fillBody": "Introduce la URL del servidor y el token de acceso",
       "pairUnreachableTitle": "Saved, but not connected",
-      "pairUnreachableBody": "Saved {{url}}, but the desktop handshake failed: {{reason}}"
+      "pairUnreachableBody": "Saved {{url}}, but the desktop handshake failed: {{reason}}",
+      "transport_lan": "LAN",
+      "transport_tailscale": "Tailscale",
+      "transport_cloudflare": "Cloudflare",
+      "lastConnectedNever": "Nunca conectado",
+      "lastConnectedNow": "Conectado ahora",
+      "lastConnectedMinutes": "Conectado hace {{count}} min",
+      "lastConnectedHours": "Conectado hace {{count}} h",
+      "lastConnectedDays": "Conectado hace {{count}} d"
     },
     "index": {
       "new": "Nuevo",
@@ -1796,7 +1835,16 @@
     },
     "pairing": {
       "confirmFingerprint": "Confirma la huella del certificado: {{fingerprint}}",
-      "confirmFingerprintShort": "Confirma la huella del certificado del servidor"
+      "confirmFingerprintShort": "Confirma la huella del certificado del servidor",
+      "pairAuthFailed": "Conexión rechazada — vuelve a escanear en el escritorio",
+      "pairUrlExpired": "Tiempo agotado — la dirección puede haber rotado; vuelve a escanear en el escritorio"
+    },
+    "conn": {
+      "authFailed": "Token rechazado: vuelve a escanear el código QR",
+      "urlExpired": "La dirección del servidor puede haber cambiado: vuelve a escanear",
+      "reconnecting": "Reconectando…",
+      "unreachable": "No se puede conectar con el servidor",
+      "rescanHint": "Vuelve a escanear el QR en el escritorio"
     }
   }
 }

@@ -63,6 +63,16 @@ class FastBridgeTlsModule : Module() {
       }
     }
 
+    AsyncFunction("connectPublic") { url: String, promise: Promise ->
+      executor.execute {
+        try {
+          openSocket(url, null, promise)
+        } catch (e: Exception) {
+          promise.reject("ERR_CONNECT_FAILED", e.message ?: "无法连接", e)
+        }
+      }
+    }
+
     Function("send") { text: String ->
       socket?.send(text) == true
     }
@@ -76,20 +86,22 @@ class FastBridgeTlsModule : Module() {
     }
   }
 
-  private fun openSocket(url: String, fingerprint: String, promise: Promise) {
-    val pin = normalize(fingerprint) ?: throw IllegalArgumentException("invalid fingerprint")
+  private fun openSocket(url: String, fingerprint: String?, promise: Promise) {
+    val pin = fingerprint?.let { normalize(it) }
+    if (fingerprint != null && pin == null) throw IllegalArgumentException("invalid fingerprint")
     val gen = generation.incrementAndGet()
     socket?.cancel()
     socket = null
-    val trust = pinningTrust(pin)
-    val context = SSLContext.getInstance("TLS")
-    context.init(null, arrayOf<TrustManager>(trust), SecureRandom())
-    val client = OkHttpClient.Builder()
-      .sslSocketFactory(context.socketFactory, trust)
-      .hostnameVerifier { _, _ -> true }
+    val builder = OkHttpClient.Builder()
       .connectTimeout(10, TimeUnit.SECONDS)
       .readTimeout(0, TimeUnit.SECONDS)
-      .build()
+    if (pin != null) {
+      val trust = pinningTrust(pin)
+      val context = SSLContext.getInstance("TLS")
+      context.init(null, arrayOf<TrustManager>(trust), SecureRandom())
+      builder.sslSocketFactory(context.socketFactory, trust).hostnameVerifier { _, _ -> true }
+    }
+    val client = builder.build()
     http = client
     val request = Request.Builder().url(url).build()
     var settled = false

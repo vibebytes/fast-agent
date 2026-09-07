@@ -18,6 +18,14 @@ const noLiveBridges = {liveBridgePids: () => [] as number[]};
 const bridgeCmd =
 	'java -cp x ai.fastllm.agent.cli.CliApp engine --mode bridge --transport unix --socket /tmp/b.sock';
 
+test('resolveDaemonLaunch appends loopback --ws only when port given', () => {
+	const base = resolveDaemonLaunch('/tmp/b.sock', {FAST_ENGINE_COMMAND: 'fast-cli'});
+	assert.ok(!base.args.includes('--ws'));
+	const withPort = resolveDaemonLaunch('/tmp/b.sock', {FAST_ENGINE_COMMAND: 'fast-cli'}, 1981);
+	assert.deepEqual(withPort.args.slice(-2), ['--ws', '127.0.0.1:1981']);
+	assert.equal(withPort.command, base.command);
+});
+
 test('resolveDaemonLaunch forces unix transport + socket', () => {
 	const launch = resolveDaemonLaunch('/tmp/b.sock', {
 		FAST_ENGINE_COMMAND: 'fast-cli',

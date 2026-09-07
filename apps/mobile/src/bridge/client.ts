@@ -10,7 +10,7 @@ import type {ClientConfig} from './config';
 import type { Copy } from './copy';
 import { rawError } from './copy';
 import {bridgeUrlIssue, normalizeBridgeUrl} from './pairing';
-import {openPinnedSocket, type PinnedWire} from './pinned-socket';
+import {openPinnedSocket, openPublicSocket, type PinnedWire} from './pinned-socket';
 import {probeTlsFingerprint} from './tls-pinning';
 import {wsFrameText} from './wsFrame';
 
@@ -82,6 +82,10 @@ export class BridgeClient {
       return;
     }
     if (serverUrl.startsWith('wss://')) {
+      if (this.config.trust === 'public') {
+        await this.openPublic(serverUrl);
+        return;
+      }
       const probe = await probeTlsFingerprint(serverUrl, fingerprint);
       if (this.disposed) return;
       if (!probe.ok) {
@@ -100,36 +104,54 @@ export class BridgeClient {
     this.attachBrowserSocket(new WebSocket(serverUrl));
   }
 
+  private socketHandlers() {
+    return {
+      onOpen: () => undefined,
+      onMessage: (data: string) => this.onFrame(data),
+      onError: () => this.scheduleReconnect(),
+      onClose: () => {
+        this.clearConnectWatchdog();
+        this.stopHeartbeat();
+        if (this.wire) this.wire = null;
+        if (this.state === 'rejected') return;
+        if (this.state !== 'closed') this.setState('closed');
+        this.scheduleReconnect();
+      }
+    };
+  }
+
+  private afterOpen(wire: Wire) {
+    if (this.disposed) {
+      wire.close();
+      return;
+    }
+    this.wire = wire;
+    this.armConnectWatchdog(wire);
+    this.setState('hello');
+    this.send({
+      type: 'Hello',
+      protocolVersion: 1,
+      clientId: this.config.clientId,
+      clientKind: 'fast-mobile',
+      clientVersion: '0.1.0',
+      authToken: this.config.token || undefined
+    });
+  }
+
   private async openPinned(serverUrl: string, fingerprint: string) {
     try {
-      const wire = await openPinnedSocket(serverUrl, fingerprint, {
-        onOpen: () => undefined,
-        onMessage: (data) => this.onFrame(data),
-        onError: () => this.scheduleReconnect(),
-        onClose: () => {
-          this.clearConnectWatchdog();
-          this.stopHeartbeat();
-          if (this.wire) this.wire = null;
-          if (this.state === 'rejected') return;
-          if (this.state !== 'closed') this.setState('closed');
-          this.scheduleReconnect();
-        }
-      });
-      if (this.disposed) {
-        wire.close();
-        return;
-      }
-      this.wire = wire;
-      this.armConnectWatchdog(wire);
-      this.setState('hello');
-      this.send({
-        type: 'Hello',
-        protocolVersion: 1,
-        clientId: this.config.clientId,
-        clientKind: 'fast-mobile',
-        clientVersion: '0.1.0',
-        authToken: this.config.token || undefined
-      });
+      const wire = await openPinnedSocket(serverUrl, fingerprint, this.socketHandlers());
+      this.afterOpen(wire);
+    } catch (error) {
+      this.setState('closed', rawError(error));
+      this.scheduleReconnect();
+    }
+  }
+
+  private async openPublic(serverUrl: string) {
+    try {
+      const wire = await openPublicSocket(serverUrl, this.socketHandlers());
+      this.afterOpen(wire);
     } catch (error) {
       this.setState('closed', rawError(error));
       this.scheduleReconnect();

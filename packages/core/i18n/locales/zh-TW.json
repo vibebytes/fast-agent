@@ -315,7 +315,36 @@
         "mobilePairingFailed": "設定失敗，請再試一次。",
         "mobilePairingBindFailed": "連接埠 {{port}} 已被占用，請釋放後再試。",
         "mobilePairingTokenShow": "顯示權杖",
-        "mobilePairingTokenHide": "隱藏權杖"
+        "mobilePairingTokenHide": "隱藏權杖",
+        "cloudflareTab": "Cloudflare 隧道",
+        "cloudflareTabLan": "區域網路",
+        "cloudflareIdle": "開啟 Cloudflare 隧道，手機無需安裝任何元件即可配對。",
+        "cloudflareStarting": "正在連接 Cloudflare 邊緣…",
+        "cloudflareStopping": "正在停止隧道…",
+        "cloudflareUrl": "公網位址",
+        "cloudflarePublicHint": "該位址公網可達，Token 是唯一存取憑證，請勿外洩。",
+        "cloudflareQrHint": "使用手機 App 掃描此 QR Code。隧道重啟後位址會變化，屆時請重新掃碼。",
+        "pairingQrAria": "配對 QR Code",
+        "cloudflareHideQr": "隱藏 QR Code",
+        "cloudflareShowQr": "顯示 QR Code",
+        "cloudflareQrHidden": "QR Code 已隱藏，點擊顯示",
+        "cloudflareQrBlurred": "長時間未操作已自動虛化，點擊恢復",
+        "cloudflareCopyFullPairing": "複製完整配對文字",
+        "cloudflareCopyFullConfirm": "完整配對文字包含存取 Token，持有者可直接連線本機。仍要複製？",
+        "cloudflareStart": "開啟 Cloudflare 隧道",
+        "cloudflareStop": "停止隧道",
+        "cloudflareStopConfirm": "停止 Cloudflare 隧道？已連接的手機將被斷線。",
+        "cloudflareRemoteUnsupported": "Cloudflare 隧道目前僅支援本機引擎（目前：{{name}}）。",
+        "cloudflareSwitchLocal": "切換到本機引擎",
+        "cloudflareSwitchLan": "切回區域網路",
+        "cloudflareFailed": {
+          "remote": "Cloudflare 隧道目前僅支援本機引擎",
+          "spawn": "無法啟動 cloudflared 程序。",
+          "download": "無法下載 cloudflared 二進位檔。",
+          "timeout": "等待隧道位址逾時。",
+          "origin": "引擎 loopback 埠不可達。",
+          "crash": "隧道程序持續當機。"
+        }
       },
       "permissions": {
         "policy": "核准原則",
@@ -1635,7 +1664,9 @@
       "cannotConnect": "無法連線",
       "timeout": "連線逾時",
       "helloOk": "連線成功",
-      "helloReject": "被拒絕"
+      "helloReject": "被拒絕",
+      "urlExpired": "連線逾時：伺服器位址可能已變化（隧道重啟後 URL 會輪換）",
+      "authFailed": "鑑權被拒：Token 已失效，請重新掃碼"
     },
     "settings": {
       "title": "偏好設定",
@@ -1682,7 +1713,15 @@
       "fillTitle": "提示",
       "fillBody": "請完整填寫伺服器位址和存取權杖",
       "pairUnreachableTitle": "已儲存，但未連上",
-      "pairUnreachableBody": "已儲存 {{url}}，但和桌面握手失敗：{{reason}}"
+      "pairUnreachableBody": "已儲存 {{url}}，但和桌面握手失敗：{{reason}}",
+      "transport_lan": "區域網路",
+      "transport_tailscale": "Tailscale",
+      "transport_cloudflare": "Cloudflare",
+      "lastConnectedNever": "從未連線",
+      "lastConnectedNow": "剛剛連線",
+      "lastConnectedMinutes": "{{count}} 分鐘前連線",
+      "lastConnectedHours": "{{count}} 小時前連線",
+      "lastConnectedDays": "{{count}} 天前連線"
     },
     "index": {
       "new": "新建",
@@ -1796,7 +1835,16 @@
     },
     "pairing": {
       "confirmFingerprint": "需要確認憑證指紋：{{fingerprint}}",
-      "confirmFingerprintShort": "需要確認伺服器憑證指紋"
+      "confirmFingerprintShort": "需要確認伺服器憑證指紋",
+      "pairAuthFailed": "連線被拒：請回桌面重新掃碼",
+      "pairUrlExpired": "連線逾時：位址可能已輪換，請回桌面重新掃碼"
+    },
+    "conn": {
+      "authFailed": "Token 已失效，請重新掃碼",
+      "urlExpired": "伺服器位址可能已變化，請重新掃碼",
+      "reconnecting": "正在重新連線…",
+      "unreachable": "無法連線伺服器",
+      "rescanHint": "請回桌面端重新掃碼"
     }
   }
 }

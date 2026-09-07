@@ -315,7 +315,36 @@
         "mobilePairingFailed": "Änderung fehlgeschlagen. Bitte erneut versuchen.",
         "mobilePairingBindFailed": "Port {{port}} ist bereits belegt. Port freigeben und erneut versuchen.",
         "mobilePairingTokenShow": "Token anzeigen",
-        "mobilePairingTokenHide": "Token verbergen"
+        "mobilePairingTokenHide": "Token verbergen",
+        "cloudflareTab": "Cloudflare-Tunnel",
+        "cloudflareTabLan": "LAN",
+        "cloudflareIdle": "Aktivieren Sie den Cloudflare-Tunnel, um Ihr Telefon zu koppeln, ohne etwas zu installieren.",
+        "cloudflareStarting": "Verbinde mit Cloudflare-Edge…",
+        "cloudflareStopping": "Tunnel wird gestoppt…",
+        "cloudflareUrl": "Öffentliche URL",
+        "cloudflarePublicHint": "Diese Adresse ist über das öffentliche Internet erreichbar. Der Token ist die einzige Zugangsberechtigung — nicht weitergeben.",
+        "cloudflareQrHint": "Scannen Sie diesen QR-Code mit der App. Die URL ändert sich nach einem Neustart; scannen Sie dann erneut.",
+        "pairingQrAria": "Paarungs-QR-Code",
+        "cloudflareHideQr": "QR-Code ausblenden",
+        "cloudflareShowQr": "QR-Code einblenden",
+        "cloudflareQrHidden": "QR-Code ausgeblendet — zum Anzeigen klicken",
+        "cloudflareQrBlurred": "Wegen Inaktivität unscharf — zum Wiederherstellen klicken",
+        "cloudflareCopyFullPairing": "Vollständigen Paarungstext kopieren",
+        "cloudflareCopyFullConfirm": "Der vollständige Paarungstext enthält das Zugriffstoken. Jeder, der ihn besitzt, kann sich verbinden. Trotzdem kopieren?",
+        "cloudflareStart": "Cloudflare-Tunnel starten",
+        "cloudflareStop": "Tunnel stoppen",
+        "cloudflareStopConfirm": "Cloudflare-Tunnel stoppen? Verbundene Telefone werden getrennt.",
+        "cloudflareRemoteUnsupported": "Der Cloudflare-Tunnel unterstützt derzeit nur die lokale Engine (aktuell: {{name}}).",
+        "cloudflareSwitchLocal": "Zur lokalen Engine wechseln",
+        "cloudflareSwitchLan": "Zu LAN wechseln",
+        "cloudflareFailed": {
+          "remote": "Der Cloudflare-Tunnel unterstützt derzeit nur die lokale Engine",
+          "spawn": "Der cloudflared-Prozess konnte nicht gestartet werden.",
+          "download": "Das cloudflared-Binary konnte nicht heruntergeladen werden.",
+          "timeout": "Zeitüberschreitung beim Warten auf die Tunnel-URL.",
+          "origin": "Der Loopback-Port der Engine ist nicht erreichbar.",
+          "crash": "Der Tunnel-Prozess stürzt wiederholt ab."
+        }
       },
       "permissions": {
         "policy": "Genehmigungsrichtlinie",
@@ -1635,7 +1664,9 @@
       "cannotConnect": "Verbindung nicht möglich",
       "timeout": "Verbindung zeitüberschritten",
       "helloOk": "Verbunden",
-      "helloReject": "Abgelehnt"
+      "helloReject": "Abgelehnt",
+      "urlExpired": "Zeitüberschreitung: Die Serveradresse hat sich möglicherweise geändert (Quick-Tunnel-URLs rotieren beim Neustart)",
+      "authFailed": "Authentifizierung abgelehnt: Das Token ist ungültig – bitte neu scannen"
     },
     "settings": {
       "title": "Einstellungen",
@@ -1682,7 +1713,15 @@
       "fillTitle": "Felder fehlen",
       "fillBody": "Gib Server-URL und Zugriffstoken ein",
       "pairUnreachableTitle": "Saved, but not connected",
-      "pairUnreachableBody": "Saved {{url}}, but the desktop handshake failed: {{reason}}"
+      "pairUnreachableBody": "Saved {{url}}, but the desktop handshake failed: {{reason}}",
+      "transport_lan": "LAN",
+      "transport_tailscale": "Tailscale",
+      "transport_cloudflare": "Cloudflare",
+      "lastConnectedNever": "Nie verbunden",
+      "lastConnectedNow": "Gerade verbunden",
+      "lastConnectedMinutes": "Vor {{count}} Min. verbunden",
+      "lastConnectedHours": "Vor {{count}} Std. verbunden",
+      "lastConnectedDays": "Vor {{count}} Tagen verbunden"
     },
     "index": {
       "new": "Neu",
@@ -1796,7 +1835,16 @@
     },
     "pairing": {
       "confirmFingerprint": "Zertifikat-Fingerabdruck bestätigen: {{fingerprint}}",
-      "confirmFingerprintShort": "Fingerabdruck des Serverzertifikats bestätigen"
+      "confirmFingerprintShort": "Fingerabdruck des Serverzertifikats bestätigen",
+      "pairAuthFailed": "Verbindung abgelehnt – bitte am Desktop neu scannen",
+      "pairUrlExpired": "Zeitüberschreitung – die Adresse hat sich evtl. geändert; am Desktop neu scannen"
+    },
+    "conn": {
+      "authFailed": "Token abgelehnt – bitte QR-Code neu scannen",
+      "urlExpired": "Serveradresse hat sich möglicherweise geändert – bitte neu scannen",
+      "reconnecting": "Erneutes Verbinden…",
+      "unreachable": "Server nicht erreichbar",
+      "rescanHint": "Bitte am Desktop neu scannen"
     }
   }
 }

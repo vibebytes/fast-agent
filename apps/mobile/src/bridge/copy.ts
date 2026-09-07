@@ -8,6 +8,8 @@ export type Copy =
   | { code: 'timeout' }
   | { code: 'helloOk' }
   | { code: 'helloReject'; message?: string }
+  | { code: 'urlExpired' }
+  | { code: 'authFailed' }
   | { code: 'raw'; text: string };
 
 export type Translate = (key: string, opts?: Record<string, string | number>) => string;

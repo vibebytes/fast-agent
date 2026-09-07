@@ -315,7 +315,36 @@
         "mobilePairingFailed": "Falha ao atualizar o pareamento LAN.",
         "mobilePairingBindFailed": "A porta {{port}} já está em uso. Libere-a e tente de novo.",
         "mobilePairingTokenShow": "Mostrar token",
-        "mobilePairingTokenHide": "Ocultar token"
+        "mobilePairingTokenHide": "Ocultar token",
+        "cloudflareTab": "Túnel Cloudflare",
+        "cloudflareTabLan": "LAN",
+        "cloudflareIdle": "Ative o túnel Cloudflare para parear seu telefone sem instalar nada nele.",
+        "cloudflareStarting": "Conectando ao edge do Cloudflare…",
+        "cloudflareStopping": "Parando o túnel…",
+        "cloudflareUrl": "URL pública",
+        "cloudflarePublicHint": "Este endereço é acessível pela internet pública. O token é a única credencial de acesso: não o compartilhe.",
+        "cloudflareQrHint": "Escaneie este QR code com o app do telefone. A URL muda após uma reinicialização; escaneie novamente nesse momento.",
+        "pairingQrAria": "Código QR de pareamento",
+        "cloudflareHideQr": "Ocultar código QR",
+        "cloudflareShowQr": "Mostrar código QR",
+        "cloudflareQrHidden": "Código QR oculto — clique para mostrar",
+        "cloudflareQrBlurred": "Desfocado por inatividade — clique para restaurar",
+        "cloudflareCopyFullPairing": "Copiar texto de pareamento completo",
+        "cloudflareCopyFullConfirm": "O texto de pareamento completo contém o token de acesso. Qualquer pessoa que o tiver poderá se conectar. Copiar mesmo assim?",
+        "cloudflareStart": "Iniciar túnel Cloudflare",
+        "cloudflareStop": "Parar túnel",
+        "cloudflareStopConfirm": "Parar o túnel Cloudflare? Os telefones conectados serão desconectados.",
+        "cloudflareRemoteUnsupported": "O túnel Cloudflare atualmente suporta apenas o engine local (atual: {{name}}).",
+        "cloudflareSwitchLocal": "Alternar para o motor local",
+        "cloudflareSwitchLan": "Mudar para LAN",
+        "cloudflareFailed": {
+          "remote": "O túnel do Cloudflare atualmente suporta apenas o motor local",
+          "spawn": "Não foi possível iniciar o processo cloudflared.",
+          "download": "Não foi possível baixar o binário cloudflared.",
+          "timeout": "Tempo esgotado ao aguardar a URL do túnel.",
+          "origin": "A porta loopback do engine está inacessível.",
+          "crash": "O processo do túnel falha repetidamente."
+        }
       },
       "permissions": {
         "policy": "Política de aprovação",
@@ -1635,7 +1664,9 @@
       "cannotConnect": "Não foi possível conectar",
       "timeout": "A conexão expirou",
       "helloOk": "Conectado",
-      "helloReject": "Recusado"
+      "helloReject": "Recusado",
+      "urlExpired": "Tempo de conexão esgotado: o endereço pode ter mudado (URLs de túnel rápido mudam ao reiniciar)",
+      "authFailed": "Autenticação rejeitada: o token não é mais válido — escaneie novamente"
     },
     "settings": {
       "title": "Preferências",
@@ -1682,7 +1713,15 @@
       "fillTitle": "Campos em falta",
       "fillBody": "Informe a URL do servidor e o token de acesso",
       "pairUnreachableTitle": "Saved, but not connected",
-      "pairUnreachableBody": "Saved {{url}}, but the desktop handshake failed: {{reason}}"
+      "pairUnreachableBody": "Saved {{url}}, but the desktop handshake failed: {{reason}}",
+      "transport_lan": "LAN",
+      "transport_tailscale": "Tailscale",
+      "transport_cloudflare": "Cloudflare",
+      "lastConnectedNever": "Nunca conectado",
+      "lastConnectedNow": "Conectado agora",
+      "lastConnectedMinutes": "Conectado há {{count}} min",
+      "lastConnectedHours": "Conectado há {{count}} h",
+      "lastConnectedDays": "Conectado há {{count}} d"
     },
     "index": {
       "new": "Novo",
@@ -1796,7 +1835,16 @@
     },
     "pairing": {
       "confirmFingerprint": "Confirme a impressão digital do certificado: {{fingerprint}}",
-      "confirmFingerprintShort": "Confirme a impressão digital do certificado do servidor"
+      "confirmFingerprintShort": "Confirme a impressão digital do certificado do servidor",
+      "pairAuthFailed": "Conexão rejeitada — escaneie novamente no desktop",
+      "pairUrlExpired": "Tempo esgotado — o endereço pode ter mudado; escaneie novamente no desktop"
+    },
+    "conn": {
+      "authFailed": "Token rejeitado — escaneie o QR code novamente",
+      "urlExpired": "O endereço do servidor pode ter mudado — escaneie novamente",
+      "reconnecting": "Reconectando…",
+      "unreachable": "Não é possível conectar ao servidor",
+      "rescanHint": "Escaneie o QR code no desktop novamente"
     }
   }
 }

@@ -1,10 +1,24 @@
 import type { Copy } from './copy';
 
+export type BridgeTrust = 'pinned' | 'public';
+
 export type PairingPayload = {
   serverUrl: string;
   token: string;
   fingerprint: string | null;
+  trust?: BridgeTrust;
+  serverKey?: string;
 };
+
+function normalizeTrust(value: unknown): BridgeTrust | undefined {
+  return value === 'pinned' || value === 'public' ? value : undefined;
+}
+
+function normalizeServerKey(value: unknown): string | undefined {
+  if (typeof value !== 'string') return undefined;
+  const key = value.trim();
+  return key ? key : undefined;
+}
 
 /** Common mistype: `wws://` (OkHttp then redboxes). Also trim + lowercase scheme. */
 export function normalizeBridgeUrl(raw: string): string {
@@ -38,7 +52,16 @@ export function parsePairingPayload(raw: string): PairingPayload | null {
       const serverUrl = typeof obj.serverUrl === 'string' ? obj.serverUrl : typeof obj.url === 'string' ? obj.url : '';
       const token = typeof obj.token === 'string' ? obj.token : '';
       const fingerprint = typeof obj.fingerprint === 'string' ? obj.fingerprint : null;
-      if (serverUrl) return {serverUrl, token, fingerprint};
+      const trust = normalizeTrust(obj.trust);
+      const serverKey = normalizeServerKey(obj.serverKey);
+      if (serverUrl)
+        return {
+          serverUrl,
+          token,
+          fingerprint,
+          ...(trust ? {trust} : {}),
+          ...(serverKey ? {serverKey} : {})
+        };
     } catch {
       // fall through
     }
@@ -50,7 +73,16 @@ export function parsePairingPayload(raw: string): PairingPayload | null {
       const params = new URLSearchParams(query);
       const serverUrl = params.get('url');
       const token = params.get('token');
-      if (serverUrl) return {serverUrl, token: token ?? '', fingerprint: params.get('fingerprint')};
+      const trust = normalizeTrust(params.get('trust'));
+      const serverKey = normalizeServerKey(params.get('serverKey'));
+      if (serverUrl)
+        return {
+          serverUrl,
+          token: token ?? '',
+          fingerprint: params.get('fingerprint'),
+          ...(trust ? {trust} : {}),
+          ...(serverKey ? {serverKey} : {})
+        };
     } catch {
       // fall through
     }

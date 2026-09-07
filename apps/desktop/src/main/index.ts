@@ -1,9 +1,10 @@
 import {app, BrowserWindow, dialog, ipcMain, Menu, nativeTheme, net, protocol, safeStorage, shell} from 'electron';
-import {existsSync, mkdirSync} from 'node:fs';
+import {existsSync, mkdirSync, readFileSync, writeFileSync} from 'node:fs';
 import {join} from 'node:path';
 import {pathToFileURL} from 'node:url';
 import type {BridgeEvent} from '@fastllm/bridge-protocol';
 import type {
+	CloudflareTunnelStatus,
 	InvokeChannel,
 	InvokeChannels,
 	PushChannel,
@@ -12,6 +13,7 @@ import type {
 } from '@fast-ide/session-view';
 import {WorkspaceHub} from './bridge/WorkspaceHub';
 import {createDesktopHost} from './bridge/desktopHost';
+import {CloudflareTunnelManager} from './bridge/cloudflareTunnelManager';
 import {isDefaultProjectPath} from './bridge/defaultProject';
 import {createUiPublisher} from './bridge/uiPublisher';
 import {createSystemNotifier} from './notify/systemNotifier';
@@ -92,8 +94,13 @@ function persistCommittedEdge(id: string): void {
 	void pushEdgesChanged();
 }
 
+/** Cloudflare Tunnel 专用 loopback origin 口（§cloudflare-tunnel-pairing.md §4.6.3，不与 1979 冲突）。 */
+const CLOUDFLARE_ORIGIN_PORT = 1981;
+const CLOUDFLARE_ORIGIN_URL = `http://127.0.0.1:${CLOUDFLARE_ORIGIN_PORT}/bridge`;
+
 const hub = new WorkspaceHub({
-	persistActiveId: persistCommittedEdge
+	persistActiveId: persistCommittedEdge,
+	loopbackWsPort: CLOUDFLARE_ORIGIN_PORT
 });
 let heartbeatTimer: NodeJS.Timeout | null = null;
 let restoreState: WorkspaceRestoreState = initialWorkspaceRestoreState();
@@ -322,6 +329,40 @@ const publisher = createUiPublisher({
 	notify: notifier
 });
 
+/** 安装级稳定键（uuid，非机密）：二维码携带，移动端据此 upsert 原条目（§4.4.2）。 */
+function loadOrCreateServerKey(): string {
+	const file = join(app.getPath('userData'), 'cloudflare-tunnel.json');
+	try {
+		const raw = readFileSync(file, 'utf8');
+		const parsed = JSON.parse(raw) as {serverKey?: string};
+		if (typeof parsed.serverKey === 'string' && parsed.serverKey) return parsed.serverKey;
+	} catch {
+		// first run / corrupt — fall through to create
+	}
+	const key = crypto.randomUUID();
+	try {
+		writeFileSync(file, JSON.stringify({serverKey: key}), 'utf8');
+	} catch {
+		// non-fatal: key regenerates next launch
+	}
+	return key;
+}
+
+const cloudflareTunnel = new CloudflareTunnelManager({
+	originUrl: CLOUDFLARE_ORIGIN_URL,
+	getServerKey: loadOrCreateServerKey,
+	isLocalEdge: () => !hub.isRemote(),
+	originProbe: async () => {
+		try {
+			const res = await net.fetch(CLOUDFLARE_ORIGIN_URL, {signal: AbortSignal.timeout(3_000)});
+			return res.ok || res.status >= 400; // 任意响应码均视为 origin 可达
+		} catch {
+			return false;
+		}
+	},
+	onStatus: (s: CloudflareTunnelStatus) => sendToRenderer('cloudflareTunnel:changed', s)
+});
+
 /** Mirror the General→Behavior「通知」toggle (Engine-side doc) into the main process. */
 async function syncNotifyEnabled(): Promise<void> {
 	const res = await hub.getSettings('global');
@@ -456,7 +497,12 @@ const productInvokes = createDesktopHost({
 	userData: () => app.getPath('userData'),
 	onEdgesChanged: () => pushEdgesChanged(),
 	mobilePairing: () => hub.getBridgePairing(),
-	setLanPairing: (enabled: boolean) => hub.setLanPairing(enabled)
+	setLanPairing: (enabled: boolean) => hub.setLanPairing(enabled),
+	cloudflareTunnel: {
+		status: () => cloudflareTunnel.getStatus(),
+		start: () => cloudflareTunnel.start(),
+		stop: () => cloudflareTunnel.stop()
+	}
 });
 
 async function pushEdgesChanged(): Promise<void> {
@@ -611,6 +657,7 @@ app.on('will-quit', event => {
 	event.preventDefault();
 	if (engineStopInFlight) return;
 	engineStopInFlight = true;
+	cloudflareTunnel.dispose();
 	void hub.stopOwnedEngine().finally(() => {
 		engineStopDone = true;
 		app.quit();

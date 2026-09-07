@@ -3,7 +3,7 @@
  * Pet / locale channels stay in the host entry; window/tray/media protocol stay there too.
  */
 import {dirname, join} from 'node:path';
-import type {InvokeChannel, InvokeChannels} from '@fast-ide/session-view';
+import type {CloudflareTunnelStatus, InvokeChannel, InvokeChannels} from '@fast-ide/session-view';
 import {classifyProbeError, probeBridge} from '@fastllm/bridge-client';
 import type {WorkspaceHub, WorkspaceProjectHandlers} from './WorkspaceHub.js';
 import type {TaskCommands} from './sessionContracts.js';
@@ -66,6 +66,12 @@ export type DesktopHostDeps = {
 	/** Engine pairing export via GetBridgePairing; null/undefined uses the engine-off empty. */
 	mobilePairing?: () => Promise<InvokeChannels['mobile:pairingInfo']['result']> | InvokeChannels['mobile:pairingInfo']['result'] | null;
 	setLanPairing?: (enabled: boolean) => Promise<InvokeChannels['mobile:setLanPairing']['result']>;
+	/** Cloudflare Tunnel 通道（§cloudflare-tunnel-pairing.md §4.5.2）：主进程 manager。 */
+	cloudflareTunnel?: {
+		status: () => CloudflareTunnelStatus;
+		start: () => CloudflareTunnelStatus;
+		stop: () => CloudflareTunnelStatus;
+	};
 	probe?: typeof probeBridge;
 };
 
@@ -844,6 +850,10 @@ export function createDesktopHost(deps: DesktopHostDeps): ProductInvokeMap {
 				serverUrl: '',
 				token: '',
 				fingerprint: ''
-			}
+			},
+
+		'cloudflareTunnel:status': () => deps.cloudflareTunnel?.status() ?? {state: 'disabled'},
+		'cloudflareTunnel:start': () => deps.cloudflareTunnel?.start() ?? {state: 'disabled'},
+		'cloudflareTunnel:stop': () => deps.cloudflareTunnel?.stop() ?? {state: 'disabled'}
 	};
 }

@@ -7,7 +7,7 @@ import { CameraView, useCameraPermissions } from 'expo-camera';
 import { formatCopy } from '@/bridge/copy';
 import { parsePairingPayload } from '@/bridge/pairing';
 import { bridgeStore } from '@/bridge/store';
-import { loadBridgeConfig, type SavedServer } from '@/bridge/config';
+import { inferTransport, loadBridgeConfig, type SavedServer } from '@/bridge/config';
 import { useBridgeSnapshot } from '@/bridge/useBridge';
 import { ConnectionBanner } from '@/components/connection';
 import { GlassHeader } from '@/components/glass-header';
@@ -37,6 +37,13 @@ export default function SettingsScreen() {
   const [newFingerprint, setNewFingerprint] = useState('');
   const [testing, setTesting] = useState(false);
   const shownPendingFp = useRef<string | null>(null);
+  const scanLockRef = useRef(false);
+
+  const transportFor = (serverUrl: string, trust?: 'pinned' | 'public') => {
+    const inferred = inferTransport(serverUrl);
+    const resolvedTrust = trust ?? inferred.trust;
+    return {transport: resolvedTrust === 'public' ? ('cloudflare' as const) : inferred.transport, trust: resolvedTrust};
+  };
 
   const clearDraft = () => {
     setEditingId(null);
@@ -86,44 +93,72 @@ export default function SettingsScreen() {
     );
   }, [snapshot.pendingFingerprint]);
 
-  const handleBarCodeScanned = async ({ data }: { data: string }) => {
+  const handleBarCodeScanned = async ({data}: {data: string}) => {
+    if (scanLockRef.current) return;
+    scanLockRef.current = true;
     setScannerOpen(false);
-    const parsedPayload = parsePairingPayload(data);
-    if (!parsedPayload) {
-      Alert.alert(alertT('mobile.settings.pairFailTitle'), alertT('mobile.settings.pairFailBody'));
-      return;
-    }
-    const id = await bridgeStore.saveServer({
-      id: `srv-${Date.now()}`,
-      serverUrl: parsedPayload.serverUrl,
-      token: parsedPayload.token,
-      label: '',
-      fingerprint: parsedPayload.fingerprint ?? undefined
-    });
-    await refreshServers();
-    if (!id) {
-      Alert.alert(alertT('mobile.settings.pairFailTitle'), alertT('mobile.settings.pairFailBody'));
-      return;
-    }
-    const probe = await bridgeStore.testConnection({
-      serverUrl: parsedPayload.serverUrl,
-      token: parsedPayload.token,
-      fingerprint: parsedPayload.fingerprint ?? undefined
-    });
-    if (probe.ok) {
+    try {
+      const parsedPayload = parsePairingPayload(data);
+      if (!parsedPayload) {
+        Alert.alert(alertT('mobile.settings.pairFailTitle'), alertT('mobile.settings.pairFailBody'));
+        return;
+      }
+      const {transport, trust} = transportFor(parsedPayload.serverUrl, parsedPayload.trust);
+      const host = (() => {
+        try {
+          return new URL(parsedPayload.serverUrl.replace(/^wss:/i, 'https:').replace(/^ws:/i, 'http:')).hostname;
+        } catch {
+          return '';
+        }
+      })();
+      const probe = await bridgeStore.testConnection({
+        serverUrl: parsedPayload.serverUrl,
+        token: parsedPayload.token,
+        fingerprint: parsedPayload.fingerprint ?? undefined,
+        trust
+      });
+      const save = (fingerprint?: string) =>
+        bridgeStore
+          .saveServer({
+            serverUrl: parsedPayload.serverUrl,
+            token: parsedPayload.token,
+            serverKey: parsedPayload.serverKey,
+            label: host || parsedPayload.serverUrl,
+            fingerprint,
+            transport,
+            trust
+          })
+          .then(() => refreshServers());
+      if (probe.ok) {
+        if (probe.detail.code === 'confirmFingerprint' && probe.fingerprint) {
+          askFingerprint(probe.fingerprint, () => {
+            void save(probe.fingerprint);
+          });
+        } else {
+          await save(parsedPayload.fingerprint ?? undefined);
+          Alert.alert(
+            alertT('mobile.settings.pairSuccessTitle'),
+            alertT('mobile.settings.pairSuccessBody', {url: parsedPayload.serverUrl})
+          );
+        }
+        return;
+      }
+      const code = probe.detail.code;
+      const authish = code === 'authFailed' || code === 'urlExpired';
       Alert.alert(
-        alertT('mobile.settings.pairSuccessTitle'),
-        alertT('mobile.settings.pairSuccessBody', {url: parsedPayload.serverUrl})
+        authish
+          ? alertT(code === 'authFailed' ? 'mobile.pairing.pairAuthFailed' : 'mobile.pairing.pairUrlExpired')
+          : alertT('mobile.settings.pairUnreachableTitle'),
+        authish
+          ? formatCopy(alertT, probe.detail)
+          : alertT('mobile.settings.pairUnreachableBody', {
+              url: parsedPayload.serverUrl,
+              reason: formatCopy(alertT, probe.detail)
+            })
       );
-      return;
+    } finally {
+      scanLockRef.current = false;
     }
-    Alert.alert(
-      alertT('mobile.settings.pairUnreachableTitle'),
-      alertT('mobile.settings.pairUnreachableBody', {
-        url: parsedPayload.serverUrl,
-        reason: formatCopy(alertT, probe.detail)
-      })
-    );
   };
 
   const openScanner = async () => {
@@ -140,8 +175,19 @@ export default function SettingsScreen() {
   const draft = () => ({
     serverUrl: newUrl.trim(),
     token: newToken.trim(),
-    fingerprint: newFingerprint.trim() || undefined
+    fingerprint: newFingerprint.trim() || undefined,
+    trust: transportFor(newUrl.trim(), undefined).trust
   });
+
+  const lastConnectedLabel = (server: { lastConnectedAt?: number }) => {
+    if (!server.lastConnectedAt) return t('mobile.settings.lastConnectedNever');
+    const mins = Math.floor((Date.now() - server.lastConnectedAt) / 60000);
+    if (mins < 1) return t('mobile.settings.lastConnectedNow');
+    if (mins < 60) return t('mobile.settings.lastConnectedMinutes', { count: mins });
+    const hours = Math.floor(mins / 60);
+    if (hours < 24) return t('mobile.settings.lastConnectedHours', { count: hours });
+    return t('mobile.settings.lastConnectedDays', { count: Math.floor(hours / 24) });
+  };
 
   const persistServer = async (fingerprint?: string) => {
     await bridgeStore.saveServer({
@@ -149,7 +195,9 @@ export default function SettingsScreen() {
       serverUrl: newUrl.trim(),
       token: newToken.trim(),
       label: newLabel.trim(),
-      fingerprint: fingerprint ?? (newFingerprint.trim() || undefined)
+      fingerprint: fingerprint ?? (newFingerprint.trim() || undefined),
+      serverKey: undefined,
+      ...transportFor(newUrl.trim(), undefined)
     });
     clearDraft();
     setShowAddServer(false);
@@ -338,6 +386,16 @@ export default function SettingsScreen() {
                           <Text numberOfLines={1} className="mt-0.5 font-mono text-[11px] text-muted">
                             {server.serverUrl}
                           </Text>
+                          <View className="mt-1 flex-row items-center gap-1.5">
+                            <View className="rounded-full bg-black/10 px-1.5 py-0.5 dark:bg-white/10">
+                              <Text className="text-[9px] font-bold text-muted">
+                                {t(`mobile.settings.transport_${server.transport ?? 'lan'}`)}
+                              </Text>
+                            </View>
+                            <Text className="text-[10px] text-muted" numberOfLines={1}>
+                              {lastConnectedLabel(server)}
+                            </Text>
+                          </View>
                           {server.fingerprint ? (
                             <Text numberOfLines={1} className="mt-0.5 font-mono text-[10px] text-muted">
                               {t('mobile.settings.fingerprintPinned')} · {server.fingerprint}

@@ -23,6 +23,8 @@ export type BridgeClientOptions = {
 	spawnImpl?: SpawnFn;
 	/** Force transport; default from env / spawnImpl presence. */
 	transport?: 'unix' | 'stdio';
+	/** Cloudflare tunnel origin port (cloudflare-tunnel-pairing.md §4.6.3): local daemon/engine also opens loopback plaintext `--ws 127.0.0.1:<port>`. */
+	loopbackWsPort?: number;
 };
 
 export type BridgeStartOptions = Pick<
@@ -110,7 +112,11 @@ export class BridgeClient {
 					cwd: launchOptions.remote ? undefined : workspaceRoot,
 					env,
 					remote: launchOptions.remote,
-					wantEngineId: launchOptions.wantEngineId ?? env.FAST_WANT_ENGINE_ID
+					wantEngineId: launchOptions.wantEngineId ?? env.FAST_WANT_ENGINE_ID,
+					ensureDeps:
+						launchOptions.remote || this.options.loopbackWsPort === undefined
+							? undefined
+							: {loopbackWsPort: this.options.loopbackWsPort}
 				},
 				{
 					onEvent: event => {
@@ -171,7 +177,8 @@ export class BridgeClient {
 				existsSync: launchOptions.existsSync,
 				sessionMode: launchOptions.sessionMode,
 				resumeSessionId: launchOptions.resumeSessionId,
-				transport: 'stdio'
+				transport: 'stdio',
+				loopbackWsPort: this.options.loopbackWsPort
 			});
 		} catch (error) {
 			handlers.onError(error instanceof Error ? error.message : String(error));

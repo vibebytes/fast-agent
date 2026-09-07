@@ -36,12 +36,12 @@ private final class ProbeDelegate: NSObject, URLSessionDelegate {
 }
 
 private final class SocketDelegate: NSObject, URLSessionDelegate, URLSessionWebSocketDelegate {
-  let pin: String
+  let pin: String?
   var onOpen: (() -> Void)?
   var onFail: ((String) -> Void)?
   var onClose: (() -> Void)?
 
-  init(pin: String) {
+  init(pin: String?) {
     self.pin = pin
   }
 
@@ -50,6 +50,10 @@ private final class SocketDelegate: NSObject, URLSessionDelegate, URLSessionWebS
     didReceive challenge: URLAuthenticationChallenge,
     completionHandler: @escaping (URLSession.AuthChallengeDisposition, URLCredential?) -> Void
   ) {
+    guard let pin else {
+      completionHandler(.performDefaultHandling, nil)
+      return
+    }
     guard let trust = challenge.protectionSpace.serverTrust,
       let chain = SecTrustCopyCertificateChain(trust) as? [SecCertificate],
       let leaf = chain.first
@@ -128,39 +132,15 @@ public class FastBridgeTlsModule: Module {
         promise.reject("ERR_INVALID_URL", "invalid url or fingerprint")
         return
       }
-      self.disconnectSocket()
-      self.generation += 1
-      let gen = self.generation
-      var settled = false
-      let delegate = SocketDelegate(pin: pin)
-      delegate.onOpen = {
-        guard gen == self.generation else { return }
-        if !settled {
-          settled = true
-          promise.resolve(nil)
-        }
-        self.sendEvent("open", [:])
-        self.receiveLoop()
+      self.startSocket(url: target, pin: pin, promise: promise)
+    }
+
+    AsyncFunction("connectPublic") { (url: String, promise: Promise) in
+      guard let target = URL(string: url) else {
+        promise.reject("ERR_INVALID_URL", "invalid url: \(url)")
+        return
       }
-      delegate.onFail = { message in
-        guard gen == self.generation else { return }
-        if !settled {
-          settled = true
-          promise.reject("ERR_CONNECT_FAILED", message)
-        }
-        self.sendEvent("error", ["message": message])
-        self.sendEvent("close", [:])
-      }
-      delegate.onClose = {
-        guard gen == self.generation else { return }
-        self.sendEvent("close", [:])
-      }
-      self.socketDelegate = delegate
-      let session = URLSession(configuration: .ephemeral, delegate: delegate, delegateQueue: nil)
-      self.session = session
-      let task = session.webSocketTask(with: target)
-      self.task = task
-      task.resume()
+      self.startSocket(url: target, pin: nil, promise: promise)
     }
 
     Function("send") { (text: String) -> Bool in
@@ -198,5 +178,41 @@ public class FastBridgeTlsModule: Module {
     task = nil
     session = nil
     socketDelegate = nil
+  }
+
+  private func startSocket(url: URL, pin: String?, promise: Promise) {
+    disconnectSocket()
+    generation += 1
+    let gen = generation
+    var settled = false
+    let delegate = SocketDelegate(pin: pin)
+    delegate.onOpen = {
+      guard gen == self.generation else { return }
+      if !settled {
+        settled = true
+        promise.resolve(nil)
+      }
+      self.sendEvent("open", [:])
+      self.receiveLoop()
+    }
+    delegate.onFail = { message in
+      guard gen == self.generation else { return }
+      if !settled {
+        settled = true
+        promise.reject("ERR_CONNECT_FAILED", message)
+      }
+      self.sendEvent("error", ["message": message])
+      self.sendEvent("close", [:])
+    }
+    delegate.onClose = {
+      guard gen == self.generation else { return }
+      self.sendEvent("close", [:])
+    }
+    self.socketDelegate = delegate
+    let session = URLSession(configuration: .ephemeral, delegate: delegate, delegateQueue: nil)
+    self.session = session
+    let task = session.webSocketTask(with: url)
+    self.task = task
+    task.resume()
   }
 }

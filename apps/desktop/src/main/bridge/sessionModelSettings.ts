@@ -137,7 +137,7 @@ export function createSessionModelSettings(deps: SessionModelSettingsDeps) {
 	}
 
 	/** command_result name=model: Hub ListProviders path wins; bare engine dump only when awaiting. */
-	function modelCommandResult(event: Extract<BridgeEvent, {type: 'command_result'}> & {name: 'model'}): boolean {
+	function modelCommandResult(event: Extract<BridgeEvent, {type: 'command_result'}>): boolean {
 		if (catalog.catalogFromProviders) {
 			catalog.clearAwaitingModelList();
 			return true;

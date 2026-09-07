@@ -315,7 +315,36 @@
         "mobilePairingFailed": "설정에 실패했습니다. 다시 시도하세요.",
         "mobilePairingBindFailed": "포트 {{port}}이(가) 이미 사용 중입니다. 해제한 뒤 다시 시도하세요.",
         "mobilePairingTokenShow": "토큰 표시",
-        "mobilePairingTokenHide": "토큰 숨기기"
+        "mobilePairingTokenHide": "토큰 숨기기",
+        "cloudflareTab": "Cloudflare 터널",
+        "cloudflareTabLan": "LAN",
+        "cloudflareIdle": "Cloudflare 터널을 켜면 휴대폰에 아무것도 설치하지 않고 페어링할 수 있습니다.",
+        "cloudflareStarting": "Cloudflare 엣지에 연결하는 중…",
+        "cloudflareStopping": "터널을 중지하는 중…",
+        "cloudflareUrl": "공개 URL",
+        "cloudflarePublicHint": "이 주소는 공개 인터넷에서 접근할 수 있습니다. 토큰이 유일한 접근 자격 증명이므로 외부에 공유하지 마세요.",
+        "cloudflareQrHint": "휴대폰 앱으로 이 QR 코드를 스캔하세요. 터널 재시작 후 URL이 바뀌므로 그때 다시 스캔하세요.",
+        "pairingQrAria": "페어링 QR 코드",
+        "cloudflareHideQr": "QR 코드 숨기기",
+        "cloudflareShowQr": "QR 코드 표시",
+        "cloudflareQrHidden": "QR 코드가 숨겨져 있습니다. 클릭하여 표시",
+        "cloudflareQrBlurred": "일정 시간 입력이 없어 흐리게 표시됩니다. 클릭하면 복원됩니다",
+        "cloudflareCopyFullPairing": "전체 페어링 텍스트 복사",
+        "cloudflareCopyFullConfirm": "전체 페어링 텍스트에는 액세스 토큰이 포함되어 있습니다. 가진 사람은 누구나 연결할 수 있습니다. 그래도 복사할까요?",
+        "cloudflareStart": "Cloudflare 터널 시작",
+        "cloudflareStop": "터널 중지",
+        "cloudflareStopConfirm": "Cloudflare 터널을 중지할까요? 연결된 휴대폰이 끊깁니다.",
+        "cloudflareRemoteUnsupported": "Cloudflare 터널은 현재 로컬 엔진만 지원합니다 (현재: {{name}}).",
+        "cloudflareSwitchLocal": "로컬 엔진으로 전환",
+        "cloudflareSwitchLan": "LAN으로 전환",
+        "cloudflareFailed": {
+          "remote": "Cloudflare 터널은 현재 로컬 엔진만 지원합니다",
+          "spawn": "cloudflared 프로세스를 시작할 수 없습니다.",
+          "download": "cloudflared 바이너리를 다운로드할 수 없습니다.",
+          "timeout": "터널 URL 대기 시간이 초과되었습니다.",
+          "origin": "엔진 loopback 포트에 연결할 수 없습니다.",
+          "crash": "터널 프로세스가 계속 충돌합니다."
+        }
       },
       "permissions": {
         "policy": "승인 정책",
@@ -1635,7 +1664,9 @@
       "cannotConnect": "연결할 수 없음",
       "timeout": "연결 시간 초과",
       "helloOk": "연결됨",
-      "helloReject": "거부됨"
+      "helloReject": "거부됨",
+      "urlExpired": "연결 시간 초과: 서버 주소가 변경되었을 수 있습니다(터널 재시작 시 URL이 변경됨)",
+      "authFailed": "인증 거부: 토큰이 더 이상 유효하지 않습니다. 다시 스캔하세요"
     },
     "settings": {
       "title": "환경설정",
@@ -1682,7 +1713,15 @@
       "fillTitle": "빠진 항목",
       "fillBody": "서버 URL과 액세스 토큰을 모두 입력하세요",
       "pairUnreachableTitle": "Saved, but not connected",
-      "pairUnreachableBody": "Saved {{url}}, but the desktop handshake failed: {{reason}}"
+      "pairUnreachableBody": "Saved {{url}}, but the desktop handshake failed: {{reason}}",
+      "transport_lan": "LAN",
+      "transport_tailscale": "Tailscale",
+      "transport_cloudflare": "Cloudflare",
+      "lastConnectedNever": "연결된 적 없음",
+      "lastConnectedNow": "방금 연결됨",
+      "lastConnectedMinutes": "{{count}}분 전에 연결됨",
+      "lastConnectedHours": "{{count}}시간 전에 연결됨",
+      "lastConnectedDays": "{{count}}일 전에 연결됨"
     },
     "index": {
       "new": "새로 만들기",
@@ -1796,7 +1835,16 @@
     },
     "pairing": {
       "confirmFingerprint": "인증서 지문을 확인하세요: {{fingerprint}}",
-      "confirmFingerprintShort": "서버 인증서 지문을 확인하세요"
+      "confirmFingerprintShort": "서버 인증서 지문을 확인하세요",
+      "pairAuthFailed": "연결이 거부되었습니다. 데스크톱에서 다시 스캔하세요",
+      "pairUrlExpired": "연결 시간 초과: 주소가 변경되었을 수 있습니다. 데스크톱에서 다시 스캔하세요"
+    },
+    "conn": {
+      "authFailed": "토큰이 거부되었습니다. QR 코드를 다시 스캔하세요",
+      "urlExpired": "서버 주소가 변경되었을 수 있습니다. 다시 스캔하세요",
+      "reconnecting": "재연결 중…",
+      "unreachable": "서버에 연결할 수 없습니다",
+      "rescanHint": "데스크톱에서 QR 코드를 다시 스캔하세요"
     }
   }
 }

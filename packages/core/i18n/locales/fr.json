@@ -315,7 +315,36 @@
         "mobilePairingFailed": "Échec de la modification. Réessayez.",
         "mobilePairingBindFailed": "Le port {{port}} est déjà utilisé. Libérez-le puis réessayez.",
         "mobilePairingTokenShow": "Afficher le token",
-        "mobilePairingTokenHide": "Masquer le token"
+        "mobilePairingTokenHide": "Masquer le token",
+        "cloudflareTab": "Tunnel Cloudflare",
+        "cloudflareTabLan": "LAN",
+        "cloudflareIdle": "Activez le tunnel Cloudflare pour appairer votre téléphone sans rien installer dessus.",
+        "cloudflareStarting": "Connexion au edge de Cloudflare…",
+        "cloudflareStopping": "Arrêt du tunnel…",
+        "cloudflareUrl": "URL publique",
+        "cloudflarePublicHint": "Cette adresse est accessible depuis Internet. Le token est la seule information d'accès : ne le partagez pas.",
+        "cloudflareQrHint": "Scannez ce QR code avec l'app du téléphone. L'URL change après un redémarrage, rescanner à ce moment-là.",
+        "pairingQrAria": "Code QR d'appairage",
+        "cloudflareHideQr": "Masquer le code QR",
+        "cloudflareShowQr": "Afficher le code QR",
+        "cloudflareQrHidden": "Code QR masqué — cliquez pour afficher",
+        "cloudflareQrBlurred": "Flouté après inactivité — cliquez pour restaurer",
+        "cloudflareCopyFullPairing": "Copier le texte d'appairage complet",
+        "cloudflareCopyFullConfirm": "Le texte d'appairage complet contient le jeton d'accès. Quiconque le possède peut se connecter. Copier quand même ?",
+        "cloudflareStart": "Démarrer le tunnel Cloudflare",
+        "cloudflareStop": "Arrêter le tunnel",
+        "cloudflareStopConfirm": "Arrêter le tunnel Cloudflare ? Les téléphones connectés seront déconnectés.",
+        "cloudflareRemoteUnsupported": "Le tunnel Cloudflare ne prend actuellement en charge que le moteur local (actuel : {{name}}).",
+        "cloudflareSwitchLocal": "Passer au moteur local",
+        "cloudflareSwitchLan": "Revenir au LAN",
+        "cloudflareFailed": {
+          "remote": "Le tunnel Cloudflare ne prend actuellement en charge que le moteur local",
+          "spawn": "Impossible de démarrer le processus cloudflared.",
+          "download": "Impossible de télécharger le binaire cloudflared.",
+          "timeout": "Délai d'attente de l'URL du tunnel dépassé.",
+          "origin": "Le port loopback du moteur n'est pas joignable.",
+          "crash": "Le processus du tunnel plante en boucle."
+        }
       },
       "permissions": {
         "policy": "Politique d’approbation",
@@ -1635,7 +1664,9 @@
       "cannotConnect": "Impossible de se connecter",
       "timeout": "Délai de connexion dépassé",
       "helloOk": "Connecté",
-      "helloReject": "Refusé"
+      "helloReject": "Refusé",
+      "urlExpired": "Délai dépassé : l'adresse du serveur a peut-être changé (les URL de tunnel rapide changent au redémarrage)",
+      "authFailed": "Authentification refusée : le jeton n'est plus valide — veuillez rescanner"
     },
     "settings": {
       "title": "Préférences",
@@ -1682,7 +1713,15 @@
       "fillTitle": "Champs manquants",
       "fillBody": "Saisissez l’URL du serveur et le jeton d’accès",
       "pairUnreachableTitle": "Saved, but not connected",
-      "pairUnreachableBody": "Saved {{url}}, but the desktop handshake failed: {{reason}}"
+      "pairUnreachableBody": "Saved {{url}}, but the desktop handshake failed: {{reason}}",
+      "transport_lan": "LAN",
+      "transport_tailscale": "Tailscale",
+      "transport_cloudflare": "Cloudflare",
+      "lastConnectedNever": "Jamais connecté",
+      "lastConnectedNow": "Connecté à l'instant",
+      "lastConnectedMinutes": "Connecté il y a {{count}} min",
+      "lastConnectedHours": "Connecté il y a {{count}} h",
+      "lastConnectedDays": "Connecté il y a {{count}} j"
     },
     "index": {
       "new": "Nouveau",
@@ -1796,7 +1835,16 @@
     },
     "pairing": {
       "confirmFingerprint": "Confirmez l’empreinte du certificat : {{fingerprint}}",
-      "confirmFingerprintShort": "Confirmez l’empreinte du certificat du serveur"
+      "confirmFingerprintShort": "Confirmez l’empreinte du certificat du serveur",
+      "pairAuthFailed": "Connexion refusée — rescannez sur le bureau",
+      "pairUrlExpired": "Délai dépassé — l'adresse a peut-être changé ; rescannez sur le bureau"
+    },
+    "conn": {
+      "authFailed": "Jeton refusé — veuillez rescanner le QR code",
+      "urlExpired": "L'adresse du serveur a peut-être changé — veuillez rescanner",
+      "reconnecting": "Reconnexion…",
+      "unreachable": "Impossible de joindre le serveur",
+      "rescanHint": "Rescannez le QR code sur le bureau"
     }
   }
 }

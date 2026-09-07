@@ -18,6 +18,7 @@ type NativeEvents = {
 
 type Native = {
   connect: (url: string, fingerprint: string) => Promise<void>;
+  connectPublic: (url: string) => Promise<void>;
   send: (text: string) => boolean;
   disconnect: () => void;
 };
@@ -33,12 +34,28 @@ function nativeModule(): Native {
   return requireNativeModule('FastBridgeTls') as Native;
 }
 
-export async function openPinnedSocket(url: string, fingerprint: string, handlers: Handlers): Promise<PinnedWire> {
+export async function openPinnedSocket(
+  url: string,
+  fingerprint: string,
+  handlers: Handlers
+): Promise<PinnedWire> {
+  return openNativeSocket(url, (native) => native.connect(url, fingerprint), handlers);
+}
+
+export async function openPublicSocket(url: string, handlers: Handlers): Promise<PinnedWire> {
+  return openNativeSocket(url, (native) => native.connectPublic(url), handlers);
+}
+
+async function openNativeSocket(
+  url: string,
+  connect: (native: Native) => Promise<void>,
+  handlers: Handlers
+): Promise<PinnedWire> {
   const native = nativeModule();
   const lease = epoch.take();
   // Subscribe after connect so canceling the previous singleton does not
   // deliver its error/close to this caller (that was the test-connection failure).
-  await native.connect(url, fingerprint);
+  await connect(native);
   if (!lease.mine()) throw new Error('replaced');
   const emitter = new EventEmitter<NativeEvents>(native as never);
   const subs: EventSubscription[] = [

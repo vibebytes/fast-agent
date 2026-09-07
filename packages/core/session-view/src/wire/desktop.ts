@@ -171,6 +171,22 @@ export type MobilePairingInfo = {
 	/** Engine error detail when a `SetLanPairing` switch command failed. */
 	error?: string;
 };
+
+/** Cloudflare Tunnel 通道（§cloudflare-tunnel-pairing.md §4.5.1）：主进程为唯一状态所有者。 */
+export type CloudflareTunnelFailureCode =
+	| 'spawn' // cloudflared 进程拉起失败
+	| 'download' // 二进制缺失 / 下载失败（首跑 / 镜像不可达）
+	| 'timeout' // 边缘握手 / URL 解析超时
+	| 'origin' // origin 预检失败（引擎 loopback 口未开）
+	| 'remote' // 当前活跃 Edge 为远程引擎（v1 仅支持本机）
+	| 'crash'; // 自愈重启超限
+
+export type CloudflareTunnelStatus =
+ | {state: 'disabled'}
+ | {state: 'starting'; since: number; generation: number}
+ | {state: 'ready'; url: string; serverKey: string; generation: number; startedAt: number}
+ | {state: 'stopping'}
+ | {state: 'failed'; code: CloudflareTunnelFailureCode; message?: string; generation: number};
 export type EdgeDeleteResult = EdgeOk | EdgeFailure;
 export type EdgeUpsertResult = {ok: true; id: string} | EdgeFailure;
 

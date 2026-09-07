@@ -3,7 +3,9 @@ import {useTranslation} from 'react-i18next';
 import {AlertTriangle, Check, Copy, Eye, EyeOff, HardDrive, LoaderCircle, Plus, Smartphone, Trash2} from 'lucide-react';
 import {Input} from '@fast-ide/ui/components/input';
 import {Switch} from '@fast-ide/ui/components/switch';
+import {Tabs, TabsContent, TabsList, TabsTrigger} from '@fast-ide/ui/components/tabs';
 import {encodeQrMatrix} from './qr';
+import {pairingPayload} from './pairingPayload';
 import {
 	Dialog,
 	DialogContent,
@@ -12,7 +14,7 @@ import {
 	DialogHeader,
 	DialogTitle
 } from '@fast-ide/ui/components/dialog';
-import type {EdgePublic, EdgesList, MobilePairingInfo} from '@fast-ide/session-view';
+import type {CloudflareTunnelStatus, EdgePublic, EdgesList, MobilePairingInfo} from '@fast-ide/session-view';
 import {
 	SettingsButton,
 	SettingsPageHeader,
@@ -37,21 +39,28 @@ const emptyDraft = (): Draft => ({
 	token: ''
 });
 
+const QR_BLUR_AFTER_MS = 120_000;
+
 type PinAsk = {fingerprint: string; display: string; resume: 'test' | 'save'};
 
 function PairingQr({
 	serverUrl,
 	token,
-	fingerprint
+	fingerprint,
+	trust,
+	serverKey
 }: {
 	serverUrl: string;
 	token: string;
 	fingerprint: string;
+	trust?: 'public';
+	serverKey?: string;
 }) {
-	const matrix = useMemo(() => {
-		const payload = `fast-bridge://pair?url=${encodeURIComponent(serverUrl)}&token=${encodeURIComponent(token)}&fingerprint=${encodeURIComponent(fingerprint)}`;
-		return encodeQrMatrix(payload);
-	}, [serverUrl, token, fingerprint]);
+	const {t} = useTranslation();
+	const matrix = useMemo(
+		() => encodeQrMatrix(pairingPayload({serverUrl, token, fingerprint, trust, serverKey})),
+		[serverUrl, token, fingerprint, trust, serverKey]
+	);
 	const n = matrix.length;
 	const quiet = 4;
 	const box = n + quiet * 2;
@@ -63,7 +72,7 @@ function PairingQr({
 			shapeRendering="crispEdges"
 			className="shrink-0 rounded-md bg-white"
 			role="img"
-			aria-label="pairing QR code"
+			aria-label={t('settings.pages.servers.pairingQrAria')}
 		>
 			<rect width={box} height={box} fill="#fff" />
 			{matrix.flatMap((row, y) =>
@@ -155,6 +164,17 @@ export function ServersSettings() {
 	const [pinAsk, setPinAsk] = useState<PinAsk | null>(null);
 	const [pairing, setPairing] = useState<MobilePairingInfo | null>(null);
 
+	const [channel, setChannel] = useState<'lan' | 'cloudflare'>(() => {
+		const saved = window.localStorage.getItem('servers.pairingChannel');
+		return saved === 'cloudflare' ? 'cloudflare' : 'lan';
+	});
+	const [cf, setCf] = useState<CloudflareTunnelStatus>({state: 'disabled'});
+	const cfBusy = cf.state === 'starting' || cf.state === 'stopping';
+
+	useEffect(() => {
+		window.localStorage.setItem('servers.pairingChannel', channel);
+	}, [channel]);
+
 	useEffect(() => {
 		void window.fastIde.listEdges().then(setList);
 		return window.fastIde.onEdgesChanged(setList);
@@ -164,7 +184,41 @@ export function ServersSettings() {
 		void window.fastIde.mobilePairingInfo().then(setPairing);
 	}, [list]);
 
+	useEffect(() => {
+		void window.fastIde.cloudflareTunnelStatus().then(setCf);
+		return window.fastIde.onCloudflareTunnelChanged(setCf);
+	}, []);
+
+	async function startCloudflare() {
+		if (cfBusy) return;
+		setCf(await window.fastIde.cloudflareTunnelStart());
+	}
+
+	async function stopCloudflare() {
+		if (cfBusy) return;
+		if (cf.state === 'ready' && !window.confirm(t('settings.pages.servers.cloudflareStopConfirm'))) return;
+		setCf(await window.fastIde.cloudflareTunnelStop());
+	}
+
+	async function copyFullPairing() {
+		if (cf.state !== 'ready') return;
+		if (!window.confirm(t('settings.pages.servers.cloudflareCopyFullConfirm'))) return;
+		await navigator.clipboard.writeText(
+			pairingPayload({serverUrl: cf.url, token: pairing?.token ?? '', trust: 'public', serverKey: cf.serverKey})
+		);
+	}
+
 	const pending = Boolean(list?.pendingEdgeId);
+
+	const [qrHidden, setQrHidden] = useState(false);
+	const [qrBlur, setQrBlur] = useState(false);
+	const [blurEpoch, setBlurEpoch] = useState(0);
+	useEffect(() => {
+		if (cf.state !== 'ready' || qrHidden) return;
+		setQrBlur(false);
+		const timer = window.setTimeout(() => setQrBlur(true), QR_BLUR_AFTER_MS);
+		return () => window.clearTimeout(timer);
+	}, [cf.state, qrHidden, blurEpoch]);
 
 	const [lanToggle, setLanToggle] = useState<'on' | 'off' | null>(null);
 	const [lanError, setLanError] = useState<string | null>(null);
@@ -361,7 +415,19 @@ export function ServersSettings() {
 				title={t('settings.pages.servers.mobilePairing')}
 				description={t('settings.pages.servers.mobilePairingDescription')}
 			>
-				<SettingsRow
+				<Tabs
+					value={channel}
+					onValueChange={v => setChannel(v === 'cloudflare' ? 'cloudflare' : 'lan')}
+					className="px-4 pb-4"
+				>
+					<TabsList>
+						<TabsTrigger value="lan">{t('settings.pages.servers.cloudflareTabLan')}</TabsTrigger>
+						<TabsTrigger value="cloudflare">
+							{t('settings.pages.servers.cloudflareTab')}
+						</TabsTrigger>
+					</TabsList>
+					<TabsContent value="lan" className="pt-4">
+					<SettingsRow
 					icon={Smartphone}
 					title={t('settings.pages.servers.mobilePairing')}
 					badge={
@@ -463,6 +529,129 @@ export function ServersSettings() {
 						) : null}
 					</div>
 				) : null}
+					</TabsContent>
+					<TabsContent value="cloudflare" className="pt-4">
+						<div className="grid gap-3">
+							{cf.state === 'disabled' ? (
+								<div className="grid gap-3">
+									<p className="text-xs text-muted-foreground">
+										{t('settings.pages.servers.cloudflareIdle')}
+									</p>
+									<div>
+										<SettingsButton disabled={Boolean(activeEdge) || cfBusy} onClick={() => void startCloudflare()}>
+											{t('settings.pages.servers.cloudflareStart')}
+										</SettingsButton>
+									</div>
+								{activeEdge ? (
+									<div className="flex items-center gap-2 text-xs text-muted-foreground">
+										<span>{t('settings.pages.servers.cloudflareRemoteUnsupported', {name: activeEdge.name})}</span>
+										<SettingsButton variant="outline" onClick={() => void window.fastIde.selectEdge('local')}>
+											{t('settings.pages.servers.cloudflareSwitchLocal')}
+										</SettingsButton>
+									</div>
+								) : null}
+								</div>
+							) : cf.state === 'starting' || cf.state === 'stopping' ? (
+								<div className="flex items-center gap-2 text-xs text-muted-foreground">
+									<LoaderCircle className="size-3.5 animate-spin" />
+									{cf.state === 'starting'
+										? t('settings.pages.servers.cloudflareStarting')
+										: t('settings.pages.servers.cloudflareStopping')}
+								</div>
+							) : cf.state === 'ready' ? (
+								<div className="grid gap-3">
+									<CopyField
+										label={t('settings.pages.servers.cloudflareUrl')}
+										value={cf.url}
+										copiedLabel={t('settings.pages.servers.mobilePairingCopied')}
+									/>
+									<div className="flex items-start gap-3 transition-opacity">
+									{qrHidden ? (
+										<button
+											type="button"
+											onClick={() => {
+												setQrHidden(false);
+												setBlurEpoch(e => e + 1);
+											}}
+											aria-label={t('settings.pages.servers.cloudflareShowQr')}
+											className="flex size-[200px] shrink-0 flex-col items-center justify-center gap-2 rounded-md border border-dashed border-border text-xs text-muted-foreground transition-colors hover:bg-muted/50"
+										>
+											<Eye className="size-4" />
+											{t('settings.pages.servers.cloudflareQrHidden')}
+										</button>
+									) : (
+										<div
+											className={`relative shrink-0 ${qrBlur ? 'cursor-pointer select-none blur-md' : ''}`}
+											onPointerDown={() => {
+												setQrBlur(false);
+												setBlurEpoch(e => e + 1);
+											}}
+										>
+											<PairingQr
+												serverUrl={cf.url}
+												token={pairing?.token ?? ''}
+												fingerprint=""
+												trust="public"
+												serverKey={cf.serverKey}
+											/>
+											<button
+												type="button"
+												onClick={() => setQrHidden(true)}
+												aria-label={t('settings.pages.servers.cloudflareHideQr')}
+												title={t('settings.pages.servers.cloudflareHideQr')}
+												className="absolute right-1.5 top-1.5 rounded-md bg-black/5 p-1 text-neutral-600 transition-colors hover:bg-black/15"
+											>
+												<EyeOff className="size-3.5" />
+											</button>
+										</div>
+									)}
+									<div className="grid gap-2">
+										<p className="text-xs text-muted-foreground">
+											{t('settings.pages.servers.cloudflarePublicHint')}
+										</p>
+										<p className="text-xs text-muted-foreground">
+											{t('settings.pages.servers.cloudflareQrHint')}
+										</p>
+										{qrBlur ? (
+											<p className="text-xs text-muted-foreground">
+												{t('settings.pages.servers.cloudflareQrBlurred')}
+											</p>
+										) : null}
+									</div>
+								</div>
+								<div className="flex items-center gap-2">
+									<SettingsButton variant="outline" onClick={() => void copyFullPairing()}>
+										{t('settings.pages.servers.cloudflareCopyFullPairing')}
+									</SettingsButton>
+									<SettingsButton variant="outline" disabled={cfBusy} onClick={() => void stopCloudflare()}>
+										{t('settings.pages.servers.cloudflareStop')}
+									</SettingsButton>
+								</div>
+								</div>
+							) : cf.state === 'failed' ? (
+								<div className="grid gap-3">
+									<div className="flex items-start gap-2 rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2">
+										<AlertTriangle className="mt-0.5 size-3.5 shrink-0 text-destructive" />
+										<div className="grid gap-0.5 text-xs">
+											<p className="font-medium text-destructive">
+												{t(`settings.pages.servers.cloudflareFailed.${cf.code}`)}
+											</p>
+											{cf.message ? <p className="break-all text-muted-foreground">{cf.message}</p> : null}
+										</div>
+									</div>
+									<div className="flex gap-2">
+										<SettingsButton onClick={() => void startCloudflare()}>
+											{t('settings.common.retry')}
+										</SettingsButton>
+										<SettingsButton variant="outline" onClick={() => setChannel('lan')}>
+											{t('settings.pages.servers.cloudflareSwitchLan')}
+										</SettingsButton>
+									</div>
+								</div>
+							) : null}
+						</div>
+					</TabsContent>
+				</Tabs>
 			</SettingsSection>
 
 			<Dialog

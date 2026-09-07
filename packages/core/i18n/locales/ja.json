@@ -315,7 +315,36 @@
         "mobilePairingFailed": "設定に失敗しました。再試行してください。",
         "mobilePairingBindFailed": "ポート {{port}} は使用中です。解放してから再試行してください。",
         "mobilePairingTokenShow": "トークンを表示",
-        "mobilePairingTokenHide": "トークンを隠す"
+        "mobilePairingTokenHide": "トークンを隠す",
+        "cloudflareTab": "Cloudflare トンネル",
+        "cloudflareTabLan": "LAN",
+        "cloudflareIdle": "Cloudflare トンネルを開始すると、スマホに何もインストールせずにペアリングできます。",
+        "cloudflareStarting": "Cloudflare エッジに接続中…",
+        "cloudflareStopping": "トンネルを停止中…",
+        "cloudflareUrl": "公開 URL",
+        "cloudflarePublicHint": "このアドレスは公衆インターネットから到達可能です。トークンが唯一のアクセス資格情報です。外部に漏らさないでください。",
+        "cloudflareQrHint": "スマホアプリでこの QR コードをスキャンしてください。トンネル再起動後は URL が変わるため、その際は再スキャンしてください。",
+        "pairingQrAria": "ペアリングQRコード",
+        "cloudflareHideQr": "QRコードを隠す",
+        "cloudflareShowQr": "QRコードを表示",
+        "cloudflareQrHidden": "QRコードは非表示です。クリックで表示",
+        "cloudflareQrBlurred": "操作がないためぼかしています。クリックで表示",
+        "cloudflareCopyFullPairing": "完全なペアリングテキストをコピー",
+        "cloudflareCopyFullConfirm": "完全なペアリングテキストにはアクセストークンが含まれます。入手した人は誰でも接続できます。コピーしますか？",
+        "cloudflareStart": "Cloudflare トンネルを開始",
+        "cloudflareStop": "トンネルを停止",
+        "cloudflareStopConfirm": "Cloudflare トンネルを停止しますか？接続中のスマホは切断されます。",
+        "cloudflareRemoteUnsupported": "Cloudflare トンネルは現在ローカルエンジンのみ対応しています（現在：{{name}}）。",
+        "cloudflareSwitchLocal": "ローカルエンジンに切り替え",
+        "cloudflareSwitchLan": "LAN に切り替え",
+        "cloudflareFailed": {
+          "remote": "Cloudflare トンネルは現在ローカルエンジンのみ対応しています",
+          "spawn": "cloudflared プロセスを起動できませんでした。",
+          "download": "cloudflared バイナリをダウンロードできませんでした。",
+          "timeout": "トンネル URL の取得がタイムアウトしました。",
+          "origin": "エンジンの loopback ポートに到達できません。",
+          "crash": "トンネルプロセスが繰り返しクラッシュしました。"
+        }
       },
       "permissions": {
         "policy": "承認ポリシー",
@@ -1635,7 +1664,9 @@
       "cannotConnect": "接続できません",
       "timeout": "接続がタイムアウトしました",
       "helloOk": "接続しました",
-      "helloReject": "拒否されました"
+      "helloReject": "拒否されました",
+      "urlExpired": "接続タイムアウト：サーバーアドレスが変わった可能性があります（トンネル再起動でURLは変わります）",
+      "authFailed": "認証に失敗しました：トークンが無効です。再スキャンしてください"
     },
     "settings": {
       "title": "設定",
@@ -1682,7 +1713,15 @@
       "fillTitle": "未入力の項目があります",
       "fillBody": "サーバー URL とアクセストークンの両方を入力してください",
       "pairUnreachableTitle": "Saved, but not connected",
-      "pairUnreachableBody": "Saved {{url}}, but the desktop handshake failed: {{reason}}"
+      "pairUnreachableBody": "Saved {{url}}, but the desktop handshake failed: {{reason}}",
+      "transport_lan": "LAN",
+      "transport_tailscale": "Tailscale",
+      "transport_cloudflare": "Cloudflare",
+      "lastConnectedNever": "未接続",
+      "lastConnectedNow": "接続済み",
+      "lastConnectedMinutes": "{{count}}分前に接続",
+      "lastConnectedHours": "{{count}}時間前に接続",
+      "lastConnectedDays": "{{count}}日前に接続"
     },
     "index": {
       "new": "新規",
@@ -1796,7 +1835,16 @@
     },
     "pairing": {
       "confirmFingerprint": "証明書フィンガープリントを確認：{{fingerprint}}",
-      "confirmFingerprintShort": "サーバー証明書のフィンガープリントを確認してください"
+      "confirmFingerprintShort": "サーバー証明書のフィンガープリントを確認してください",
+      "pairAuthFailed": "接続が拒否されました。デスクトップで再スキャンしてください",
+      "pairUrlExpired": "接続タイムアウト：アドレスが変わった可能性があります。デスクトップで再スキャンしてください"
+    },
+    "conn": {
+      "authFailed": "トークンが拒否されました。QRコードを再スキャンしてください",
+      "urlExpired": "サーバーアドレスが変わった可能性があります。再スキャンしてください",
+      "reconnecting": "再接続中…",
+      "unreachable": "サーバーに接続できません",
+      "rescanHint": "デスクトップでQRコードを再スキャンしてください"
     }
   }
 }

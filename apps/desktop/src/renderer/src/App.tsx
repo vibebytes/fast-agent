@@ -425,8 +425,7 @@ export function App({store}: {store: WorkspaceStore}) {
 		(paneTaskId
 			? tasks.find(t => t.id === paneTaskId) ??
 				chats.find(t => t.id === paneTaskId) ??
-				defaultTasks.find(t => t.id === paneTaskId) ??
-				null
+				defaultTasks.find(t => t.id === paneTaskId)
 			: null) ??
 		null;
 	const canChat = project?.status === 'ready' && Boolean(activeEntry) && Boolean(paneTaskId);

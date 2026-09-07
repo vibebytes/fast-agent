@@ -102,6 +102,8 @@ export type WorkspaceHubDeps = {
 	stableLeaseMs?: number;
 	/** Write committed activeId after HelloOk. */
 	persistActiveId?: (id: string) => void;
+	/** Cloudflare tunnel origin port (cloudflare-tunnel-pairing.md §4.6.3): default BridgeClient opens loopback plaintext `--ws 127.0.0.1:<port>`. */
+	loopbackWsPort?: number;
 };
 
 export type SwitchEdgeTarget = {
@@ -198,7 +200,8 @@ export class WorkspaceHub {
 	private readonly adopt: WorkspaceAdopt;
 
 	constructor(deps: WorkspaceHubDeps = {}) {
-		this.createBridge = deps.createBridge ?? (() => new BridgeClient());
+		this.createBridge =
+			deps.createBridge ?? (() => new BridgeClient({loopbackWsPort: deps.loopbackWsPort}));
 		this.createId = deps.createId ?? (() => randomUUID());
 		this.createClientId = deps.createClientId ?? (() => `fast-ide-${randomUUID()}`);
 		this.homeDir = deps.homeDir ?? homedir();

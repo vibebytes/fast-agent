@@ -4,3 +4,11 @@ packages:
   - "packages/core/i18n"
   - "packages/web/ui"
   - "apps/*"
+
+onlyBuiltDependencies:
+  - "@siteed/sherpa-onnx.rn"
+  - "cloudflared"
+  - "electron"
+  - "electron-winstaller"
+  - "esbuild"
+  - "node-pty"

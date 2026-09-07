@@ -3,6 +3,7 @@
  */
 import type {
 	AmbientRule,
+	CloudflareTunnelStatus,
 	CreateSkillInput,
 	EdgeDeleteResult,
 	EdgeDetail,
@@ -66,6 +67,10 @@ export type InvokeHost = {
 	'mobile:pairingInfo': {args: []; result: MobilePairingInfo};
 	/** Toggle LAN bridge listener at runtime on the active engine. */
 	'mobile:setLanPairing': {args: [enabled: boolean]; result: MobilePairingInfo};
+	/** Cloudflare Tunnel 通道（§cloudflare-tunnel-pairing.md §4.5.2）：主进程为状态所有者。 */
+	'cloudflareTunnel:status': {args: []; result: CloudflareTunnelStatus};
+	'cloudflareTunnel:start': {args: []; result: CloudflareTunnelStatus};
+	'cloudflareTunnel:stop': {args: []; result: CloudflareTunnelStatus};
 	getWorkspaceFile: {args: [relativePath: string]; result: GetWorkspaceFileResult};
 	saveWorkspaceFile: {
 		args: [relativePath: string, content: string, mtime?: number, bytes?: number];

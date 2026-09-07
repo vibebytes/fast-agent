@@ -19,6 +19,7 @@ import type {
 	DshSkillsResult,
 	BridgeErrorEnvelope,
 	BridgeEventEnvelope,
+	CloudflareTunnelStatus,
 	CreateSkillInput,
 	GitStatus,
 	GetWorkspaceFileResult,
@@ -101,6 +102,10 @@ export type FastIdeApi = {
 	mobilePairingInfo: () => Promise<MobilePairingInfo>;
 	setLanPairing: (enabled: boolean) => Promise<MobilePairingInfo>;
 	onEdgesChanged: (handler: (payload: EdgesList) => void) => () => void;
+	cloudflareTunnelStatus: () => Promise<CloudflareTunnelStatus>;
+	cloudflareTunnelStart: () => Promise<CloudflareTunnelStatus>;
+	cloudflareTunnelStop: () => Promise<CloudflareTunnelStatus>;
+	onCloudflareTunnelChanged: (handler: (payload: CloudflareTunnelStatus) => void) => () => void;
 	createBlankProject: (name?: string) => Promise<string | null>;
 	getProject: () => Promise<ProjectGetResult>;
 	gitStatus: (force?: boolean) => Promise<GitStatus | null>;

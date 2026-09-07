@@ -21,6 +21,8 @@ export type ResolveEngineLaunchOptions = {
 	/** Default unix for daemon spawn; stdio for tests / FAST_BRIDGE_TRANSPORT=stdio. */
 	transport?: 'unix' | 'stdio';
 	socketPath?: string;
+	/** When set, always append `--ws 127.0.0.1:<port>` (loopback plaintext origin for Cloudflare tunnel, §cloudflare-tunnel-pairing.md §4.6.3). Desktop passes 1981; tests omit. */
+	loopbackWsPort?: number;
 };
 
 /** Default args for Machine-scoped Bridge host (unix). */
@@ -60,6 +62,11 @@ function alreadyHasSessionFlag(args: string[]): boolean {
 function withSessionArgs(base: string[], sessionArgs: string[]): string[] {
 	if (alreadyHasSessionFlag(base)) return base;
 	return [...base, ...sessionArgs];
+}
+
+function withLoopbackWs(args: string[], port?: number): string[] {
+	if (!port) return args;
+	return [...args, '--ws', `127.0.0.1:${port}`];
 }
 
 function defaultTransportArgs(
@@ -102,7 +109,7 @@ export function resolveEngineLaunch(options: ResolveEngineLaunchOptions): Engine
 			defaultTransportArgs(transport, options.socketPath);
 		return {
 			command: env.FAST_ENGINE_COMMAND,
-			args: withSessionArgs(base, sessionArgs),
+			args: withLoopbackWs(withSessionArgs(base, sessionArgs), options.loopbackWsPort),
 			cwd
 		};
 	}
@@ -112,7 +119,10 @@ export function resolveEngineLaunch(options: ResolveEngineLaunchOptions): Engine
 	if (bundled && exists(bundled)) {
 		return {
 			command: bundled,
-			args: withSessionArgs(defaultTransportArgs(transport, options.socketPath), sessionArgs),
+			args: withLoopbackWs(
+				withSessionArgs(defaultTransportArgs(transport, options.socketPath), sessionArgs),
+				options.loopbackWsPort
+			),
 			cwd
 		};
 	}
@@ -121,7 +131,10 @@ export function resolveEngineLaunch(options: ResolveEngineLaunchOptions): Engine
 	if (placed && exists(placed)) {
 		return {
 			command: placed,
-			args: withSessionArgs(defaultTransportArgs(transport, options.socketPath), sessionArgs),
+			args: withLoopbackWs(
+				withSessionArgs(defaultTransportArgs(transport, options.socketPath), sessionArgs),
+				options.loopbackWsPort
+			),
 			cwd
 		};
 	}

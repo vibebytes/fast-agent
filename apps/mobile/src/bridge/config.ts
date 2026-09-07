@@ -2,6 +2,11 @@ import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
 
 import { storageGet, storageRemove, storageSet } from './safe-storage';
+import type { BridgeTrust } from './pairing';
+import { inferTransport, type SavedServerTransport } from './saved-server';
+
+export { inferTransport };
+export type { SavedServerTransport };
 
 export type SavedServer = {
   id: string;
@@ -9,6 +14,10 @@ export type SavedServer = {
   serverUrl: string;
   token: string;
   fingerprint?: string;
+  transport: SavedServerTransport;
+  trust: BridgeTrust;
+  serverKey?: string;
+  lastConnectedAt?: number;
 };
 
 export type BridgeConfig = {
@@ -17,7 +26,8 @@ export type BridgeConfig = {
   clientId: string;
 };
 
-const KEY = 'bridge.config.v2';
+const KEY = 'bridge.config.v3';
+const LEGACY_KEY = 'bridge.config.v2';
 const TOKEN_PREFIX = 'bridge.token.';
 
 export const DEFAULT_SERVER_URL = 'wss://127.0.0.1:1979/bridge';
@@ -57,13 +67,20 @@ async function writeToken(serverId: string, token: string): Promise<void> {
 }
 
 export async function loadBridgeConfig(): Promise<BridgeConfig> {
-  const raw = await storageGet(KEY);
+  let raw = await storageGet(KEY);
+  let migrated = false;
+  if (!raw) {
+    raw = await storageGet(LEGACY_KEY);
+    migrated = Boolean(raw);
+  }
   const parsed = raw
-    ? (JSON.parse(raw) as Partial<Omit<BridgeConfig, 'servers'> & { servers: (SavedServer & { token?: string })[] }>)
+    ? (JSON.parse(raw) as Partial<Omit<BridgeConfig, 'servers'>> & {
+        servers?: (Partial<SavedServer> & { token?: string })[];
+      })
     : {};
   const servers: SavedServer[] = [];
-  let migrated = false;
   for (const server of parsed.servers ?? []) {
+    if (!server.id || !server.serverUrl) continue;
     let token = '';
     if (server.token) {
       await writeToken(server.id, server.token);
@@ -72,12 +89,18 @@ export async function loadBridgeConfig(): Promise<BridgeConfig> {
     } else {
       token = await readToken(server.id);
     }
+    const inferred = inferTransport(server.serverUrl);
+    if (!server.transport || !server.trust) migrated = true;
     servers.push({
       id: server.id,
-      label: server.label,
+      label: server.label ?? server.serverUrl,
       serverUrl: server.serverUrl,
       token,
-      fingerprint: server.fingerprint
+      fingerprint: server.fingerprint,
+      transport: server.transport ?? inferred.transport,
+      trust: server.trust ?? inferred.trust,
+      serverKey: server.serverKey,
+      lastConnectedAt: server.lastConnectedAt
     });
   }
   const config: BridgeConfig = {
@@ -96,7 +119,11 @@ export async function saveBridgeConfig(config: BridgeConfig): Promise<void> {
       id: server.id,
       label: server.label,
       serverUrl: server.serverUrl,
-      fingerprint: server.fingerprint
+      fingerprint: server.fingerprint,
+      transport: server.transport,
+      trust: server.trust,
+      serverKey: server.serverKey,
+      lastConnectedAt: server.lastConnectedAt
     })),
     activeServerId: config.activeServerId,
     clientId: config.clientId
@@ -113,6 +140,7 @@ export type ClientConfig = {
   token: string;
   clientId: string;
   fingerprint: string | null;
+  trust: BridgeTrust;
 };
 
 export function toClientConfig(config: BridgeConfig): ClientConfig {
@@ -121,6 +149,7 @@ export function toClientConfig(config: BridgeConfig): ClientConfig {
     serverUrl: server?.serverUrl ?? DEFAULT_SERVER_URL,
     token: server?.token ?? '',
     clientId: config.clientId,
-    fingerprint: server?.fingerprint ?? null
+    fingerprint: server?.fingerprint ?? null,
+    trust: server?.trust ?? 'pinned'
   };
 }

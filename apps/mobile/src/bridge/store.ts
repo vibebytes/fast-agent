@@ -20,6 +20,7 @@ import {
 import {isSessionStreamEvent, PROTOCOL_MISMATCH_PREFIX, type BridgeCommand, type BridgeEvent} from '@fastllm/bridge-protocol';
 
 import {BridgeClient, type ConnectionState, type ParseStats} from './client';
+import type {BridgeTrust} from './pairing';
 import {
   foldUserEchoes,
   goalCardFromUpdated,
@@ -40,6 +41,7 @@ import type { Copy } from './copy';
 import { rawError } from './copy';
 import {bridgeUrlIssue, normalizeBridgeUrl} from './pairing';
 import {openPinnedSocket} from './pinned-socket';
+import {upsertServer} from './saved-server';
 import {probeTlsFingerprint} from './tls-pinning';
 import {wsFrameText} from './wsFrame';
 
@@ -76,9 +78,18 @@ export type SessionRecord = {
   goalCard?: GoalCardView;
 };
 
+export type BridgeConnUiState =
+  | 'connected'
+  | 'connecting'
+  | 'reconnecting'
+  | 'authFailed'
+  | 'urlExpired'
+  | 'unreachable';
+
 export type StoreSnapshot = {
   connection: ConnectionState;
   connectionDetail: Copy | null;
+  connUi: BridgeConnUiState;
   projectId: string | null;
   projects: ProjectSummary[];
   sessions: SessionSummary[];
@@ -146,6 +157,7 @@ class BridgeStore {
   private snapshot: StoreSnapshot = {
     connection: 'idle',
     connectionDetail: null,
+    connUi: 'connecting',
     projectId: null,
     projects: [],
     sessions: [],
@@ -171,6 +183,33 @@ class BridgeStore {
     return this.boot;
   }
 
+  private uiState(connection: ConnectionState, detail: Copy | null): BridgeConnUiState {
+    if (connection === 'open') return 'connected';
+    if (detail?.code === 'helloReject') return 'authFailed';
+    if (this.activeTrust() === 'public' && (detail?.code === 'timeout' || detail?.code === 'cannotConnect')) {
+      return 'urlExpired';
+    }
+    if (connection === 'connecting' || connection === 'hello') return 'connecting';
+    if (connection === 'closed') return 'reconnecting';
+    return 'unreachable';
+  }
+
+  private activeTrust(): BridgeTrust {
+    const id = this.config?.activeServerId;
+    return this.config?.servers.find((s) => s.id === id)?.trust ?? 'pinned';
+  }
+
+  private noteConnected(): void {
+    if (!this.config?.activeServerId) return;
+    const id = this.config.activeServerId;
+    const now = Date.now();
+    this.config = {
+      ...this.config,
+      servers: this.config.servers.map((s) => (s.id === id ? {...s, lastConnectedAt: now} : s))
+    };
+    void saveBridgeConfig(this.config);
+  }
+
   private async bootClient(): Promise<void> {
     this.config = await loadBridgeConfig();
     this.snapshot = {
@@ -179,7 +218,15 @@ class BridgeStore {
     };
     this.client = new BridgeClient(toClientConfig(this.config), {
       onState: (connection, detail) => {
-        this.snapshot = {...this.snapshot, connection, connectionDetail: detail ?? null};
+        const prevUi = this.snapshot.connUi;
+        const connUi = this.uiState(connection, detail ?? null);
+        this.snapshot = {
+          ...this.snapshot,
+          connection,
+          connectionDetail: detail ?? null,
+          connUi
+        };
+        if (connUi === 'connected' && prevUi !== 'connected') this.noteConnected();
         this.emit();
       },
       onEvent: event => this.handleEvent(event),
@@ -228,20 +275,11 @@ class BridgeStore {
   async saveServer(input: Omit<SavedServer, 'id'> & {id?: string}): Promise<string> {
     await this.start();
     if (!this.config) return '';
-    const id = input.id ?? newServerId();
-    const exists = this.config.servers.some((s) => s.id === id);
-    const server: SavedServer = {
-      id,
-      label: input.label,
-      serverUrl: normalizeBridgeUrl(input.serverUrl),
-      token: input.token,
-      fingerprint: input.fingerprint
-    };
+    const serverUrl = normalizeBridgeUrl(input.serverUrl);
+    const {servers, id} = upsertServer(this.config.servers, {...input, serverUrl}, newServerId());
     this.config = {
       ...this.config,
-      servers: exists
-        ? this.config.servers.map((s) => (s.id === id ? server : s))
-        : [...this.config.servers, server],
+      servers,
       activeServerId: id
     };
     await saveBridgeConfig(this.config);
@@ -272,7 +310,12 @@ class BridgeStore {
     }
   }
 
-  async testConnection(server: {serverUrl: string; token: string; fingerprint?: string}): Promise<{ok: boolean; detail: Copy; fingerprint?: string}> {
+  async testConnection(server: {
+    serverUrl: string;
+    token: string;
+    fingerprint?: string;
+    trust?: BridgeTrust;
+  }): Promise<{ok: boolean; detail: Copy; fingerprint?: string}> {
     await this.start();
     const serverUrl = normalizeBridgeUrl(server.serverUrl);
     const issue = bridgeUrlIssue(serverUrl);
@@ -280,6 +323,7 @@ class BridgeStore {
     const live = this.client;
     live?.close();
     try {
+      if (server.trust === 'public') return await this.testPublic(serverUrl, server.token);
       if (serverUrl.startsWith('wss://')) {
         const probe = await probeTlsFingerprint(serverUrl, server.fingerprint ?? null);
         if (!probe.ok) return {ok: false, detail: probe.detail};
@@ -381,6 +425,45 @@ class BridgeStore {
         if (text) this.finishHello(text, finish);
       };
       socket.onerror = () => finish(false, { code: 'cannotConnect' });
+    });
+  }
+
+  private testPublic(serverUrl: string, token: string): Promise<{ok: boolean; detail: Copy}> {
+    return new Promise((resolve) => {
+      let settled = false;
+      let socket: WebSocket;
+      const finish = (ok: boolean, detail: Copy) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        try {
+          socket.close();
+        } catch {
+          // already closed
+        }
+        resolve({ok, detail});
+      };
+      try {
+        socket = new WebSocket(serverUrl);
+      } catch (error) {
+        return resolve({ok: false, detail: rawError(error)});
+      }
+      const timer = setTimeout(() => finish(false, { code: 'urlExpired' }), 8000);
+      socket.onopen = () => {
+        socket.send(this.helloLine(token));
+      };
+      socket.onmessage = (raw) => {
+        const text = wsFrameText(raw.data);
+        if (!text) return;
+        try {
+          const event = JSON.parse(text) as {type?: string; message?: string};
+          if (event.type === 'HelloOk') finish(true, { code: 'helloOk' });
+          else if (event.type === 'HelloReject') finish(false, { code: 'authFailed' });
+        } catch {
+          // ignore
+        }
+      };
+      socket.onerror = () => finish(false, { code: 'urlExpired' });
     });
   }
 

@@ -30,11 +30,23 @@ export function ConnectionBanner() {
   }
   const label = connectionLabel(t, snapshot.connection);
   const detail = snapshot.connectionDetail ? formatCopy(t, snapshot.connectionDetail) : '';
+  const ui = snapshot.connUi;
+  const uiLabel =
+    ui === 'authFailed'
+      ? t('mobile.conn.authFailed')
+      : ui === 'urlExpired'
+        ? t('mobile.conn.urlExpired')
+        : ui === 'reconnecting'
+          ? t('mobile.conn.reconnecting')
+          : ui === 'unreachable'
+            ? t('mobile.conn.unreachable')
+            : label;
+  const rescanHint = ui === 'authFailed' || ui === 'urlExpired' ? t('mobile.conn.rescanHint') : '';
   return (
     <View className="bg-warning/15 px-3 py-1.5">
       <Text className="text-center text-[11px] text-warning">
-        {label}
-        {detail ? ` · ${detail}` : ''}
+        {uiLabel}
+        {rescanHint ? ` · ${rescanHint}` : detail ? ` · ${detail}` : ''}
       </Text>
     </View>
   );

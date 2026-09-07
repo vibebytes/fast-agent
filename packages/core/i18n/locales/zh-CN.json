@@ -315,7 +315,36 @@
         "mobilePairingFailed": "设置失败，请重试。",
         "mobilePairingBindFailed": "端口 {{port}} 已被占用，请释放端口后重试。",
         "mobilePairingTokenShow": "显示令牌",
-        "mobilePairingTokenHide": "隐藏令牌"
+        "mobilePairingTokenHide": "隐藏令牌",
+        "cloudflareTab": "Cloudflare 隧道",
+        "cloudflareTabLan": "局域网",
+        "cloudflareIdle": "开启 Cloudflare 隧道，手机无需安装任何组件即可配对。",
+        "cloudflareStarting": "正在连接 Cloudflare 边缘…",
+        "cloudflareStopping": "正在停止隧道…",
+        "cloudflareUrl": "公网地址",
+        "cloudflarePublicHint": "该地址公网可达，Token 是唯一访问凭据，请勿外泄。",
+        "cloudflareQrHint": "使用手机 App 扫描此二维码。隧道重启后地址会变化，届时请重新扫码。",
+        "pairingQrAria": "配对二维码",
+        "cloudflareHideQr": "隐藏二维码",
+        "cloudflareShowQr": "显示二维码",
+        "cloudflareQrHidden": "二维码已隐藏，点击显示",
+        "cloudflareQrBlurred": "长时间未操作已自动虚化，点击恢复",
+        "cloudflareCopyFullPairing": "复制完整配对文本",
+        "cloudflareCopyFullConfirm": "完整配对文本包含访问 Token，持有者可直接连接本机。仍要复制？",
+        "cloudflareStart": "开启 Cloudflare 隧道",
+        "cloudflareStop": "停止隧道",
+        "cloudflareStopConfirm": "停止 Cloudflare 隧道？已连接的手机将被断开。",
+        "cloudflareRemoteUnsupported": "Cloudflare 隧道当前仅支持本机引擎（当前：{{name}}）。",
+        "cloudflareSwitchLocal": "切换到本机引擎",
+        "cloudflareSwitchLan": "切回局域网",
+        "cloudflareFailed": {
+          "remote": "Cloudflare 隧道当前仅支持本机引擎",
+          "spawn": "无法启动 cloudflared 进程。",
+          "download": "无法下载 cloudflared 二进制。",
+          "timeout": "等待隧道地址超时。",
+          "origin": "引擎 loopback 口不可达。",
+          "crash": "隧道进程持续崩溃。"
+        }
       },
       "permissions": {
         "policy": "审批策略",
@@ -1635,7 +1664,9 @@
       "cannotConnect": "无法连接",
       "timeout": "连接超时",
       "helloOk": "连接成功",
-      "helloReject": "被拒绝"
+      "helloReject": "被拒绝",
+      "urlExpired": "连接超时：服务器地址可能已变化（隧道重启后 URL 会轮换）",
+      "authFailed": "鉴权被拒：Token 已失效，请重新扫码"
     },
     "settings": {
       "title": "偏好设置",
@@ -1682,7 +1713,15 @@
       "cameraTitle": "需要权限",
       "cameraBody": "请在系统设置中允许使用相机以扫描配对二维码。",
       "fillTitle": "提示",
-      "fillBody": "请完整填写服务器地址和访问令牌"
+      "fillBody": "请完整填写服务器地址和访问令牌",
+      "transport_lan": "局域网",
+      "transport_tailscale": "Tailscale",
+      "transport_cloudflare": "Cloudflare",
+      "lastConnectedNever": "从未连接",
+      "lastConnectedNow": "刚刚连接",
+      "lastConnectedMinutes": "{{count}} 分钟前连接",
+      "lastConnectedHours": "{{count}} 小时前连接",
+      "lastConnectedDays": "{{count}} 天前连接"
     },
     "index": {
       "new": "新建",
@@ -1796,7 +1835,16 @@
     },
     "pairing": {
       "confirmFingerprint": "需要确认证书指纹：{{fingerprint}}",
-      "confirmFingerprintShort": "需要确认服务器证书指纹"
+      "confirmFingerprintShort": "需要确认服务器证书指纹",
+      "pairAuthFailed": "连接被拒：请回桌面重新扫码",
+      "pairUrlExpired": "连接超时：地址可能已轮换，请回桌面重新扫码"
+    },
+    "conn": {
+      "authFailed": "Token 已失效，请重新扫码",
+      "urlExpired": "服务器地址可能已变化，请重新扫码",
+      "reconnecting": "正在重新连接…",
+      "unreachable": "无法连接服务器",
+      "rescanHint": "请回桌面端重新扫码"
     }
   }
 }

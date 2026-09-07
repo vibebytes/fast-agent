@@ -47,7 +47,13 @@ export type EnsureDaemonDeps = {
 	readToken?: (tokenFile: string) => string;
 	exists?: (p: string) => boolean;
 	ensureDir?: (p: string) => void;
-	engineLaunch?: (socketPath: string, env: NodeJS.ProcessEnv) => {command: string; args: string[]; cwd?: string};
+	engineLaunch?: (
+		socketPath: string,
+		env: NodeJS.ProcessEnv,
+		loopbackWsPort?: number
+	) => {command: string; args: string[]; cwd?: string};
+	/** Cloudflare tunnel origin (cloudflare-tunnel-pairing.md §4.6.3): daemon also opens loopback plaintext `--ws 127.0.0.1:<port>`. */
+	loopbackWsPort?: number;
 	/** PIDs holding `~/.fast/server/rocks/LOCK` (spec §4.2 ENGINE_BUSY). */
 	rocksLockHolders?: (lockPath: string) => number[];
 	rocksLockPath?: (env: NodeJS.ProcessEnv) => string;
@@ -293,6 +299,16 @@ export function placedEngineCli(
 }
 
 export function resolveDaemonLaunch(
+	socketPath: string,
+	env: NodeJS.ProcessEnv = process.env,
+	loopbackWsPort?: number
+): {command: string; args: string[]; cwd?: string} {
+	const launch = resolveDaemonLaunchBase(socketPath, env);
+	if (!loopbackWsPort) return launch;
+	return {...launch, args: [...launch.args, '--ws', `127.0.0.1:${loopbackWsPort}`]};
+}
+
+function resolveDaemonLaunchBase(
 	socketPath: string,
 	env: NodeJS.ProcessEnv = process.env
 ): {command: string; args: string[]; cwd?: string} {
@@ -546,7 +562,7 @@ export async function ensureDaemon(deps: EnsureDaemonDeps = {}): Promise<EnsureD
 		startingClaimSince = undefined;
 
 		try {
-			const launch = engineLaunch(paths.socketPath, env);
+			const launch = engineLaunch(paths.socketPath, env, deps.loopbackWsPort);
 			spawnDaemon(launch.command, launch.args, {
 				cwd: launch.cwd,
 				env: {

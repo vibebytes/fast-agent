@@ -356,6 +356,8 @@ export type {
 	EdgeTestResult,
 	EdgeDeleteResult,
 	EdgeUpsertResult,
+	CloudflareTunnelFailureCode,
+	CloudflareTunnelStatus,
 	MobilePairingInfo,
 	ModelCatalogEntry,
 	ProjectGetResult,
