@@ -125,20 +125,30 @@ export function createLeaseWatch<T extends LeaseWatchTask>(deps: LeaseWatchDeps<
 		leaseScanTimer = null;
 	};
 
-	const noteRunLease = (task: LeaseWatchTask, event: BridgeEvent): void => {
+	const noteRunLease = (task: T, event: BridgeEvent): void => {
+		// Arm on any event while locally busy: the scan must not depend on a renewal
+		// event arriving, because `run_state` is droppable on the wire.
+		if (deps.busy(task)) ensureLeaseScan();
 		if (!isLeaseRenewal(event.type)) return;
 		leaseSeenAt.set(task.id, deps.now());
 		leaseReconcileAt.delete(task.id);
-		if (task.transcript.leaseAware) ensureLeaseScan();
 	};
 
-	/** Host-owned TTL: attach reconcile, then local settle if the snapshot stays silent. */
+	/**
+	 * Host-owned TTL: attach reconcile, then local settle if the snapshot stays silent.
+	 *
+	 * The watchdog keys off local busy state, never off `leaseAware`. `run_state` is a
+	 * droppable wire event (BridgeConnection.Droppable) — if the engine sheds it under
+	 * backpressure, a leaseAware-gated scan would never arm and the Composer would stay
+	 * locked forever. A locally busy task with no renewal event at all still expires.
+	 */
 	const tickRunLeases = (): void => {
 		const now = deps.now();
 		let changed = false;
 		for (const task of [...deps.tasks()]) {
-			if (!task.transcript.leaseAware || !deps.busy(task)) {
+			if (!deps.busy(task)) {
 				leaseReconcileAt.delete(task.id);
+				leaseSeenAt.delete(task.id);
 				continue;
 			}
 			const reconcileAt = leaseReconcileAt.get(task.id);
@@ -149,8 +159,14 @@ export function createLeaseWatch<T extends LeaseWatchTask>(deps: LeaseWatchDeps<
 				changed = true;
 				continue;
 			}
-			const seen = leaseSeenAt.get(task.id);
-			if (seen == null || now - seen <= RUN_LEASE_TTL_MS) continue;
+			let seen = leaseSeenAt.get(task.id);
+			if (seen == null) {
+				// First scan that observes a busy task: start the TTL clock here so a
+				// run whose renewals were all shed still expires.
+				leaseSeenAt.set(task.id, now);
+				seen = now;
+			}
+			if (now - seen <= RUN_LEASE_TTL_MS) continue;
 			if (deps.sessionIdOf(task)) deps.onReconcile(task);
 			leaseReconcileAt.set(task.id, now);
 		}

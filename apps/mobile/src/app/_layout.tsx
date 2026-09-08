@@ -1,4 +1,5 @@
 import * as SplashScreen from 'expo-splash-screen';
+import { StatusBar } from 'expo-status-bar';
 import { HeroUINativeProvider } from 'heroui-native/provider';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
@@ -7,7 +8,7 @@ import AppTabs from '@/components/app-tabs';
 import { useBridgeStart } from '@/bridge/useBridge';
 import { LocaleProvider } from '@/i18n/locale-context';
 import { ensureVoiceEngine } from '@/lib/voice-engine';
-import { FastThemeScope, ThemeModeProvider } from '@/theme/theme-context';
+import { FastThemeScope, ThemeModeProvider, useThemeMode } from '@/theme/theme-context';
 
 SplashScreen.preventAutoHideAsync();
 void ensureVoiceEngine().catch(() => {});
@@ -20,6 +21,7 @@ export default function TabLayout() {
         <ThemeModeProvider>
           <LocaleProvider>
             <FastThemeScope>
+              <AppStatusBar />
               <AppTabs />
             </FastThemeScope>
           </LocaleProvider>
@@ -27,4 +29,9 @@ export default function TabLayout() {
       </HeroUINativeProvider>
     </GestureHandlerRootView>
   );
+}
+
+function AppStatusBar() {
+  const { scheme } = useThemeMode();
+  return <StatusBar style={scheme === 'dark' ? 'light' : 'dark'} />;
 }

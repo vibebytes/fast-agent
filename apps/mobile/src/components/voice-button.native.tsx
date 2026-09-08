@@ -20,6 +20,7 @@ import {
   TextInput,
   View
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useTranslation } from 'react-i18next';
 
@@ -144,6 +145,7 @@ export function VoiceButton({ onSend, disabled }: VoiceInputProps) {
   const { t } = useTranslation();
   const { scheme } = useThemeMode();
   const vars = useThemeVars();
+  const insets = useSafeAreaInsets();
   const [active, setActive] = useState(false);
   const [phase, setPhase] = useState<Phase>('idle');
   const [transcript, setTranscript] = useState('');
@@ -367,7 +369,8 @@ export function VoiceButton({ onSend, disabled }: VoiceInputProps) {
             <BlurView
               intensity={Platform.OS === 'ios' ? 95 : 100}
               tint={scheme === 'dark' ? 'dark' : 'light'}
-              className="overflow-hidden rounded-t-[32px] border-t border-border bg-surface px-5 pb-8 pt-3 shadow-2xl"
+              className="overflow-hidden rounded-t-[32px] border-t border-border bg-surface px-5 pt-3 shadow-2xl"
+              style={{ paddingBottom: Math.max(32, insets.bottom + 12) }}
             >
               <View className="items-center pb-3">
                 <View className="h-1 w-9 rounded-full bg-border" />

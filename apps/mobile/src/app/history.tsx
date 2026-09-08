@@ -1,18 +1,24 @@
 import { FlashList } from '@shopify/flash-list';
 import { composerGate } from '@fast-ide/session-view';
 import { useRouter } from 'expo-router';
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 
 import { bridgeStore, type SessionSummary } from '@/bridge/store';
 import { useBridgeSnapshot } from '@/bridge/useBridge';
 import { ConnectionBanner } from '@/components/connection';
-import { GlassHeader } from '@/components/glass-header';
+import { ScreenHeader } from '@/components/glass-header';
 import { Glyph } from '@/components/glyphs';
 import { useThemeVars } from '@/theme/theme-context';
 
 type Bucket = 'today' | 'yesterday' | 'week' | 'older';
+
+const BUCKET_ORDER: Bucket[] = ['today', 'yesterday', 'week', 'older'];
+
+type Row =
+  | { kind: 'header'; bucket: Bucket; count: number }
+  | { kind: 'session'; session: SessionSummary };
 
 function bucketOf(lastModified: string): Bucket {
   const ts = new Date(lastModified).getTime();
@@ -68,10 +74,52 @@ export default function HistoryScreen() {
     return set;
   }, [snapshot.records]);
 
+  const rows = useMemo(() => {
+    const out: Row[] = [];
+    for (const bucket of BUCKET_ORDER) {
+      const items = buckets[bucket];
+      if (items.length === 0) continue;
+      out.push({ kind: 'header', bucket, count: items.length });
+      for (const session of items) out.push({ kind: 'session', session });
+    }
+    return out;
+  }, [buckets]);
+
+  const renderRow = useCallback(
+    ({ item }: { item: Row }) =>
+      item.kind === 'header' ? (
+        <View className="mb-2.5 mt-4 flex-row items-center gap-1.5 px-1">
+          <View className="h-1.5 w-1.5 rounded-full bg-primary/70" />
+          <Text className="text-[11px] font-bold uppercase tracking-wider text-muted">
+            {t(`mobile.history.${item.bucket}`)} · {item.count}
+          </Text>
+        </View>
+      ) : (
+        <View className="mb-2.5">
+          <SessionCard
+            session={item.session}
+            isActive={item.session.id === activeSessionId}
+            running={runningIds.has(item.session.id)}
+            onOpen={() => {
+              router.push(`/session/${item.session.id}`);
+            }}
+          />
+        </View>
+      ),
+    [t, activeSessionId, runningIds, router]
+  );
+
+  const keyExtractor = useCallback(
+    (item: Row) => (item.kind === 'header' ? `h-${item.bucket}` : `s-${item.session.id}`),
+    []
+  );
+
   return (
     <View className="flex-1 bg-background">
-      <ConnectionBanner />
-      <GlassHeader className="flex-row items-center justify-between border-b border-border/70 px-4 py-3.5">
+      <ScreenHeader
+        banner={<ConnectionBanner />}
+        className="flex-row items-center justify-between border-b border-border/70 px-4 py-3.5"
+      >
         <View>
           <Text className="text-xl font-bold tracking-tight text-foreground">{t('mobile.history.title')}</Text>
           <Text className="text-[11px] font-medium text-muted">{t('mobile.history.count', { count: sessions.length })}</Text>
@@ -90,7 +138,7 @@ export default function HistoryScreen() {
           <Glyph name="plus" size={14} color={vars['--primary-foreground']} />
           <Text className="text-xs font-semibold text-primary-foreground">{t('mobile.history.newSession')}</Text>
         </Pressable>
-      </GlassHeader>
+      </ScreenHeader>
 
       {/* Project Selector Horizontal Rail */}
       {projects.length > 0 ? (
@@ -143,54 +191,32 @@ export default function HistoryScreen() {
         </View>
       ) : null}
 
-      <ScrollView className="flex-1 px-4 pt-3" showsVerticalScrollIndicator={false}>
-        {(['today', 'yesterday', 'week', 'older'] as Bucket[]).map((bucket) => {
-          const items = buckets[bucket];
-          if (items.length === 0) return null;
-          return (
-            <View key={bucket} className="mb-5">
-              <View className="mb-2.5 flex-row items-center gap-1.5 px-1">
-                <View className="h-1.5 w-1.5 rounded-full bg-primary/70" />
-                <Text className="text-[11px] font-bold uppercase tracking-wider text-muted">
-                  {t(`mobile.history.${bucket}`)} · {items.length}
-                </Text>
-              </View>
-              <View className="gap-2.5">
-                {items.map((session) => (
-                  <SessionCard
-                    key={session.id}
-                    session={session}
-                    isActive={session.id === activeSessionId}
-                    running={runningIds.has(session.id)}
-                    onOpen={() => {
-                      router.push(`/session/${session.id}`);
-                    }}
-                  />
-                ))}
-              </View>
+      <FlashList
+        data={rows}
+        keyExtractor={keyExtractor}
+        renderItem={renderRow}
+        contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 4 }}
+        showsVerticalScrollIndicator={false}
+        ListEmptyComponent={
+            !snapshot.sessionsLoaded ? (
+            <View className="items-center justify-center py-24">
+              <View className="h-2.5 w-2.5 animate-ping rounded-full bg-primary" />
+              <Text className="mt-4 text-xs text-muted">
+                {snapshot.connection === 'open' ? t('mobile.history.loadingList') : t('mobile.history.connectingDesktop')}
+              </Text>
             </View>
-          );
-        })}
-
-        {!snapshot.sessionsLoaded ? (
-          <View className="items-center justify-center py-24">
-            <View className="h-2.5 w-2.5 animate-ping rounded-full bg-primary" />
-            <Text className="mt-4 text-xs text-muted">
-              {snapshot.connection === 'open' ? t('mobile.history.loadingList') : t('mobile.history.connectingDesktop')}
-            </Text>
-          </View>
-        ) : list.length === 0 ? (
-          <View className="items-center justify-center py-24">
-            <View className="h-16 w-16 items-center justify-center rounded-3xl border border-border/60 bg-surface shadow-sm">
-              <Glyph name="history" size={28} color={vars['--muted']} />
+          ) : (
+            <View className="items-center justify-center py-24">
+              <View className="h-16 w-16 items-center justify-center rounded-3xl border border-border/60 bg-surface shadow-sm">
+                <Glyph name="history" size={28} color={vars['--muted']} />
+              </View>
+              <Text className="mt-4 text-base font-semibold text-foreground">{t('mobile.history.emptyTitle')}</Text>
+              <Text className="mt-1 text-xs text-muted">{t('mobile.history.emptyBody')}</Text>
             </View>
-            <Text className="mt-4 text-base font-semibold text-foreground">{t('mobile.history.emptyTitle')}</Text>
-            <Text className="mt-1 text-xs text-muted">{t('mobile.history.emptyBody')}</Text>
-          </View>
-        ) : (
-          <View className="h-10" />
-        )}
-      </ScrollView>
+          )
+        }
+        ListFooterComponent={rows.length > 0 ? <View className="h-10" /> : null}
+      />
     </View>
   );
 }

@@ -5,10 +5,11 @@ import {
   countDiffStats,
   parseDiffWithLineNumbers,
   type DiffLine,
+  type PendingQuestion,
   type PendingQuestionBatch,
   type TranscriptEntry
 } from '@fast-ide/session-view';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   Alert,
@@ -38,7 +39,6 @@ import {
 } from '@/bridge/mobile-transcript';
 import { bridgeStore, type FollowUpItem, type SessionRecord } from '@/bridge/store';
 import { useBridgeSnapshot } from '@/bridge/useBridge';
-import { ConnectionBanner } from '@/components/connection';
 import { GlassHeader } from '@/components/glass-header';
 import { Glyph } from '@/components/glyphs';
 import { VoiceButton } from '@/components/voice-button';
@@ -54,6 +54,8 @@ type ToolLike = {
 };
 
 type ToolCat = 'shell' | 'file' | 'search' | 'git' | 'agent' | 'system';
+
+const EMPTY_ENTRIES: TranscriptEntry[] = [];
 
 const TOOL_COPY: Record<ToolCat, string> = {
   shell: 'mobile.chat.toolShell',
@@ -125,10 +127,14 @@ function FullSheet({
   children: React.ReactNode;
 }) {
   const { t } = useTranslation();
+  const insets = useSafeAreaInsets();
   return (
     <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
-      <View className="flex-1 bg-background pt-10">
-        <GlassHeader className="flex-row items-center justify-between border-b border-border/80 px-4 pb-3">
+      <View className="flex-1 bg-background" style={{ paddingTop: insets.top }}>
+        <GlassHeader
+          fallbackClassName="bg-surface-secondary"
+          className="flex-row items-center justify-between border-b border-border/80 px-4 pb-3"
+        >
           <View className="flex-1 pr-2">
             <Text numberOfLines={1} className="text-base font-semibold text-foreground">
               {title}
@@ -611,11 +617,15 @@ function RunSheet({
   const liveProcs = record?.transcript.liveProcs ?? [];
   const [interruptText, setInterruptText] = useState('');
   const { t } = useTranslation();
+  const insets = useSafeAreaInsets();
 
   return (
     <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
-      <View className="flex-1 bg-background px-4 pt-12">
-        <GlassHeader className="flex-row items-center justify-between rounded-2xl px-4 py-3">
+      <View className="flex-1 bg-background px-4" style={{ paddingTop: insets.top + 8 }}>
+        <GlassHeader
+          fallbackClassName="bg-surface-secondary"
+          className="flex-row items-center justify-between rounded-2xl px-4 py-3"
+        >
           <Text className="text-lg font-semibold text-foreground">{t('mobile.chat.consoleTitle')}</Text>
           <Pressable onPress={onClose} className="rounded-xl bg-surface px-3 py-1.5 active:opacity-75">
             <Text className="text-xs font-semibold text-foreground">{t('shell.common.close')}</Text>
@@ -714,6 +724,8 @@ function RunSheet({
   );
 }
 
+const MemoEntryBubble = memo(EntryBubble);
+
 function Composer({ sessionId }: { sessionId: string }) {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
@@ -735,12 +747,14 @@ function Composer({ sessionId }: { sessionId: string }) {
       generateTitle: !hasUserTurn
     });
     if (result.sent) {
-      setPendingId(result.clientMessageId);
+      setPendingId(null);
       setText('');
       if (gate?.canEnqueue) {
         setQueued(true);
         setTimeout(() => setQueued(false), 2000);
       }
+    } else {
+      setPendingId(result.clientMessageId);
     }
   };
 
@@ -886,12 +900,19 @@ export function ChatView({ sessionId }: { sessionId: string }) {
   const { t } = useTranslation();
   const snapshot = useBridgeSnapshot();
   const record = snapshot.records[sessionId];
-  const entries = record?.transcript.entries ?? [];
+  const entries = record?.transcript.entries ?? EMPTY_ENTRIES;
   const hasMoreOlder = record?.transcript.hasMoreOlder ?? false;
   const lastResyncRef = useRef(0);
   const staleIds = useMemo(() => staleErrorEntryIds(entries), [entries]);
   const gate = sessionComposerGate(record);
   const busy = gate?.runState === 'running' || gate?.runState === 'stopping';
+  const renderItem = useCallback(
+    ({ item }: { item: TranscriptEntry }) => (
+      <MemoEntryBubble entry={item} sessionId={sessionId} busy={busy} stale={staleIds.has(item.id)} />
+    ),
+    [sessionId, busy, staleIds]
+  );
+  const keyExtractor = useCallback((entry: TranscriptEntry) => entry.id, []);
 
   const maybeResync = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
     const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent;
@@ -909,17 +930,14 @@ export function ChatView({ sessionId }: { sessionId: string }) {
       keyboardVerticalOffset={Platform.OS === 'ios' ? 88 : 0}
       className="flex-1 bg-background"
     >
-      <ConnectionBanner />
       <FlashList
         data={entries}
-        keyExtractor={(entry) => entry.id}
+        keyExtractor={keyExtractor}
         maintainVisibleContentPosition={{ startRenderingFromBottom: true, autoscrollToBottomThreshold: 100 }}
         contentContainerStyle={{ paddingHorizontal: 14, paddingVertical: 12 }}
         onScrollEndDrag={maybeResync}
         onMomentumScrollEnd={maybeResync}
-        renderItem={({ item }) => (
-          <EntryBubble entry={item} sessionId={sessionId} busy={busy} stale={staleIds.has(item.id)} />
-        )}
+        renderItem={renderItem}
         ListEmptyComponent={
           !record ? (
             <View className="items-center justify-center py-24">
@@ -1190,60 +1208,65 @@ function QuestionBatchPane({
 }
 
 function QuestionSlot({ sessionId }: { sessionId: string }) {
-  const { t } = useTranslation();
-  const vars = useThemeVars();
   const snapshot = useBridgeSnapshot();
-  const [custom, setCustom] = useState('');
   const questions = snapshot.records[sessionId]?.transcript.questions ?? [];
   if (questions.length === 0) return null;
   return (
     <View className="gap-2.5 px-3.5 pb-2">
       {questions.map((question) => (
-        <View
-          key={question.id}
-          className="overflow-hidden rounded-2xl border border-primary/40 bg-surface p-4 shadow-md"
-        >
-          {question.title ? (
-            <Text className="text-base font-semibold text-foreground">{question.title}</Text>
-          ) : null}
-          <Text className="mt-1.5 text-sm leading-5 text-foreground">{question.question}</Text>
-          <View className="mt-3 gap-2">
-            {question.options.map((option) => (
-              <Pressable
-                key={option.id}
-                onPress={() => bridgeStore.answerQuestion(sessionId, question.id, option.label)}
-                className="rounded-xl border border-border bg-surface-secondary px-3.5 py-2.5 active:scale-[0.98] active:bg-surface"
-              >
-                <Text className="text-sm font-medium text-foreground">{option.label}</Text>
-                {option.description ? (
-                  <Text className="mt-0.5 text-xs text-muted leading-4">{option.description}</Text>
-                ) : null}
-              </Pressable>
-            ))}
-          </View>
-          {question.allowCustom ? (
-            <View className="mt-3 flex-row gap-2">
-              <TextInput
-                value={custom}
-                onChangeText={setCustom}
-                placeholder={t('mobile.chat.customOption')}
-                placeholderTextColor={vars['--muted']}
-                className="flex-1 rounded-xl border border-border bg-surface-secondary px-3.5 py-2 text-sm text-foreground"
-              />
-              <Pressable
-                onPress={() => {
-                  if (!custom.trim()) return;
-                  bridgeStore.answerQuestion(sessionId, question.id, custom.trim());
-                  setCustom('');
-                }}
-                className="items-center justify-center rounded-xl bg-default px-4 active:scale-95"
-              >
-                <Text className="text-sm font-semibold text-default-foreground">{t('shell.common.submit')}</Text>
-              </Pressable>
-            </View>
-          ) : null}
-        </View>
+        <QuestionCard key={question.id} sessionId={sessionId} question={question} />
       ))}
+    </View>
+  );
+}
+
+function QuestionCard({ sessionId, question }: { sessionId: string; question: PendingQuestion }) {
+  const { t } = useTranslation();
+  const vars = useThemeVars();
+  const [custom, setCustom] = useState('');
+  return (
+    <View
+      className="overflow-hidden rounded-2xl border border-primary/40 bg-surface p-4 shadow-md"
+    >
+      {question.title ? (
+        <Text className="text-base font-semibold text-foreground">{question.title}</Text>
+      ) : null}
+      <Text className="mt-1.5 text-sm leading-5 text-foreground">{question.question}</Text>
+      <View className="mt-3 gap-2">
+        {question.options.map((option) => (
+          <Pressable
+            key={option.id}
+            onPress={() => bridgeStore.answerQuestion(sessionId, question.id, option.label)}
+            className="rounded-xl border border-border bg-surface-secondary px-3.5 py-2.5 active:scale-[0.98] active:bg-surface"
+          >
+            <Text className="text-sm font-medium text-foreground">{option.label}</Text>
+            {option.description ? (
+              <Text className="mt-0.5 text-xs text-muted leading-4">{option.description}</Text>
+            ) : null}
+          </Pressable>
+        ))}
+      </View>
+      {question.allowCustom ? (
+        <View className="mt-3 flex-row gap-2">
+          <TextInput
+            value={custom}
+            onChangeText={setCustom}
+            placeholder={t('mobile.chat.customOption')}
+            placeholderTextColor={vars['--muted']}
+            className="flex-1 rounded-xl border border-border bg-surface-secondary px-3.5 py-2 text-sm text-foreground"
+          />
+          <Pressable
+            onPress={() => {
+              if (!custom.trim()) return;
+              bridgeStore.answerQuestion(sessionId, question.id, custom.trim());
+              setCustom('');
+            }}
+            className="items-center justify-center rounded-xl bg-default px-4 active:scale-95"
+          >
+            <Text className="text-sm font-semibold text-default-foreground">{t('shell.common.submit')}</Text>
+          </Pressable>
+        </View>
+      ) : null}
     </View>
   );
 }

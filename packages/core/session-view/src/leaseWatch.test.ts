@@ -108,11 +108,12 @@ test('noteRunLease stamps seen time and arm the scan interval', () => {
 	});
 	assert.equal(watch.leaseScanArmed, false);
 	watch.noteRunLease(t, ev('assistant_delta'));
-	assert.equal(watch.leaseScanArmed, false);
-	watch.noteRunLease(t, ev('run_state'));
-	assert.equal(watch.leaseScanArmed, true);
+	assert.equal(watch.leaseScanArmed, true, 'busy task arms on any event');
 	watch.stopLeaseScan();
 	assert.equal(watch.leaseScanArmed, false);
+	t.busy = false;
+	watch.noteRunLease(t, ev('run_state'));
+	assert.equal(watch.leaseScanArmed, false, 'idle task never arms');
 });
 
 test('cancel-settle timer fires force settlement once, then clears', () => {
@@ -189,7 +190,31 @@ test('tickRunLeases reconciles then settles expired leases', () => {
 	assert.equal(changeCount, 1);
 });
 
-test('tickRunLeases ignores tasks that are not leaseAware or not busy', () => {
+test('tickRunLeases ignores tasks that are not busy', () => {
+	const timers = fakeTimers();
+	const t = task({leaseAware: false});
+	t.busy = false;
+	const expired: string[] = [];
+	const watch = createLeaseWatch({
+		now: timers.now,
+		scanIntervalMs: 1000,
+		cancelSettleTimeoutMs: 5000,
+		timers,
+		tasks: () => [t],
+		busy: task => task.busy,
+		sessionIdOf: () => null,
+		onReconcile: () => {},
+		onExpire: task => expired.push(task.id),
+		cancelSettleDue: () => {}
+	});
+	watch.noteRunLease(t, ev('run_state'));
+	assert.equal(watch.leaseScanArmed, false, 'not busy — no scan');
+	timers.advance(RUN_LEASE_TTL_MS * 10);
+	watch.tickRunLeases();
+	assert.deepEqual(expired, []);
+});
+
+test('busy task with no renewal event at all still expires (run_state is droppable)', () => {
 	const timers = fakeTimers();
 	const t = task({leaseAware: false});
 	const expired: string[] = [];
@@ -205,11 +230,10 @@ test('tickRunLeases ignores tasks that are not leaseAware or not busy', () => {
 		onExpire: task => expired.push(task.id),
 		cancelSettleDue: () => {}
 	});
-	watch.noteRunLease(t, ev('run_state'));
-	assert.equal(watch.leaseScanArmed, false, 'not leaseAware — no scan');
-	timers.advance(RUN_LEASE_TTL_MS * 10);
-	watch.tickRunLeases();
-	assert.deepEqual(expired, []);
+	watch.noteRunLease(t, ev('assistant_delta'));
+	assert.equal(watch.leaseScanArmed, true, 'busy arms the scan without a renewal event');
+	timers.advance(RUN_LEASE_TTL_MS + RUN_LEASE_INTERVAL_MS * 2 + 2);
+	assert.deepEqual(expired, ['t1'], 'silence from the first busy scan settles locally');
 });
 
 test('dispose drops timers and bookkeeping, re-armable afterwards', () => {

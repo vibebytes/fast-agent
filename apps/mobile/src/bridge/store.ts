@@ -3,11 +3,10 @@ import {
   applyLeaseExpiry,
   applyLocalCancel,
   CANCEL_SETTLEMENT_TIMEOUT_MS,
-  RUN_LEASE_INTERVAL_MS,
-  RUN_LEASE_TTL_MS,
   chromeAwaitingSettlement,
   chromeRunId,
   composerGate,
+  createLeaseWatch,
   createTranscriptState,
   emptySessionSeq,
   hasLocalRun,
@@ -143,15 +142,31 @@ class BridgeStore {
   private client: BridgeClient | null = null;
   private config: BridgeConfig | null = null;
   private listeners = new Set<() => void>();
+  private emitScheduled = false;
   private records = new Map<string, SessionRecord>();
   private seqBySession = new Map<string, SessionSeq>();
   private attached = new Set<string>();
   private loadingOlder = new Set<string>();
-  /** Per-session cancel-settle watchdog. Not a singleton — switching sessions must not clobber another. */
-  private cancelSettleTimers = new Map<string, ReturnType<typeof setTimeout>>();
-  private leaseSeenAt = new Map<string, number>();
-  private leaseReconcileAt = new Map<string, number>();
-  private leaseScanTimer: ReturnType<typeof setInterval> | null = null;
+  /** Run-lease + cancel-settle watchdogs live in @fast-ide/session-view; mobile only supplies the task/busy/attach semantics. */
+  private leaseWatch = createLeaseWatch<{id: string; transcript: TranscriptState}>({
+    now: () => Date.now(),
+    scanIntervalMs: 2_000,
+    cancelSettleTimeoutMs: CANCEL_SETTLEMENT_TIMEOUT_MS,
+    tasks: () =>
+      [...this.attached].flatMap((sessionId) => {
+        const record = this.records.get(sessionId);
+        return record ? [{id: sessionId, transcript: record.transcript}] : [];
+      }),
+    busy: (task) => {
+      const record = this.records.get(task.id);
+      return record != null && this.leaseBusy(record);
+    },
+    sessionIdOf: (task) => (this.attached.has(task.id) ? task.id : null),
+    onReconcile: (task) => this.sendAttach(task.id),
+    onExpire: (task) => this.expireLease(task.id),
+    cancelSettleDue: (sessionId) => this.forceCancelSettlement(sessionId),
+    onChange: () => this.publishRecords()
+  });
   /** Optimistic user rows, keyed by session, kept until a real user row replaces them. */
   private echoes = new Map<string, UserEcho[]>();
   private snapshot: StoreSnapshot = {
@@ -481,9 +496,9 @@ class BridgeStore {
   attach(sessionId: string) {
     this.attached.add(sessionId);
     const record = this.ensureRecord(sessionId);
-    if (chromeAwaitingSettlement(record.transcript.chrome) && !this.cancelSettleTimers.has(sessionId)) {
-      this.armCancelSettleTimer(sessionId);
-    }
+    this.leaseWatch.forgetTask(sessionId);
+    if (this.leaseBusy(record)) this.leaseWatch.ensureLeaseScan();
+    this.leaseWatch.syncCancelSettle({id: sessionId, transcript: record.transcript});
     this.sendAttach(sessionId);
     if (this.snapshot.lastSessionId !== sessionId) {
       this.snapshot = {...this.snapshot, lastSessionId: sessionId};
@@ -493,9 +508,8 @@ class BridgeStore {
 
   detach(sessionId: string) {
     this.attached.delete(sessionId);
-    this.clearCancelSettleTimer(sessionId);
-    this.leaseSeenAt.delete(sessionId);
-    this.leaseReconcileAt.delete(sessionId);
+    this.leaseWatch.forgetTask(sessionId);
+    this.syncLeaseScan();
   }
 
   resyncSession(sessionId: string) {
@@ -662,7 +676,7 @@ class BridgeStore {
       : this.send({type: 'CancelAssociated', sessionId, reason: 'user-cancel'});
     if (!sent) return false;
     record.transcript = applyLocalCancel(record.transcript);
-    this.armCancelSettleTimer(sessionId);
+    this.leaseWatch.armCancelSettle(sessionId);
     this.publishRecords();
     return true;
   }
@@ -873,18 +887,7 @@ class BridgeStore {
       record.codeChanges = applyCodeChangeEvent(record.codeChanges, ev);
       if (ev.type === 'goal_updated') record.goalCard = goalCardFromUpdated(ev);
       if (ev.type === 'session_history_page') this.loadingOlder.delete(sessionId);
-      if (
-        ev.type === 'turn_cancelled' ||
-        ev.type === 'run_cancelled' ||
-        ev.type === 'turn_finished' ||
-        ev.type === 'run_done' ||
-        ev.type === 'run_failed' ||
-        ev.type === 'run_exhausted'
-      ) {
-        this.clearCancelSettleTimer(sessionId);
-        this.noteRunLease(sessionId, record, ev.type);
-      }
-      if (ev.type === 'run_state') this.noteRunLease(sessionId, record, ev.type);
+      this.leaseWatch.noteRunLease({id: sessionId, transcript: record.transcript}, ev);
       if (ev.type === 'follow_up_changed') {
         this.snapshot = {
           ...this.snapshot,
@@ -896,7 +899,7 @@ class BridgeStore {
       }
     }
     this.foldEchoes(sessionId, record);
-    if (!chromeAwaitingSettlement(record.transcript.chrome)) this.clearCancelSettleTimer(sessionId);
+    this.leaseWatch.syncCancelSettle({id: sessionId, transcript: record.transcript});
     if (result.resync) this.sendAttach(sessionId);
     const sameUi =
       record.transcript === prevTranscript &&
@@ -925,72 +928,22 @@ class BridgeStore {
     }
   }
 
-  private noteRunLease(sessionId: string, record: SessionRecord, _type: string) {
-    this.leaseSeenAt.set(sessionId, Date.now());
-    this.leaseReconcileAt.delete(sessionId);
-    if (record.transcript.leaseAware) this.ensureLeaseScan();
-  }
-
-  private ensureLeaseScan() {
-    if (this.leaseScanTimer != null) return;
-    this.leaseScanTimer = setInterval(() => this.tickRunLeases(), 2_000);
-    const timer = this.leaseScanTimer as ReturnType<typeof setInterval> & {unref?: () => void};
-    timer.unref?.();
+  private expireLease(sessionId: string) {
+    const record = this.records.get(sessionId);
+    if (!record) return;
+    record.transcript = applyLeaseExpiry(record.transcript);
+    if (goalKeepsBusy(record.goalCard)) record.goalCard = undefined;
+    this.snapshot = {...this.snapshot, leaseNotice: 'errors.lease.expired'};
   }
 
   private leaseBusy(record: SessionRecord): boolean {
     return hasLocalRun(record.transcript) || goalKeepsBusy(record.goalCard);
   }
 
-  tickRunLeases() {
-    const now = Date.now();
-    let changed = false;
-    for (const [sessionId, record] of this.records) {
-      if (!this.attached.has(sessionId)) continue;
-      if (!record.transcript.leaseAware || !this.leaseBusy(record)) {
-        this.leaseReconcileAt.delete(sessionId);
-        continue;
-      }
-      const reconcileAt = this.leaseReconcileAt.get(sessionId);
-      if (reconcileAt != null) {
-        if (now - reconcileAt < RUN_LEASE_INTERVAL_MS) continue;
-        record.transcript = applyLeaseExpiry(record.transcript);
-        if (goalKeepsBusy(record.goalCard)) record.goalCard = undefined;
-        this.leaseReconcileAt.delete(sessionId);
-        this.snapshot = {...this.snapshot, leaseNotice: 'errors.lease.expired'};
-        changed = true;
-        continue;
-      }
-      const seen = this.leaseSeenAt.get(sessionId);
-      if (seen == null || now - seen <= RUN_LEASE_TTL_MS) continue;
-      this.sendAttach(sessionId);
-      this.leaseReconcileAt.set(sessionId, now);
-    }
-    if (changed) this.publishRecords();
-  }
-
   consumeLeaseNotice(): string | null {
     const note = this.snapshot.leaseNotice;
     if (note) this.snapshot = {...this.snapshot, leaseNotice: null};
     return note;
-  }
-
-  private armCancelSettleTimer(sessionId: string) {
-    this.clearCancelSettleTimer(sessionId);
-    this.cancelSettleTimers.set(
-      sessionId,
-      setTimeout(() => {
-        this.cancelSettleTimers.delete(sessionId);
-        this.forceCancelSettlement(sessionId);
-      }, CANCEL_SETTLEMENT_TIMEOUT_MS)
-    );
-  }
-
-  private clearCancelSettleTimer(sessionId: string) {
-    const timer = this.cancelSettleTimers.get(sessionId);
-    if (timer == null) return;
-    clearTimeout(timer);
-    this.cancelSettleTimers.delete(sessionId);
   }
 
   /** 12s watchdog: applyLocalCancel then settle so chrome run id actually clears. */
@@ -1018,10 +971,26 @@ class BridgeStore {
       records: Object.fromEntries(this.records)
     };
     this.emit();
+    this.syncLeaseScan();
   }
 
+  private syncLeaseScan() {
+    const busy = [...this.attached].some((sessionId) => {
+      const record = this.records.get(sessionId);
+      return record != null && this.leaseBusy(record);
+    });
+    if (busy) this.leaseWatch.ensureLeaseScan();
+    else this.leaseWatch.stopLeaseScan();
+  }
+
+  /** Coalesce a burst of bridge events into one listener notification per frame. */
   private emit() {
-    for (const listener of this.listeners) listener();
+    if (this.emitScheduled) return;
+    this.emitScheduled = true;
+    setTimeout(() => {
+      this.emitScheduled = false;
+      for (const listener of this.listeners) listener();
+    }, 16);
   }
 }
 

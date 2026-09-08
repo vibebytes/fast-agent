@@ -2,6 +2,7 @@ import { LOCALE_NATIVE_NAME, SUPPORTED, type LocalePref } from '@fast-ide/i18n/b
 import { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Alert, Modal, Pressable, ScrollView, TextInput, View, Text } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 
 import { formatCopy } from '@/bridge/copy';
@@ -10,7 +11,7 @@ import { bridgeStore } from '@/bridge/store';
 import { inferTransport, loadBridgeConfig, type SavedServer } from '@/bridge/config';
 import { useBridgeSnapshot } from '@/bridge/useBridge';
 import { ConnectionBanner } from '@/components/connection';
-import { GlassHeader } from '@/components/glass-header';
+import { ScreenHeader } from '@/components/glass-header';
 import { Glyph } from '@/components/glyphs';
 import { useLocalePrefs } from '@/i18n/locale-context';
 import { t as alertT } from '@/i18n/t';
@@ -23,6 +24,7 @@ export default function SettingsScreen() {
   const { mode, setMode, paletteId, setPaletteId } = useThemeMode();
   const { localePref, setLocalePref } = useLocalePrefs();
   const snapshot = useBridgeSnapshot();
+  const insets = useSafeAreaInsets();
   const [permission, requestPermission] = useCameraPermissions();
   const [scannerOpen, setScannerOpen] = useState(false);
   const [showAddServer, setShowAddServer] = useState(false);
@@ -318,15 +320,23 @@ export default function SettingsScreen() {
 
   return (
     <View className="flex-1 bg-background">
-      <ConnectionBanner />
-      <GlassHeader className="flex-row items-center justify-between border-b border-border/70 px-4 py-3.5">
+      <ScreenHeader
+        banner={<ConnectionBanner />}
+        className="flex-row items-center justify-between border-b border-border/70 px-4 py-3.5"
+      >
         <View>
           <Text className="text-xl font-bold tracking-tight text-foreground">{t('mobile.settings.title')}</Text>
           <Text className="text-[11px] font-medium text-muted">{t('mobile.settings.subtitle')}</Text>
         </View>
-      </GlassHeader>
+      </ScreenHeader>
 
-      <ScrollView className="flex-1 px-4 pt-4" showsVerticalScrollIndicator={false}>
+      <ScrollView
+        className="flex-1 px-4 pt-4"
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
+        automaticallyAdjustKeyboardInsets
+      >
         <View className="mb-6">
           <Text className="mb-2 px-1 text-[11px] font-bold uppercase tracking-wider text-muted">
             {t('mobile.settings.bridge')}
@@ -639,7 +649,10 @@ export default function SettingsScreen() {
 
       <Modal visible={scannerOpen} animationType="slide" onRequestClose={() => setScannerOpen(false)}>
         <View className="flex-1 bg-black">
-          <View className="flex-row items-center justify-between px-4 pt-12 pb-4">
+          <View
+            className="flex-row items-center justify-between px-4 pb-4"
+            style={{ paddingTop: insets.top + 8 }}
+          >
             <Text className="text-lg font-bold text-white">{t('mobile.settings.scanTitle')}</Text>
             <Pressable
               onPress={() => setScannerOpen(false)}
@@ -660,7 +673,7 @@ export default function SettingsScreen() {
             />
           </View>
 
-          <View className="p-6 items-center">
+          <View className="items-center p-6" style={{ paddingBottom: Math.max(24, insets.bottom) }}>
             <Text className="text-center text-xs text-white/70">
               {t('mobile.settings.scanHint')}
             </Text>

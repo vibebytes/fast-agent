@@ -7,7 +7,8 @@ import { Pressable, View } from 'react-native';
 import { bridgeStore } from '@/bridge/store';
 import { useBridgeStart, useBridgeSnapshot } from '@/bridge/useBridge';
 import { ChatView } from '@/components/chat-view';
-import { connectionLabel } from '@/components/connection';
+import { ConnectionBanner, connectionLabel } from '@/components/connection';
+import { ScreenHeader } from '@/components/glass-header';
 
 export default function ChatScreen() {
   const { t } = useTranslation();
@@ -23,8 +24,11 @@ export default function ChatScreen() {
   }, [currentId, snapshot.connection]);
 
   return (
-    <View className="flex-1 bg-background pt-2">
-      <View className="flex-row items-center justify-between px-4 pb-2">
+    <View className="flex-1 bg-background">
+      <ScreenHeader
+        banner={<ConnectionBanner />}
+        className="flex-row items-center justify-between border-b border-border/70 px-4 py-3.5"
+      >
         <Text className="text-xs text-muted">
           {connectionLabel(t, snapshot.connection)}
         </Text>
@@ -39,7 +43,7 @@ export default function ChatScreen() {
           />
           <PressableText label={t('mobile.tabs.history')} onPress={() => router.push('/history')} />
         </View>
-      </View>
+      </ScreenHeader>
       {currentId ? (
         <ChatView sessionId={currentId} />
       ) : (
