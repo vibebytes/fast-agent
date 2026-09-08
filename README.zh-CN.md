@@ -20,6 +20,7 @@
   <a href="#11-直接下载">1.1 安装包</a> ·
   <a href="#12-怎么使用移动客户端实验性高频开发中">1.2 移动客户端</a> ·
   <a href="#13-通过源码安装">1.3 源码</a> ·
+  <a href="#14-其他引擎dsh">1.4 其他引擎</a> ·
   <a href="#2-开发">2. 开发</a> ·
   <a href="#21-快速开始">2.1 快速开始</a> ·
   <a href="#3-截图">3. 截图</a> ·
@@ -36,6 +37,7 @@ Fast Agent 的目标是成为企业级、自学习的 AI Agent，并把 coding �
 - **Coding 优先** – 直接改代码、跑代码、落地代码，而不只是谈论代码。
 - **集群与远程** – 支持多智能体协作与远程任务编排，分布式执行。
 - **Agent 原生** – 所有组件都是 Agent，自主协作、高度可组合。
+- **多引擎** – 自带 Fast 引擎，也可挂载外部引擎（当前是 DSH），按会话选择。
 
 > [!IMPORTANT]
 > Fast Agent **仍在开发中**（v0.3.1）。本机引擎可以改你的工作区并执行 shell。请审阅每一条审批，预期会有破坏性变更，不要把未签名安装包当作生产发行。软件按 [Apache 2.0](LICENSE) 按现状提供。
@@ -197,6 +199,31 @@ pnpm pack -- --clean                           # 重新拉引擎并 restage
 ```
 
 `./build/all.sh` 与 `pnpm pack` 等价（同样支持 `--os`）。每个 `build/*.sh` 都有 `--help`。跨架构打包的 smoke 只检查 `file` 和 `.fast-os`，不要启动另一架构的 `.app`、Linux dir 或 `Fast.exe`。日常 `dev/` 命令见 [2. 开发](#2-开发)。
+
+### 1.4 其他引擎（DSH）
+
+Fast 默认运行自带引擎，也能把外部引擎作为扩展挂载，DSH 是第一个。输入框的 **Engine** 选择器（Fast / DSH）按会话选择引擎。
+
+桌面端 —— **设置 → Engines**：
+
+1. **Install**（DSH 行）—— 在运行时根目录（`$FAST_RUNTIME_ROOT`，否则 `~/.fast`）执行 `npm install @deepseek-ai/dsh@0.1.2-rc.1`。需要 JVM `PATH` 上有 Node.js `^22.19 || >=24`；安装日志在该行内实时显示。
+2. **Enable** —— 注册适配器。
+3. **Start** —— 接管或启动 DSH 进程。
+4. 点击整行 **Set default**。默认引擎只影响新会话，已打开的会话仍用原引擎。
+
+每行有三条状态：**Adapter**（enabled / disabled / failed）、**Program**（bundled / installed / not installed）、**Process**（stopped / running）。被禁用、缺失或失败的引擎不会注册，新会话回落到 `fast`。
+
+无界面 / CLI：引擎来自 `conf/engines.yaml`（打包后用 `FAST_ENGINES_YAML`），叠加 `$FAST_RUNTIME_ROOT/conf/engines.overlay.yaml`；写上 `id: dsh, enabled: true` 即可，适配器从 `extensions/dsh-engine/` 加载。
+
+DSH 启动参数：
+
+| 环境变量 / YAML `config`              | 效果                                                          |
+| ------------------------------------- | ------------------------------------------------------------- |
+| `FAST_DSH_PORT` / `config.port`       | 接管 `http://127.0.0.1:<port>`，不启动进程                    |
+| `FAST_DSH_COMMAND` / `config.command` | 启动该命令；`npx --yes` 会被拒绝，请指向已安装的本地 bin       |
+| 两者都没有                            | 接管官方 **3080**（`npx @deepseek-ai/dsh web`）               |
+
+令牌（先命中先用）：`config.token` → `config.tokenFile` → `-Dfast.dsh.token` → `FAST_DSH_TOKEN` → `<运行时根目录>/engines/dsh/.token`。引擎内部细节见 [`extensions/dsh-engine/README.md`](extensions/dsh-engine/README.md)。
 
 ## 2. 开发
 

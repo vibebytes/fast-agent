@@ -6,7 +6,7 @@
 
 [English](README.md) | [中文](README.zh-CN.md)
 
-[1. Download](#1-download-and-install) · [1.1 Packs](#11-direct-download) · [1.2 Mobile](#12-how-to-use-the-mobile-client-experimental-under-active-development) · [1.3 Source](#13-install-from-source) · [2. Development](#2-development) · [2.1 Quick start](#21-quick-start) · [3. Screenshots](#3-screenshots) · [4. Community](#4-community) · [Contributing](CONTRIBUTING.md) · [Security](SECURITY.md) · [5. License](#5-license)
+[1. Download](#1-download-and-install) · [1.1 Packs](#11-direct-download) · [1.2 Mobile](#12-how-to-use-the-mobile-client-experimental-under-active-development) · [1.3 Source](#13-install-from-source) · [1.4 Engines](#14-other-engines-dsh) · [2. Development](#2-development) · [2.1 Quick start](#21-quick-start) · [3. Screenshots](#3-screenshots) · [4. Community](#4-community) · [Contributing](CONTRIBUTING.md) · [Security](SECURITY.md) · [5. License](#5-license)
 
 Fast Agent's goal is to be an enterprise-grade, self-improving AI agent with coding as a first-class citizen.
 
@@ -15,6 +15,7 @@ Fast Agent's goal is to be an enterprise-grade, self-improving AI agent with cod
 - **Coding-first** – directly edits, runs, and lands code, not just talks about it.
 - **Cluster & Remote** – supports multi-agent collaboration and remote task orchestration with distributed execution.
 - **Agent-native** – all components are agents, autonomously collaborating and highly composable.
+- **Multi-engine** – the built-in Fast engine plus pluggable external engines (DSH today), selected per session.
 
 > [!IMPORTANT]
 > Fast Agent is **under active development** (v0.3.1). The local engine can edit your workspace and run shell. Review every approval, expect breaking changes, and do not treat unsigned packs as a production release. Software is provided as-is under [Apache 2.0](LICENSE).
@@ -182,6 +183,31 @@ pnpm pack -- --clean                           # refetch engine and restage
 ```
 
 `./build/all.sh` is the same as `pnpm pack` (`--os` works there too). Each `build/*.sh` has `--help`. Cross-arch smoke checks `file` and `.fast-os`; do not launch the foreign-arch `.app`, Linux dir, or `Fast.exe`. Daily `dev/` commands: [2. Development](#2-development).
+
+### 1.4 Other engines (DSH)
+
+Fast runs its own engine by default and can host external engines as extensions. DSH is the first one. The composer's **Engine** picker (Fast / DSH) selects the engine per session.
+
+Desktop — **Settings → Engines**:
+
+1. **Install** on the DSH row — `npm install @deepseek-ai/dsh@0.1.2-rc.1` into the runtime root (`$FAST_RUNTIME_ROOT`, else `~/.fast`). Needs Node.js `^22.19 || >=24` on the JVM `PATH`; the install log streams in the row.
+2. **Enable** — registers the adapter.
+3. **Start** — attaches to, or spawns, the DSH process.
+4. Click the row to **Set default**. The default applies to new sessions only; open sessions stay on their engine.
+
+Each row shows three lanes: **Adapter** (enabled / disabled / failed), **Program** (bundled / installed / not installed), **Process** (stopped / running). A disabled, missing, or failed engine is not registered — new sessions fall back to `fast`.
+
+Headless / CLI: engines come from `conf/engines.yaml` (`FAST_ENGINES_YAML` when packaged), merged with `$FAST_RUNTIME_ROOT/conf/engines.overlay.yaml`. `id: dsh, enabled: true` is enough; the adapter loads from `extensions/dsh-engine/`.
+
+DSH start parameters:
+
+| Env / YAML `config`                   | Effect                                                                       |
+| ------------------------------------- | ---------------------------------------------------------------------------- |
+| `FAST_DSH_PORT` / `config.port`       | Attach to `http://127.0.0.1:<port>` — no spawn                               |
+| `FAST_DSH_COMMAND` / `config.command` | Spawn that command. `npx --yes` is rejected; point it at the installed bin   |
+| neither                               | Attach the official **3080** (`npx @deepseek-ai/dsh web`)                    |
+
+Token, first hit wins: `config.token` → `config.tokenFile` → `-Dfast.dsh.token` → `FAST_DSH_TOKEN` → `<runtime root>/engines/dsh/.token`. Engine internals: [`extensions/dsh-engine/README.md`](extensions/dsh-engine/README.md).
 
 ## 2. Development
 
