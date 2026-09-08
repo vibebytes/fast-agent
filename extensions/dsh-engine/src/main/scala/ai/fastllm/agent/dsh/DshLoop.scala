@@ -83,6 +83,8 @@ final case class Binding(
     imageLimit: ImageLimit = ImageLimit(),
     jobs: Set[String] = Set.empty,
     turns: Int = 0,
+    lastEventMs: Long = 0L,
+    liveSinceMs: Long = 0L,
     childHistory: Map[String, Json] = Map.empty
 )
 
@@ -142,7 +144,24 @@ class DshLoop(
 
   override def busy(sessionId: String): Boolean =
     snapshot(sessionId).exists: b =>
-      b.liveRunId.isDefined || b.approvals.nonEmpty || b.questions.nonEmpty || b.ending.exists(!_.isCompleted)
+      val live = b.liveRunId.isDefined || b.approvals.nonEmpty || b.questions.nonEmpty || b.ending.exists(!_.isCompleted)
+      if live && b.liveRunId.isDefined then warnIfStuck(sessionId, b)
+      live
+
+  private var stuckWarn = Map.empty[String, Long]
+
+  /** Live run with no mux traffic for two minutes. The usual cause is a lost
+    * follow stream, so the host keeps waiting for a turn/end that never comes.
+    * Log only — cancelling here would kill legitimate long-running tools. */
+  private def warnIfStuck(sessionId: String, b: Binding): Unit =
+    val now = nowMs()
+    val anchor = math.max(b.lastEventMs, b.liveSinceMs)
+    if anchor > 0 && now - anchor > 120000L then
+      val last = lock.synchronized(stuckWarn.getOrElse(sessionId, 0L))
+      if now - last > 120000L then
+        lock.synchronized:
+          stuckWarn = stuckWarn.updated(sessionId, now)
+        log.warn(s"dsh run stuck sid=$sessionId run=${b.liveRunId.getOrElse("")} idleMs=${now - anchor} rows=${b.rows.size}")
 
   override def childOpen(sessionId: String): Boolean =
     snapshot(sessionId).exists: b =>
@@ -471,6 +490,7 @@ class DshLoop(
           bindings = bindings.updated(sessionId, b.copy(toolCallIds = Vector.empty, toolArgs = Map.empty))
           taken
         case None => Vector.empty
+    log.info(s"dsh run settled sid=$sessionId run=$runId toolIds=${ids.size}")
     attachEnding(sessionId, onTurnEnd(sessionId, runId, ids))
 
   private def drain(sessionId: String): Future[Unit] =
@@ -556,7 +576,17 @@ class DshLoop(
       bindings.get(sessionId) match
         case Some(b) if b.liveRunId.isDefined => false
         case Some(b) =>
-          bindings = bindings.updated(sessionId, b.copy(liveRunId = Some(runId), toolCallIds = Vector.empty, toolArgs = Map.empty))
+          bindings = bindings.updated(
+            sessionId,
+            b.copy(
+              liveRunId = Some(runId),
+              toolCallIds = Vector.empty,
+              toolArgs = Map.empty,
+              liveSinceMs = nowMs(),
+              lastEventMs = nowMs()
+            )
+          )
+          log.info(s"dsh run claimed sid=$sessionId run=$runId")
           true
         case None => false
 
@@ -662,6 +692,7 @@ class DshLoop(
       liveRunId = liveNext,
       toolCallIds = ids,
       toolArgs = args,
+      lastEventMs = nowMs(),
       rows = (cur.rows :+ row).takeRight(bufferCap)
     )
 
@@ -1061,6 +1092,23 @@ private def valueOf(json: Json): Either[String, Json] =
 
 def dshSourceKind(raw: Json): Option[String] =
   raw.hcursor.downField("data").downField("source").get[String]("kind").toOption
+
+/** DSH `data.source.form` → UI form; falls back to a kind-derived default. */
+def dshSourceForm(raw: Json): String =
+  raw.hcursor.downField("data").downField("source").get[String]("form").toOption
+    .map(_.trim).filter(_.nonEmpty)
+    .getOrElse(dshSourceLabel(dshSourceKind(raw).getOrElse("")) match
+      case "Recall" => "recall"
+      case _        => "inject")
+
+/** Short UI title for a synthetic context source kind. */
+def dshSourceLabel(kind: String): String =
+  kind.trim.toLowerCase match
+    case "plugin"            => "Runtime context"
+    case "recall"            => "Recall"
+    case "subagent-settled"  => "Subagent settled"
+    case "compaction"        => "Compaction"
+    case other               => if other.isEmpty then "Context" else other
 
 def dshSenderSessionId(raw: Json): Option[String] =
   raw.hcursor.downField("data").downField("source").get[String]("senderSessionId").toOption

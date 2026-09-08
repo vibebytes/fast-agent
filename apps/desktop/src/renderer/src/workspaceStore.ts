@@ -9,6 +9,7 @@ import type {
 	BridgeErrorEnvelope,
 	CodeChange,
 	ComposerGate,
+	ContextInjectionView,
 	EngineHostStatus,
 	LiveProc,
 	LiveTask,
@@ -47,6 +48,8 @@ export type TranscriptSlice = {
 	questions: PendingQuestion[];
 	questionBatches?: PendingQuestionBatch[];
 	subagents?: TranscriptSubagent[];
+	/** Engine-injected context rows (recall / plugin snapshot) — never user bubbles. */
+	contextInjections?: ContextInjectionView[];
 	/** P1b rerun provenance (victim runId → superseding turn id). */
 	superseded?: Record<string, string>;
 	/** Victim runIds whose rerun was a retry of a failed run. */
@@ -76,6 +79,7 @@ const emptySlice = (): TranscriptSlice => ({
 	questions: [],
 	questionBatches: [],
 	subagents: [],
+	contextInjections: [],
 	codeChanges: [],
 	liveProcs: [],
 	liveTasks: [],
@@ -549,6 +553,7 @@ export function reduceWorkspace(state: WorkspaceState, event: WorkspaceEvent): W
 						questions: snap.questions,
 						questionBatches: snap.questionBatches ?? [],
 						subagents: snap.subagents ?? [],
+						contextInjections: snap.contextInjections ?? [],
 						superseded: snap.superseded ?? {},
 						codeChanges: snap.codeChanges,
 						liveProcs: snap.liveProcs ?? [],
@@ -580,6 +585,7 @@ export function reduceWorkspace(state: WorkspaceState, event: WorkspaceEvent): W
 					questions: payload.questions,
 					questionBatches: payload.questionBatches ?? [],
 					subagents: payload.subagents ?? [],
+					contextInjections: payload.contextInjections ?? [],
 					superseded: payload.superseded ?? {},
 					codeChanges: payload.codeChanges,
 					liveProcs: payload.liveProcs ?? [],
@@ -616,6 +622,7 @@ export function reduceWorkspace(state: WorkspaceState, event: WorkspaceEvent): W
 				questions: payload.questions ?? existing.questions,
 				questionBatches: payload.questionBatches ?? existing.questionBatches ?? [],
 				subagents: payload.subagents ?? existing.subagents ?? [],
+				contextInjections: payload.contextInjections ?? existing.contextInjections ?? [],
 				superseded: payload.superseded ?? existing.superseded ?? {},
 				codeChanges: payload.codeChanges ?? existing.codeChanges,
 				liveProcs: payload.liveProcs ?? existing.liveProcs ?? [],
@@ -716,6 +723,7 @@ export function reduceWorkspace(state: WorkspaceState, event: WorkspaceEvent): W
 						questions: p.questions ?? [],
 						questionBatches: p.questionBatches ?? [],
 						subagents: p.subagents ?? [],
+						contextInjections: p.contextInjections ?? [],
 						superseded: p.superseded ?? {},
 						codeChanges: p.codeChanges ?? [],
 						liveProcs: p.liveProcs ?? [],

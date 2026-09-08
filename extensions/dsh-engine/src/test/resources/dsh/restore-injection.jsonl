@@ -1,0 +1,5 @@
+{"type":"turn/start","seq":1,"time":1,"data":{"turn":1}}
+{"type":"user/message","seq":2,"time":2,"data":{"role":"user","content":[{"type":"text","text":"Current runtime context. This snapshot supersedes earlier runtime-context snapshots."}],"source":{"kind":"plugin","form":"snapshot"}}}
+{"type":"user/message","seq":3,"time":3,"data":{"role":"user","content":[{"type":"text","text":"hi"}],"source":{"kind":"user"}}}
+{"type":"assistant/message","seq":4,"time":4,"data":{"turn":1,"step":1,"message":{"role":"assistant","content":[{"type":"text","text":"Hello"}]}}}
+{"type":"turn/end","seq":5,"time":5,"data":{"turn":1,"reason":{"kind":"completed"}}}

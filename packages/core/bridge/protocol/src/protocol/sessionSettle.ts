@@ -39,6 +39,15 @@ export const sessionSettleSchemas = [
 		result: z.string().optional()
 	}),
 	z.object({
+		type: z.literal('context_injected'),
+		sessionId: z.string().optional(),
+		runId: z.string(),
+		sourceKind: z.string(),
+		form: z.string(),
+		label: z.string(),
+		text: z.string()
+	}),
+	z.object({
 		type: z.literal('dsh_goal_changed'),
 		sessionId: z.string(),
 		operation: z.string(),

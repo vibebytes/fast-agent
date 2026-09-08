@@ -251,6 +251,7 @@ export function createUiPublisher(deps: UiPublisherDeps) {
 			questions: active?.transcript.questions ?? [],
 			questionBatches: active?.transcript.questionBatches ?? [],
 			subagents: active?.transcript.subagents ?? [],
+			contextInjections: active?.transcript.contextInjections ?? [],
 			superseded: active?.transcript.superseded ?? {},
 			codeChanges: active?.codeChanges.entries ?? [],
 			liveProcs: active?.transcript.liveProcs ?? [],
@@ -273,6 +274,7 @@ export function createUiPublisher(deps: UiPublisherDeps) {
 			questions: active.transcript.questions,
 			questionBatches: active.transcript.questionBatches,
 			subagents: active.transcript.subagents,
+			contextInjections: active.transcript.contextInjections,
 			superseded: active.transcript.superseded ?? {},
 			codeChanges: active.codeChanges.entries,
 			liveProcs: active.transcript.liveProcs ?? [],
@@ -342,6 +344,9 @@ export function createUiPublisher(deps: UiPublisherDeps) {
 			...(patch.questions !== prev.questions ? {questions: patch.questions} : {}),
 			...(patch.questionBatches !== prev.questionBatches ? {questionBatches: patch.questionBatches} : {}),
 			...(patch.subagents !== prev.subagents ? {subagents: patch.subagents} : {}),
+			...(patch.contextInjections !== prev.contextInjections
+				? {contextInjections: patch.contextInjections}
+				: {}),
 			...(patch.codeChanges !== prev.codeChanges ? {codeChanges: patch.codeChanges} : {}),
 			...(patch.liveProcs !== prev.liveProcs ? {liveProcs: patch.liveProcs} : {}),
 			...(patch.liveTasks !== prev.liveTasks ? {liveTasks: patch.liveTasks} : {}),
@@ -354,6 +359,7 @@ export function createUiPublisher(deps: UiPublisherDeps) {
 			tail.questions !== undefined ||
 			tail.questionBatches !== undefined ||
 			tail.subagents !== undefined ||
+			tail.contextInjections !== undefined ||
 			tail.codeChanges !== undefined ||
 			tail.liveProcs !== undefined ||
 			tail.liveTasks !== undefined ||

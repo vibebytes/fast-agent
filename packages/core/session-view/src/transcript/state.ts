@@ -218,6 +218,16 @@ export function appendProcPreview(prev: string | undefined, chunk: string, max =
 	return next.length > max ? next.slice(-max) : next;
 }
 
+/** Context injected into the model by the engine (recall / plugin snapshot), not typed by the user. */
+export type ContextInjectionView = {
+	id: string;
+	runId: string;
+	sourceKind: string;
+	form: string;
+	label: string;
+	text: string;
+};
+
 export type TranscriptState = {
 	entries: TranscriptEntry[];
 	approvals: PendingApproval[];
@@ -225,6 +235,8 @@ export type TranscriptState = {
 	questionBatches: PendingQuestionBatch[];
 	/** DSH child Work cards. Optional on old IPC/cache snapshots. */
 	subagents: TranscriptSubagent[];
+	/** Engine-injected context rows (context_injected); absent when the engine injects nothing. */
+	contextInjections?: ContextInjectionView[];
 	/** Stop-chrome lifecycle (CONTEXT.md → RunChrome): idle / active / cancelPending / sealedRun / settled. */
 	chrome: RunChrome;
 	/**

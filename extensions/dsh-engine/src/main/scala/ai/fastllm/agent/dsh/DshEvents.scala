@@ -117,7 +117,24 @@ def dshEvents(sessionId: String, runId: String, event: Json, fold: DshFold): Dsh
     case "session/title" =>
       val title = data.hcursor.get[String]("title").toOption.map(_.trim).filter(_.nonEmpty)
       DshStep(Nil, fold, title = title)
-    case "user/message" | "compaction/prune" | "goal/change" =>
+    case "user/message" =>
+      dshSourceKind(raw).filter(_ != "user") match
+        case Some(kind) =>
+          DshStep(
+            List(
+              ContextInjected(
+                sessionId,
+                runId,
+                kind,
+                dshSourceForm(raw),
+                label = dshSourceLabel(kind),
+                text = contentTexts(data.hcursor.downField("content").as[List[Json]].toOption.getOrElse(Nil))
+              )
+            ),
+            fold
+          )
+        case None => DshStep(Nil, fold)
+    case "compaction/prune" | "goal/change" =>
       DshStep(Nil, fold)
     case t if t.startsWith("subagent/") =>
       DshStep(Nil, fold)

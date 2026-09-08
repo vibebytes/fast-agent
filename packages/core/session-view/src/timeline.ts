@@ -220,6 +220,16 @@ export type TimelineItem =
 			goalStatus: string;
 			text: string;
 			status: TranscriptEntry['status'];
+	  }
+	| {
+			/** Engine-injected context (recall / plugin snapshot) — collapsed, never a user bubble. */
+			kind: 'contextInjection';
+			id: string;
+			runId: string;
+			sourceKind: string;
+			form: string;
+			label: string;
+			text: string;
 	  };
 
 /** Sealed Thought / Exploring rows that may form a Process Stack. */
@@ -1014,6 +1024,7 @@ export function projectEntryToTimelineItems(
 export type TimelineSource = Pick<TranscriptState, 'entries' | 'approvals' | 'questions'> & {
 	questionBatches?: TranscriptState['questionBatches'];
 	subagents?: TranscriptState['subagents'];
+	contextInjections?: TranscriptState['contextInjections'];
 }
 
 /**
@@ -1062,6 +1073,9 @@ export function toTimelineItems(
 	}
 	for (const sub of state.subagents ?? []) {
 		rawItems.push(subagentToItem(sub));
+	}
+	for (const injection of state.contextInjections ?? []) {
+		rawItems.push(contextInjectionToItem(injection));
 	}
 
 	const activeTurn = state.entries[state.entries.length - 1]?.status === 'streaming';
@@ -1115,5 +1129,19 @@ function subagentToItem(sub: TranscriptSubagent): TimelineItem {
 		status: sub.status,
 		summary: sub.summary,
 		preview: sub.preview
+	};
+}
+
+function contextInjectionToItem(
+	injection: NonNullable<TranscriptState['contextInjections']>[number]
+): TimelineItem {
+	return {
+		kind: 'contextInjection',
+		id: injection.id,
+		runId: injection.runId,
+		sourceKind: injection.sourceKind,
+		form: injection.form,
+		label: injection.label,
+		text: injection.text
 	};
 }

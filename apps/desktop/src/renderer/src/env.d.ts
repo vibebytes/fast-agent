@@ -7,6 +7,7 @@ export type {
 	BridgeErrorEnvelope,
 	CodeChange,
 	ComposerGate,
+	ContextInjectionView,
 	EngineHostStatus,
 	GoalCardView,
 	GoalFlowView,

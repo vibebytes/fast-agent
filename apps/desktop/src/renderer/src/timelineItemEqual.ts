@@ -165,6 +165,14 @@ export function timelineItemEqual(a: TimelineItem, b: TimelineItem): boolean {
 				a.text === b.text &&
 				a.status === b.status
 			);
+		case 'contextInjection':
+			return (
+				b.kind === 'contextInjection' &&
+				a.sourceKind === b.sourceKind &&
+				a.form === b.form &&
+				a.label === b.label &&
+				a.text === b.text
+			);
 		default:
 			return false;
 	}

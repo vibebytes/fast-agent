@@ -5,6 +5,7 @@
 import type {BridgeEvent} from '@fastllm/bridge-protocol';
 import type {ComposerGate} from '../composerGate.js';
 import type {
+	ContextInjectionView,
 	GoalFlowView,
 	LiveChildWork,
 	LiveProc,
@@ -231,6 +232,8 @@ export type TasksSnapshot = TasksMeta & {
 	questions: PendingQuestion[];
 	questionBatches?: PendingQuestionBatch[];
 	subagents?: TranscriptSubagent[];
+	/** Engine-injected context rows (recall / plugin snapshot) — never user bubbles. */
+	contextInjections?: ContextInjectionView[];
 	superseded?: Record<string, string>;
 	codeChanges: CodeChange[];
 	liveProcs?: LiveProc[];
@@ -249,6 +252,7 @@ export type TranscriptPatch = {
 	questions: PendingQuestion[];
 	questionBatches?: PendingQuestionBatch[];
 	subagents?: TranscriptSubagent[];
+	contextInjections?: ContextInjectionView[];
 	superseded?: Record<string, string>;
 	codeChanges: CodeChange[];
 	gate: ComposerGate;
@@ -279,6 +283,7 @@ export type TranscriptTailPatch = {
 	questions?: PendingQuestion[];
 	questionBatches?: PendingQuestionBatch[];
 	subagents?: TranscriptSubagent[];
+	contextInjections?: ContextInjectionView[];
 	superseded?: Record<string, string>;
 	codeChanges?: CodeChange[];
 	liveProcs?: LiveProc[];
@@ -344,6 +349,7 @@ export type WorkspaceFocus = {
 	questions?: PendingQuestion[];
 	questionBatches?: PendingQuestionBatch[];
 	subagents?: TranscriptSubagent[];
+	contextInjections?: ContextInjectionView[];
 	codeChanges?: CodeChange[];
 	liveProcs?: LiveProc[];
 	liveTasks?: LiveTask[];

@@ -19,6 +19,7 @@ export const SESSION_STREAM_EVENT_TYPES = [
 	'child_work_changed',
 	'clarify',
 	'clarify_resolved',
+	'context_injected',
 	'dsh_goal_changed',
 	'dsh_tool_card',
 	'error',

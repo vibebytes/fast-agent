@@ -52,6 +52,21 @@ class DshRestoreSpec extends AnyFunSuite with Matchers:
     hist.title shouldBe Some("Fix the parser")
     hist.lastSeq shouldBe Some(11L)
 
+  test("non-user source user/message restores as synthetic context, not a user bubble"):
+    val hist = dshHistory(Sid, load("restore-injection.jsonl"))
+    hist.rows.map(r => (r.role, r.messageType)) shouldBe List(
+      ("user", MessageType.text(MessageType.EnvironmentContext)),
+      ("user", "text"),
+      ("assistant", "text")
+    )
+    hist.rows.head.content.get should include("Current runtime context")
+
+  test("synthetic context rows are not exchange anchors"):
+    val rows = dshHistory(Sid, load("restore-injection.jsonl")).rows
+    val win = dshWindow(rows, None, 20)
+    win.totalExchangeCount shouldBe 1
+    win.rows.map(_.messageType) should contain(MessageType.text(MessageType.EnvironmentContext))
+
   test("history value peels entry.event"):
     val inner = load("text-turn.jsonl").head
     val value = parse(s"""{"events":[{"event":${inner.noSpaces},"view":{"for":"call","view":{"card":"x"}}}],"hasMore":false}""").toOption.get

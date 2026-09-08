@@ -41,6 +41,9 @@ class DshHttp(
   @volatile private var socket: Option[WebSocket] = None
   @volatile private var clientId: String = ""
   private val followIds = ConcurrentHashMap.newKeySet[String]()
+  private val followSent = ConcurrentHashMap.newKeySet[String]()
+  private val followRetry = ConcurrentHashMap[String, Integer]()
+  private val reconnectGen = java.util.concurrent.atomic.AtomicLong(0L)
   private val lives = ConcurrentHashMap[String, LiveAttempt]()
   private val cursors = ConcurrentHashMap[String, java.lang.Long]()
   private val snapshots = ConcurrentHashMap[String, Json]()
@@ -186,7 +189,7 @@ class DshHttp(
         case "session.prompt" | "session.cancel" | "session.selectModel" =>
           payload.hcursor.get[String]("sessionId").foreach: sid =>
             snapshots.remove(sid)
-            followIds.remove(sid)
+            log.info(s"dsh $method sid=$sid: ensure follow subscription")
             watch(sid)
         case "subagent.list" =>
           childIds(value).foreach(watch)
@@ -197,13 +200,24 @@ class DshHttp(
 
   private def watch(sessionId: String): Unit =
     val sid = sessionId.trim
-    if sid.isEmpty || !followIds.add(sid) then ()
-    else sendFollow(sid)
+    if sid.isEmpty then ()
+    else
+      followIds.add(sid)
+      subscribe(sid)
 
-  private def sendFollow(sessionId: String): Unit =
-    socket.foreach: ws =>
-      try ws.sendText(openFrame(s"follow:$sessionId", "session/follow", followArgs(sessionId)).noSpaces, true)
-      catch case NonFatal(e) => log.warn(s"dsh follow $sessionId: ${e.getMessage}")
+  private def subscribe(sid: String): Unit =
+    if !followSent.add(sid) then log.debug(s"dsh follow $sid: already subscribed, skip duplicate open")
+    else socket match
+      case None =>
+        followSent.remove(sid)
+        log.info(s"dsh follow $sid: deferred, mux not open yet")
+      case Some(ws) =>
+        try
+          ws.sendText(openFrame(s"follow:$sid", "session/follow", followArgs(sid)).noSpaces, true)
+          log.info(s"dsh follow $sid: open sent")
+        catch case NonFatal(e) =>
+          followSent.remove(sid)
+          log.warn(s"dsh follow $sid: ${e.getClass.getSimpleName}: ${e.getMessage}")
 
   private def openMux(): Unit =
     if stopped.get() || socket.isDefined || !muxOpening.compareAndSet(false, true) then ()
@@ -219,32 +233,58 @@ class DshHttp(
                 log.warn(s"dsh mux handshake: ${err.getMessage}")
                 if stopped.get() then muxOpen.tryFailure(err)
                 else reopen()
-              else
-                log.info("dsh mux open")
+              else if socket.isEmpty then
+                log.warn("dsh mux bound late: onOpen did not run")
                 socket = Some(ws)
 
   private def reopen(): Unit =
     if stopped.get() then ()
     else
-      tokenOf.foreach:
-        case Some(tok) if tok.nonEmpty =>
-          portOf.foreach: port =>
-            authorize(port, tok).foreach(_ => openMux())
-        case _ => ()
+      val gen = reconnectGen.incrementAndGet()
+      val delay = math.min(4L, gen)
+      log.info(s"dsh mux reconnect scheduled in ${delay}s gen=$gen")
+      val attempt: Runnable = () =>
+        if !stopped.get() && gen == reconnectGen.get() then
+          tokenOf.foreach:
+            case Some(tok) if tok.nonEmpty =>
+              portOf.foreach: port =>
+                authorize(port, tok).foreach(_ => openMux())
+            case _ => ()
+      CompletableFuture.delayedExecutor(delay, TimeUnit.SECONDS, (r: Runnable) => ec.execute(r)).execute(attempt)
 
   private def onRemote(raw: Json): Unit =
-    raw.hcursor.get[String]("type").toOption.getOrElse("") match
+    val frameType = raw.hcursor.get[String]("type").toOption.getOrElse("")
+    frameType match
       case "item" =>
         val streamId = raw.hcursor.get[String]("streamId").toOption.getOrElse("")
         val value = raw.hcursor.downField("value").focus.getOrElse(Json.obj())
+        if value.hcursor.get[String]("type").toOption.contains("error") then
+          log.warn(s"dsh item error stream=$streamId ${value.noSpaces.take(400)}")
         onItem(streamId, value)
       case "error" =>
+        val streamId = raw.hcursor.get[String]("streamId").toOption.getOrElse("")
         val err = raw.hcursor.downField("error").focus.getOrElse(Json.obj())
+        log.warn(s"dsh mux error stream=$streamId err=${err.noSpaces.take(400)}")
         emitMux(Json.obj("type" -> "stream/error".asJson, "error" -> err))
+        if streamId.startsWith("follow:") then
+          val sid = streamId.stripPrefix("follow:")
+          followSent.remove(sid)
+          val n = followRetry.merge(sid, 1, (a, b) => Integer.valueOf(a.intValue + b.intValue)).intValue
+          if n <= 2 then
+            log.warn(s"dsh follow $sid: resubscribe attempt $n")
+            subscribe(sid)
+          else
+            followIds.remove(sid)
+            log.error(s"dsh follow $sid: gave up after $n errors, session stays silent until mux reconnect")
       case "end" =>
-        raw.hcursor.get[String]("streamId").toOption.filter(_.startsWith("follow:")).foreach: id =>
-          followIds.remove(id.stripPrefix("follow:"))
-      case _ => ()
+        val ended = raw.hcursor.get[String]("streamId").toOption.getOrElse("")
+        log.info(s"dsh mux end stream=$ended")
+        if ended.startsWith("follow:") then
+          val sid = ended.stripPrefix("follow:")
+          followIds.remove(sid)
+          followSent.remove(sid)
+      case other =>
+        log.warn(s"dsh mux unknown frame type=$other ${raw.noSpaces.take(300)}")
 
   private def onItem(streamId: String, value: Json): Unit =
     if streamId == "events" || streamId.isEmpty then onEvents(value)
@@ -256,10 +296,11 @@ class DshHttp(
     value.hcursor.get[String]("type").toOption.getOrElse("") match
       case "ready" =>
         clientId = value.hcursor.get[String]("clientId").toOption.getOrElse("")
+        log.info(s"dsh mux ready clientId=$clientId follows=${followIds.asScala.mkString(",")}")
         socket.foreach: ws =>
           try ws.sendText(openFrame("control", "session/control").noSpaces, true)
           catch case NonFatal(e) => log.warn(s"dsh control: ${e.getMessage}")
-        followIds.asScala.foreach(sendFollow)
+        followIds.asScala.foreach(subscribe)
         muxOpen.trySuccess(())
       case "cancel" =>
         val eventId = value.hcursor.get[String]("eventId").toOption.getOrElse("")
@@ -277,6 +318,8 @@ class DshHttp(
       val hist = snapshotHistory(sessionId, value)
       snapshots.put(sessionId, hist)
       value.hcursor.get[Long]("cursor").foreach(c => cursors.put(sessionId, c))
+      followRetry.remove(sessionId)
+      log.info(s"dsh follow $sessionId: snapshot received")
     val prev = Option(lives.get(sessionId))
     val (frames, next) = projectFollow(sessionId, value, prev)
     next match
@@ -290,6 +333,9 @@ class DshHttp(
     private val buf = StringBuilder()
 
     override def onOpen(ws: WebSocket): Unit =
+      socket = Some(ws)
+      followSent.clear()
+      log.info("dsh mux ws open")
       try ws.sendText(openFrame("events", "$events").noSpaces, true)
       catch case NonFatal(e) => log.warn(s"dsh events open: ${e.getMessage}")
       ws.request(1)
@@ -307,9 +353,18 @@ class DshHttp(
       null
 
     override def onClose(ws: WebSocket, status: Int, reason: String): CompletionStage[?] =
-      socket = None
+      if socket.contains(ws) then
+        socket = None
+        followSent.clear()
+      muxOpening.set(false)
+      log.warn(s"dsh mux closed status=$status reason=$reason")
       if !stopped.get() then reopen()
       null
 
     override def onError(ws: WebSocket, error: Throwable): Unit =
+      if socket.contains(ws) then
+        socket = None
+        followSent.clear()
+      muxOpening.set(false)
+      log.warn(s"dsh mux error ${error.getClass.getSimpleName}: ${error.getMessage}")
       if !stopped.get() then reopen()

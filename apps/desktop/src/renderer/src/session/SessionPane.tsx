@@ -437,7 +437,8 @@ export const SessionPane = memo(function SessionPane({
 				approvals: transcript.approvals,
 				questions: transcript.questions,
 				questionBatches: transcript.questionBatches ?? [],
-				subagents: transcript.subagents ?? []
+				subagents: transcript.subagents ?? [],
+				contextInjections: transcript.contextInjections ?? []
 			},
 			transcript.codeChanges,
 			{canCancel: gate.canCancel, rerunMarkers: transcript.superseded, hiddenRuns}

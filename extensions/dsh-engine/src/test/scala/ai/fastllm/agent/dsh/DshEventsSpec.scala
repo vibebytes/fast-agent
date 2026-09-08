@@ -33,6 +33,14 @@ class DshEventsSpec extends AnyFunSuite with Matchers:
     step.events.collect { case r: RunStateChanged => r.status } shouldBe List("completed")
     step.tokensUsed shouldBe None
 
+  test("synthetic user/message emits ContextInjected; real user turn stays out"):
+    val step = fold("restore-injection.jsonl")
+    step.events.collect { case c: ContextInjected => (c.sourceKind, c.form, c.label) } shouldBe
+      List(("plugin", "snapshot", "Runtime context"))
+    step.events.collect { case c: ContextInjected => c.text } shouldBe
+      List("Current runtime context. This snapshot supersedes earlier runtime-context snapshots.")
+    step.events.collect { case TurnStarted(_, _, turnId, _, _) => turnId } shouldBe List("1")
+
   test("tool pair: arguments land in args.raw; flatten command; result success"):
     val step = fold("tool-pair.jsonl")
     typesOf("tool-pair.jsonl") shouldBe List("RunCreated", "TurnStarted", "ToolStarted", "ToolFinished", "RunStateChanged")

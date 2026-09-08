@@ -1,6 +1,7 @@
 import type {BridgeEvent} from '@fastllm/bridge-protocol';
 import {chromePostRun} from './runChrome.js';
 import {entryMatchesKey} from './turnIdentity.js';
+import {applyContextInjected} from './transcript/context.js';
 import {
 	applyBackgroundTaskCompleted,
 	applyBackgroundTaskOutput,
@@ -59,6 +60,7 @@ export {
 	oldestLoadedTurnId
 } from './transcript/state.js';
 export type {
+	ContextInjectionView,
 	EntrySegment,
 	GoalFlowMember,
 	GoalFlowView,
@@ -138,6 +140,8 @@ export function applyBridgeEvent(state: TranscriptState, event: BridgeEvent): Tr
 			return applyError(state, event);
 		case 'dsh_tool_card':
 			return applyDshToolCard(state, event);
+		case 'context_injected':
+			return applyContextInjected(state, event);
 		case 'tool_started':
 			return applyToolStarted(state, event);
 		case 'tool_output':

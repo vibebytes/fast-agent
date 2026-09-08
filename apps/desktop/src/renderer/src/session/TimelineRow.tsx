@@ -499,6 +499,9 @@ export const TimelineRow = memo(function TimelineRow({
 		case 'subagent':
 			body = <SubagentWorkCard item={item} />;
 			break;
+		case 'contextInjection':
+			body = <ContextInjectionChrome item={item} />;
+			break;
 		default:
 			body = null;
 	}
@@ -754,6 +757,40 @@ function GoalOutcomeChrome({
 				</div>
 			) : null}
 		</div>
+	);
+}
+
+/** Engine-injected context (recall / plugin snapshot) — collapsed by default, never a user bubble. */
+function ContextInjectionChrome({
+	item
+}: {
+	item: Extract<TimelineItem, {kind: 'contextInjection'}>;
+}) {
+	const [open, setOpen] = useState(false);
+	const label = item.label.trim() || item.sourceKind;
+	return (
+		<Collapsible
+			className="group/ctx-injection"
+			open={open}
+			onOpenChange={setOpen}
+		>
+			<CollapsibleTrigger className="flex min-w-0 max-w-full items-center gap-1.5 rounded-md px-1 py-0.5 text-[12px] font-normal text-muted-foreground/80 outline-none transition-colors hover:bg-muted/40 hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/40">
+				<ChevronRight className="size-3.5 shrink-0 opacity-60 transition-transform group-data-[state=open]/ctx-injection:rotate-90" />
+				<Boxes className="size-3.5 shrink-0 opacity-60" aria-hidden />
+				<span className="inline-block min-w-0 max-w-full truncate">{label}</span>
+				<span className="shrink-0 text-[10px] tracking-wide text-muted-foreground/45">
+					{item.sourceKind}
+				</span>
+			</CollapsibleTrigger>
+			<CollapsibleContent>
+				<pre
+					data-scrollable
+					className="my-1 max-h-48 overflow-auto whitespace-pre-wrap border-l-2 border-border/70 pl-2.5 font-sans text-[12px] leading-relaxed text-muted-foreground/90"
+				>
+					{item.text}
+				</pre>
+			</CollapsibleContent>
+		</Collapsible>
 	);
 }
 

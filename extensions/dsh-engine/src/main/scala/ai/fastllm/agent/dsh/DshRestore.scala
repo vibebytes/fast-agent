@@ -39,7 +39,10 @@ def dshHistory(sessionId: String, events: List[Json]): DshHistory =
         flush(sessionId, numbered, seq).copy(todoOpen = false, step = None)
       case "user/message" =>
         val flushed = flush(sessionId, numbered, seq)
-        flushed.copy(rows = flushed.rows :+ row(sessionId, idOf(seq, "u"), "user", "text", texts(data)), step = None)
+        val injected = dshSourceKind(ev).exists(_ != "user")
+        val messageType =
+          if injected then MessageType.text(MessageType.EnvironmentContext) else "text"
+        flushed.copy(rows = flushed.rows :+ row(sessionId, idOf(seq, "u"), "user", messageType, texts(data)), step = None)
       case "assistant/message" =>
         ingestMessage(sessionId, numbered, seq, data)
       case "assistant/chunk" =>
@@ -61,7 +64,9 @@ def dshHistory(sessionId: String, events: List[Json]): DshHistory =
 
 def dshWindow(rows: List[ChannelMessage], beforeTurnId: Option[String], limit: Int): ChannelMessageWindow =
   val lim = if limit <= 0 then 20 else limit
-  val anchors = rows.zipWithIndex.filter(_._1.role == MessageRole.text(MessageRole.User))
+  val anchors = rows.zipWithIndex.filter: (r, _) =>
+    r.role == MessageRole.text(MessageRole.User) &&
+      !MessageType.isSyntheticContext(MessageType.parse(r.messageType))
   if anchors.isEmpty then
     ChannelMessageWindow(rows, hasMoreOlder = false, totalExchangeCount = if rows.nonEmpty then 1 else 0)
   else
