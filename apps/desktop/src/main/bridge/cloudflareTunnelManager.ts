@@ -1,4 +1,6 @@
-import {Tunnel} from 'cloudflared';
+import {Tunnel, use} from 'cloudflared';
+import {existsSync} from 'node:fs';
+import {join} from 'node:path';
 import type {CloudflareTunnelFailureCode, CloudflareTunnelStatus} from '@fast-ide/session-view';
 
 export type {CloudflareTunnelFailureCode, CloudflareTunnelStatus};
@@ -31,7 +33,19 @@ export type CloudflareTunnelManagerDeps = {
 	onStatus?: (s: CloudflareTunnelStatus) => void;
 };
 
-const defaultCreateTunnel = (originUrl: string): CloudflareTunnelHandle => Tunnel.quick(originUrl);
+/** Packaged app ships the cloudflared binary in Resources/bin; the bundled default path no longer works. */
+function packagedCloudflaredBin(): string | null {
+	const resources = process.resourcesPath;
+	if (!resources) return null;
+	const bin = join(resources, 'bin', process.platform === 'win32' ? 'cloudflared.exe' : 'cloudflared');
+	return existsSync(bin) ? bin : null;
+}
+
+const defaultCreateTunnel = (originUrl: string): CloudflareTunnelHandle => {
+	const bin = packagedCloudflaredBin();
+	if (bin) use(bin);
+	return Tunnel.quick(originUrl);
+};
 
 export class CloudflareTunnelManager {
 	private status: CloudflareTunnelStatus = {state: 'disabled'};

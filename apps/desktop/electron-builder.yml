@@ -18,6 +18,8 @@ extraResources:
     to: tui
   - from: ../../staging/pack/packages
     to: packages
+  - from: ../../staging/desktop/cloudflared
+    to: bin
 afterPack: ./scripts/pack/afterPack.cjs
 afterAllArtifactBuild: ./scripts/pack/afterAllArtifactBuild.cjs
 mac:

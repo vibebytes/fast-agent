@@ -40,3 +40,17 @@ test('parsePairingPayload ignores blank serverKey', () => {
 	const parsed = parsePairingPayload(raw);
 	assert.deepEqual(parsed, {serverUrl: url, token: 'abc', fingerprint: null, trust: 'public'});
 });
+
+test('parsePairingPayload rejects payloads without a token', () => {
+	const url = 'https://abc.trycloudflare.com/bridge';
+	assert.equal(
+		parsePairingPayload(`fast-bridge://pair?url=${encodeURIComponent(url)}&trust=public&serverKey=key-1`),
+		null,
+	);
+	assert.equal(
+		parsePairingPayload(JSON.stringify({serverUrl: url, trust: 'public', serverKey: 'key-1'})),
+		null,
+	);
+	assert.equal(parsePairingPayload(`fast-bridge|${url}||fp`), null);
+	assert.equal(parsePairingPayload('wss://abc.trycloudflare.com/bridge'), null);
+});

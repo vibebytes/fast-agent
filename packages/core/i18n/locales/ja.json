@@ -336,6 +336,9 @@
         "cloudflareStopConfirm": "Cloudflare トンネルを停止しますか？接続中のスマホは切断されます。",
         "cloudflareRemoteUnsupported": "Cloudflare トンネルは現在ローカルエンジンのみ対応しています（現在：{{name}}）。",
         "cloudflareSwitchLocal": "ローカルエンジンに切り替え",
+        "cloudflareTokenUnavailable": "ペアリングQRコードを生成できません：エンジンがペアリングトークンを返しませんでした。",
+        "cloudflareTokenUnavailableHint": "上の「LANペアリング」スイッチをオンにしてから再試行してください。トークンはペアリング有効時のみ発行され、トンネルとLANペアリングは同時に使用できます。",
+        "cloudflareEnableLanPairing": "LANペアリングを有効にする",
         "cloudflareSwitchLan": "LAN に切り替え",
         "cloudflareFailed": {
           "remote": "Cloudflare トンネルは現在ローカルエンジンのみ対応しています",

@@ -336,6 +336,9 @@
         "cloudflareStopConfirm": "Stop the Cloudflare tunnel? Connected phones will be disconnected.",
         "cloudflareRemoteUnsupported": "Cloudflare tunnel currently supports only the local engine (current: {{name}}).",
         "cloudflareSwitchLocal": "Switch to local engine",
+        "cloudflareTokenUnavailable": "Can't generate the pairing QR code: the engine did not provide a pairing token.",
+        "cloudflareTokenUnavailableHint": "Turn on the LAN pairing switch above and retry. The engine only issues the pairing token while pairing is enabled; the tunnel and LAN pairing can be used at the same time.",
+        "cloudflareEnableLanPairing": "Enable LAN pairing",
         "cloudflareSwitchLan": "Switch to LAN",
         "cloudflareFailed": {
           "remote": "Cloudflare Tunnel currently only supports the local engine",

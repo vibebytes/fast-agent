@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Relocatable engine + tui tree at staging/pack (agent sbt dist is engine-only).
-import {cpSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync} from 'node:fs';
+import {cpSync, copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync} from 'node:fs';
 import {execFileSync} from 'node:child_process';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
@@ -48,6 +48,18 @@ function stampEngineId(engineDir) {
 }
 
 stampEngineId(engineDest);
+
+const cloudflaredBinDir = path.join(root, 'apps', 'desktop', 'node_modules', 'cloudflared', 'bin');
+const cloudflaredDir = path.join(root, 'staging', 'desktop', 'cloudflared');
+rmSync(cloudflaredDir, {recursive: true, force: true});
+mkdirSync(cloudflaredDir, {recursive: true});
+if (existsSync(cloudflaredBinDir)) {
+	for (const entry of readdirSync(cloudflaredBinDir)) {
+		copyFileSync(path.join(cloudflaredBinDir, entry), path.join(cloudflaredDir, entry));
+	}
+} else {
+	console.warn('stage-pack: cloudflared binary missing — desktop tunnel will be unavailable; re-run pnpm install (allow build scripts)');
+}
 
 function writePkg(dir, json) {
 	mkdirSync(dir, {recursive: true});

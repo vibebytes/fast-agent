@@ -336,6 +336,9 @@
         "cloudflareStopConfirm": "¿Detener el túnel Cloudflare? Los teléfonos conectados se desconectarán.",
         "cloudflareRemoteUnsupported": "El túnel Cloudflare solo admite actualmente el motor local (actual: {{name}}).",
         "cloudflareSwitchLocal": "Cambiar al motor local",
+        "cloudflareTokenUnavailable": "No se pudo generar el código QR de emparejamiento: el motor no proporcionó un token de emparejamiento.",
+        "cloudflareTokenUnavailableHint": "Active el interruptor de emparejamiento LAN de arriba y reintente. El motor solo emite el token con el emparejamiento activado; el túnel y el emparejamiento LAN pueden usarse a la vez.",
+        "cloudflareEnableLanPairing": "Activar emparejamiento LAN",
         "cloudflareSwitchLan": "Cambiar a LAN",
         "cloudflareFailed": {
           "remote": "El túnel Cloudflare actualmente solo admite el motor local",

@@ -54,7 +54,7 @@ export function parsePairingPayload(raw: string): PairingPayload | null {
       const fingerprint = typeof obj.fingerprint === 'string' ? obj.fingerprint : null;
       const trust = normalizeTrust(obj.trust);
       const serverKey = normalizeServerKey(obj.serverKey);
-      if (serverUrl)
+      if (serverUrl && token)
         return {
           serverUrl,
           token,
@@ -75,7 +75,7 @@ export function parsePairingPayload(raw: string): PairingPayload | null {
       const token = params.get('token');
       const trust = normalizeTrust(params.get('trust'));
       const serverKey = normalizeServerKey(params.get('serverKey'));
-      if (serverUrl)
+      if (serverUrl && token)
         return {
           serverUrl,
           token: token ?? '',
@@ -89,13 +89,14 @@ export function parsePairingPayload(raw: string): PairingPayload | null {
   }
 
   const parts = text.split('|');
-  if (parts.length >= 3 && parts[0] === 'fast-bridge') {
+  if (parts.length >= 3 && parts[0] === 'fast-bridge' && parts[2]) {
     return {serverUrl: parts[1], token: parts[2] ?? '', fingerprint: parts[3] || null};
   }
 
   if (/^(ws|wss):\/\//i.test(text)) {
     const urlMatch = /token=([^&\s]+)/i.exec(text);
     const fpMatch = /fingerprint=([^&\s]+)/i.exec(text);
+    if (!urlMatch) return null;
     return {
       serverUrl: text,
       token: urlMatch ? decodeURIComponent(urlMatch[1]) : '',

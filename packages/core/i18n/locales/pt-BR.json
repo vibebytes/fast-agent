@@ -336,6 +336,9 @@
         "cloudflareStopConfirm": "Parar o túnel Cloudflare? Os telefones conectados serão desconectados.",
         "cloudflareRemoteUnsupported": "O túnel Cloudflare atualmente suporta apenas o engine local (atual: {{name}}).",
         "cloudflareSwitchLocal": "Alternar para o motor local",
+        "cloudflareTokenUnavailable": "Não foi possível gerar o QR Code de pareamento: o motor não forneceu um token de pareamento.",
+        "cloudflareTokenUnavailableHint": "Ative a chave de pareamento LAN acima e tente novamente. O motor só emite o token com o pareamento ativado; o túnel e o pareamento LAN podem ser usados ao mesmo tempo.",
+        "cloudflareEnableLanPairing": "Ativar pareamento LAN",
         "cloudflareSwitchLan": "Mudar para LAN",
         "cloudflareFailed": {
           "remote": "O túnel do Cloudflare atualmente suporta apenas o motor local",

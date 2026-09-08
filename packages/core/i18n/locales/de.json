@@ -336,6 +336,9 @@
         "cloudflareStopConfirm": "Cloudflare-Tunnel stoppen? Verbundene Telefone werden getrennt.",
         "cloudflareRemoteUnsupported": "Der Cloudflare-Tunnel unterstützt derzeit nur die lokale Engine (aktuell: {{name}}).",
         "cloudflareSwitchLocal": "Zur lokalen Engine wechseln",
+        "cloudflareTokenUnavailable": "Paarungs-QR-Code kann nicht erstellt werden: Die Engine hat kein Paarungs-Token geliefert.",
+        "cloudflareTokenUnavailableHint": "Aktivieren Sie den LAN-Pairing-Schalter oben und versuchen Sie es erneut. Die Engine stellt das Token nur bei aktiviertem Pairing bereit; Tunnel und LAN-Pairing können gleichzeitig genutzt werden.",
+        "cloudflareEnableLanPairing": "LAN-Pairing aktivieren",
         "cloudflareSwitchLan": "Zu LAN wechseln",
         "cloudflareFailed": {
           "remote": "Der Cloudflare-Tunnel unterstützt derzeit nur die lokale Engine",

@@ -28,8 +28,9 @@ export default defineConfig({
 					'@fastllm/bridge-protocol',
 					'@fastllm/bridge-client',
 					'i18next',
-					// Packaged asar has no node_modules — leave `ws` in the main bundle.
-					'ws'
+					// Packaged asar has no node_modules — leave `ws` and `cloudflared` in the main bundle.
+					'ws',
+					'cloudflared'
 				]
 			})
 		],

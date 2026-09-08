@@ -336,6 +336,9 @@
         "cloudflareStopConfirm": "停止 Cloudflare 隧道？已连接的手机将被断开。",
         "cloudflareRemoteUnsupported": "Cloudflare 隧道当前仅支持本机引擎（当前：{{name}}）。",
         "cloudflareSwitchLocal": "切换到本机引擎",
+        "cloudflareTokenUnavailable": "无法生成配对二维码：引擎未提供配对 Token。",
+        "cloudflareTokenUnavailableHint": "请先打开上方「局域网配对」开关再重试。引擎仅在配对开启时下发 Token；隧道与局域网配对可同时使用。",
+        "cloudflareEnableLanPairing": "开启局域网配对",
         "cloudflareSwitchLan": "切回局域网",
         "cloudflareFailed": {
           "remote": "Cloudflare 隧道当前仅支持本机引擎",

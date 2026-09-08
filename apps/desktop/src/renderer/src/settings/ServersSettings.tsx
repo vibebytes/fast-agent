@@ -212,6 +212,20 @@ export function ServersSettings() {
 
 	const [qrHidden, setQrHidden] = useState(false);
 	const [qrBlur, setQrBlur] = useState(false);
+	// 引擎仅在配对监听开启时经 GetBridgePairing 下发 token；ready 时重拉一次，
+	// 兼治「先开隧道后开配对」与引擎重启 token 轮换后的 stale 二维码。
+	const cfReadyUrl = cf.state === 'ready' ? cf.url : null;
+	useEffect(() => {
+		if (!cfReadyUrl) return;
+		let alive = true;
+		void window.fastIde.mobilePairingInfo().then((info) => {
+			if (alive) setPairing(info);
+		});
+		return () => {
+			alive = false;
+		};
+	}, [cfReadyUrl]);
+	const cfTokenReady = Boolean(pairing?.available && pairing.token);
 	const [blurEpoch, setBlurEpoch] = useState(0);
 	useEffect(() => {
 		if (cf.state !== 'ready' || qrHidden) return;
@@ -579,6 +593,13 @@ export function ServersSettings() {
 											<Eye className="size-4" />
 											{t('settings.pages.servers.cloudflareQrHidden')}
 										</button>
+									) : !cfTokenReady ? (
+										<div className="grid size-[200px] shrink-0 place-content-center gap-2 rounded-md border border-amber-500/40 bg-amber-500/10 p-4 text-center">
+											<AlertTriangle className="mx-auto size-4 text-amber-600" />
+											<p className="text-xs font-medium text-amber-700 dark:text-amber-500">
+												{t('settings.pages.servers.cloudflareTokenUnavailable')}
+											</p>
+										</div>
 									) : (
 										<div
 											className={`relative shrink-0 ${qrBlur ? 'cursor-pointer select-none blur-md' : ''}`}
@@ -614,13 +635,31 @@ export function ServersSettings() {
 										</p>
 										{qrBlur ? (
 											<p className="text-xs text-muted-foreground">
-												{t('settings.pages.servers.cloudflareQrBlurred')}
+											{t('settings.pages.servers.cloudflareQrBlurred')}
+										</p>
+									) : null}
+									{!cfTokenReady ? (
+										<div className="grid gap-2">
+											<p className="text-xs text-amber-700 dark:text-amber-500">
+												{t('settings.pages.servers.cloudflareTokenUnavailableHint')}
 											</p>
-										) : null}
-									</div>
+											<div>
+												<SettingsButton
+													variant="outline"
+													className="w-fit"
+													disabled={lanBusy || pending}
+													onClick={() => void toggleLanPairing(true)}
+												>
+													{t('settings.pages.servers.cloudflareEnableLanPairing')}
+												</SettingsButton>
+											</div>
+											{lanError ? <p className="text-xs text-destructive">{lanError}</p> : null}
+										</div>
+									) : null}
+								</div>
 								</div>
 								<div className="flex items-center gap-2">
-									<SettingsButton variant="outline" onClick={() => void copyFullPairing()}>
+									<SettingsButton variant="outline" disabled={!cfTokenReady} onClick={() => void copyFullPairing()}>
 										{t('settings.pages.servers.cloudflareCopyFullPairing')}
 									</SettingsButton>
 									<SettingsButton variant="outline" disabled={cfBusy} onClick={() => void stopCloudflare()}>

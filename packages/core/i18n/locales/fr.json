@@ -336,6 +336,9 @@
         "cloudflareStopConfirm": "Arrêter le tunnel Cloudflare ? Les téléphones connectés seront déconnectés.",
         "cloudflareRemoteUnsupported": "Le tunnel Cloudflare ne prend actuellement en charge que le moteur local (actuel : {{name}}).",
         "cloudflareSwitchLocal": "Passer au moteur local",
+        "cloudflareTokenUnavailable": "Impossible de générer le QR code de jumelage : le moteur n'a pas fourni de jeton de jumelage.",
+        "cloudflareTokenUnavailableHint": "Activez l'interrupteur de jumelage LAN ci-dessus puis réessayez. Le moteur ne délivre le jeton que lorsque le jumelage est activé ; le tunnel et le jumelage LAN peuvent être utilisés simultanément.",
+        "cloudflareEnableLanPairing": "Activer le jumelage LAN",
         "cloudflareSwitchLan": "Revenir au LAN",
         "cloudflareFailed": {
           "remote": "Le tunnel Cloudflare ne prend actuellement en charge que le moteur local",

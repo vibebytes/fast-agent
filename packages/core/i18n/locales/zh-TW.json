@@ -336,6 +336,9 @@
         "cloudflareStopConfirm": "停止 Cloudflare 隧道？已連接的手機將被斷線。",
         "cloudflareRemoteUnsupported": "Cloudflare 隧道目前僅支援本機引擎（目前：{{name}}）。",
         "cloudflareSwitchLocal": "切換到本機引擎",
+        "cloudflareTokenUnavailable": "無法產生配對 QR Code：引擎未提供配對 Token。",
+        "cloudflareTokenUnavailableHint": "請先開啟上方「區域網路配對」開關再重試。引擎僅在配對開啟時下發 Token；隧道與區域網路配對可同時使用。",
+        "cloudflareEnableLanPairing": "開啟區域網路配對",
         "cloudflareSwitchLan": "切回區域網路",
         "cloudflareFailed": {
           "remote": "Cloudflare 隧道目前僅支援本機引擎",

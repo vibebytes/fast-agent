@@ -336,6 +336,9 @@
         "cloudflareStopConfirm": "Остановить туннель Cloudflare? Подключённые телефоны будут отключены.",
         "cloudflareRemoteUnsupported": "Туннель Cloudflare сейчас поддерживает только локальный движок (сейчас: {{name}}).",
         "cloudflareSwitchLocal": "Переключиться на локальный движок",
+        "cloudflareTokenUnavailable": "Не удалось создать QR-код сопряжения: движок не передал токен сопряжения.",
+        "cloudflareTokenUnavailableHint": "Включите переключатель LAN-сопряжения выше и повторите попытку. Движок выдаёт токен только при включённом сопряжении; туннель и LAN-сопряжение можно использовать одновременно.",
+        "cloudflareEnableLanPairing": "Включить LAN-сопряжение",
         "cloudflareSwitchLan": "Переключиться на LAN",
         "cloudflareFailed": {
           "remote": "Туннель Cloudflare сейчас поддерживает только локальный движок",
