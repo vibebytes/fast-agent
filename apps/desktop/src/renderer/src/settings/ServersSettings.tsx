@@ -1,6 +1,6 @@
 import {useEffect, useMemo, useState} from 'react';
 import {useTranslation} from 'react-i18next';
-import {AlertTriangle, Check, Copy, Eye, EyeOff, HardDrive, LoaderCircle, Plus, Smartphone, Trash2} from 'lucide-react';
+import {AlertTriangle, Check, Copy, Eye, EyeOff, LoaderCircle, Plus, Smartphone, Trash2} from 'lucide-react';
 import {Input} from '@fast-ide/ui/components/input';
 import {Switch} from '@fast-ide/ui/components/switch';
 import {Tabs, TabsContent, TabsList, TabsTrigger} from '@fast-ide/ui/components/tabs';
@@ -17,7 +17,6 @@ import {
 import type {CloudflareTunnelStatus, EdgePublic, EdgesList, MobilePairingInfo} from '@fast-ide/session-view';
 import {
 	SettingsButton,
-	SettingsPageHeader,
 	SettingsRow,
 	SettingsSection,
 	SettingsState
@@ -225,7 +224,7 @@ export function ServersSettings() {
 			alive = false;
 		};
 	}, [cfReadyUrl]);
-	const cfTokenReady = Boolean(pairing?.available && pairing.token);
+	const cfTokenReady = Boolean(pairing?.token);
 	const [blurEpoch, setBlurEpoch] = useState(0);
 	useEffect(() => {
 		if (cf.state !== 'ready' || qrHidden) return;
@@ -370,12 +369,7 @@ export function ServersSettings() {
 	}
 
 	return (
-		<>
-			<SettingsPageHeader
-				icon={HardDrive}
-				title={t('settings.navigation.servers')}
-				description={t('settings.navigation.serversDescription')}
-			/>
+		<div className="space-y-4">
 			<SettingsSection
 				title={t('settings.pages.servers.edges')}
 				description={t('settings.pages.servers.edgesDescription')}
@@ -427,143 +421,146 @@ export function ServersSettings() {
 
 			<SettingsSection
 				title={t('settings.pages.servers.mobilePairing')}
-				description={t('settings.pages.servers.mobilePairingDescription')}
+				description={
+					channel === 'lan'
+						? t('settings.pages.servers.mobilePairingDescription')
+						: t('settings.pages.servers.cloudflareIdle')
+				}
 			>
 				<Tabs
 					value={channel}
 					onValueChange={v => setChannel(v === 'cloudflare' ? 'cloudflare' : 'lan')}
-					className="px-4 pb-4"
+					className="gap-0"
 				>
-					<TabsList>
-						<TabsTrigger value="lan">{t('settings.pages.servers.cloudflareTabLan')}</TabsTrigger>
-						<TabsTrigger value="cloudflare">
-							{t('settings.pages.servers.cloudflareTab')}
-						</TabsTrigger>
-					</TabsList>
-					<TabsContent value="lan" className="pt-4">
-					<SettingsRow
-					icon={Smartphone}
-					title={t('settings.pages.servers.mobilePairing')}
-					badge={
-						<span className="max-w-40 truncate rounded-full border border-border/60 bg-muted/60 px-2 py-0.5 text-[11px] text-muted-foreground">
-							{t('settings.pages.servers.mobilePairingTargetLabel')}{' '}
-							{activeEdge
-								? t('settings.pages.servers.mobilePairingTargetRemote', {name: activeEdge.name, host: activeEdge.ip})
-								: t('settings.pages.servers.mobilePairingTargetLocal')}
-						</span>
-					}
-					description={
-						pending
-							? t('settings.pages.servers.mobilePairingPendingEdge')
-							: lanToggle === 'on'
-								? t('settings.pages.servers.mobilePairingStarting')
-								: lanToggle === 'off'
-									? t('settings.pages.servers.mobilePairingStopping')
-									: undefined
-					}
-				>
-					{lanBusy ? <LoaderCircle className="size-3.5 animate-spin text-muted-foreground" /> : null}
-					<Switch
-						checked={pairing?.available ?? false}
-						disabled={lanBusy || pending}
-						aria-label={t('settings.pages.servers.mobilePairing')}
-						onCheckedChange={next => void toggleLanPairing(next)}
-					/>
-				</SettingsRow>
-				{pairing?.available && lanToggle !== 'off' ? (
-					<div className="grid gap-3 px-4 py-4">
-						<CopyField
-							label={t('settings.pages.servers.mobilePairingUrl')}
-							value={pairing.serverUrl}
-							copiedLabel={t('settings.pages.servers.mobilePairingCopied')}
-						/>
-						<SecretField
-							label={t('settings.pages.servers.mobilePairingToken')}
-							value={pairing.token}
-							copiedLabel={t('settings.pages.servers.mobilePairingCopied')}
-							showLabel={t('settings.pages.servers.mobilePairingTokenShow')}
-							hideLabel={t('settings.pages.servers.mobilePairingTokenHide')}
-						/>
-						<CopyField
-							label={t('settings.pages.servers.mobilePairingFingerprint')}
-							value={pairing.fingerprint}
-							copiedLabel={t('settings.pages.servers.mobilePairingCopied')}
-						/>
-						<div className="flex items-start gap-3">
-							<PairingQr
-								serverUrl={pairing.serverUrl}
-								token={pairing.token}
-								fingerprint={pairing.fingerprint}
+					<div className="border-b border-border/50 px-4 py-3">
+						<TabsList>
+							<TabsTrigger value="lan">{t('settings.pages.servers.cloudflareTabLan')}</TabsTrigger>
+							<TabsTrigger value="cloudflare">
+								{t('settings.pages.servers.cloudflareTab')}
+							</TabsTrigger>
+						</TabsList>
+					</div>
+					<TabsContent value="lan" className="divide-y divide-border/40">
+						<SettingsRow
+							icon={Smartphone}
+							title={t('settings.pages.servers.mobilePairing')}
+							badge={
+								<span className="max-w-40 truncate rounded-full border border-border/60 bg-muted/60 px-2 py-0.5 text-[11px] text-muted-foreground">
+									{t('settings.pages.servers.mobilePairingTargetLabel')}{' '}
+									{activeEdge
+										? t('settings.pages.servers.mobilePairingTargetRemote', {name: activeEdge.name, host: activeEdge.ip})
+										: t('settings.pages.servers.mobilePairingTargetLocal')}
+								</span>
+							}
+							description={
+								pending
+									? t('settings.pages.servers.mobilePairingPendingEdge')
+									: lanToggle === 'on'
+										? t('settings.pages.servers.mobilePairingStarting')
+										: lanToggle === 'off'
+											? t('settings.pages.servers.mobilePairingStopping')
+											: undefined
+							}
+						>
+							{lanBusy ? <LoaderCircle className="size-3.5 animate-spin text-muted-foreground" /> : null}
+							<Switch
+								checked={pairing?.available ?? false}
+								disabled={lanBusy || pending}
+								aria-label={t('settings.pages.servers.mobilePairing')}
+								onCheckedChange={next => void toggleLanPairing(next)}
 							/>
-							<div className="grid gap-2">
-								<p className="text-xs text-muted-foreground">{t('settings.pages.servers.mobilePairingQrHint')}</p>
-								<p className="text-xs text-muted-foreground">
-									{t('settings.pages.servers.mobilePairingFirewallHint', {port: pairing.port})}
-								</p>
-							</div>
-						</div>
-					</div>
-				) : lanToggle === 'on' ? (
-					<div className="flex items-center gap-2 px-4 py-4 text-xs text-muted-foreground">
-						<LoaderCircle className="size-3.5 animate-spin" />
-						{t('settings.pages.servers.mobilePairingStarting')}
-					</div>
-				) : !lanBusy ? (
-					<div className="grid gap-2 px-4 py-4">
-						<p className="text-xs text-muted-foreground">
-							{t(
-								pairing?.reason === 'engine'
-									? 'settings.pages.servers.mobilePairingEngineOff'
-									: pairing?.reason === 'no_lan'
-										? 'settings.pages.servers.mobilePairingNoLan'
-										: 'settings.pages.servers.mobilePairingOff'
-							)}
-						</p>
-						{lanError ? (
-							<div className="flex items-start gap-2 rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2">
-								<AlertTriangle className="mt-0.5 size-3.5 shrink-0 text-destructive" />
-								<div className="grid min-w-0 gap-1 text-xs">
-									<p className="font-medium text-destructive">
-										{lanBindError
-											? t('settings.pages.servers.mobilePairingBindFailed', {port: pairing?.port || 1979})
-											: lanError}
-									</p>
-									{lanBindError ? <p className="break-all text-muted-foreground">{lanError}</p> : null}
-									{!pairing?.available ? (
-										<SettingsButton
-											variant="outline"
-											className="w-fit"
-											onClick={() => void toggleLanPairing(true)}
-										>
-											{t('settings.common.retry')}
-										</SettingsButton>
-									) : null}
+						</SettingsRow>
+						{pairing?.available && lanToggle !== 'off' ? (
+							<div className="grid gap-3 px-4 py-4">
+								<CopyField
+									label={t('settings.pages.servers.mobilePairingUrl')}
+									value={pairing.serverUrl}
+									copiedLabel={t('settings.pages.servers.mobilePairingCopied')}
+								/>
+								<SecretField
+									label={t('settings.pages.servers.mobilePairingToken')}
+									value={pairing.token}
+									copiedLabel={t('settings.pages.servers.mobilePairingCopied')}
+									showLabel={t('settings.pages.servers.mobilePairingTokenShow')}
+									hideLabel={t('settings.pages.servers.mobilePairingTokenHide')}
+								/>
+								<CopyField
+									label={t('settings.pages.servers.mobilePairingFingerprint')}
+									value={pairing.fingerprint}
+									copiedLabel={t('settings.pages.servers.mobilePairingCopied')}
+								/>
+								<div className="flex items-start gap-3">
+									<PairingQr
+										serverUrl={pairing.serverUrl}
+										token={pairing.token}
+										fingerprint={pairing.fingerprint}
+									/>
+									<div className="grid gap-2">
+										<p className="text-xs text-muted-foreground">{t('settings.pages.servers.mobilePairingQrHint')}</p>
+										<p className="text-xs text-muted-foreground">
+											{t('settings.pages.servers.mobilePairingFirewallHint', {port: pairing.port})}
+										</p>
+									</div>
 								</div>
 							</div>
+						) : lanToggle === 'on' ? (
+							<div className="flex items-center gap-2 px-4 py-4 text-xs text-muted-foreground">
+								<LoaderCircle className="size-3.5 animate-spin" />
+								{t('settings.pages.servers.mobilePairingStarting')}
+							</div>
+						) : !lanBusy ? (
+							<div className="grid gap-2 px-4 py-4">
+								<p className="text-xs text-muted-foreground">
+									{t(
+										pairing?.reason === 'engine'
+											? 'settings.pages.servers.mobilePairingEngineOff'
+											: pairing?.reason === 'no_lan'
+												? 'settings.pages.servers.mobilePairingNoLan'
+												: 'settings.pages.servers.mobilePairingOff'
+									)}
+								</p>
+								{lanError ? (
+									<div className="flex items-start gap-2 rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2">
+										<AlertTriangle className="mt-0.5 size-3.5 shrink-0 text-destructive" />
+										<div className="grid min-w-0 gap-1 text-xs">
+											<p className="font-medium text-destructive">
+												{lanBindError
+													? t('settings.pages.servers.mobilePairingBindFailed', {port: pairing?.port || 1979})
+													: lanError}
+											</p>
+											{lanBindError ? <p className="break-all text-muted-foreground">{lanError}</p> : null}
+											{!pairing?.available ? (
+												<SettingsButton
+													variant="outline"
+													className="w-fit"
+													onClick={() => void toggleLanPairing(true)}
+												>
+													{t('settings.common.retry')}
+												</SettingsButton>
+											) : null}
+										</div>
+									</div>
+								) : null}
+							</div>
 						) : null}
-					</div>
-				) : null}
 					</TabsContent>
-					<TabsContent value="cloudflare" className="pt-4">
-						<div className="grid gap-3">
+					<TabsContent value="cloudflare">
+						<div className="grid gap-3 px-4 py-4">
 							{cf.state === 'disabled' ? (
 								<div className="grid gap-3">
-									<p className="text-xs text-muted-foreground">
-										{t('settings.pages.servers.cloudflareIdle')}
-									</p>
 									<div>
 										<SettingsButton disabled={Boolean(activeEdge) || cfBusy} onClick={() => void startCloudflare()}>
 											{t('settings.pages.servers.cloudflareStart')}
 										</SettingsButton>
 									</div>
-								{activeEdge ? (
-									<div className="flex items-center gap-2 text-xs text-muted-foreground">
-										<span>{t('settings.pages.servers.cloudflareRemoteUnsupported', {name: activeEdge.name})}</span>
-										<SettingsButton variant="outline" onClick={() => void window.fastIde.selectEdge('local')}>
-											{t('settings.pages.servers.cloudflareSwitchLocal')}
-										</SettingsButton>
-									</div>
-								) : null}
+									{activeEdge ? (
+										<div className="flex items-center gap-2 text-xs text-muted-foreground">
+											<span>{t('settings.pages.servers.cloudflareRemoteUnsupported', {name: activeEdge.name})}</span>
+											<SettingsButton variant="outline" onClick={() => void window.fastIde.selectEdge('local')}>
+												{t('settings.pages.servers.cloudflareSwitchLocal')}
+											</SettingsButton>
+										</div>
+									) : null}
 								</div>
 							) : cf.state === 'starting' || cf.state === 'stopping' ? (
 								<div className="flex items-center gap-2 text-xs text-muted-foreground">
@@ -785,6 +782,6 @@ export function ServersSettings() {
 					)}
 				</DialogContent>
 			</Dialog>
-		</>
+		</div>
 	);
 }

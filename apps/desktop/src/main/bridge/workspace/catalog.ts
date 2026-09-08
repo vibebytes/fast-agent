@@ -50,8 +50,10 @@ export function pairingFromRaw(raw: RawPairing | undefined | null): MobilePairin
 			fingerprint: raw.fingerprint
 		};
 	}
-	if (raw?.reason === 'loopback_only') return pairingUnavailable('no_lan');
-	return pairingUnavailable('off');
+	const token = raw?.token ?? '';
+	const fingerprint = raw?.fingerprint ?? '';
+	if (raw?.reason === 'loopback_only') return {...pairingUnavailable('no_lan'), token, fingerprint};
+	return {...pairingUnavailable('off'), token, fingerprint};
 }
 
 export function providersFromEvent(event: CommandResult): ProviderRow[] {

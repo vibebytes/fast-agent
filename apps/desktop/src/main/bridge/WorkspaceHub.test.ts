@@ -3493,6 +3493,36 @@ test('getBridgePairing is no_lan when the engine has loopback_only', async () =>
 	hub.closeAll();
 });
 
+test('getBridgePairing keeps the engine token when the snapshot is unavailable', async () => {
+	const commands: BridgeCommand[] = [];
+	let bridge: FakeBridge | null = null;
+	const hub = new WorkspaceHub({
+		createBridge: () => {
+			bridge = createFakeBridge(commands);
+			return bridge;
+		},
+		hostCwd: mkdtempSync(path.join(tmpdir(), 'hub-host-')),
+		homeDir: mkdtempSync(path.join(tmpdir(), 'hub-home-'))
+	});
+	hub.openProject(mkdtempSync(path.join(tmpdir(), 'proj-pair-token-')), noopHandlers());
+	await new Promise(r => setTimeout(r, 80));
+
+	const pending = hub.getBridgePairing();
+	await new Promise(r => setTimeout(r, 20));
+	bridge!.__inject({
+		type: 'command_result',
+		name: 'GetBridgePairing',
+		message: '',
+		status: 'accepted',
+		pairing: {available: false, reason: 'no_wss', token: 'engine-token', fingerprint: ''}
+	});
+	const info = await pending;
+	assert.equal(info.available, false);
+	assert.equal(info.reason, 'off');
+	assert.equal(info.token, 'engine-token');
+	hub.closeAll();
+});
+
 test('setLanPairing sends SetLanPairing command to bridge and awaits result', async () => {
 	const commands: BridgeCommand[] = [];
 	let bridge: FakeBridge | null = null;
