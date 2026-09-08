@@ -99,7 +99,29 @@ cat ~/.fast/run/bridge.token
 
 Open `1979` (or the port you chose) on the host firewall / security group. Optional: `--wss-cert` / `--wss-key` for your own cert.
 
-#### 1.2.3 After you are connected
+#### 1.2.3 Cloudflare Tunnel (public URL, no account)
+
+The phone reaches the local desktop from any network (cellular / remote Wi-Fi): no account, no domain, nothing to install on the phone, and both ends do not need to be on the same subnet. The desktop main process runs `cloudflared` outbound, gets a temporary public URL, and the phone connects to it over plain `wss`.
+
+1. **Install desktop** ([1.1 Direct download](#11-direct-download)) with the local engine running.
+2. **Turn on LAN pairing first.** Desktop → Settings → Servers → the **LAN** tab → switch **Mobile pairing** on. The engine only hands out the pairing token while pairing is enabled; the tunnel and LAN pairing can be used together.
+3. **Then start the tunnel.** On the same page switch to the **Cloudflare Tunnel** tab → **Start Cloudflare Tunnel**. Once ready it shows the public URL (`https://<random>.trycloudflare.com/bridge`; the phone turns it into `wss`) and a QR code.
+4. **Scan from the phone.** The QR is the pairing payload (`url` + `token` + `trust=public`, no fingerprint). You can paste the URL and token instead.
+5. **Stop it.** "Stop tunnel" kills the public URL and disconnects connected phones. Quitting the app also cleans up — no leftover `cloudflared` process.
+
+Path: `phone ──wss──▶ Cloudflare edge ──tunnel──▶ desktop cloudflared ──http──▶ 127.0.0.1:1981/bridge`. The desktop appends `--ws 127.0.0.1:1981` when it launches the engine (loopback-only plaintext, used as the tunnel origin). TLS terminates at the Cloudflare edge, so the phone validates a public CA cert and this channel **does no fingerprint TOFU** — the `token` is the only gate.
+
+Caveats:
+
+- **Publicly reachable**: anyone with the URL can attempt a connection; without the token they only fail `Hello`. Do not share the QR or the full pairing text (copy-address carries no token).
+- **The URL rotates**: a quick tunnel gets a new hostname on every restart — scan again; stale QR cards are greyed out.
+- **Local engine only**: the tunnel leaves from the desktop, so v1 targets the local engine only; with a remote engine selected, "Start Cloudflare Tunnel" is disabled — follow the prompt and click "Switch to local engine". For a remote engine use [1.2.2 Public network (remote CLI)](#122-public-network-remote-cli) instead.
+- **Keepalive**: the edge reclaims idle connections after ~72s; the app heartbeats every 15s in the foreground and reconnects with backoff after backgrounding.
+- **Binary**: packaged builds ship `cloudflared`; running from source uses the npm `cloudflared` package (downloads on first use).
+
+If it will not connect: check the tunnel card shows a public URL, whether the URL rotated, try a phone hotspot to rule out corporate filtering, and re-scan for the current token. On "engine loopback port unreachable", turn on the LAN pairing switch above and retry; the QR blurs after a while — tap it to restore.
+
+#### 1.2.4 After you are connected
 
 Chat is the latest session. History lists sessions. A session can send, approve, and interrupt. Theme and language stay on the phone.
 
