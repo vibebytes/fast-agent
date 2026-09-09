@@ -265,6 +265,16 @@ export function createUiPublisher(deps: UiPublisherDeps) {
 		};
 	}
 
+	// Undefined sections must fall back to SHARED empty containers: the tail
+	// publisher compares section references across flushes, so a fresh []/{} per
+	// build would report every section as changed on every flush.
+	const EMPTY_PRUNES: TranscriptPatch['contextPrunes'] = [];
+	const EMPTY_CHILDREN: TranscriptPatch['childTranscripts'] = {};
+	const EMPTY_SUPERSEDED: TranscriptPatch['superseded'] = {};
+	const EMPTY_LIVE_PROCS: TranscriptPatch['liveProcs'] = [];
+	const EMPTY_LIVE_TASKS: TranscriptPatch['liveTasks'] = [];
+	const EMPTY_CHILD_WORK: TranscriptPatch['childWork'] = [];
+
 	function buildTranscriptPatch(): TranscriptPatch | null {
 		const sessions: TaskView | null = hub.getActive()?.sessions ?? null;
 		const active = sessions?.getActiveTask() ?? null;
@@ -274,18 +284,18 @@ export function createUiPublisher(deps: UiPublisherDeps) {
 			bodyRevision: bodyRevision(active),
 			entries: active.transcript.entries,
 			usage: active.transcript.usage ?? null,
-			contextPrunes: active.transcript.contextPrunes ?? [],
-			childTranscripts: active.transcript.childTranscripts ?? {},
+			contextPrunes: active.transcript.contextPrunes ?? EMPTY_PRUNES,
+			childTranscripts: active.transcript.childTranscripts ?? EMPTY_CHILDREN,
 			approvals: active.transcript.approvals,
 			questions: active.transcript.questions,
 			questionBatches: active.transcript.questionBatches,
 			subagents: active.transcript.subagents,
 			contextInjections: active.transcript.contextInjections,
-			superseded: active.transcript.superseded ?? {},
+			superseded: active.transcript.superseded ?? EMPTY_SUPERSEDED,
 			codeChanges: active.codeChanges.entries,
-			liveProcs: active.transcript.liveProcs ?? [],
-			liveTasks: active.transcript.liveTasks ?? [],
-			childWork: active.transcript.childWork ?? [],
+			liveProcs: active.transcript.liveProcs ?? EMPTY_LIVE_PROCS,
+			liveTasks: active.transcript.liveTasks ?? EMPTY_LIVE_TASKS,
+			childWork: active.transcript.childWork ?? EMPTY_CHILD_WORK,
 			goalFlow: active.transcript.goalFlow,
 			goalCard: active.goalCard ?? null,
 			gate: sessions.gate()
