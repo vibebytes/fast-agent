@@ -1,10 +1,10 @@
 package ai.fastllm.engine.example
 
 import ai.fastllm.agent.channel.{
-  Admit, AgentAttachProtocol, ChannelMessageWindow, EventRow, RouteResult
+  Admit, AgentAttachProtocol, Caps, ChannelMessageWindow, EventRow, RouteResult
 }
 import ai.fastllm.agent.engine.{
-  Engine, EngineCallResult, EngineCapabilities, EngineConfig, EngineHost, EngineId, EngineProvider,
+  Engine, EngineCallResult, EngineConfig, EngineHost, EngineId, EngineProvider,
   EngineRuntime, EngineSession, EngineSessionContext
 }
 import io.circe.Json
@@ -29,7 +29,7 @@ final class ExampleRuntime extends EngineRuntime:
   def close(): Future[Unit] = Future.unit
 
 final class ExampleSession(sid: String) extends EngineSession:
-  def caps: EngineCapabilities = EngineCapabilities(true, false, false, false)
+  def caps: Caps = Caps()
   def submit(cmd: AgentAttachProtocol.Command.SubmitUserMessage) =
     Future.successful(Admit.Accepted(s"$sid:1"))
   def cancel(cmd: AgentAttachProtocol.Command.CancelRun) = Future.successful(Admit.Rejected("no"))

@@ -1390,6 +1390,7 @@
       "turnFailTitle": "Tarea fallida"
     },
     "subagent": {
+      "liveTail": "Salida en vivo",
       "untitled": "Subagente",
       "oneShot": "única vez",
       "continuable": "continuable",

@@ -707,11 +707,11 @@ export function createDesktopHost(deps: DesktopHostDeps): ProductInvokeMap {
 
 		'engine:diagnostics': () => hub.bridgeDiagnostics(),
 
-		'dsh:call': (method, payload, sessionId) => hub.dshCall(method, payload, sessionId),
-		'dsh:models': sessionId => getDshModels(hub.dshCall.bind(hub), sessionId),
-		'dsh:selectModel': input => selectDshModel(hub.dshCall.bind(hub), input),
-		'dsh:skills': sessionId => listDshSkills(hub.dshCall.bind(hub), sessionId),
-		'dsh:settings': op => settingsCall(hub.dshCall.bind(hub), op),
+		'dsh:call': (method, payload, sessionId) => hub.engineCall(method, payload, sessionId),
+		'dsh:models': sessionId => getDshModels(hub.engineCall.bind(hub), sessionId),
+		'dsh:selectModel': input => selectDshModel(hub.engineCall.bind(hub), input),
+		'dsh:skills': sessionId => listDshSkills(hub.engineCall.bind(hub), sessionId),
+		'dsh:settings': op => settingsCall(hub.engineCall.bind(hub), op),
 
 		'host:listDir': path => hub.listHostDir(path),
 		'host:createDir': (parent, name) => hub.createHostDir(parent, name),

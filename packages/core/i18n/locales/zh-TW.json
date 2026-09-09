@@ -1412,6 +1412,7 @@
       "turnFailTitle": "任務失敗"
     },
     "subagent": {
+      "liveTail": "即時輸出",
       "untitled": "子任務",
       "oneShot": "一次性",
       "continuable": "可續跑",

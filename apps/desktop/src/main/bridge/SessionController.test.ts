@@ -3884,7 +3884,7 @@ test('run_cancelled does not cue', () => {
 	assert.equal(controller.consumeCompletionCue(), null);
 });
 
-test('dsh_caps is stored; queue:false does not route DshQueue; Fast ignores unknown type', () => {
+test('dsh_caps is stored; queue:false does not route QueueMessage; Fast ignores unknown type', () => {
 	const sent: BridgeCommand[] = [];
 	let n = 0;
 	const controller = new SessionController({
@@ -3925,7 +3925,7 @@ test('dsh_caps is stored; queue:false does not route DshQueue; Fast ignores unkn
 		items: [{id: 'm1', placement: 'queued', text: 'later'}]
 	});
 	assert.equal(controller.removeQueueItem('m1'), false);
-	assert.equal(sent.some(c => c.type === 'Queue' || c.type === 'DshQueue'), false);
+	assert.equal(sent.some(c => c.type === 'QueueMessage'), false);
 	controller.handleEvent({
 		type: 'dsh_caps',
 		sessionId: 'sess-dsh',
@@ -3936,11 +3936,11 @@ test('dsh_caps is stored; queue:false does not route DshQueue; Fast ignores unkn
 		slash: true
 	});
 	assert.equal(controller.removeQueueItem('m1'), true);
-	assert.ok(sent.some(c => c.type === 'Queue' && c.action === 'remove'));
+	assert.ok(sent.some(c => c.type === 'QueueMessage' && c.action === 'remove'));
 	assert.equal(controller.dshSteer('nudge'), true);
-	assert.ok(sent.some(c => c.type === 'Steer' && c.text === 'nudge'));
+	assert.ok(sent.some(c => c.type === 'SteerRun' && c.text === 'nudge'));
 	assert.equal(controller.dshGoalAct('pause'), true);
-	assert.ok(sent.some(c => c.type === 'Call' && c.method === 'goal.pause'));
+	assert.ok(sent.some(c => c.type === 'EngineCall' && c.method === 'goal.pause'));
 	controller.handleEvent({
 		type: 'dsh_goal_changed',
 		sessionId: 'sess-dsh',

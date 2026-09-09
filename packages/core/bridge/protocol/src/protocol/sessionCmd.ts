@@ -2,7 +2,7 @@ import {z} from 'zod';
 import {commandInfo, questionBatchAnswer} from './shapes.js';
 
 export type SessionCmd =
-	{type: 'AttachSession'; sessionId: string; lastEventSeq: number; clientId: string; limit?: number}
+	| {type: 'AttachSession'; sessionId: string; lastEventSeq: number; clientId: string; limit?: number}
 	| {type: 'DetachSession'; sessionId: string; clientId: string}
 	| {
 			type: 'SubmitUserMessage';
@@ -42,41 +42,21 @@ export type SessionCmd =
 	| {type: 'SetMode'; sessionId: string; mode: string}
 	| {type: 'SetEngineKind'; sessionId: string; kind: string}
 	| {type: 'SetEngine'; sessionId: string; engineId?: string; kind?: string}
-	| {
-			type: 'DshCall';
+	|{
+			type: 'EngineCall';
 			method: string;
 			payload?: Record<string, unknown>;
 			sessionId?: string;
 			requestId?: string;
 	  }
-	| {
-			type: 'Call';
-			method: string;
-			payload?: Record<string, unknown>;
-			sessionId?: string;
-			requestId?: string;
-	  }
-	| {
-			type: 'DshSteer';
+	|{
+			type: 'SteerRun';
 			sessionId: string;
 			text: string;
 			images?: Array<{mediaType: string; data: string}>;
 	  }
-	| {
-			type: 'Steer';
-			sessionId: string;
-			text: string;
-			images?: Array<{mediaType: string; data: string}>;
-	  }
-	| {
-			type: 'DshQueue';
-			sessionId: string;
-			itemId: string;
-			action: string;
-			text?: string;
-	  }
-	| {
-			type: 'Queue';
+	|{
+			type: 'QueueMessage';
 			sessionId: string;
 			itemId: string;
 			action: string;
@@ -231,40 +211,20 @@ export const sessionCmdSchemas = [
 		kind: z.string().optional()
 	}),
 	z.object({
-		type: z.literal('DshCall'),
+		type: z.literal('EngineCall'),
 		method: z.string(),
 		payload: z.record(z.string(), z.unknown()).optional(),
 		sessionId: z.string().optional(),
 		requestId: z.string().optional()
 	}),
 	z.object({
-		type: z.literal('Call'),
-		method: z.string(),
-		payload: z.record(z.string(), z.unknown()).optional(),
-		sessionId: z.string().optional(),
-		requestId: z.string().optional()
-	}),
-	z.object({
-		type: z.literal('DshSteer'),
+		type: z.literal('SteerRun'),
 		sessionId: z.string(),
 		text: z.string(),
 		images: z.array(z.object({mediaType: z.string(), data: z.string()})).optional()
 	}),
 	z.object({
-		type: z.literal('Steer'),
-		sessionId: z.string(),
-		text: z.string(),
-		images: z.array(z.object({mediaType: z.string(), data: z.string()})).optional()
-	}),
-	z.object({
-		type: z.literal('DshQueue'),
-		sessionId: z.string(),
-		itemId: z.string(),
-		action: z.string(),
-		text: z.string().optional()
-	}),
-	z.object({
-		type: z.literal('Queue'),
+		type: z.literal('QueueMessage'),
 		sessionId: z.string(),
 		itemId: z.string(),
 		action: z.string(),

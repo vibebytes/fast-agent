@@ -92,7 +92,7 @@ class DshEventsSpec extends AnyFunSuite with Matchers:
     waits.head.maxAttempts shouldBe Some(3)
     waits.head.reason shouldBe Some("busy")
 
-  test("todo/write → MessagePatched Plan; next turn/start clears; title and goal stay out of the river"):
+  test("todo/write → MessagePatched Plan; next turn/start clears; title stays out; prune and goal become deltas"):
     typesOf("todo-compaction-title.jsonl") shouldBe List(
       "MessagePatched",
       "MessagePatched",
@@ -100,7 +100,9 @@ class DshEventsSpec extends AnyFunSuite with Matchers:
       "TurnStarted",
       "TaskUpdated",
       "TaskUpdated",
-      "TaskUpdated"
+      "TaskUpdated",
+      "ContextPruned",
+      "GoalDelta"
     )
     val step = fold("todo-compaction-title.jsonl")
     val patches = step.events.collect { case p: MessagePatched => p }
@@ -216,7 +218,7 @@ class DshEventsSpec extends AnyFunSuite with Matchers:
   test("goal/change is not GoalUpdated"):
     val change = parse("""{"type":"goal/change","data":{"operation":"create","goal":{"title":"Ship"}}}""").toOption.get
     val types = dshEvents(Sid, Rid, List(change)).events.map(_.getClass.getSimpleName.stripSuffix("$"))
-    types shouldBe Nil
+    types shouldBe List("GoalDelta")
     types should not contain "GoalUpdated"
 
   test("mux control and host frames are not AgentEvents"):
@@ -249,6 +251,83 @@ class DshEventsSpec extends AnyFunSuite with Matchers:
       """{"type":"chunkrow/reasoning-chunks","seq":15,"data":{"turn":1,"step":1,"index":0,"texts":["The"," user"]}}"""
     ).toOption.get
     dshEvents(Sid, Rid, ev, DshFold()).events shouldBe List(ReasoningDelta(Sid, Rid, "The user", Some("1:1")))
+
+  test("G1.1 turn/end emits UsageReported with four buckets; total == billed == tokensUsed"):
+    val usage = parse(
+      """{"type":"assistant/chunk","seq":1,"data":{"turn":1,"step":1,"chunk":{"type":"usage","usage":{"inputTokens":100,"outputTokens":40,"cacheReadTokens":7,"cacheWriteTokens":3,"reasoningTokens":9}}}}"""
+    ).toOption.get
+    val end = parse("""{"type":"turn/end","seq":2,"data":{"turn":1,"reason":{"kind":"completed"}}}""").toOption.get
+    val step = dshEvents(Sid, Rid, List(usage, end))
+    val reported = step.events.collect { case u: UsageReported => u }
+    reported should have size 1
+    val u = reported.head
+    u.turnId shouldBe Some("1")
+    u.buckets("input") shouldBe 100L
+    u.buckets("output") shouldBe 40L
+    u.buckets("cache_read") shouldBe 7L
+    u.buckets("cache_write") shouldBe 3L
+    u.buckets("total") shouldBe 150L
+    u.raw("reasoning") shouldBe "9"
+    step.tokensUsed shouldBe Some(150L)
+    u.buckets("total") shouldBe step.tokensUsed.get
+
+  test("G1.1 turn/end without usage emits no UsageReported"):
+    val end = parse("""{"type":"turn/end","seq":1,"data":{"turn":1,"reason":{"kind":"completed"}}}""").toOption.get
+    dshEvents(Sid, Rid, List(end)).events.collect { case u: UsageReported => u } shouldBe Nil
+
+  test("G3.1 goal/change emits GoalDelta with whitelisted operation, never GoalUpdated"):
+    val change = parse(
+      """{"type":"goal/change","seq":1,"data":{"goalId":"g1","operation":"step_started","step":{"id":"s1"}}}"""
+    ).toOption.get
+    val step = dshEvents(Sid, Rid, List(change))
+    val deltas = step.events.collect { case d: GoalDelta => d }
+    deltas should have size 1
+    deltas.head.goalId shouldBe "g1"
+    deltas.head.operation shouldBe "step_started"
+    deltas.head.payloadJson should include("s1")
+    step.events.map(_.getClass.getSimpleName.stripSuffix("$")) should not contain "GoalUpdated"
+
+  test("G3.1 goal/change unknown operation passes through verbatim"):
+    val change = parse(
+      """{"type":"goal/change","seq":1,"data":{"goalId":"g1","operation":"weird_op","x":1}}"""
+    ).toOption.get
+    val d = dshEvents(Sid, Rid, List(change)).events.collect { case d: GoalDelta => d }.head
+    d.operation shouldBe "weird_op"
+    d.payloadJson should include("weird_op")
+
+  test("G3.1 compaction/prune emits ContextPruned with prunedIds and remainingTokens"):
+    val prune = parse(
+      """{"type":"compaction/prune","seq":1,"data":{"compactionId":"cmp-1","prunedIds":["a","b"],"remainingTokens":42,"reason":"auto"}}"""
+    ).toOption.get
+    val step = dshEvents(Sid, Rid, List(prune))
+    val pruned = step.events.collect { case p: ContextPruned => p }
+    pruned should have size 1
+    pruned.head.prunedIds shouldBe List("a", "b")
+    pruned.head.remainingTokens shouldBe Some(42L)
+    pruned.head.reason shouldBe "auto"
+
+  test("G2.1 subagent content events emit ChildTranscriptDelta with monotonic childSeq"):
+    val a = parse(
+      """{"type":"subagent/message","seq":1,"data":{"sessionId":"child-1","kind":"text","text":"hi"}}"""
+    ).toOption.get
+    val b = parse(
+      """{"type":"subagent/message","seq":2,"data":{"sessionId":"child-1","kind":"text","text":"there"}}"""
+    ).toOption.get
+    val step = dshEvents(Sid, Rid, List(a, b))
+    val deltas = step.events.collect { case d: ChildTranscriptDelta => d }
+    deltas.map(d => (d.childSessionId, d.childSeq, d.entryKind)) shouldBe
+      List(("child-1", 1L, "text"), ("child-1", 2L, "text"))
+    deltas.map(_.payloadJson) shouldBe List(
+      """{"sessionId":"child-1","kind":"text","text":"hi"}""",
+      """{"sessionId":"child-1","kind":"text","text":"there"}"""
+    )
+
+  test("G2.1 childSeq is per-child and survives interleaving"):
+    val a = parse("""{"type":"subagent/message","seq":1,"data":{"sessionId":"c1","kind":"text","text":"a"}}""").toOption.get
+    val b = parse("""{"type":"subagent/message","seq":2,"data":{"sessionId":"c2","kind":"text","text":"b"}}""").toOption.get
+    val c = parse("""{"type":"subagent/message","seq":3,"data":{"sessionId":"c1","kind":"text","text":"c"}}""").toOption.get
+    val deltas = dshEvents(Sid, Rid, List(a, b, c)).events.collect { case d: ChildTranscriptDelta => d }
+    deltas.map(d => (d.childSessionId, d.childSeq)) shouldBe List(("c1", 1L), ("c2", 1L), ("c1", 2L))
 
   private def fold(name: String): DshStep = dshEvents(Sid, Rid, load(name))
 

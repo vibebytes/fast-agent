@@ -351,6 +351,47 @@ test('subagent_* events parse', () => {
 	assert.equal('subagents' in restored, false);
 });
 
+test('incremental river events parse and stay live chrome (no eventSeq)', () => {
+	const usage = bridgeEventSchema.parse({
+		type: 'usage_reported',
+		runId: 'run-1',
+		turnId: 't1',
+		buckets: {input: 10, output: 20},
+		raw: {cacheRead: '5'}
+	});
+	assert.equal(usage.type === 'usage_reported' ? usage.buckets.output : undefined, 20);
+	assert.equal(isLiveChrome({type: 'usage_reported', runId: 'run-1', buckets: {}}), true);
+
+	const child = bridgeEventSchema.parse({
+		type: 'child_transcript_delta',
+		childSessionId: 'child-1',
+		childSeq: 7,
+		entryKind: 'assistant',
+		payloadJson: '{"text":"hi"}'
+	});
+	assert.equal(child.type === 'child_transcript_delta' ? child.childSeq : undefined, 7);
+	assert.equal(isLiveChrome({type: 'child_transcript_delta', childSessionId: 'c1', childSeq: 1, entryKind: 'assistant', payloadJson: '{}'}), true);
+
+	const pruned = bridgeEventSchema.parse({
+		type: 'context_pruned',
+		runId: 'run-1',
+		prunedIds: ['m1', 'm2'],
+		remainingTokens: 4096,
+		reason: 'window'
+	});
+	assert.equal(pruned.type === 'context_pruned' ? pruned.prunedIds.length : undefined, 2);
+	assert.equal(isLiveChrome({type: 'context_pruned', runId: 'run-1', prunedIds: [], reason: 'window'}), true);
+
+	const goal = bridgeEventSchema.parse({
+		type: 'goal_delta',
+		goalId: 'g1',
+		operation: 'progress',
+		payloadJson: '{"step":"a"}'
+	});
+	assert.equal(goal.type === 'goal_delta' ? goal.operation : undefined, 'progress');
+	assert.equal(isLiveChrome({type: 'goal_delta', goalId: 'g1', operation: 'progress', payloadJson: '{}'}), true);
+});
+
 test('bridgeEventSchema accepts large assistant payloads and preserves ordering fields', () => {
 	const largeText = '数据'.repeat(12000);
 	const turnStarted = bridgeEventSchema.parse({
@@ -770,22 +811,22 @@ test('command_result accepts fs payload and requestId', () => {
 	}
 });
 
-test('DshCall command and command_result keep DSH error.code', () => {
+test('EngineCall command and command_result keep engine error.code', () => {
 	const cmd = bridgeCommandSchema.parse({
-		type: 'DshCall',
+		type: 'EngineCall',
 		method: 'session.models',
 		payload: {sessionId: 's1'},
 		sessionId: 's1',
 		requestId: 'r1'
 	});
-	assert.equal(cmd.type, 'DshCall');
-	if (cmd.type === 'DshCall') {
+	assert.equal(cmd.type, 'EngineCall');
+	if (cmd.type === 'EngineCall') {
 		assert.equal(cmd.method, 'session.models');
 		assert.equal(cmd.sessionId, 's1');
 	}
 	const err = bridgeEventSchema.parse({
 		type: 'command_result',
-		name: 'DshCall',
+		name: 'EngineCall',
 		message: 'MISSING_CREDENTIAL',
 		status: 'error',
 		method: 'session.prompt',
@@ -1191,7 +1232,38 @@ test('dsh_caps requires all five capability keys', () => {
 	assert.throws(() => bridgeEventSchema.parse({...base, eventSeq: 1}));
 });
 
-test('SubmitUserMessage images are optional; DshSteer and DshQueue decode', () => {
+test('dsh_caps carries optional delta capability bits', () => {
+	const base = {
+		type: 'dsh_caps' as const,
+		sessionId: 's1',
+		queue: true,
+		goal: true,
+		budget: false,
+		question: true,
+		slash: true
+	};
+	const omitted = bridgeEventSchema.parse(base);
+	assert.equal(omitted.type, 'dsh_caps');
+	if (omitted.type === 'dsh_caps') {
+		assert.equal(omitted.delta, undefined);
+	}
+
+	const withDelta = bridgeEventSchema.parse({
+		...base,
+		delta: {usage: true, childTranscript: true, goalDelta: false, contextPrune: true}
+	});
+	assert.equal(withDelta.type, 'dsh_caps');
+	if (withDelta.type === 'dsh_caps') {
+		assert.equal(withDelta.delta?.usage, true);
+		assert.equal(withDelta.delta?.childTranscript, true);
+		assert.equal(withDelta.delta?.goalDelta, false);
+		assert.equal(withDelta.delta?.contextPrune, true);
+	}
+
+	assert.throws(() => bridgeEventSchema.parse({...base, delta: {usage: true}}));
+});
+
+test('SubmitUserMessage images are optional; EngineCall/SteerRun/QueueMessage decode', () => {
 	const submit = bridgeCommandSchema.parse({
 		type: 'SubmitUserMessage',
 		sessionId: 's1',
@@ -1203,28 +1275,20 @@ test('SubmitUserMessage images are optional; DshSteer and DshQueue decode', () =
 		assert.equal(submit.images, undefined);
 	}
 	assert.equal(
-		bridgeCommandSchema.parse({type: 'DshSteer', sessionId: 's1', text: 'nudge'}).type,
-		'DshSteer'
+		bridgeCommandSchema.parse({type: 'SteerRun', sessionId: 's1', text: 'nudge'}).type,
+		'SteerRun'
 	);
 	assert.equal(
-		bridgeCommandSchema.parse({type: 'DshQueue', sessionId: 's1', itemId: 'm1', action: 'remove'}).type,
-		'DshQueue'
+		bridgeCommandSchema.parse({type: 'QueueMessage', sessionId: 's1', itemId: 'm1', action: 'remove'}).type,
+		'QueueMessage'
 	);
 	assert.equal(
-		bridgeCommandSchema.parse({type: 'Steer', sessionId: 's1', text: 'nudge'}).type,
-		'Steer'
+		bridgeCommandSchema.parse({type: 'EngineCall', method: 'settings.describe', requestId: 'r1'}).type,
+		'EngineCall'
 	);
 	assert.equal(
-		bridgeCommandSchema.parse({type: 'Queue', sessionId: 's1', itemId: 'm1', action: 'remove'}).type,
-		'Queue'
-	);
-	assert.equal(
-		bridgeCommandSchema.parse({type: 'Call', method: 'settings.describe', requestId: 'r1'}).type,
-		'Call'
-	);
-	assert.equal(
-		bridgeCommandSchema.parse({type: 'SetEngine', sessionId: 's1', engineId: 'dsh'}).type,
-		'SetEngine'
+		bridgeCommandSchema.parse({type: 'SetEngineKind', sessionId: 's1', kind: 'dsh'}).type,
+		'SetEngineKind'
 	);
 });
 

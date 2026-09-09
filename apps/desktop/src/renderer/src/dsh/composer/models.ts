@@ -1,5 +1,5 @@
 import {useSyncExternalStore} from 'react';
-import type {DshError, DshModelsValue, DshSelection} from '@fast-ide/session-view';
+import type {EngineCallError, DshModelsValue, DshSelection} from '@fast-ide/session-view';
 
 export type {DshModelsValue, DshSelection};
 
@@ -11,7 +11,7 @@ export type DshModelsSnap = {
 	ready: boolean;
 	loading: boolean;
 	notice: string | null;
-	error: DshError | null;
+	error: EngineCallError | null;
 };
 
 const empty: DshModelsSnap = {
@@ -25,7 +25,7 @@ const empty: DshModelsSnap = {
 	error: null
 };
 
-export function failSnap(error: DshError): DshModelsSnap {
+export function failSnap(error: EngineCallError): DshModelsSnap {
 	return {
 		...empty,
 		notice: error.message ?? error.code,
@@ -169,7 +169,7 @@ export async function refreshDshModels(sessionId?: string): Promise<DshModelsSna
 	}
 }
 
-export async function selectDshModel(input: DshSelection, sessionId?: string): Promise<DshError | null> {
+export async function selectDshModel(input: DshSelection, sessionId?: string): Promise<EngineCallError | null> {
 	try {
 		const select = window.fastIde.selectDshModel;
 		if (typeof select !== 'function') {
@@ -200,6 +200,6 @@ export function openDshModelsSettings(): void {
 	);
 }
 
-export function noteDshError(error: DshError): void {
+export function noteDshError(error: EngineCallError): void {
 	emit({...snap, error, notice: error.message ?? error.code});
 }

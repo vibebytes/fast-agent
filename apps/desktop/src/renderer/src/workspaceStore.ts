@@ -30,6 +30,9 @@ import type {
 	DshQueueItem,
 	DshGoalView,
 	SlashCatalogEntry,
+	ChildTranscriptView,
+	ContextPruneView,
+	UsageView,
 	TaskSummary,
 	TasksMeta,
 	TasksSnapshot,
@@ -44,6 +47,12 @@ import {isUnresolvedModelDisplay} from '@fast-ide/session-view';
 
 export type TranscriptSlice = {
 	entries: TranscriptEntry[];
+	/** Turn token/cost footer (last turn's tokens + session cost). */
+	usage?: UsageView;
+	/** Context prune boundary rows (older pruned turns are hidden). */
+	contextPrunes?: ContextPruneView[];
+	/** Child loop transcripts keyed by child call id. */
+	childTranscripts?: Record<string, ChildTranscriptView>;
 	approvals: PendingApproval[];
 	questions: PendingQuestion[];
 	questionBatches?: PendingQuestionBatch[];
@@ -549,6 +558,9 @@ export function reduceWorkspace(state: WorkspaceState, event: WorkspaceEvent): W
 					taskId,
 					{
 						entries: snap.transcript,
+						usage: snap.usage ?? undefined,
+						contextPrunes: snap.contextPrunes ?? [],
+						childTranscripts: snap.childTranscripts ?? {},
 						approvals: snap.approvals,
 						questions: snap.questions,
 						questionBatches: snap.questionBatches ?? [],
@@ -581,6 +593,9 @@ export function reduceWorkspace(state: WorkspaceState, event: WorkspaceEvent): W
 				payload.taskId,
 				{
 					entries: payload.entries,
+					usage: payload.usage ?? undefined,
+					contextPrunes: payload.contextPrunes ?? [],
+					childTranscripts: payload.childTranscripts ?? {},
 					approvals: payload.approvals,
 					questions: payload.questions,
 					questionBatches: payload.questionBatches ?? [],
@@ -618,6 +633,9 @@ export function reduceWorkspace(state: WorkspaceState, event: WorkspaceEvent): W
 			if (entries.length !== payload.total) return state;
 			const slice: TranscriptSlice = {
 				entries,
+				usage: payload.usage ?? existing.usage ?? undefined,
+				contextPrunes: payload.contextPrunes ?? existing.contextPrunes ?? [],
+				childTranscripts: payload.childTranscripts ?? existing.childTranscripts ?? {},
 				approvals: payload.approvals ?? existing.approvals,
 				questions: payload.questions ?? existing.questions,
 				questionBatches: payload.questionBatches ?? existing.questionBatches ?? [],
@@ -719,6 +737,9 @@ export function reduceWorkspace(state: WorkspaceState, event: WorkspaceEvent): W
 					// Legacy full-body focus (still valid wire shape).
 					const incoming = {
 						entries: p.transcript,
+						usage: p.usage ?? undefined,
+						contextPrunes: p.contextPrunes ?? [],
+						childTranscripts: p.childTranscripts ?? {},
 						approvals: p.approvals ?? [],
 						questions: p.questions ?? [],
 						questionBatches: p.questionBatches ?? [],

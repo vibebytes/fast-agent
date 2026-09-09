@@ -185,6 +185,35 @@ export type LiveChildWork = {
 	startedAt: number;
 };
 
+/** Token/cost buckets from `usage_reported` (Bridge DSH delta). */
+export type UsageView = {
+	runId: string;
+	turnId?: string;
+	/** Named counters (input/output/cached/…); values are engine-reported longs. */
+	buckets: Record<string, number>;
+	/** Free-form raw fields the engine attached (model, provider, …). */
+	raw?: Record<string, string>;
+};
+
+/** One `context_pruned` notice — ids dropped from the model window. */
+export type ContextPruneView = {
+	runId: string;
+	prunedIds: string[];
+	reason: string;
+	remainingTokens?: number;
+};
+
+/** Rolling child transcript tail from `child_transcript_delta` (per child session). */
+export type ChildTranscriptView = {
+	childSessionId: string;
+	/** Highest childSeq applied — out-of-order deltas below this are dropped. */
+	lastSeq: number;
+	/** Engine entry kind of the last applied delta (message / tool_started / …). */
+	entryKind?: string;
+	/** Display text tail rendered from payloadJson (replace semantics are engine-side). */
+	text: string;
+};
+
 /** Chat-flow Goal member status (from agent_call_* with goalId — not a body card). */
 export type GoalFlowMember = {
 	runId: string;
@@ -276,6 +305,12 @@ export type TranscriptState = {
 	 * payloadJson.supersedes). Drives D10 direct-replace hiding in the timeline.
 	 */
 	superseded?: Record<string, string>;
+	/** Latest `usage_reported` buckets for the active run (token/cost footer). */
+	usage?: UsageView;
+	/** `context_pruned` notices for the active run (window-trim banner). */
+	contextPrunes?: ContextPruneView[];
+	/** Per-child rolling transcript tails from `child_transcript_delta`. */
+	childTranscripts?: Record<string, ChildTranscriptView>;
 };
 
 export function createTranscriptState(): TranscriptState {

@@ -1,8 +1,14 @@
-import type {TimelineItem} from '@fast-ide/session-view';
+import {
+	childTranscriptText,
+	type DshDeltaCaps,
+	type TimelineItem
+} from '@fast-ide/session-view';
 import {Card, CardContent, CardHeader, CardTitle} from '@fast-ide/ui/components/card';
 import {cn} from '@fast-ide/ui/lib/utils';
 import {Check, LoaderCircle, X} from 'lucide-react';
+import {useCallback, useSyncExternalStore} from 'react';
 import {useTranslation} from 'react-i18next';
+import type {WorkspaceStore} from '../workspaceStore';
 
 export type SubagentCardChrome = {
 	tone: 'running' | 'idle' | 'ended' | 'success' | 'failed' | 'cancelled';
@@ -38,11 +44,34 @@ export function subagentCardChrome(item: {
 	return {tone: 'ended', statusLabel: '已结束', showCheck: false, showCross: false};
 }
 
-export function SubagentWorkCard({item}: {item: Extract<TimelineItem, {kind: 'subagent'}>}) {
+export function SubagentWorkCard({
+	item,
+	store,
+	taskId,
+	caps
+}: {
+	item: Extract<TimelineItem, {kind: 'subagent'}>;
+	store?: WorkspaceStore;
+	taskId?: string;
+	caps?: DshDeltaCaps;
+}) {
 	const {t} = useTranslation();
 	const chrome = subagentCardChrome(item);
 	const title = item.label.trim() || t('shell.subagent.untitled');
 	const preview = subagentPreviewLines(item.preview, 12);
+	const subscribeChildTail = useCallback(
+		(listener: () => void) =>
+			store && taskId ? store.subscribeTranscript(taskId, listener) : () => {},
+		[store, taskId]
+	);
+	const childTail = useSyncExternalStore(
+		subscribeChildTail,
+		() =>
+			store && taskId
+				? childTranscriptText(store.getTranscript(taskId), item.childSessionId, caps)
+				: null
+	);
+	const tail = subagentPreviewLines(childTail ?? undefined, 24);
 	return (
 		<Card className="border-border/60 bg-card/80">
 			<CardHeader className="flex flex-row items-center gap-2 space-y-0 py-3">
@@ -74,6 +103,16 @@ export function SubagentWorkCard({item}: {item: Extract<TimelineItem, {kind: 'su
 					<pre className="mt-2 max-h-40 overflow-auto whitespace-pre-wrap font-mono text-[11px] text-muted-foreground">
 						{preview}
 					</pre>
+				) : null}
+				{tail ? (
+					<div className="mt-2 rounded-md border border-border/40 bg-muted/30 px-2.5 py-1.5">
+						<p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground/70">
+							{t('shell.subagent.liveTail')}
+						</p>
+						<pre className="mt-1 max-h-40 overflow-auto whitespace-pre-wrap font-mono text-[11px] text-muted-foreground">
+							{tail}
+						</pre>
+					</div>
 				) : null}
 			</CardContent>
 		</Card>

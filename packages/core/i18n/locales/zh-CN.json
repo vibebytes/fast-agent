@@ -818,6 +818,7 @@
       "engineUnconfirmed": "引擎未确认（仍在等待）"
     },
     "subagent": {
+      "liveTail": "实时输出",
       "untitled": "子任务",
       "oneShot": "一次性",
       "continuable": "可续跑",

@@ -1,10 +1,10 @@
-import type {DshCallResult, DshSettingsOp} from '@fast-ide/session-view';
+import type {EngineCallResult, DshSettingsOp} from '@fast-ide/session-view';
 
 type DshCall = (
 	method: string,
 	payload?: Record<string, unknown>,
 	sessionId?: string
-) => Promise<DshCallResult>;
+) => Promise<EngineCallResult>;
 
 export type SettingsHop = {
 	method: string;
@@ -90,7 +90,7 @@ export function settingsHop(op: DshSettingsOp): SettingsHop {
 	}
 }
 
-export function settingsCall(call: DshCall, op: DshSettingsOp): Promise<DshCallResult> {
+export function settingsCall(call: DshCall, op: DshSettingsOp): Promise<EngineCallResult> {
 	const hop = settingsHop(op);
 	return call(hop.method, hop.payload, hop.sessionId);
 }

@@ -146,7 +146,7 @@ export function createSessionCommands(deps: SessionCommandsDeps) {
 		if (!active.task.dshCaps?.queue) return false;
 		const trimmed = text.trim();
 		if (!trimmed) return false;
-		return deps.send({type: 'Steer', sessionId: active.sessionId, text: trimmed});
+		return deps.send({type: 'SteerRun', sessionId: active.sessionId, text: trimmed});
 	};
 
 	const dshGoalAct = (action: 'pause' | 'resume' | 'complete' | 'clear'): boolean => {
@@ -161,7 +161,7 @@ export function createSessionCommands(deps: SessionCommandsDeps) {
 					: action === 'complete'
 						? 'goal.complete'
 						: 'goal.clear';
-		return deps.send({type: 'Call', method, sessionId: active.sessionId, payload: {}});
+		return deps.send({type: 'EngineCall', method, sessionId: active.sessionId, payload: {}});
 	};
 
 	const interruptQueueItem = (itemId: string): boolean => {
@@ -170,7 +170,7 @@ export function createSessionCommands(deps: SessionCommandsDeps) {
 		const plan = queueSteerPlan(active.task, itemId);
 		if (!plan) return false;
 		if (plan.kind === 'dsh') {
-			return deps.send({type: 'Queue', sessionId: active.sessionId, itemId, action: 'steer'});
+			return deps.send({type: 'QueueMessage', sessionId: active.sessionId, itemId, action: 'steer'});
 		}
 		const streaming = active.task.transcript.entries.some(e => e.status === 'streaming');
 		const runId = chromeRunId(active.task.transcript.chrome);

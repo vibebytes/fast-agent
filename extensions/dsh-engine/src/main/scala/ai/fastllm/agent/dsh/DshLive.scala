@@ -21,6 +21,7 @@ def dshCapsRow(sessionId: String, queue: Boolean, goal: Boolean, budget: Boolean
     "queue" -> queue.asJson,
     "goal" -> goal.asJson,
     "budget" -> budget.asJson,
+    // dsh_caps.question and Caps.answerQuestion are independent axes (invariant 2); DSH is always true.
     "question" -> true.asJson,
     "slash" -> true.asJson
   )

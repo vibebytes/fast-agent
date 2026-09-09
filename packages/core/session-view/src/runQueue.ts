@@ -16,7 +16,7 @@ const hostHas = (src: QueueSource, itemId: string): boolean =>
 export function queueRemoveCommands(src: QueueSource, sessionId: string, itemId: string): BridgeCommand[] {
 	if (dshQueueable(src)) {
 		if (!dshHas(src, itemId)) return [];
-		return [{type: 'Queue', sessionId, itemId, action: 'remove'}];
+		return [{type: 'QueueMessage', sessionId, itemId, action: 'remove'}];
 	}
 	if (!hostHas(src, itemId)) return [];
 	return [{type: 'FollowUpRemove', sessionId, itemId}];
@@ -26,7 +26,7 @@ export function queueClearCommands(src: QueueSource, sessionId: string): BridgeC
 	if (dshQueueable(src)) {
 		return (src.dshQueue ?? [])
 			.filter(q => q.placement !== 'context')
-			.map(q => ({type: 'Queue', sessionId, itemId: q.id, action: 'remove'}) as BridgeCommand);
+			.map(q => ({type: 'QueueMessage', sessionId, itemId: q.id, action: 'remove'}) as BridgeCommand);
 	}
 	if (src.queue.length === 0) return [];
 	return src.queue.map(item => ({type: 'FollowUpRemove', sessionId, itemId: item.id}) as BridgeCommand);
@@ -50,7 +50,7 @@ export function queueEditCommands(src: QueueSource, sessionId: string, itemId: s
 	if (!trimmed) return [];
 	if (dshQueueable(src)) {
 		if (!dshHas(src, itemId)) return [];
-		return [{type: 'Queue', sessionId, itemId, action: 'edit', text: trimmed}];
+		return [{type: 'QueueMessage', sessionId, itemId, action: 'edit', text: trimmed}];
 	}
 	if (!hostHas(src, itemId)) return [];
 	return [{type: 'FollowUpUpdate', sessionId, itemId, text: trimmed}];

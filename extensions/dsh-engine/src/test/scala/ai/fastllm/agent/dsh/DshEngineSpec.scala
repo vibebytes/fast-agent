@@ -57,7 +57,7 @@ class DshEngineSpec extends AnyFunSuite with Matchers:
     session.liveRun shouldBe Some("r")
     session.childOpen shouldBe true
 
-  test("steer payload is text+images without sessionId; queue matches DshQueue fields"):
+  test("steer payload is text+images without sessionId; queue matches QueueMessage fields"):
     val loop = EngineRecordingLoop()
     val remote = EngineFaceClient()
     val face = DshFace(remote, _ => "/tmp", DshLoop(remote, _ => "/tmp"))
@@ -69,13 +69,14 @@ class DshEngineSpec extends AnyFunSuite with Matchers:
     loop.steers.head.text shouldBe "nudge"
     val queue = Json.obj("itemId" -> "m1".asJson, "action" -> "remove".asJson, "text" -> "x".asJson)
     await(session.call("queue", queue))
-    loop.queues.head shouldBe AgentAttachProtocol.Command.DshQueue("s1", "m1", "remove", Some("x"))
+    loop.queues.head shouldBe AgentAttachProtocol.Command.QueueMessage("s1", "m1", "remove", Some("x"))
 
   test("caps gate: steer/queue without bits do not reach face or loop"):
     val loop = EngineRecordingLoop()
+    loop.capsOverride = Some(Caps(cancel = true, approval = true, answerQuestion = false, restore = true))
     val remote = EngineFaceClient()
     val face = DshFace(remote, _ => "/tmp", DshLoop(remote, _ => "/tmp"))
-    val session = DshSession(loop, EngineSessionContext("s1"), canSteer = false, canQueue = false)
+    val session = DshSession(loop, EngineSessionContext("s1"))
     await(session.call("steer", Json.obj("text" -> "x".asJson))) shouldBe
       EngineCallResult.Admitted(Admit.Rejected("dsh_steer"))
     await(session.call("queue", Json.obj("itemId" -> "i".asJson, "action" -> "remove".asJson))) shouldBe
@@ -149,8 +150,8 @@ private class EngineRecordingLoop extends AgentLoop:
   var cancels: Vector[AgentAttachProtocol.Command.CancelRun] = Vector.empty
   var decides: Vector[AgentAttachProtocol.Command.DecideApproval] = Vector.empty
   var answers: Vector[AgentAttachProtocol.Command.AnswerQuestionBatch] = Vector.empty
-  var steers: Vector[AgentAttachProtocol.Command.DshSteer] = Vector.empty
-  var queues: Vector[AgentAttachProtocol.Command.DshQueue] = Vector.empty
+  var steers: Vector[AgentAttachProtocol.Command.SteerRun] = Vector.empty
+  var queues: Vector[AgentAttachProtocol.Command.QueueMessage] = Vector.empty
   var restores: Vector[(String, Option[String], Int)] = Vector.empty
   var eventAfter: Vector[(String, Long)] = Vector.empty
   var admit: Admit = Admit.Accepted("run-1")
@@ -158,13 +159,23 @@ private class EngineRecordingLoop extends AgentLoop:
   var busyFlag: Boolean = false
   var live: Option[String] = None
   var child: Boolean = false
-  val caps: Caps = Caps(cancel = true, approval = true, question = false, restore = true)
+  var capsOverride: Option[Caps] = None
+  def caps: Caps = capsOverride.getOrElse(
+    Caps(
+      cancel = true,
+      approval = true,
+      answerQuestion = false,
+      restore = true,
+      steer = true,
+      queue = true
+    )
+  )
   def submit(cmd: AgentAttachProtocol.Command.SubmitUserMessage) = { submits = submits :+ cmd; Future.successful(admit) }
   def cancel(cmd: AgentAttachProtocol.Command.CancelRun) = { cancels = cancels :+ cmd; Future.successful(admit) }
   override def decide(cmd: AgentAttachProtocol.Command.DecideApproval) = { decides = decides :+ cmd; Future.successful(route) }
   override def answer(cmd: AgentAttachProtocol.Command.AnswerQuestionBatch) = { answers = answers :+ cmd; Future.successful(route) }
-  override def steer(cmd: AgentAttachProtocol.Command.DshSteer) = { steers = steers :+ cmd; Future.successful(admit) }
-  override def queue(cmd: AgentAttachProtocol.Command.DshQueue) = { queues = queues :+ cmd; Future.successful(admit) }
+  override def steer(cmd: AgentAttachProtocol.Command.SteerRun) = { steers = steers :+ cmd; Future.successful(admit) }
+  override def queue(cmd: AgentAttachProtocol.Command.QueueMessage) = { queues = queues :+ cmd; Future.successful(admit) }
   def events(sessionId: String, afterSeq: Long) = { eventAfter = eventAfter :+ (sessionId -> afterSeq); Future.successful(Nil) }
   def restore(sessionId: String, beforeTurnId: Option[String], limit: Int) =
     restores = restores :+ (sessionId, beforeTurnId, limit)

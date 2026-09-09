@@ -414,15 +414,16 @@ export type EngineWireRow = {
 	installLog?: Array<{stream: 'stdout' | 'stderr'; text: string; seq: number}>;
 };
 
-export type DshError = {
+export type EngineCallError = {
 	code: string;
 	message?: string;
 	[key: string]: unknown;
 };
 
-export type DshCallResult =
+export type EngineCallResult =
 	| {ok: true; method: string; value: unknown}
-	| {ok: false; error: DshError};
+	| {ok: false; error: EngineCallError};
+
 
 export type DshSelection = {
 	provider: string;
@@ -450,7 +451,7 @@ export type DshModelsValue = {
 	failures: DshModelFailure[];
 };
 
-export type DshModelsResult = {ok: true; value: DshModelsValue} | {ok: false; error: DshError};
+export type DshModelsResult = {ok: true; value: DshModelsValue} | {ok: false; error: EngineCallError};
 
 export type DshSettingsPathOp =
 	| {op: 'set'; path: string[]; value: unknown}

@@ -1390,6 +1390,7 @@
       "turnFailTitle": "タスクが失敗しました"
     },
     "subagent": {
+      "liveTail": "ライブ出力",
       "untitled": "サブエージェント",
       "oneShot": "単発",
       "continuable": "継続可能",

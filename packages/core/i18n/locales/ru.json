@@ -1390,6 +1390,7 @@
       "turnFailTitle": "Задача не выполнена"
     },
     "subagent": {
+      "liveTail": "Живой вывод",
       "untitled": "Субагент",
       "oneShot": "одноразовый",
       "continuable": "с возможностью продолжения",

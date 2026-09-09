@@ -7,6 +7,7 @@ import {
 	createComposerSend,
 	createSessionAttachStore,
 	createTaskLifecycle,
+	deltaEventAllowed,
 	dshGoalFromEvent,
 	emptySessionSeq,
 	followUpQueueFrom,
@@ -300,7 +301,8 @@ export function createSessionEventHost(deps: SessionEventHostDeps) {
 				goal: event.goal,
 				budget: event.budget,
 				question: event.question,
-				slash: event.slash
+				slash: event.slash,
+				...(event.delta ? {delta: event.delta} : {})
 			};
 			deps.tasks.set(task.id, task);
 			return task;
@@ -317,6 +319,15 @@ export function createSessionEventHost(deps: SessionEventHostDeps) {
 			deps.tasks.set(task.id, task);
 			return task;
 		}
+
+		// Fail-closed gate: a delta river the engine did not declare in dsh_caps is
+		// not painted. The event still walks the seq pipeline so dropping it cannot
+		// open a hole and force a resync loop.
+		const paint = (ev: BridgeEvent): void => {
+			if (!deltaEventAllowed(ev.type, task.dshCaps?.delta)) return;
+			task.transcript = applyBridgeEvent(task.transcript, ev);
+			task.codeChanges = applyCodeChangeEvent(task.codeChanges, ev);
+		};
 
 		if (event.type === 'follow_up_changed') {
 			applyFollowUpProjection(
@@ -359,13 +370,11 @@ export function createSessionEventHost(deps: SessionEventHostDeps) {
 				});
 			}
 			for (const ev of result.emit) {
-				task.transcript = applyBridgeEvent(task.transcript, ev);
-				task.codeChanges = applyCodeChangeEvent(task.codeChanges, ev);
+				paint(ev);
 			}
 			if (result.resync) deps.requestAttach(task, seqSession, result.state.lastApplied);
 		} else {
-			task.transcript = applyBridgeEvent(task.transcript, event);
-			task.codeChanges = applyCodeChangeEvent(task.codeChanges, event);
+			paint(event);
 		}
 		if (event.type === 'session_restored' && eventSession) {
 			deps.attach.markRestored(eventSession);

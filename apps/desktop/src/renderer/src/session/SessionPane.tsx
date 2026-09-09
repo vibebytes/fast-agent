@@ -12,11 +12,13 @@ import {
 	type ReactNode
 } from 'react';
 import {
+	contextPruneNotice,
 	createSessionViewProjector,
 	placeGoalFlow,
 	regenUserIdOf,
 	reviewFiles,
 	staleErrorCardIds,
+	usageFooter,
 	type TimelineItem
 } from '@fast-ide/session-view';
 import {Alert, AlertDescription, AlertTitle} from '@fast-ide/ui/components/alert';
@@ -240,6 +242,15 @@ export const SessionPane = memo(function SessionPane({
 	const transcript = isStreamingToken
 		? currentTranscript
 		: deferredValueForTask(activeTaskId, currentTranscript, deferredFrame);
+	// DSH delta surfaces: last-run token/cost footer + context-prune banner.
+	const usageFooterView = useMemo(
+		() => usageFooter(transcript, dshCaps?.delta),
+		[transcript, dshCaps]
+	);
+	const pruneNotice = useMemo(
+		() => contextPruneNotice(transcript, dshCaps?.delta),
+		[transcript, dshCaps]
+	);
 	const [errorLine, setErrorLine] = useState<string | null>(null);
 	// D10 regenerate: optimistic live hide of the victim answer while the
 	// re-run streams. The wire's turn_started carries no supersedes, so the
@@ -733,6 +744,8 @@ export const SessionPane = memo(function SessionPane({
 		onRerun,
 		onContinueRun,
 		onRegenerate,
+		store,
+		dshCaps,
 		timelineCacheRef.current.get(taskKey)?.staleErrorIds,
 		timelineCacheRef.current.get(taskKey)?.regenUserId ?? null,
 		Boolean(activeRegen)
@@ -762,6 +775,8 @@ export const SessionPane = memo(function SessionPane({
 						regenUserId={timelineCacheRef.current.get(taskKey)?.regenUserId ?? null}
 						runBusy={gate.canCancel}
 						retryBusy={Boolean(activeRegen)}
+						store={store}
+						dshCaps={dshCaps}
 					/>
 				);
 	if (renderItem !== cachedRenderItem?.fn) {
@@ -917,6 +932,16 @@ export const SessionPane = memo(function SessionPane({
 
 	const transcriptHeader = (
 		<div role="log" aria-live="polite" className="contents">
+			{pruneNotice ? (
+				<div
+					data-slot="context-prune-notice"
+					className="mb-4 rounded-lg border border-border/60 bg-muted/40 px-3 py-2 text-xs text-muted-foreground"
+				>
+					{`已裁剪 ${pruneNotice.prunedIds.length} 条历史上下文${
+						pruneNotice.reason ? `（${pruneNotice.reason}）` : ''
+					}`}
+				</div>
+			) : null}
 			{regenRejected && regenRejected.taskId === activeTaskId ? (
 				<Alert variant="destructive" className="mb-4">
 					<CircleAlert />
@@ -1000,9 +1025,28 @@ export const SessionPane = memo(function SessionPane({
 			{/* Goal chrome = BackgroundTools drawer only (no confirm / running card). */}
 
 			<Profiler id="composer" onRender={profileCommit}>
-			<div className="shrink-0 px-4 pb-4 pt-2">
-				<div
-					data-slot="composer-surface"
+				<div className="shrink-0 px-4 pb-4 pt-2">
+					{usageFooterView ? (
+						<div
+							data-slot="session-usage-footer"
+							className="mb-2 flex flex-wrap items-center justify-end gap-x-3 gap-y-1 pr-1 text-[11px] text-muted-foreground"
+						>
+							{usageFooterView.buckets.map(bucket => (
+								<span key={bucket.key}>
+									{bucket.key} {bucket.value.toLocaleString()}
+								</span>
+							))}
+							{usageFooterView.raw
+								? Object.entries(usageFooterView.raw).map(([key, value]) => (
+										<span key={key}>
+											{key} {value}
+										</span>
+									))
+								: null}
+						</div>
+					) : null}
+					<div
+						data-slot="composer-surface"
 					className={cn(
 						'relative rounded-3xl border border-border/70 bg-background shadow-xs',
 						'transition-all duration-200 ease-out',

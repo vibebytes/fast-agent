@@ -1390,6 +1390,7 @@
       "turnFailTitle": "작업 실패"
     },
     "subagent": {
+      "liveTail": "실시간 출력",
       "untitled": "서브 에이전트",
       "oneShot": "일회성",
       "continuable": "이어하기 가능",

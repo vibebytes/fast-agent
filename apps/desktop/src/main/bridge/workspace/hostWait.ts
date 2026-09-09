@@ -107,7 +107,7 @@ export const HostWaitCommands = new Set([
 	'GetWorkspaceFile',
 	'SaveWorkspaceFile',
 	'GitWorkspaceStatus',
-	'DshCall'
+	'EngineCall'
 ]);
 
 type NameWaiter = {

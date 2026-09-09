@@ -16,10 +16,12 @@ export const SESSION_STREAM_EVENT_TYPES = [
 	'assistant_delta',
 	'assistant_message',
 	'checkpoint',
+	'child_transcript_delta',
 	'child_work_changed',
 	'clarify',
 	'clarify_resolved',
 	'context_injected',
+	'context_pruned',
 	'dsh_goal_changed',
 	'dsh_tool_card',
 	'error',
@@ -27,6 +29,7 @@ export const SESSION_STREAM_EVENT_TYPES = [
 	'final_answer',
 	'follow_up_changed',
 	'gap',
+	'goal_delta',
 	'goal_updated',
 	'input_accepted',
 	'input_rejected',
@@ -64,7 +67,8 @@ export const SESSION_STREAM_EVENT_TYPES = [
 	'turn_cancelled',
 	'turn_finished',
 	'turn_started',
-	'turn_usage'
+	'turn_usage',
+	'usage_reported'
 ] as const;
 
 export type SessionStreamEventType = (typeof SESSION_STREAM_EVENT_TYPES)[number];

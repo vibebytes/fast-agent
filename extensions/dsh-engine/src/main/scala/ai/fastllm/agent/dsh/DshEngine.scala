@@ -1,9 +1,9 @@
 package ai.fastllm.agent.dsh
 
-import ai.fastllm.agent.channel.{Admit, AgentAttachProtocol, AgentLoop}
+import ai.fastllm.agent.channel.{Admit, AgentAttachProtocol, AgentLoop, Caps}
 import ai.fastllm.agent.dsh.proc.{argvOf, DshProcess}
 import ai.fastllm.agent.engine.{
-  Engine, EngineCallResult, EngineCapabilities, EngineConfig, EngineHost, EngineId, EngineRuntime,
+  Engine, EngineCallResult, EngineConfig, EngineHost, EngineId, EngineRuntime,
   EngineSession, EngineSessionContext
 }
 import io.circe.Json
@@ -54,7 +54,7 @@ final class DshRuntime(boot: DshBoot)(using ExecutionContext) extends EngineRunt
 
   def open(session: EngineSessionContext): Future[EngineSession] =
     if closed.get then Future.failed(IllegalStateException("dsh closed"))
-    else Future.successful(DshSession(boot.loop, session, canSteer = true, canQueue = true))
+    else Future.successful(DshSession(boot.loop, session))
 
   def call(method: String, payload: Json): Future[EngineCallResult] =
     if closed.get then Future.successful(EngineCallResult.Failed(Json.obj("code" -> "closed".asJson)))
@@ -78,13 +78,11 @@ object DshRuntime:
 
 final class DshSession(
     loop: AgentLoop,
-    context: EngineSessionContext,
-    canSteer: Boolean = true,
-    canQueue: Boolean = true
+    context: EngineSessionContext
 ) extends EngineSession:
   private val closed = AtomicBoolean(false)
   private val sid = context.sessionId
-  val caps: EngineCapabilities = EngineCapabilities.of(loop.caps, canSteer, canQueue)
+  val caps: Caps = loop.caps
 
   def submit(cmd: AgentAttachProtocol.Command.SubmitUserMessage) = loop.submit(cmd.copy(sessionId = sid))
   def cancel(cmd: AgentAttachProtocol.Command.CancelRun) = loop.cancel(cmd.copy(sessionId = sid))
@@ -103,13 +101,13 @@ final class DshSession(
         case "steer" if caps.steer =>
           val text = payload.hcursor.get[String]("text").getOrElse("")
           val images = DshSession.imagesOf(payload)
-          loop.steer(AgentAttachProtocol.Command.DshSteer(sid, text, images))
+          loop.steer(AgentAttachProtocol.Command.SteerRun(sid, text, images))
             .map(EngineCallResult.Admitted.apply)(using ExecutionContext.parasitic)
         case "queue" if caps.queue =>
           val itemId = payload.hcursor.get[String]("itemId").getOrElse("")
           val action = payload.hcursor.get[String]("action").getOrElse("")
           val text = payload.hcursor.get[String]("text").toOption
-          loop.queue(AgentAttachProtocol.Command.DshQueue(sid, itemId, action, text))
+          loop.queue(AgentAttachProtocol.Command.QueueMessage(sid, itemId, action, text))
             .map(EngineCallResult.Admitted.apply)(using ExecutionContext.parasitic)
         case "steer" =>
           Future.successful(EngineCallResult.Admitted(Admit.Rejected("dsh_steer")))

@@ -1,7 +1,7 @@
 /**
  * Conversation invoke channels — task / chat / goal / queue / model / slash / dsh.
  */
-import type {DshCallResult, DshModelsResult, DshSelection, DshSettingsOp, DshError} from './desktop.js';
+import type {EngineCallResult, DshModelsResult, DshSelection, DshSettingsOp, EngineCallError} from './desktop.js';
 import type {
 	MentionChip,
 	SendMessageResult,
@@ -12,7 +12,7 @@ import type {
 	SlashCatalogEntry
 } from './session.js';
 
-export type DshSkillsResult = {ok: true; value: SlashCatalogEntry[]} | {ok: false; error: DshError};
+export type DshSkillsResult = {ok: true; value: SlashCatalogEntry[]} | {ok: false; error: EngineCallError};
 
 export type InvokeSession = {
 	'task:showProjectInFolder': {args: [taskId: string]; result: boolean};
@@ -108,7 +108,7 @@ export type InvokeSession = {
 	/** Generic DSH unary hop. Error keeps DSH `{ code, message, ... }`. */
 	'dsh:call': {
 		args: [method: string, payload?: Record<string, unknown>, sessionId?: string];
-		result: DshCallResult;
+		result: EngineCallResult;
 	};
 	'dsh:models': {
 		args: [sessionId?: string];
@@ -116,7 +116,7 @@ export type InvokeSession = {
 	};
 	'dsh:selectModel': {
 		args: [input: DshSelection & {sessionId?: string}];
-		result: DshCallResult;
+		result: EngineCallResult;
 	};
 	'dsh:skills': {
 		args: [sessionId: string];
@@ -124,6 +124,6 @@ export type InvokeSession = {
 	};
 	'dsh:settings': {
 		args: [op: DshSettingsOp];
-		result: DshCallResult;
+		result: EngineCallResult;
 	};
 };

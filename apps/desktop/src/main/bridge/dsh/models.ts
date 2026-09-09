@@ -1,4 +1,4 @@
-import type {DshCallResult, DshModelsResult, DshModelsValue, DshSelection} from '@fast-ide/session-view';
+import type {EngineCallResult, DshModelsResult, DshModelsValue, DshSelection} from '@fast-ide/session-view';
 
 export type {DshModelFailure, DshModelGroup, DshModelsValue, DshSelection} from '@fast-ide/session-view';
 
@@ -6,7 +6,7 @@ type DshCall = (
 	method: string,
 	payload?: Record<string, unknown>,
 	sessionId?: string
-) => Promise<DshCallResult>;
+) => Promise<EngineCallResult>;
 
 export async function getDshModels(call: DshCall, sessionId?: string): Promise<DshModelsResult> {
 	const result = await call('session.models', sessionId ? {sessionId} : {}, sessionId);
@@ -19,7 +19,7 @@ export async function getDshModels(call: DshCall, sessionId?: string): Promise<D
 export function selectDshModel(
 	call: DshCall,
 	input: DshSelection & {sessionId?: string}
-): Promise<DshCallResult> {
+): Promise<EngineCallResult> {
 	return call(
 		'session.selectModel',
 		{

@@ -2548,7 +2548,7 @@ test('Composer selected chrome snaps to ListProviders, not yaml default', async 
 	hub.closeAll();
 });
 
-test('dshCall times out with requestId when Engine emits no command_result', async () => {
+test('engineCall times out with requestId when Engine emits no command_result', async () => {
 	const commands: BridgeCommand[] = [];
 	const hub = new WorkspaceHub({
 		createBridge: () => createFakeBridge(commands),
@@ -2559,20 +2559,20 @@ test('dshCall times out with requestId when Engine emits no command_result', asy
 	hub.openProject(mkdtempSync(path.join(tmpdir(), 'proj-dsh-to-')), noopHandlers());
 	await new Promise(r => setTimeout(r, 80));
 
-	const result = await hub.dshCall('settings.describe', {});
+	const result = await hub.engineCall('settings.describe', {});
 	assert.equal(result.ok, false);
 	if (result.ok) return;
 	assert.match(result.error.message ?? '', /timeout waiting for requestId /);
-	const sent = commands.find(c => c.type === 'Call');
-	assert.ok(sent && sent.type === 'Call');
-	if (sent.type === 'Call') {
+	const sent = commands.find(c => c.type === 'EngineCall');
+	assert.ok(sent && sent.type === 'EngineCall');
+	if (sent.type === 'EngineCall') {
 		assert.ok(sent.requestId);
 		assert.match(result.error.message ?? '', new RegExp(sent.requestId));
 	}
 	hub.closeAll();
 });
 
-test('dshCall resolves settings.describe by requestId', async () => {
+test('engineCall resolves settings.describe by requestId', async () => {
 	const commands: BridgeCommand[] = [];
 	let bridge: FakeBridge | null = null;
 	const hub = new WorkspaceHub({
@@ -2587,11 +2587,11 @@ test('dshCall resolves settings.describe by requestId', async () => {
 	hub.openProject(mkdtempSync(path.join(tmpdir(), 'proj-dsh-ok-')), noopHandlers());
 	await new Promise(r => setTimeout(r, 80));
 
-	const pending = hub.dshCall('settings.describe', {});
+	const pending = hub.engineCall('settings.describe', {});
 	await new Promise(r => setTimeout(r, 20));
-	const sent = commands.find(c => c.type === 'Call');
-	assert.ok(sent && sent.type === 'Call');
-	if (sent.type !== 'Call') return;
+	const sent = commands.find(c => c.type === 'EngineCall');
+	assert.ok(sent && sent.type === 'EngineCall');
+	if (sent.type !== 'EngineCall') return;
 
 	bridge!.__inject({
 		type: 'command_result',
@@ -2602,7 +2602,7 @@ test('dshCall resolves settings.describe by requestId', async () => {
 	});
 	bridge!.__inject({
 		type: 'command_result',
-		name: 'DshCall',
+		name: 'EngineCall',
 		message: 'settings.describe',
 		status: 'success',
 		method: 'settings.describe',

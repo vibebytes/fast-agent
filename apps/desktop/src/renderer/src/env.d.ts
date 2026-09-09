@@ -5,9 +5,11 @@ export type {FastIdeApi};
 /** Re-export wire domain types for renderer modules that historically imported from `./env`. */
 export type {
 	BridgeErrorEnvelope,
+	ChildTranscriptView,
 	CodeChange,
 	ComposerGate,
 	ContextInjectionView,
+	ContextPruneView,
 	EngineHostStatus,
 	GoalCardView,
 	GoalFlowView,
@@ -35,6 +37,7 @@ export type {
 	TranscriptEntry,
 	TranscriptPatch,
 	TranscriptTailPatch,
+	UsageView,
 	WorkspaceFocus
 } from '@fast-ide/session-view';
 

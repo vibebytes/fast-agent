@@ -822,6 +822,7 @@
       "engineUnconfirmed": "Engine has not confirmed (still waiting)"
     },
     "subagent": {
+      "liveTail": "Live tail",
       "untitled": "Subagent",
       "oneShot": "one-shot",
       "continuable": "continuable",

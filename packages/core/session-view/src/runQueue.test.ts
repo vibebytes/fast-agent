@@ -13,7 +13,7 @@ const host = (items: string[]) => ({queue: items.map((text, i) => ({id: `q${i}`,
 
 test('queueRemoveCommands dsh path requires membership and emits Queue remove', () => {
 	const src = {queue: [], dshCaps: {queue: true, goal: false, budget: false, question: false, slash: false}, dshQueue: [{id: 'a', placement: 'queued', text: 'x'} as never]};
-	assert.deepEqual(queueRemoveCommands(src, 's', 'a'), [{type: 'Queue', sessionId: 's', itemId: 'a', action: 'remove'}]);
+	assert.deepEqual(queueRemoveCommands(src, 's', 'a'), [{type: 'QueueMessage', sessionId: 's', itemId: 'a', action: 'remove'}]);
 	assert.deepEqual(queueRemoveCommands(src, 's', 'missing'), []);
 });
 
@@ -27,7 +27,7 @@ test('queueClearCommands filters dsh context placement and empty host queue', ()
 		{id: 'a', placement: 'queued', text: '1'},
 		{id: 'b', placement: 'context', text: '2'}
 	] as never};
-	assert.deepEqual(queueClearCommands(src, 's'), [{type: 'Queue', sessionId: 's', itemId: 'a', action: 'remove'}]);
+	assert.deepEqual(queueClearCommands(src, 's'), [{type: 'QueueMessage', sessionId: 's', itemId: 'a', action: 'remove'}]);
 	assert.deepEqual(queueClearCommands(host([]), 's'), []);
 	assert.deepEqual(queueClearCommands(host(['x']), 's'), [{type: 'FollowUpRemove', sessionId: 's', itemId: 'q0'}]);
 });
@@ -42,7 +42,7 @@ test('queueReorderCommands bounds + no-op rejection', () => {
 
 test('queueEditCommands trims text and routes by caps', () => {
 	const src = {queue: host(['old']).queue, dshCaps: {queue: true, goal: false, budget: false, question: false, slash: false}, dshQueue: [{id: 'a', placement: 'queued', text: 'old'} as never]};
-	assert.deepEqual(queueEditCommands(src, 's', 'a', ' new '), [{type: 'Queue', sessionId: 's', itemId: 'a', action: 'edit', text: 'new'}]);
+	assert.deepEqual(queueEditCommands(src, 's', 'a', ' new '), [{type: 'QueueMessage', sessionId: 's', itemId: 'a', action: 'edit', text: 'new'}]);
 	assert.deepEqual(queueEditCommands(host(['old']), 's', 'q0', '  '), []);
 	const hostSrc = host(['old']);
 	assert.deepEqual(queueEditCommands(hostSrc, 's', 'q0', 'new'), [{type: 'FollowUpUpdate', sessionId: 's', itemId: 'q0', text: 'new'}]);

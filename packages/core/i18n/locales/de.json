@@ -1390,6 +1390,7 @@
       "turnFailTitle": "Aufgabe fehlgeschlagen"
     },
     "subagent": {
+      "liveTail": "Live-Ausgabe",
       "untitled": "Sub-Agent",
       "oneShot": "einmalig",
       "continuable": "fortsetzbar",

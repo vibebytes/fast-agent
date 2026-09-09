@@ -13,6 +13,12 @@ import {
 import {patchAssistant, sealOpenThinking, sealStreamingAsDone} from './entry.js';
 import type {TranscriptEntry, TranscriptState} from './state.js';
 
+/** Per-run delta views (usage / prune notices) must not leak into the next turn. */
+const freshRunDeltas: Pick<TranscriptState, 'usage' | 'contextPrunes'> = {
+	usage: undefined,
+	contextPrunes: undefined
+};
+
 /** Opener belongs to a Turn the transcript already shows — by id, or by repeating
  *  a prompt that came from the restore snapshot (persist ids differ from snapshot ids). */
 function isKnownTurnOpener(
@@ -266,7 +272,8 @@ export function applyTurnStarted(
 				})
 			: runChromeTransition(state.chrome, {postRun: false, awaiting: false}),
 		leaseAware: false,
-		runLease: undefined
+		runLease: undefined,
+		...freshRunDeltas
 	};
 }
 
@@ -280,6 +287,7 @@ export function applyInputAccepted(
 	const serverRunId = serverRunIdOf(event);
 	return {
 		...rememberDocument(state, serverRunId ?? event.turnId ?? event.clientMessageId),
+		...freshRunDeltas,
 		chrome: serverRunId
 			? runChromeTransition(state.chrome, {run: {id: serverRunId, fromServer: true}})
 			: state.chrome,

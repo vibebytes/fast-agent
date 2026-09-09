@@ -1,6 +1,7 @@
 import {memo, useEffect, useRef, useState, type ReactNode} from 'react';
 import {
 	buildApprovalViewModel,
+	type DshCaps,
 	type ProcessStackStep,
 	type TimelineItem
 } from '@fast-ide/session-view';
@@ -43,6 +44,7 @@ import {ErrorCardRow} from './ErrorCardRow';
 import type {TFunction} from 'i18next';
 import {useTranslation} from 'react-i18next';
 import {parseUserSkillDisplay} from '../slashCatalog';
+import type {WorkspaceStore} from '../workspaceStore';
 import {timelineItemEqual} from '../timelineItemEqual';
 import {OpenFileContext, StreamingMarkdownMessage} from '../MarkdownMessage';
 import {MentionText} from '../MentionText';
@@ -346,6 +348,10 @@ export type TimelineRowProps = {
 	runBusy?: boolean;
 	/** Error-card Retry is in flight — not the same as composer canCancel. */
 	retryBusy?: boolean;
+	/** Session store — subagent rows subscribe for live child transcript tails. */
+	store?: WorkspaceStore;
+	/** DSH caps — `delta.childTranscript` gates the live tail. */
+	dshCaps?: DshCaps;
 };
 
 export const TimelineRow = memo(function TimelineRow({
@@ -362,7 +368,9 @@ export const TimelineRow = memo(function TimelineRow({
 	errorStale,
 	regenUserId,
 	runBusy,
-	retryBusy
+	retryBusy,
+	store,
+	dshCaps
 }: TimelineRowProps) {
 	const {t} = useTranslation();
 	let body: ReactNode = null;
@@ -497,7 +505,14 @@ export const TimelineRow = memo(function TimelineRow({
 			body = <QuestionBatchCard item={item} scope={decisionScope} />;
 			break;
 		case 'subagent':
-			body = <SubagentWorkCard item={item} />;
+			body = (
+				<SubagentWorkCard
+					item={item}
+					store={store}
+					taskId={decisionScope}
+					caps={dshCaps?.delta}
+				/>
+			);
 			break;
 		case 'contextInjection':
 			body = <ContextInjectionChrome item={item} />;
@@ -536,6 +551,8 @@ export function timelineRowPropsEqual(
 		prev.regenUserId === next.regenUserId &&
 		prev.runBusy === next.runBusy &&
 		prev.retryBusy === next.retryBusy &&
+		prev.store === next.store &&
+		prev.dshCaps === next.dshCaps &&
 		timelineItemEqual(prev.item, next.item)
 	);
 }

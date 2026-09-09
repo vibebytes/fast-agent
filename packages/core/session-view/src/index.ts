@@ -119,6 +119,8 @@ export {
 	nextFireAtFromDetail,
 	oldestLoadedTurnId,
 	type EntrySegment,
+	type ChildTranscriptView,
+	type ContextPruneView,
 	type GoalFlowMember,
 	type GoalFlowView,
 	type LiveChildWork,
@@ -134,8 +136,19 @@ export {
 	type QuestionBatchOption,
 	type ToolCallView,
 	type TranscriptEntry,
-	type TranscriptState
+	type TranscriptState,
+	type UsageView
 } from './transcriptProjection.js';
+
+export {
+	childTranscriptText,
+	contextPruneNotice,
+	usageFooter,
+	type UsageBucketRow,
+	type UsageFooterView
+} from './transcript/usage.js';
+
+export {deltaEventAllowed} from './transcript/delta.js';
 
 export {
 	fileOp,
@@ -371,6 +384,7 @@ export type {
 	MentionChip,
 	QueueItem,
 	DshCaps,
+	DshDeltaCaps,
 	DshQueueItem,
 	DshGoalView,
 	ReadFileResult,
@@ -402,8 +416,8 @@ export type {
 	TranscriptTailPatch,
 	UiSend,
 	WorkspaceFocus,
-	DshCallResult,
-	DshError,
+	EngineCallResult,
+	EngineCallError,
 	DshSelection,
 	DshModelGroup,
 	DshModelFailure,

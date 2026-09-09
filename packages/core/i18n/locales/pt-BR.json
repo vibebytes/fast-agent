@@ -1390,6 +1390,7 @@
       "turnFailTitle": "Tarefa falhou"
     },
     "subagent": {
+      "liveTail": "Saída ao vivo",
       "untitled": "Subagente",
       "oneShot": "única vez",
       "continuable": "continuável",

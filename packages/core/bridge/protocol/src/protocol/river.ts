@@ -45,7 +45,11 @@ export const PERSIST_RIVER_TYPES = new Set([
 	'goal_updated',
 	'seq_skip',
 	'dsh_tool_card',
-	'dsh_goal_changed'
+	'dsh_goal_changed',
+	'usage_reported',
+	'child_transcript_delta',
+	'context_pruned',
+	'goal_delta'
 ]);
 
 const GOAL_NOTICE_TURN = /^goal-.+-notice$/;
@@ -88,6 +92,11 @@ const LIVE_CALLBACK_TYPES = new Set([
 	'subagent_started',
 	'subagent_updated',
 	'subagent_finished',
+	// Incremental rivers (§1.2): UI-only visibility, snapshot is authoritative.
+	'usage_reported',
+	'child_transcript_delta',
+	'context_pruned',
+	'goal_delta',
 	'run_state'
 ]);
 

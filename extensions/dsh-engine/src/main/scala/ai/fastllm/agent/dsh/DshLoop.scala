@@ -16,6 +16,7 @@ import ai.fastllm.agent.channel.AgentAttachProtocol.Event.{
   RunFailed,
   RunStateChanged,
   CheckpointEvent,
+  ChildTranscriptDelta,
   SubagentFinished,
   SubagentStarted,
   SubagentUpdated,
@@ -140,7 +141,19 @@ class DshLoop(
         if sid.nonEmpty then onHostError(sid, msg)
       case _ => ()
 
-  val caps: Caps = Caps(cancel = true, approval = true, question = false, restore = true)
+  val caps: Caps = Caps(
+    cancel = true,
+    approval = true,
+    answerQuestion = false,
+    restore = true,
+    steer = true,
+    queue = true,
+    rerun = false,
+    usage = true,
+    childTranscript = true,
+    goalDelta = true,
+    contextPrune = true
+  )
 
   override def busy(sessionId: String): Boolean =
     snapshot(sessionId).exists: b =>
@@ -240,7 +253,7 @@ class DshLoop(
             case NonFatal(e) =>
               RouteResult("rejected", "", Option(e.getMessage).filter(_.nonEmpty).getOrElse("respond"))
 
-  override def steer(cmd: AgentAttachProtocol.Command.DshSteer): Future[Admit] =
+  override def steer(cmd: AgentAttachProtocol.Command.SteerRun): Future[Admit] =
     if imageOverLimit(cmd.images, snapshot(cmd.sessionId).map(_.imageLimit).getOrElse(ImageLimit())) then
       Future.successful(Admit.Rejected("imageLimits"))
     else
@@ -251,23 +264,25 @@ class DshLoop(
             case Left(e)  => Admit.Rejected(e)
         case None => Future.successful(Admit.Rejected("no live run"))
 
-  override def queue(cmd: AgentAttachProtocol.Command.DshQueue): Future[Admit] =
-    val action = cmd.action.trim.toLowerCase match
-      case "remove" => Json.obj("kind" -> "remove".asJson)
-      case "steer"  => Json.obj("kind" -> "steer".asJson)
-      case "edit" =>
-        Json.obj(
-          "kind" -> "edit".asJson,
-          "content" -> Json.arr(Json.obj("type" -> "text".asJson, "text" -> cmd.text.getOrElse("").asJson))
-        )
-      case other => Json.obj("kind" -> other.asJson)
-    remote.call(
-      "session.updateQueue",
-      Json.obj("sessionId" -> cmd.sessionId.asJson, "itemId" -> cmd.itemId.asJson, "action" -> action)
-    ).map: json =>
-      valueOf(json) match
-        case Right(_) => Admit.Accepted(liveOf(cmd.sessionId).getOrElse(""))
-        case Left(e)  => Admit.Rejected(e)
+  override def queue(cmd: AgentAttachProtocol.Command.QueueMessage): Future[Admit] =
+    if !caps.queue then Future.successful(Admit.Rejected("queue disabled"))
+    else
+      val action = cmd.action.trim.toLowerCase match
+        case "remove" => Json.obj("kind" -> "remove".asJson)
+        case "steer"  => Json.obj("kind" -> "steer".asJson)
+        case "edit" =>
+          Json.obj(
+            "kind" -> "edit".asJson,
+            "content" -> Json.arr(Json.obj("type" -> "text".asJson, "text" -> cmd.text.getOrElse("").asJson))
+          )
+        case other => Json.obj("kind" -> other.asJson)
+      remote.call(
+        "session.updateQueue",
+        Json.obj("sessionId" -> cmd.sessionId.asJson, "itemId" -> cmd.itemId.asJson, "action" -> action)
+      ).map: json =>
+        valueOf(json) match
+          case Right(_) => Admit.Accepted(liveOf(cmd.sessionId).getOrElse(""))
+          case Left(e)  => Admit.Rejected(e)
 
   def events(sessionId: String, afterSeq: Long): Future[List[EventRow]] =
     Future.successful:
@@ -343,7 +358,7 @@ class DshLoop(
       val prev = bindings.getOrElse(sessionId, Binding(cwd))
       bindings = bindings.updated(
         sessionId,
-        putLive(prev.copy(bound = true, cwd = cwd), dshCapsRow(sessionId, queue = true, goal = true, budget = false))
+        putLive(prev.copy(bound = true, cwd = cwd), dshCapsRow(sessionId, queue = caps.queue, goal = true, budget = false))
       )
     kickLists()
 
@@ -425,7 +440,7 @@ class DshLoop(
           val live = b0.liveRunId
           val idleOk =
             t == "session/title" || t == "compaction/start" || t == "compaction/summary" || t == "compaction/end" ||
-              t == "goal/change"
+              t == "goal/change" || t.startsWith("subagent/")
           if dshSettled(raw) then
             dshSenderSessionId(raw).foreach(idleSettled(sessionId, _, dshEventTime(raw)))
             dshSeq.foreach(s => ingress.consume(sessionId, sessionId, s))
@@ -794,7 +809,7 @@ class DshLoop(
     val cwd = cwdOf(sessionId)
     lock.synchronized:
       val prev = bindings.getOrElse(sessionId, Binding(cwd))
-      bindings = bindings.updated(sessionId, putLive(prev, dshCapsRow(sessionId, queue = true, goal = true, budget = false)))
+      bindings = bindings.updated(sessionId, putLive(prev, dshCapsRow(sessionId, queue = caps.queue, goal = true, budget = false)))
       lastSeq.foreach(s => ingress.consume(sessionId, sessionId, s))
     kickLists()
 
@@ -811,6 +826,10 @@ class DshLoop(
           lock.synchronized:
             bindings.get(parent).foreach: b =>
               bindings = bindings.updated(parent, b.copy(childHistory = pairs.toMap))
+          pairs.foreach: (id, json) =>
+            valueOf(json).toOption.foreach: value =>
+              value.hcursor.downField("events").as[List[Json]].toOption.getOrElse(Nil).zipWithIndex.foreach: (e, i) =>
+                onChildEvent(parent, id, e, replaySeq = Some(i + 1L))
 
   private def hostOf(muxSid: String): Option[String] =
     if bindings.contains(muxSid) then Some(muxSid) else childToParent.get(muxSid)
@@ -993,8 +1012,10 @@ class DshLoop(
   private def childMeta(parent: String, childSid: String): (String, String) =
     snapshot(parent).flatMap(_.children.get(childSid)).map(c => (c.mode, c.label)).getOrElse(("one-shot", ""))
 
-  private def onChildEvent(parent: String, childSid: String, event: Json): Unit =
-    val raw = event.hcursor.downField("payload").downField("event").focus.getOrElse(event)
+  private def onChildEvent(parent: String, childSid: String, event: Json, replaySeq: Option[Long] = None): Unit =
+    val raw = event.hcursor.downField("payload").downField("event").focus
+      .orElse(event.hcursor.downField("event").focus)
+      .getOrElse(event)
     val t = raw.hcursor.get[String]("type").toOption.getOrElse("")
     val data = raw.hcursor.downField("data").focus.getOrElse(Json.obj())
     t match
@@ -1012,8 +1033,29 @@ class DshLoop(
           else Nil
         writeChildPreview(parent, childSid, activity = Some("inactive"), extra = finished)
       case _ =>
+        emitChildDelta(parent, raw, replaySeq)
         dshPreviewDelta(data, t).foreach: delta =>
           writeChildPreview(parent, childSid, append = Some(delta -> t))
+
+  private def emitChildDelta(parent: String, raw: Json, replaySeq: Option[Long] = None): Unit =
+    val step = lock.synchronized:
+      bindings.get(parent).map: b =>
+        val s = dshEvents(parent, b.liveRunId.getOrElse(""), raw, b.fold)
+        val deltas = s.events.collect { case d: ChildTranscriptDelta => d }
+        bindings = bindings.updated(parent, b.copy(fold = replayedFold(b.fold, deltas, replaySeq)))
+        s
+    step.foreach: s =>
+      val deltas = s.events.collect { case d: ChildTranscriptDelta => d }.map: d =>
+        replaySeq.fold(d)(n => d.copy(childSeq = n))
+      if deltas.nonEmpty then
+        ingress.offer(IngressOffer(parent, parent, None, None, false, DshBatch(parent, deltas)))
+
+  private def replayedFold(fold: DshFold, deltas: List[ChildTranscriptDelta], replaySeq: Option[Long]): DshFold =
+    replaySeq match
+      case None => fold
+      case Some(n) =>
+        deltas.map(_.childSessionId).distinct.foldLeft(fold): (f, id) =>
+          f.copy(childSeq = f.childSeq.updated(id, f.childSeq.getOrElse(id, 0L).max(n)))
 
   private def writeChildPreview(
       parent: String,

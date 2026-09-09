@@ -1,7 +1,7 @@
 import type {
 	AgentRow,
 	AmbientRule,
-	DshCallResult,
+	EngineCallResult,
 	DshModelsResult,
 	EdgeDeleteResult,
 	EdgeDetail,
@@ -598,7 +598,7 @@ export type FastIdeApi = {
 	/** Turn / Goal settled — play completion sound when the setting is on. */
 	onCompletionCue: (handler: (payload: CompletionCue) => void) => () => void;
 	getDshModels: (sessionId?: string) => Promise<DshModelsResult>;
-	selectDshModel: (input: DshSelection & {sessionId?: string}) => Promise<DshCallResult>;
+	selectDshModel: (input: DshSelection & {sessionId?: string}) => Promise<EngineCallResult>;
 	listDshSkills: (sessionId: string) => Promise<DshSkillsResult>;
 	dshSettings: DshSettingsApi;
 	/** Narrow DSH unary escape hatch. First-party UI uses typed capabilities above. */
@@ -606,41 +606,41 @@ export type FastIdeApi = {
 		method: string,
 		payload?: Record<string, unknown>,
 		sessionId?: string
-	) => Promise<DshCallResult>;
+	) => Promise<EngineCallResult>;
 };
 
 export type DshSettingsApi = {
-	describe: () => Promise<DshCallResult>;
+	describe: () => Promise<EngineCallResult>;
 	update: (input: {
 		ns: string;
 		patch: Record<string, unknown>;
 		expectedRevision?: number;
-	}) => Promise<DshCallResult>;
+	}) => Promise<EngineCallResult>;
 	mutate: (input: {
 		ns: string;
 		ops: DshSettingsPathOp[];
 		expectedRevision?: number;
-	}) => Promise<DshCallResult>;
+	}) => Promise<EngineCallResult>;
 	replace: (input: {
 		ns: string;
 		section: Record<string, unknown>;
 		expectedRevision?: number;
-	}) => Promise<DshCallResult>;
-	openDocument: () => Promise<DshCallResult>;
-	credentialsDescribe: (refs: string[]) => Promise<DshCallResult>;
-	credentialsSet: (ref: string, value: string) => Promise<DshCallResult>;
-	credentialsUnset: (ref: string) => Promise<DshCallResult>;
-	llmModels: () => Promise<DshCallResult>;
-	llmProviders: () => Promise<DshCallResult>;
-	llmDiscoverModels: (input: Record<string, unknown>) => Promise<DshCallResult>;
-	agentPresetList: () => Promise<DshCallResult>;
-	agentPresetSelect: (sessionId: string, agentPreset: string) => Promise<DshCallResult>;
-	agentPresetRead: (agentPreset: string) => Promise<DshCallResult>;
-	agentPresetCopy: (input: {from: string; agentPreset: string; name?: string}) => Promise<DshCallResult>;
-	agentPresetOpenDocument: (agentPreset: string) => Promise<DshCallResult>;
-	agentPresetRemove: (agentPreset: string) => Promise<DshCallResult>;
-	sessionList: () => Promise<DshCallResult>;
-	pluginInventoryList: () => Promise<DshCallResult>;
+	}) => Promise<EngineCallResult>;
+	openDocument: () => Promise<EngineCallResult>;
+	credentialsDescribe: (refs: string[]) => Promise<EngineCallResult>;
+	credentialsSet: (ref: string, value: string) => Promise<EngineCallResult>;
+	credentialsUnset: (ref: string) => Promise<EngineCallResult>;
+	llmModels: () => Promise<EngineCallResult>;
+	llmProviders: () => Promise<EngineCallResult>;
+	llmDiscoverModels: (input: Record<string, unknown>) => Promise<EngineCallResult>;
+	agentPresetList: () => Promise<EngineCallResult>;
+	agentPresetSelect: (sessionId: string, agentPreset: string) => Promise<EngineCallResult>;
+	agentPresetRead: (agentPreset: string) => Promise<EngineCallResult>;
+	agentPresetCopy: (input: {from: string; agentPreset: string; name?: string}) => Promise<EngineCallResult>;
+	agentPresetOpenDocument: (agentPreset: string) => Promise<EngineCallResult>;
+	agentPresetRemove: (agentPreset: string) => Promise<EngineCallResult>;
+	sessionList: () => Promise<EngineCallResult>;
+	pluginInventoryList: () => Promise<EngineCallResult>;
 };
 
 export type {ProjectSnapshot, ModelCatalogEntry, MentionChip, QueueItem};

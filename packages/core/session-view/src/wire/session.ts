@@ -5,7 +5,9 @@
 import type {BridgeEvent} from '@fastllm/bridge-protocol';
 import type {ComposerGate} from '../composerGate.js';
 import type {
+	ChildTranscriptView,
 	ContextInjectionView,
+	ContextPruneView,
 	GoalFlowView,
 	LiveChildWork,
 	LiveProc,
@@ -14,7 +16,8 @@ import type {
 	PendingQuestion,
 	PendingQuestionBatch,
 	TranscriptEntry,
-	TranscriptSubagent
+	TranscriptSubagent,
+	UsageView
 } from '../transcriptProjection.js';
 
 export type ProjectStatus = 'starting' | 'ready' | 'error' | 'exited';
@@ -171,6 +174,15 @@ export type DshCaps = {
 	budget: boolean;
 	question: boolean;
 	slash: boolean;
+	/** Optional delta-stream capability bits; absent means the host predates them. */
+	delta?: DshDeltaCaps;
+};
+
+export type DshDeltaCaps = {
+	usage: boolean;
+	childTranscript: boolean;
+	goalDelta: boolean;
+	contextPrune: boolean;
 };
 
 export type DshQueueItem = {
@@ -228,6 +240,9 @@ export type TasksSnapshot = TasksMeta & {
 	/** Monotone publisher revision for the included active Task body. */
 	bodyRevision?: number;
 	transcript: TranscriptEntry[];
+	usage?: UsageView | null;
+	contextPrunes?: ContextPruneView[];
+	childTranscripts?: Record<string, ChildTranscriptView>;
 	approvals: PendingApproval[];
 	questions: PendingQuestion[];
 	questionBatches?: PendingQuestionBatch[];
@@ -248,6 +263,9 @@ export type TranscriptPatch = {
 	taskId: string;
 	bodyRevision?: number;
 	entries: TranscriptEntry[];
+	usage?: UsageView | null;
+	contextPrunes?: ContextPruneView[];
+	childTranscripts?: Record<string, ChildTranscriptView>;
 	approvals: PendingApproval[];
 	questions: PendingQuestion[];
 	questionBatches?: PendingQuestionBatch[];
@@ -278,6 +296,9 @@ export type TranscriptTailPatch = {
 	/** Authoritative entries.length after the patch — merge sanity check. */
 	total: number;
 	entries: TranscriptEntry[];
+	usage?: UsageView | null;
+	contextPrunes?: ContextPruneView[];
+	childTranscripts?: Record<string, ChildTranscriptView>;
 	gate: ComposerGate;
 	approvals?: PendingApproval[];
 	questions?: PendingQuestion[];
@@ -344,6 +365,9 @@ export type WorkspaceFocus = {
 	dshGoal?: DshGoalView | null;
 	/** Legacy full-body focus — normally absent since P1-6 (renderer cache + pull own the body). */
 	transcript?: TranscriptEntry[];
+	usage?: UsageView | null;
+	contextPrunes?: ContextPruneView[];
+	childTranscripts?: Record<string, ChildTranscriptView>;
 	superseded?: Record<string, string>;
 	approvals?: PendingApproval[];
 	questions?: PendingQuestion[];

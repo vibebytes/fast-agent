@@ -1,10 +1,10 @@
-import type {DshCallResult, DshSkillsResult, SlashCatalogEntry} from '@fast-ide/session-view';
+import type {EngineCallResult, DshSkillsResult, SlashCatalogEntry} from '@fast-ide/session-view';
 
 type DshCall = (
 	method: string,
 	payload?: Record<string, unknown>,
 	sessionId?: string
-) => Promise<DshCallResult>;
+) => Promise<EngineCallResult>;
 
 export async function listDshSkills(call: DshCall, sessionId: string): Promise<DshSkillsResult> {
 	const result = await call('skill.list', {sessionId}, sessionId);

@@ -3,7 +3,11 @@ export async function openExistingFolder(): Promise<void> {
 	const list = await window.fastIde.listEdges();
 	if (list.pendingEdgeId) return;
 	if (list.capabilities.canOpenRemoteFolder) {
-		window.dispatchEvent(new CustomEvent('fast-ide:open-remote-folder'));
+		window.dispatchEvent(
+		typeof CustomEvent === 'undefined'
+			? new Event('fast-ide:open-remote-folder')
+			: new CustomEvent('fast-ide:open-remote-folder'),
+	);
 		return;
 	}
 	if (list.capabilities.canOpenLocalFolder) await window.fastIde.openProject();

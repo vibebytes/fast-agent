@@ -1390,6 +1390,7 @@
       "turnFailTitle": "Tâche échouée"
     },
     "subagent": {
+      "liveTail": "Sortie en direct",
       "untitled": "Sous-agent",
       "oneShot": "unique",
       "continuable": "reprenable",

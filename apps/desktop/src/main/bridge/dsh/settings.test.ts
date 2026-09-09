@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import {test} from 'node:test';
-import type {DshCallResult, DshSettingsOp} from '@fast-ide/session-view';
+import type {EngineCallResult, DshSettingsOp} from '@fast-ide/session-view';
 import {settingsCall, settingsHop} from './settings.js';
 
 test('settingsHop maps every settings-page op to one DSH method', () => {
@@ -79,7 +79,7 @@ test('settingsHop carries sessionId only on agentPreset.select', () => {
 
 test('settingsCall forwards the hop to the unary transport', async () => {
 	const hops: Array<{method: string; payload?: Record<string, unknown>; sessionId?: string}> = [];
-	const call = async (method: string, payload?: Record<string, unknown>, sessionId?: string): Promise<DshCallResult> => {
+	const call = async (method: string, payload?: Record<string, unknown>, sessionId?: string): Promise<EngineCallResult> => {
 		hops.push({method, payload, sessionId});
 		return {ok: true, method, value: {ok: true}};
 	};

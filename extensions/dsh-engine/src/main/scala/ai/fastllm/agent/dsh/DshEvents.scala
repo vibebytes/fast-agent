@@ -14,7 +14,8 @@ final case class DshUsage(
     inputTokens: Long = 0,
     outputTokens: Long = 0,
     cacheReadTokens: Long = 0,
-    cacheWriteTokens: Long = 0
+    cacheWriteTokens: Long = 0,
+    reasoningTokens: Long = 0
 ):
   def billed: Long = inputTokens + outputTokens + cacheReadTokens + cacheWriteTokens
   def +(o: DshUsage): DshUsage =
@@ -22,12 +23,14 @@ final case class DshUsage(
       inputTokens + o.inputTokens,
       outputTokens + o.outputTokens,
       cacheReadTokens + o.cacheReadTokens,
-      cacheWriteTokens + o.cacheWriteTokens
+      cacheWriteTokens + o.cacheWriteTokens,
+      reasoningTokens + o.reasoningTokens
     )
 
 final case class DshFold(
     hasTodoPlan: Boolean = false,
-    usage: Map[(Int, Int), DshUsage] = Map.empty
+    usage: Map[(Int, Int), DshUsage] = Map.empty,
+    childSeq: Map[String, Long] = Map.empty
 )
 
 /** One mux SessionEvent. `tokensUsed` only on `turn/end` with at least one step usage. */
@@ -91,16 +94,33 @@ def dshEvents(sessionId: String, runId: String, event: Json, fold: DshFold): Dsh
       val kind = data.hcursor.downField("reason").get[String]("kind").toOption.getOrElse("completed")
       val status = dshEndStatus(kind)
       val turn = data.hcursor.get[Int]("turn").toOption
-      val billed = turn.flatMap: n =>
-        val steps = fold.usage.collect { case ((t, _), u) if t == n => u }.toList
-        if steps.isEmpty then None else Some(steps.foldLeft(DshUsage())(_ + _).billed)
+      val steps = turn.toList.flatMap: n =>
+        fold.usage.collect { case ((t, _), u) if t == n => u }.toList
+      val billed = steps.reduceOption(_ + _).map(_.billed)
       val rest = turn.fold(fold.usage)(n => fold.usage.filter { case ((t, _), _) => t != n })
+      val usageEvent = for
+        n <- turn
+        sum <- steps.reduceOption(_ + _)
+      yield UsageReported(
+        sessionId,
+        runId,
+        turnId = Some(n.toString),
+        buckets = Map(
+          "input" -> sum.inputTokens,
+          "output" -> sum.outputTokens,
+          "cache_read" -> sum.cacheReadTokens,
+          "cache_write" -> sum.cacheWriteTokens,
+          "total" -> sum.billed
+        ),
+        raw = rawUsage(fold.usage, n)
+      )
+      val usageEvents = usageEvent.toList
       if status == "failed" then
         // Terminal RunFailed (not RunStateChanged): BusyRoots only clear on
         // terminal events, and clients seal the error card from run_failed.
-        DshStep(List(RunFailed(sessionId, runId, endFailureMessage(data))), fold.copy(usage = rest), tokensUsed = billed)
+        DshStep(usageEvents :+ RunFailed(sessionId, runId, endFailureMessage(data)), fold.copy(usage = rest), tokensUsed = billed)
       else
-        DshStep(List(RunStateChanged(sessionId, runId, status, turn, billed)), fold.copy(usage = rest), tokensUsed = billed)
+        DshStep(usageEvents :+ RunStateChanged(sessionId, runId, status, turn, billed), fold.copy(usage = rest), tokensUsed = billed)
     case "todo/write" =>
       val todos = planTodos(data)
       val action = if fold.hasTodoPlan then "replace" else "create"
@@ -134,10 +154,12 @@ def dshEvents(sessionId: String, runId: String, event: Json, fold: DshFold): Dsh
             fold
           )
         case None => DshStep(Nil, fold)
-    case "compaction/prune" | "goal/change" =>
-      DshStep(Nil, fold)
+    case "compaction/prune" =>
+      DshStep(List(contextPruned(sessionId, runId, data)), fold)
+    case "goal/change" =>
+      DshStep(List(goalDelta(sessionId, data)), fold)
     case t if t.startsWith("subagent/") =>
-      DshStep(Nil, fold)
+      childDelta(sessionId, data, fold)
     case _ =>
       DshStep(Nil, fold)
 
@@ -220,7 +242,8 @@ private def usageOf(json: Json): Option[DshUsage] =
         in.getOrElse(0L),
         out.getOrElse(0L),
         c.get[Long]("cacheReadTokens").toOption.getOrElse(0L),
-        c.get[Long]("cacheWriteTokens").toOption.getOrElse(0L)
+        c.get[Long]("cacheWriteTokens").toOption.getOrElse(0L),
+        c.get[Long]("reasoningTokens").toOption.getOrElse(0L)
       )
     )
 
@@ -305,6 +328,44 @@ def planTodos(data: Json): List[PlanTodo] =
 def todoId(content: String): String =
   val digest = MessageDigest.getInstance("SHA-1")
   digest.digest(content.getBytes(StandardCharsets.UTF_8)).map(b => f"$b%02x").mkString.take(12)
+
+private def rawUsage(usage: Map[(Int, Int), DshUsage], turn: Int): Map[String, String] =
+  val steps = usage.collect { case ((t, _), u) if t == turn => u }.toList
+  val reasoning = steps.map(_.reasoningTokens).sum
+  if reasoning > 0 then Map("reasoning" -> reasoning.toString) else Map.empty
+
+private def contextPruned(sessionId: String, runId: String, data: Json): ContextPruned =
+  val c = data.hcursor
+  ContextPruned(
+    sessionId,
+    runId,
+    prunedIds = c.get[List[String]]("prunedIds").toOption.getOrElse(Nil),
+    remainingTokens = c.get[Long]("remainingTokens").toOption,
+    reason = c.get[String]("reason").toOption.getOrElse("")
+  )
+
+private def goalDelta(sessionId: String, data: Json): GoalDelta =
+  val c = data.hcursor
+  GoalDelta(
+    sessionId,
+    goalId = c.get[String]("goalId").toOption.getOrElse(""),
+    operation = c.get[String]("operation").toOption.getOrElse(""),
+    payloadJson = data.asJson.noSpaces
+  )
+
+private def childDelta(sessionId: String, data: Json, fold: DshFold): DshStep =
+  val c = data.hcursor
+  val child = c.get[String]("sessionId").toOption.filter(_.nonEmpty)
+    .orElse(c.get[String]("childSessionId").toOption.filter(_.nonEmpty))
+  child match
+    case None => DshStep(Nil, fold)
+    case Some(id) =>
+      val next = fold.childSeq.getOrElse(id, 0L) + 1L
+      val kind = c.get[String]("kind").toOption.filter(_.nonEmpty).getOrElse("text")
+      DshStep(
+        List(ChildTranscriptDelta(sessionId, id, next, kind, data.asJson.noSpaces)),
+        fold.copy(childSeq = fold.childSeq.updated(id, next))
+      )
 
 private def patched(sessionId: String, runId: String, action: String, todos: List[PlanTodo]): MessagePatched =
   val payload = PlanPayload(name = "", overview = "", todos = todos, body = "")

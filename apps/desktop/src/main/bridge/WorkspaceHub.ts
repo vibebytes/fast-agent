@@ -32,8 +32,8 @@ import type {
 	TeamRow,
 	UpsertProviderInput,
 	WorkspaceFsCode,
-	DshCallResult,
-	DshError,
+	EngineCallResult,
+	EngineCallError,
 	EngineWireRow,
 	HostDirResult,
 	HostDirCreateResult
@@ -92,7 +92,7 @@ export type WorkspaceHubDeps = {
 	createClientId?: () => string;
 	hostCwd?: string;
 	homeDir?: string;
-	/** Hub `waitByRequestId` budget (DshCall / FS). Tests shorten this to prove the timeout text. */
+	/** Hub `waitByRequestId` budget (EngineCall / FS). Tests shorten this to prove the timeout text. */
 	requestWaitMs?: number;
 	/** RegisterWorkspace waiter. Tests shorten this. */
 	registerWaitMs?: number;
@@ -615,11 +615,11 @@ export class WorkspaceHub {
 		return this.bridge;
 	}
 
-	async dshCall(
+	async engineCall(
 		method: string,
 		payload: Record<string, unknown> = {},
 		sessionId?: string
-	): Promise<DshCallResult> {
+	): Promise<EngineCallResult> {
 		if (!this.bridge || this.engineStatus !== 'ready') {
 			return {ok: false, error: {code: 'unavailable', message: 'Engine not ready'}};
 		}
@@ -631,7 +631,7 @@ export class WorkspaceHub {
 		const {token, promise} = this.hostWait.waitRequest(requestId);
 		if (
 			!this.bridge.send({
-				type: 'Call',
+				type: 'EngineCall',
 				method,
 				payload,
 				requestId,
@@ -639,14 +639,14 @@ export class WorkspaceHub {
 			})
 		) {
 			this.hostWait.cancel(token);
-			return {ok: false, error: {code: 'unavailable', message: 'Failed to send DshCall'}};
+			return {ok: false, error: {code: 'unavailable', message: 'Failed to send EngineCall'}};
 		}
 		try {
 			const event = await promise;
 			if (event.status === 'error' || event.status === 'rejected') {
 				const err = event.error;
 				if (err && typeof err.code === 'string') {
-					return {ok: false, error: err as DshError};
+					return {ok: false, error: err as EngineCallError};
 				}
 				return {
 					ok: false,

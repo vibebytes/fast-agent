@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import {test} from 'node:test';
-import type {DshCallResult} from '@fast-ide/session-view';
+import type {EngineCallResult} from '@fast-ide/session-view';
 import {asModels, getDshModels, selectDshModel} from './models.js';
 
 const groups = [
@@ -94,7 +94,7 @@ test('getDshModels passes engine errors through and rejects a bad shape', async 
 
 test('selectDshModel wraps session.selectModel and drops a blank effort', async () => {
 	const hops: Array<{method: string; payload?: Record<string, unknown>; sessionId?: string}> = [];
-	const call = async (method: string, payload?: Record<string, unknown>, sessionId?: string): Promise<DshCallResult> => {
+	const call = async (method: string, payload?: Record<string, unknown>, sessionId?: string): Promise<EngineCallResult> => {
 		hops.push({method, payload, sessionId});
 		return {ok: true, method, value: {}};
 	};

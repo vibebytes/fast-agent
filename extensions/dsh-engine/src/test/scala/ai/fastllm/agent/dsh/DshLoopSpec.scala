@@ -289,8 +289,35 @@ class DshLoopSpec extends AnyFunSuite with Matchers:
       "accepted"
     remote.cancels shouldBe Vector("rpc-q")
 
-  test("caps: question false, the rest true"):
-    DshLoop(FakeClient(), _ => Cwd).caps shouldBe Caps(cancel = true, approval = true, question = false, restore = true)
+  test("caps: answerQuestion false, the rest true"):
+    DshLoop(FakeClient(), _ => Cwd).caps shouldBe Caps(
+      cancel = true,
+      approval = true,
+      answerQuestion = false,
+      restore = true,
+      steer = true,
+      queue = true,
+      rerun = false,
+      usage = true,
+      childTranscript = true,
+      goalDelta = true,
+      contextPrune = true
+    )
+
+  test("invariant 1: dsh_caps.queue mirrors caps.queue; false rejects QueueMessage"):
+    val loop = DshLoop(FakeClient(), _ => Cwd)
+    await(loop.bind(Sid, Cwd)) shouldBe Right(())
+    val caps = loop.caps
+    val row = await(loop.events(Sid, 0)).find(r => payloadType(r) == "dsh_caps").get
+    val wireQueue = parse(row.envelopeJson).toOption.get.hcursor
+      .downField("payload").get[Boolean]("queue").toOption.get
+    wireQueue shouldBe caps.queue
+    if caps.queue then
+      await(loop.queue(AgentAttachProtocol.Command.QueueMessage(Sid, "i1", "remove", None))) shouldBe
+        a[Admit.Accepted]
+    else
+      await(loop.queue(AgentAttachProtocol.Command.QueueMessage(Sid, "i1", "remove", None))) shouldBe
+        Admit.Rejected("queue disabled")
 
   test("bind emits dsh_caps with five explicit keys"):
     val loop = DshLoop(FakeClient(), _ => Cwd)
@@ -315,13 +342,13 @@ class DshLoopSpec extends AnyFunSuite with Matchers:
     await(loop.events(Sid, 0)).count(r => payloadType(r) == "dsh_caps") shouldBe 1
     await(DummyLoop().events("s", 0)).exists(r => payloadType(r).startsWith("dsh_")) shouldBe false
 
-  test("DshSteer prompts mode=steer; DshQueue calls session.updateQueue"):
+  test("SteerRun prompts mode=steer; QueueMessage calls session.updateQueue"):
     val remote = FakeClient()
     val loop = DshLoop(remote, _ => Cwd)
     await(loop.submit(submit("c1", "one")))
-    await(loop.steer(AgentAttachProtocol.Command.DshSteer(Sid, "nudge"))) shouldBe Admit.Steered(s"$Sid:c1")
+    await(loop.steer(AgentAttachProtocol.Command.SteerRun(Sid, "nudge"))) shouldBe Admit.Steered(s"$Sid:c1")
     remote.calls.filter(_._1 == "session.prompt").map(c => modeOf(c._2)).last shouldBe "steer"
-    await(loop.queue(AgentAttachProtocol.Command.DshQueue(Sid, "m1", "remove"))).status shouldBe "accepted"
+    await(loop.queue(AgentAttachProtocol.Command.QueueMessage(Sid, "m1", "remove"))).status shouldBe "accepted"
     methods(remote) should contain("session.updateQueue")
 
   test("session/queue snapshot is seq=0 last-wins; empty array still emits"):
@@ -376,7 +403,7 @@ class DshLoopSpec extends AnyFunSuite with Matchers:
         "value" -> Json.obj("maxCount" -> 4.asJson, "maxBytes" -> 100000.asJson)
       )
     )
-    await(loop.steer(AgentAttachProtocol.Command.DshSteer(Sid, "see", List(png)))).status shouldBe "steered"
+    await(loop.steer(AgentAttachProtocol.Command.SteerRun(Sid, "see", List(png)))).status shouldBe "steered"
     val parts = remote.calls.filter(_._1 == "session.prompt").last._2.hcursor.downField("content").as[List[Json]].toOption.get
     parts.map(_.hcursor.get[String]("type").toOption.get) shouldBe List("text", "image")
     parts.last.hcursor.get[String]("data").toOption.get shouldBe png.data
@@ -815,6 +842,45 @@ class DshLoopSpec extends AnyFunSuite with Matchers:
     page.rows.map(_.sessionId).distinct shouldBe List(Sid)
     page.rows.flatMap(_.content) should not contain "child-secret"
     page.rows.head.productArity shouldBe 15
+
+  test("G2.2 reconnect replays child history into child transcript with cursor"):
+    val remote = FakeClient()
+    remote.history = historyOf("text-turn.jsonl")
+    remote.list = catalog(childEntry("child-1", "inactive", "continuable", "bg"))
+    remote.childHistory = Json.obj(
+      "ok" -> Json.True,
+      "value" -> Json.obj(
+        "events" -> Json.arr(
+          Json.obj("event" -> ev("subagent/message", 1, """{"sessionId":"child-1","kind":"text","text":"hi"}""")),
+          Json.obj("event" -> ev("subagent/message", 2, """{"sessionId":"child-1","kind":"text","text":"there"}"""))
+        ),
+        "hasMore" -> Json.False
+      )
+    )
+    val loop = DshLoop(remote, _ => Cwd)
+    await(loop.restore(Sid, None, 20))
+    val rows = await(loop.events(Sid, 0))
+    val deltas = rows.filter(payloadType(_) == "ChildTranscriptDelta")
+    deltas.map(r => (payloadString(r, "childSessionId"), payloadLong(r, "childSeq"))) shouldBe
+      List(("child-1", Some(1L)), ("child-1", Some(2L)))
+    deltas.map(r => payloadString(r, "payloadJson")) shouldBe List(
+      """{"sessionId":"child-1","kind":"text","text":"hi"}""",
+      """{"sessionId":"child-1","kind":"text","text":"there"}"""
+    )
+
+  test("G2.2 child history unavailable falls back to preview only"):
+    val remote = FakeClient()
+    remote.history = historyOf("text-turn.jsonl")
+    remote.list = catalog(childEntry("child-1", "inactive", "continuable", "bg"))
+    remote.childHistory = Json.obj("ok" -> Json.False, "error" -> Json.obj("code" -> "session-not-found".asJson))
+    val loop = DshLoop(remote, _ => Cwd)
+    await(loop.restore(Sid, None, 20))
+    val rows = await(loop.events(Sid, 0))
+    rows.filter(payloadType(_) == "ChildTranscriptDelta") shouldBe Nil
+    remote.emit(Sid, ev("subagent/message", 9, """{"sessionId":"child-1","kind":"text","text":"live"}"""))
+    val after = await(loop.events(Sid, 0))
+    after.filter(payloadType(_) == "ChildTranscriptDelta").map(r => payloadLong(r, "childSeq")) shouldBe
+      List(Some(1L))
 
   test("restore tools + open todo Plan; compaction stays out; title via onTitle"):
     val remote = FakeClient()
@@ -1662,7 +1728,7 @@ class DshLoopSpec extends AnyFunSuite with Matchers:
     remote.emit(Sid, usageChunk(2))
     remote.emit(Sid, ev("turn/end", 3, """{"turn":1,"reason":{"kind":"completed"}}"""))
     val rows = await(loop.events(Sid, 0))
-    payloadTypes(rows) shouldBe List("TurnStarted", "RunStateChanged", "RunCompleted")
+    payloadTypes(rows) shouldBe List("TurnStarted", "UsageReported", "RunStateChanged", "RunCompleted")
     val changed = rows.find(r => payloadType(r) == "RunStateChanged").get
     payloadLong(changed, "tokensUsed") shouldBe Some(19L)
     payloadLong(changed, "turn") shouldBe Some(1L)
@@ -1814,17 +1880,20 @@ private class FakeClient extends Client:
     Json.obj("ok" -> Json.True, "value" -> Json.obj("events" -> Json.arr(), "hasMore" -> Json.False))
   var list: Json =
     Json.obj("ok" -> Json.True, "value" -> Json.obj("entries" -> Json.arr(), "parentAvailable" -> Json.True))
+  var childHistory: Json =
+    Json.obj("ok" -> Json.True, "value" -> Json.obj("events" -> Json.arr(), "hasMore" -> Json.False))
   var listHold: Option[Promise[Json]] = None
 
   def call(method: String, payload: Json): Future[Json] =
     calls = calls :+ (method -> payload)
     method match
-      case "session.create"  => Future.successful(create)
-      case "session.prompt"  => Future.successful(prompt)
-      case "session.cancel"  => Future.successful(cancel)
-      case "session.history" => Future.successful(history)
-      case "subagent.list"   => listHold.map(_.future).getOrElse(Future.successful(list))
-      case _                 => Future.successful(Json.obj("ok" -> Json.True, "value" -> Json.obj()))
+      case "session.create"    => Future.successful(create)
+      case "session.prompt"    => Future.successful(prompt)
+      case "session.cancel"    => Future.successful(cancel)
+      case "session.history"   => Future.successful(history)
+      case "subagent.history"  => Future.successful(childHistory)
+      case "subagent.list"     => listHold.map(_.future).getOrElse(Future.successful(list))
+      case _                   => Future.successful(Json.obj("ok" -> Json.True, "value" -> Json.obj()))
 
   def reply(rpcId: String, value: Json): Future[Unit] =
     replies = replies :+ (rpcId -> value)
@@ -1916,7 +1985,7 @@ private class FakeClient extends Client:
     )
 
 private class DummyLoop extends AgentLoop:
-  val caps: Caps = Caps(cancel = true, approval = true, question = true, restore = true)
+  val caps: Caps = Caps(cancel = true, approval = true, answerQuestion = true, restore = true)
   def submit(cmd: AgentAttachProtocol.Command.SubmitUserMessage): Future[Admit] =
     Future.successful(Admit.Rejected("fast"))
   def cancel(cmd: AgentAttachProtocol.Command.CancelRun): Future[Admit] =

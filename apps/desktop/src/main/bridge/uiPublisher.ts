@@ -247,6 +247,9 @@ export function createUiPublisher(deps: UiPublisherDeps) {
 			...buildTasksMeta(),
 			...(active ? {bodyRevision: bodyRevision(active)} : {}),
 			transcript: active?.transcript.entries ?? [],
+			usage: active?.transcript.usage ?? null,
+			contextPrunes: active?.transcript.contextPrunes ?? [],
+			childTranscripts: active?.transcript.childTranscripts ?? {},
 			approvals: active?.transcript.approvals ?? [],
 			questions: active?.transcript.questions ?? [],
 			questionBatches: active?.transcript.questionBatches ?? [],
@@ -270,6 +273,9 @@ export function createUiPublisher(deps: UiPublisherDeps) {
 			taskId: active.id,
 			bodyRevision: bodyRevision(active),
 			entries: active.transcript.entries,
+			usage: active.transcript.usage ?? null,
+			contextPrunes: active.transcript.contextPrunes ?? [],
+			childTranscripts: active.transcript.childTranscripts ?? {},
 			approvals: active.transcript.approvals,
 			questions: active.transcript.questions,
 			questionBatches: active.transcript.questionBatches,
@@ -340,6 +346,11 @@ export function createUiPublisher(deps: UiPublisherDeps) {
 			total: entries.length,
 			entries: entries.slice(from),
 			gate: patch.gate,
+			...(patch.usage !== prev.usage ? {usage: patch.usage} : {}),
+			...(patch.contextPrunes !== prev.contextPrunes ? {contextPrunes: patch.contextPrunes} : {}),
+			...(patch.childTranscripts !== prev.childTranscripts
+				? {childTranscripts: patch.childTranscripts}
+				: {}),
 			...(patch.approvals !== prev.approvals ? {approvals: patch.approvals} : {}),
 			...(patch.questions !== prev.questions ? {questions: patch.questions} : {}),
 			...(patch.questionBatches !== prev.questionBatches ? {questionBatches: patch.questionBatches} : {}),
@@ -355,6 +366,9 @@ export function createUiPublisher(deps: UiPublisherDeps) {
 			...(patch.goalCard !== prev.goalCard ? {goalCard: patch.goalCard} : {})
 		};
 		const sectionsChanged =
+			tail.usage !== undefined ||
+			tail.contextPrunes !== undefined ||
+			tail.childTranscripts !== undefined ||
 			tail.approvals !== undefined ||
 			tail.questions !== undefined ||
 			tail.questionBatches !== undefined ||

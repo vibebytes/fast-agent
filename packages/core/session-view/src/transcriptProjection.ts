@@ -3,6 +3,12 @@ import {chromePostRun} from './runChrome.js';
 import {entryMatchesKey} from './turnIdentity.js';
 import {applyContextInjected} from './transcript/context.js';
 import {
+	applyChildTranscriptDelta,
+	applyContextPruned,
+	applyGoalDelta,
+	applyUsageReported
+} from './transcript/delta.js';
+import {
 	applyBackgroundTaskCompleted,
 	applyBackgroundTaskOutput,
 	applyChildWorkChanged,
@@ -60,7 +66,9 @@ export {
 	oldestLoadedTurnId
 } from './transcript/state.js';
 export type {
+	ChildTranscriptView,
 	ContextInjectionView,
+	ContextPruneView,
 	EntrySegment,
 	GoalFlowMember,
 	GoalFlowView,
@@ -77,7 +85,8 @@ export type {
 	ToolCallView,
 	TranscriptEntry,
 	TranscriptState,
-	TranscriptSubagent
+	TranscriptSubagent,
+	UsageView
 } from './transcript/state.js';
 export {applyLeaseExpiry, applyLocalCancel} from './transcript/settle.js';
 
@@ -142,6 +151,14 @@ export function applyBridgeEvent(state: TranscriptState, event: BridgeEvent): Tr
 			return applyDshToolCard(state, event);
 		case 'context_injected':
 			return applyContextInjected(state, event);
+		case 'usage_reported':
+			return applyUsageReported(state, event);
+		case 'context_pruned':
+			return applyContextPruned(state, event);
+		case 'child_transcript_delta':
+			return applyChildTranscriptDelta(state, event);
+		case 'goal_delta':
+			return applyGoalDelta(state, event);
 		case 'tool_started':
 			return applyToolStarted(state, event);
 		case 'tool_output':

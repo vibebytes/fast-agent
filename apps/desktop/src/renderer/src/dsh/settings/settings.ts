@@ -1,4 +1,4 @@
-import type {DshCallResult, DshError} from '@fast-ide/session-view';
+import type {EngineCallResult, EngineCallError} from '@fast-ide/session-view';
 
 export type SettingsNs = {
 	ns: string;
@@ -44,7 +44,7 @@ export function nsOf(desc: SettingsDescribe | null, name: string): SettingsNs | 
 }
 
 export async function dshDescribe(): Promise<
-	{ok: true; value: SettingsDescribe} | {ok: false; error: DshError}
+	{ok: true; value: SettingsDescribe} | {ok: false; error: EngineCallError}
 > {
 	const result = await window.fastIde.dshSettings.describe();
 	if (!result.ok) return result;
@@ -65,7 +65,7 @@ export async function dshUpdate(
 	ns: string,
 	patch: Record<string, unknown>,
 	expectedRevision?: number
-): Promise<DshCallResult> {
+): Promise<EngineCallResult> {
 	return window.fastIde.dshSettings.update({ns, patch, expectedRevision});
 }
 
@@ -73,7 +73,7 @@ export async function dshUpdate(
 export async function dshUpdateFresh(
 	ns: string,
 	patch: Record<string, unknown>
-): Promise<DshCallResult> {
+): Promise<EngineCallResult> {
 	const described = await dshDescribe();
 	if (!described.ok) return described;
 	const first = await dshUpdate(ns, patch, nsOf(described.value, ns)?.revision);
@@ -87,7 +87,7 @@ export async function dshMutate(
 	ns: string,
 	ops: Array<{op: 'set'; path: string[]; value: unknown} | {op: 'unset'; path: string[]}>,
 	expectedRevision?: number
-): Promise<DshCallResult> {
+): Promise<EngineCallResult> {
 	return window.fastIde.dshSettings.mutate({ns, ops, expectedRevision});
 }
 
@@ -95,7 +95,7 @@ export async function dshReplace(
 	ns: string,
 	section: Record<string, unknown>,
 	expectedRevision?: number
-): Promise<DshCallResult> {
+): Promise<EngineCallResult> {
 	return window.fastIde.dshSettings.replace({ns, section, expectedRevision});
 }
 

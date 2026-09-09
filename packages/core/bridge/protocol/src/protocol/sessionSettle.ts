@@ -15,7 +15,15 @@ export const sessionSettleSchemas = [
 		goal: z.boolean(),
 		budget: z.boolean(),
 		question: z.boolean(),
-		slash: z.boolean()
+		slash: z.boolean(),
+		delta: z
+			.object({
+				usage: z.boolean(),
+				childTranscript: z.boolean(),
+				goalDelta: z.boolean(),
+				contextPrune: z.boolean()
+			})
+			.optional()
 	}),
 	z.object({
 		type: z.literal('dsh_queue'),
@@ -75,6 +83,37 @@ export const sessionSettleSchemas = [
 		childSessionId: z.string(),
 		status: z.enum(['completed', 'failed', 'cancelled']),
 		summary: z.string().optional(),
+		sessionId: z.string().optional()
+	}),
+	z.object({
+		type: z.literal('usage_reported'),
+		runId: z.string(),
+		turnId: z.string().optional(),
+		buckets: z.record(z.string(), z.number()),
+		raw: z.record(z.string(), z.string()).optional(),
+		sessionId: z.string().optional()
+	}),
+	z.object({
+		type: z.literal('child_transcript_delta'),
+		childSessionId: z.string(),
+		childSeq: z.number(),
+		entryKind: z.string(),
+		payloadJson: z.string(),
+		sessionId: z.string().optional()
+	}),
+	z.object({
+		type: z.literal('context_pruned'),
+		runId: z.string(),
+		prunedIds: z.array(z.string()),
+		remainingTokens: z.number().optional(),
+		reason: z.string(),
+		sessionId: z.string().optional()
+	}),
+	z.object({
+		type: z.literal('goal_delta'),
+		goalId: z.string(),
+		operation: z.string(),
+		payloadJson: z.string(),
 		sessionId: z.string().optional()
 	}),
 	z.object({type: z.literal('agent_final_answer'), runId: z.string().optional(), taskId: z.string().optional(), turnId: z.string().optional(), text: z.string(), sessionId: z.string().optional()}),
