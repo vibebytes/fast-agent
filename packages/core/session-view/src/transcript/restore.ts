@@ -51,7 +51,10 @@ export function applySessionRestored(
 		superseded,
 		hasMoreOlder: event.hasMoreOlder ?? false,
 		totalTurnCount: event.totalTurnCount ?? event.turns.length,
-		restoredPromptTexts: event.turns.map(rt => rt.userText.trim()).filter(Boolean),
+		restoredPromptTexts: event.turns
+			.filter(rt => rt.userMessageType !== 'environment_context')
+			.map(rt => rt.userText.trim())
+			.filter(Boolean),
 		// Cold Attach has no local streaming: history is done. Arm the same
 		// straggler guard as turn_finished so persist TurnStarted cannot
 		// reopen a streaming row and relight Composer Stop.
@@ -155,6 +158,8 @@ function entriesFromRestoredTurns(
 			});
 			continue;
 		}
+		// Engine-injected context (runtime snapshot) is a side row, never a chat bubble.
+		if (rt.userMessageType === 'environment_context') continue;
 		const failed = rt.failed === true;
 		const emptyAssistant = !rt.assistantText.trim();
 		if (emptyAssistant && !failed && skipUserTexts?.has(rt.userText)) continue;

@@ -150,6 +150,33 @@ test('session_restored preamble textBeforeTools keeps assistant before tools', (
 	assert.equal(items[0] && items[0].kind === 'assistant' ? items[0].text : '', '我先列目录');
 });
 
+test('session_restored skips engine-injected environment_context turns (runtime snapshot is not a user bubble)', () => {
+	let state = createTranscriptState();
+	state = applyBridgeEvent(state, {
+		type: 'session_restored',
+		sessionId: 'sess',
+		turns: [
+			{
+				turnId: 't-env',
+				userText: 'Current runtime context. This snapshot supersedes earlier runtime-context snapshots.',
+				assistantText: '',
+				userMessageType: 'environment_context'
+			},
+			{
+				turnId: 't-real',
+				userText: 'hi',
+				assistantText: 'hello'
+			}
+		]
+	});
+	assert.ok(
+		!state.entries.some(e => e.text.includes('runtime context')),
+		`snapshot leaked as an entry: ${JSON.stringify(state.entries.map(e => e.text))}`
+	);
+	assert.ok(state.entries.some(e => e.role === 'user' && e.text === 'hi'));
+	assert.deepEqual(state.restoredPromptTexts, ['hi']);
+});
+
 test('session_restored assistant segment ids are unique per turn', () => {
 	let state = createTranscriptState();
 	state = applyBridgeEvent(state, {
