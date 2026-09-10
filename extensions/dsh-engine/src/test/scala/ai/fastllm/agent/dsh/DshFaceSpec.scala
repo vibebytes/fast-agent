@@ -72,6 +72,16 @@ class DshFaceSpec extends AnyFunSuite with Matchers:
     await(face.dispatch("settings.describe", Json.obj(), None))
     remote.methods shouldBe List("settings.describe")
 
+  test("session.history binds first; second dispatch skips create"):
+    val remote = FaceClient()
+    val face = DshFace(remote, _ => Cwd, DshLoop(remote, _ => Cwd))
+    val first = await(face.dispatch("session.history", Json.obj(), Some(Sid)))
+    first.hcursor.get[Boolean]("ok").toOption.get shouldBe true
+    remote.methods shouldBe List("session.create", "session.history")
+    await(face.dispatch("session.history", Json.obj(), Some(Sid)))
+    remote.methods.count(_ == "session.create") shouldBe 1
+    remote.methods.count(_ == "session.history") shouldBe 2
+
   test("settings.describe does not wait for mux ready"):
     val remote = FaceClient()
     remote.hangReady = true

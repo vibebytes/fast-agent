@@ -311,27 +311,38 @@ class DshLoop(
 
   def restore(sessionId: String, beforeTurnId: Option[String], limit: Int): Future[ChannelMessageWindow] =
     val lim = if limit <= 0 then 20 else limit
-    remote.ready.flatMap: _ =>
-      remote.call(
-        "session.history",
-        Json.obj("sessionId" -> sessionId.asJson, "maxMessages" -> Json.fromInt((lim * 2).max(50)))
-      )
-    .flatMap: json =>
-      valueOf(json) match
-        case Left("session-not-found") =>
-          Future.successful(ChannelMessageWindow(Nil, hasMoreOlder = false, totalExchangeCount = 0))
-        case Left(err) =>
-          System.err.println(s"dsh restore: $err")
-          Future.failed(RuntimeException(err))
-        case Right(value) =>
-          val folded = dshHistory(sessionId, historyEvents(value))
-          bindRestore(sessionId, folded.lastSeq)
-          refreshCatalog(sessionId)
-          folded.title.foreach(title => onTitle(sessionId, title))
-          val hasMore = value.hcursor.get[Boolean]("hasMore").toOption.getOrElse(false)
-          val page = dshWindow(folded.rows, beforeTurnId, lim)
-          val out = page.copy(hasMoreOlder = page.hasMoreOlder || hasMore)
-          fillChildHistory(sessionId).map(_ => out)
+    val cwd = cwdOf(sessionId).trim
+    remote.ready
+      // Attach races the engine start: the mux gate can still be timing out while the
+      // unary path is already usable, so a mux timeout must not fail the restore.
+      .recover { case e if Option(e.getMessage).exists(_.startsWith("dsh mux:")) => () }
+      .flatMap: _ =>
+        // A fresh host process forgets every bound session; session.create (idempotent)
+        // must precede history/follow or both answer session/not-found and Attach
+        // renders an empty window.
+        if cwd.isEmpty then Future.unit
+        else bind(sessionId, cwd).map(_ => ()).recover { case _ => () }
+      .flatMap: _ =>
+        remote.call(
+          "session.history",
+          Json.obj("sessionId" -> sessionId.asJson, "maxMessages" -> Json.fromInt((lim * 2).max(50)))
+        )
+      .flatMap: json =>
+        valueOf(json) match
+          case Left(code) if DshCode.isSessionNotFound(code) =>
+            Future.successful(ChannelMessageWindow(Nil, hasMoreOlder = false, totalExchangeCount = 0))
+          case Left(err) =>
+            log.warn(s"dsh restore sid=$sessionId: $err")
+            Future.failed(RuntimeException(err))
+          case Right(value) =>
+            val folded = dshHistory(sessionId, historyEvents(value))
+            bindRestore(sessionId, folded.lastSeq)
+            refreshCatalog(sessionId)
+            folded.title.foreach(title => onTitle(sessionId, title))
+            val hasMore = value.hcursor.get[Boolean]("hasMore").toOption.getOrElse(false)
+            val page = dshWindow(folded.rows, beforeTurnId, lim)
+            val out = page.copy(hasMoreOlder = page.hasMoreOlder || hasMore)
+            fillChildHistory(sessionId).map(_ => out)
 
   /** Idempotent `session.create({ cwd, sessionId })`. Kind switch and DshCall bind here. */
   def bind(sessionId: String, cwd: String): Future[Either[Json, Unit]] = ensure(sessionId, cwd)
@@ -1131,6 +1142,16 @@ private def valueOf(json: Json): Either[String, Json] =
       Left(json.hcursor.downField("error").get[String]("code").toOption.getOrElse("error"))
     case _ =>
       Right(json.hcursor.downField("value").focus.getOrElse(json))
+
+/** Host error codes. */
+object DshCode:
+  /** The session is not bound in this host process, e.g. a fresh engine after a restart. */
+  val SessionNotFound = "session/not-found"
+  /** Older hosts report the same condition with the dash spelling. */
+  val SessionNotFoundDash = "session-not-found"
+
+  def isSessionNotFound(code: String): Boolean =
+    code == SessionNotFound || code == SessionNotFoundDash
 
 def dshSourceKind(raw: Json): Option[String] =
   raw.hcursor.downField("data").downField("source").get[String]("kind").toOption

@@ -8,7 +8,15 @@ import scala.concurrent.{ExecutionContext, Future}
 
 /** Session RPCs that need a live DSH session before the call. */
 val BindFirst: Set[String] =
-  Set("session.models", "session.selectModel", "skill.list", "agentPreset.select")
+  Set(
+    "session.models",
+    "session.selectModel",
+    "session.history",
+    "session.page",
+    "skill.list",
+    "agentPreset.select",
+    "subagent.history"
+  )
 
 /** Host-facing DSH unary hop. Shares `DshHttp` with `DshLoop`; not on `AgentLoop`. */
 class DshFace(remote: Client, cwdOf: String => String, loop: DshLoop)(using ExecutionContext):

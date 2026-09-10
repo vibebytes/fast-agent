@@ -905,12 +905,39 @@ class DshLoopSpec extends AnyFunSuite with Matchers:
     val page = await(DshLoop(remote, _ => Cwd).restore(Sid, None, 20))
     page.rows.map(_.messageType) should not contain "plan"
 
-  test("session-not-found restore is an empty window"):
+  test("restore binds an unbound session before history; not-found is an empty window"):
     val remote = FakeClient()
-    remote.history = Json.obj("ok" -> Json.False, "error" -> Json.obj("code" -> "session-not-found".asJson))
+    remote.history = Json.obj("ok" -> Json.False, "error" -> Json.obj("code" -> DshCode.SessionNotFound.asJson))
     val page = await(DshLoop(remote, _ => Cwd).restore(Sid, None, 20))
     page.rows shouldBe Nil
     page.totalExchangeCount shouldBe 0
+    val names = methods(remote)
+    names.indexOf("session.create") should be >= 0
+    names.indexOf("session.create") should be < names.indexOf("session.history")
+
+  test("restore accepts the legacy dash not-found code"):
+    val remote = FakeClient()
+    remote.history = Json.obj("ok" -> Json.False, "error" -> Json.obj("code" -> "session-not-found".asJson))
+    await(DshLoop(remote, _ => Cwd).restore(Sid, None, 20)).rows shouldBe Nil
+
+  test("restore without a cwd skips bind and still returns history"):
+    val remote = FakeClient()
+    remote.history = historyOf("text-turn.jsonl")
+    val page = await(DshLoop(remote, _ => "").restore(Sid, None, 20))
+    page.rows should not be empty
+    methods(remote) should not contain "session.create"
+    methods(remote) should contain("session.history")
+
+  test("restore survives a mux gate timeout; other ready errors still fail"):
+    val muxSlow = FakeClient()
+    muxSlow.readyFail = Some(RuntimeException("dsh mux: timed out after 5s"))
+    muxSlow.history = historyOf("text-turn.jsonl")
+    await(DshLoop(muxSlow, _ => Cwd).restore(Sid, None, 20)).rows should not be empty
+
+    val rejected = FakeClient()
+    rejected.readyFail = Some(RuntimeException("dsh token rejected: bad token"))
+    intercept[RuntimeException]:
+      await(DshLoop(rejected, _ => Cwd).restore(Sid, None, 20))
 
   test("history internal error fails restore"):
     val remote = FakeClient()
@@ -1883,6 +1910,7 @@ private class FakeClient extends Client:
   var childHistory: Json =
     Json.obj("ok" -> Json.True, "value" -> Json.obj("events" -> Json.arr(), "hasMore" -> Json.False))
   var listHold: Option[Promise[Json]] = None
+  var readyFail: Option[Throwable] = None
 
   def call(method: String, payload: Json): Future[Json] =
     calls = calls :+ (method -> payload)
@@ -1906,7 +1934,7 @@ private class FakeClient extends Client:
       case "mux"  => emitFn = emit
       case "host" => emitHostFn = emit
       case _      => ()
-  def ready: Future[Unit] = Future.unit
+  def ready: Future[Unit] = readyFail.fold(Future.unit)(Future.failed)
   def close(): Unit = ()
   def emitMux(frame: Json): Unit = emitFn(frame)
   def emitHost(frame: Json): Unit = emitHostFn(frame)

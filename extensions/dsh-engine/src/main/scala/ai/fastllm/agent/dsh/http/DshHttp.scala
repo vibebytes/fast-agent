@@ -10,7 +10,7 @@ import java.net.{CookieManager, URI}
 import java.net.http.{HttpClient, HttpRequest, HttpResponse, WebSocket}
 import java.nio.charset.StandardCharsets
 import java.time.Duration
-import java.util.concurrent.{CompletableFuture, CompletionStage, ConcurrentHashMap, TimeUnit}
+import java.util.concurrent.{CompletableFuture, CompletionStage, ConcurrentHashMap, Executors, ThreadFactory, TimeUnit}
 import java.util.concurrent.atomic.AtomicBoolean
 import scala.concurrent.{ExecutionContext, Future, Promise}
 import scala.jdk.CollectionConverters.*
@@ -43,6 +43,12 @@ class DshHttp(
   private val followIds = ConcurrentHashMap.newKeySet[String]()
   private val followSent = ConcurrentHashMap.newKeySet[String]()
   private val followRetry = ConcurrentHashMap[String, Integer]()
+  private val followTimer = Executors.newSingleThreadScheduledExecutor(new ThreadFactory {
+    override def newThread(r: Runnable): Thread =
+      val t = new Thread(r, "dsh-follow-retry")
+      t.setDaemon(true)
+      t
+  })
   private val reconnectGen = java.util.concurrent.atomic.AtomicLong(0L)
   private val lives = ConcurrentHashMap[String, LiveAttempt]()
   private val cursors = ConcurrentHashMap[String, java.lang.Long]()
@@ -92,6 +98,7 @@ class DshHttp(
 
   def close(): Unit =
     stopped.set(true)
+    followTimer.shutdownNow()
     socket.foreach: ws =>
       try ws.sendClose(WebSocket.NORMAL_CLOSURE, "close").join()
       catch case NonFatal(_) => ()
@@ -203,6 +210,7 @@ class DshHttp(
     if sid.isEmpty then ()
     else
       followIds.add(sid)
+      followRetry.remove(sid)
       subscribe(sid)
 
   private def subscribe(sid: String): Unit =
@@ -270,12 +278,18 @@ class DshHttp(
           val sid = streamId.stripPrefix("follow:")
           followSent.remove(sid)
           val n = followRetry.merge(sid, 1, (a, b) => Integer.valueOf(a.intValue + b.intValue)).intValue
-          if n <= 2 then
-            log.warn(s"dsh follow $sid: resubscribe attempt $n")
-            subscribe(sid)
-          else
-            followIds.remove(sid)
-            log.error(s"dsh follow $sid: gave up after $n errors, session stays silent until mux reconnect")
+          // not-found is normal while the host has not (re)created the session yet,
+          // e.g. right after an engine restart. Back off and keep the id: a mux
+          // reconnect or a later watch re-arms the stream instead of leaving the
+          // session silent forever.
+          val delayMs = math.min(500L << math.min(n - 1, 5), 16000L)
+          if n <= 3 then log.warn(s"dsh follow $sid: error #$n, resubscribe in ${delayMs}ms")
+          else log.debug(s"dsh follow $sid: error #$n, resubscribe in ${delayMs}ms")
+          val task: Runnable = () =>
+            if !stopped.get() then ec.execute { () =>
+              if followIds.contains(sid) then subscribe(sid)
+            }
+          followTimer.schedule(task, delayMs, TimeUnit.MILLISECONDS)
       case "end" =>
         val ended = raw.hcursor.get[String]("streamId").toOption.getOrElse("")
         log.info(s"dsh mux end stream=$ended")
