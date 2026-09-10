@@ -1,6 +1,6 @@
 package ai.fastllm.agent.dsh
 
-import ai.fastllm.agent.channel.{Admit, AgentAttachProtocol, AgentLoop, Caps, ChannelMessageWindow, EventRow, RouteResult, dshQueuedOnto, isEngineBusy}
+import ai.fastllm.agent.channel.{Admit, AgentAttachProtocol, AgentLoop, Caps, ChannelMessageWindow, EventRow, RouteResult, dshQueuedOnto}
 import ai.fastllm.agent.engine.{EngineId, EngineIds, EngineSwitch}
 import ai.fastllm.agent.remote.Client
 import io.circe.Json
@@ -696,17 +696,17 @@ class DshLoopSpec extends AnyFunSuite with Matchers:
     val loop = DshLoop(remote, _ => Cwd)
     val avail = Set(EngineId.Fast, EngineId("dsh"))
     loop.liveRun(Sid) shouldBe None
-    EngineIds.switch("fast", isEngineBusy(false, loop.busy(Sid), loop.busy(Sid)), avail) shouldBe
+    EngineIds.switch("fast", loop.busy(Sid), avail) shouldBe
       EngineSwitch.Apply(Some("fast"))
     await(loop.submit(submit("c1", "hi")))
     loop.liveRun(Sid) shouldBe Some(s"$Sid:c1")
-    EngineIds.switch("fast", isEngineBusy(false, loop.busy(Sid), loop.busy(Sid)), avail) shouldBe
+    EngineIds.switch("fast", loop.busy(Sid), avail) shouldBe
       EngineSwitch.Rejected("busy")
-    EngineIds.switch("dsh", isEngineBusy(false, false, loop.busy(Sid)), avail) shouldBe
+    EngineIds.switch("dsh", loop.busy(Sid), avail) shouldBe
       EngineSwitch.Rejected("busy")
     remote.emit(Sid, ev("turn/end", 1, """{"turn":1,"reason":{"kind":"completed"}}"""))
     loop.liveRun(Sid) shouldBe None
-    EngineIds.switch("fast", isEngineBusy(false, loop.busy(Sid), loop.busy(Sid)), avail) shouldBe
+    EngineIds.switch("fast", loop.busy(Sid), avail) shouldBe
       EngineSwitch.Apply(Some("fast"))
 
   test("approval asked → card; decide posts envelope rpcId; river waits for mux resolved"):
