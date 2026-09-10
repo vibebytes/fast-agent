@@ -87,8 +87,9 @@ agent_http=()
 if [[ -n "${FAST_AGENT_HTTP_PORT:-}" ]]; then
 	agent_http=(-DagentHttpPort="$FAST_AGENT_HTTP_PORT")
 fi
+# bash 3.2: expanding an empty array under set -u aborts with "unbound variable"
 exec "$java" --add-opens=java.base/java.nio=ALL-UNNAMED \
-	"${runtime_root[@]}" "${agent_port[@]}" "${agent_http[@]}" \
+	${runtime_root[@]+"${runtime_root[@]}"} ${agent_port[@]+"${agent_port[@]}"} ${agent_http[@]+"${agent_http[@]}"} \
 	-Dfast.engines.yaml="$conf/engines.yaml" \
 	-Dfast.extensions.yaml="$conf/extensions.yaml" \
 	-Dfast.extensions="$exts" \
