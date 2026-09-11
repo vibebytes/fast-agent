@@ -57,6 +57,9 @@ class DshHttp(
   private val cursors = ConcurrentHashMap[String, java.lang.Long]()
   private val snapshots = ConcurrentHashMap[String, Json]()
   private val pendingSid = ConcurrentHashMap[String, String]()
+  // A cold read must not be anchored at seq0; the follow snapshot is the only in-band newest-seq
+  // source, so give it a bounded chance to land first.
+  private val snapshotWaitMs = 1500L
 
   def call(method: String, payload: Json): Future[Json] =
     if !UnaryMethods.contains(method) then
@@ -66,7 +69,42 @@ class DshHttp(
         ensureCookie(port).flatMap: _ =>
           cachedHistory(method, payload) match
             case Some(value) => Future.successful(Json.obj("ok" -> Json.True, "value" -> value))
+            case None => anchoredHistory(port, method, payload)
+
+  /** A cold history read has no cursor yet, and the host reads a missing `throughSeq` as seq0, i.e. * the oldest window. Subscribe here and let the snapshot land briefly before falling back. */
+  private def anchoredHistory(port: Int, method: String, payload: Json): Future[Json] =
+    coldSid(method, payload) match
+      case None => post(port, method, pagePayload(method, payload))
+      case Some(sid) =>
+        watch(sid)
+        awaitSnapshot(sid).flatMap: _ =>
+          cachedHistory(method, payload) match
+            case Some(value) => Future.successful(Json.obj("ok" -> Json.True, "value" -> value))
             case None => post(port, method, pagePayload(method, payload))
+
+  private def coldSid(method: String, payload: Json): Option[String] =
+    if method != "session.history" && method != "session.page" then None
+    else
+      val sid = payload.hcursor.get[String]("sessionId").toOption.getOrElse("")
+      val anchored = payload.hcursor.get[Long]("throughSeq").toOption.isDefined || cursors.containsKey(sid)
+      val muxLive = socket.nonEmpty || muxOpening.get()
+      if sid.nonEmpty && !anchored && muxLive then Some(sid) else None
+
+  private def awaitSnapshot(sid: String): Future[Unit] =
+    if snapshots.containsKey(sid) then Future.unit
+    else
+      val deadline = System.nanoTime() + snapshotWaitMs * 1000000L
+      def poll(): Future[Unit] =
+        if snapshots.containsKey(sid) || System.nanoTime() - deadline >= 0 then Future.unit
+        else
+          val tick = Promise[Unit]()
+          followTimer.schedule(
+            new Runnable { def run(): Unit = tick.completeWith(poll()) },
+            50L,
+            TimeUnit.MILLISECONDS
+          )
+          tick.future
+      poll()
 
   def reply(rpcId: String, value: Json): Future[Unit] =
     postResult(rpcId, value, rejected = false)
