@@ -184,6 +184,14 @@ class DshLoop(
 
   override def liveRun(sessionId: String): Option[String] = liveOf(sessionId)
 
+  /** Diagnostic string of pending children/approvals/questions for tests and support. */
+  def bindingDebug(sessionId: String): String =
+    lock.synchronized(bindings.get(sessionId)).map: b =>
+      s"children=${b.children.map((k, v) => s"$k=${v.activity}").mkString("[", ",", "]")}" +
+        s" approvals=${b.approvals.map((k, v) => s"$k=${v.childSid}").mkString("[", ",", "]")}" +
+        s" questions=${b.questions.map((k, v) => s"$k=${v.childSid}").mkString("[", ",", "]")}"
+    .getOrElse("none")
+
   def submit(cmd: AgentAttachProtocol.Command.SubmitUserMessage): Future[Admit] =
     if cmd.skillSlash.isDefined then Future.successful(Admit.Rejected("dsh_slash"))
     else
@@ -357,7 +365,14 @@ class DshLoop(
       ).map: created =>
         created.hcursor.get[Boolean]("ok") match
           case Right(false) =>
-            Left(created.hcursor.downField("error").focus.getOrElse(Json.obj("code" -> "error".asJson)))
+            val code = created.hcursor.downField("error").get[String]("code").toOption.getOrElse("error")
+            // A fresh engine process reattaching to a still-running host finds the
+            // session already bound there; the host answers session/conflict. That is
+            // the reopen case, not a failure — stamp and continue to history/follow.
+            if DshCode.isSessionConflict(code) then
+              stamp(sessionId, cwd)
+              Right(())
+            else Left(created.hcursor.downField("error").focus.getOrElse(Json.obj("code" -> "error".asJson)))
           case Right(true) =>
             stamp(sessionId, cwd)
             Right(())
@@ -434,9 +449,18 @@ class DshLoop(
 
   private def maybeRefreshOnTool(sessionId: String, event: Json): Unit =
     val raw = event.hcursor.downField("payload").downField("event").focus.getOrElse(event)
-    if raw.hcursor.get[String]("type").toOption.contains("tool/call") then
-      val name = raw.hcursor.downField("data").get[String]("name").toOption.getOrElse("")
-      if name == "subagent" || name == "subagent_fork" then refreshCatalog(sessionId)
+    raw.hcursor.get[String]("type").toOption match
+      case Some("tool/call") =>
+        val name = raw.hcursor.downField("data").get[String]("name").toOption.getOrElse("")
+        if name == "subagent" || name == "subagent_fork" then refreshCatalog(sessionId)
+      // The child session is created asynchronously, so the tool/call refresh above
+      // usually runs before subagent.list can see it. A subagent/* event carries the
+      // real child id, so re-listing here is the first moment the child is watchable.
+      // Without this the child is never followed, its turn/end never reaches the mux,
+      // and childOpen stays true forever.
+      case Some(t) if t.startsWith("subagent/") =>
+        if dshChildSessionId(raw).isDefined then refreshCatalog(sessionId)
+      case _ => ()
 
   private def onParentEvent(sessionId: String, event: Json): Unit =
     val raw = event.hcursor.downField("payload").downField("event").focus.getOrElse(event)
@@ -456,13 +480,26 @@ class DshLoop(
             dshSenderSessionId(raw).foreach(idleSettled(sessionId, _, dshEventTime(raw)))
             dshSeq.foreach(s => ingress.consume(sessionId, sessionId, s))
             (None, None)
-          else if live.isEmpty && !idleOk then
+          else if live.isEmpty && !idleOk && t != "turn/start" then
+            if t == "agent/inbox/spliced" then refreshCatalog(sessionId)
             dshSeq.foreach(s => ingress.consume(sessionId, sessionId, s))
             (None, None)
           else
-            val runId = live.getOrElse("")
+            // A turn/start with no claimed run means this process attached mid-turn
+            // (engine restart / reopen). Adopt the run so the rest of the turn is not
+            // dropped by the live.isEmpty gate above.
+            val adopted =
+              if live.isEmpty && t == "turn/start" then
+                val rid = dshAdoptedRunId(sessionId, raw)
+                bindings = bindings.updated(
+                  sessionId,
+                  b0.copy(liveRunId = Some(rid), liveSinceMs = nowMs(), lastEventMs = nowMs())
+                )
+                Some(rid)
+              else None
+            val runId = adopted.orElse(live).getOrElse("")
             val step = dshEvents(sessionId, runId, raw, b0.fold)
-            val river = riverOf(step.events, live)
+            val river = riverOf(step.events, adopted.orElse(live))
             val unitId = turnStep(raw.hcursor.downField("data").focus.getOrElse(Json.obj()))
               .map((turn, stepNo) => s"$turn:$stepNo")
             val isCkpt = river.exists:
@@ -596,6 +633,12 @@ class DshLoop(
       bindings.get(sessionId).foreach: cur =>
         if cur.ending.exists(_.isCompleted) then
           bindings = bindings.updated(sessionId, cur.copy(ending = None))
+
+  /** Run id for a turn/start that arrived without a claimed run. Derived from the
+    * turn number so a replayed turn/start maps to the same id instead of churning. */
+  private def dshAdoptedRunId(sessionId: String, raw: Json): String =
+    val turn = raw.hcursor.downField("data").get[Int]("turn").toOption.getOrElse(0)
+    s"$sessionId:$turn"
 
   private def claimLive(sessionId: String, runId: String): Boolean =
     lock.synchronized:
@@ -1153,12 +1196,22 @@ object DshCode:
   def isSessionNotFound(code: String): Boolean =
     code == SessionNotFound || code == SessionNotFoundDash
 
+  /** The session is already bound in the host process — a reopen, not an error. */
+  val SessionConflict = "session/conflict"
+  /** Older hosts report the same condition with the dash spelling. */
+  val SessionConflictDash = "session-conflict"
+
+  def isSessionConflict(code: String): Boolean =
+    code == SessionConflict || code == SessionConflictDash
+
 def dshSourceKind(raw: Json): Option[String] =
   raw.hcursor.downField("data").downField("source").get[String]("kind").toOption
+    .orElse(dshSpliceSource(raw, "kind"))
 
 /** DSH `data.source.form` → UI form; falls back to a kind-derived default. */
 def dshSourceForm(raw: Json): String =
   raw.hcursor.downField("data").downField("source").get[String]("form").toOption
+    .orElse(dshSpliceSource(raw, "form"))
     .map(_.trim).filter(_.nonEmpty)
     .getOrElse(dshSourceLabel(dshSourceKind(raw).getOrElse("")) match
       case "Recall" => "recall"
@@ -1173,8 +1226,21 @@ def dshSourceLabel(kind: String): String =
     case "compaction"        => "Compaction"
     case other               => if other.isEmpty then "Context" else other
 
+def dshSpliceSource(raw: Json, field: String): Option[String] =
+  raw.hcursor.downField("data").downField("inserted").values
+    .flatMap(_.view.map(_.hcursor.downField("source").get[String](field).toOption).find(_.isDefined))
+    .flatten.map(_.trim).filter(_.nonEmpty)
+
+/** Child session id carried by a subagent event. */
+def dshChildSessionId(raw: Json): Option[String] =
+  val c = raw.hcursor.downField("data")
+  c.get[String]("sessionId").toOption.filter(_.nonEmpty)
+    .orElse(c.get[String]("childSessionId").toOption.filter(_.nonEmpty))
+    .map(_.trim)
+
 def dshSenderSessionId(raw: Json): Option[String] =
   raw.hcursor.downField("data").downField("source").get[String]("senderSessionId").toOption
+    .orElse(dshSpliceSource(raw, "senderSessionId"))
     .map(_.trim)
     .filter(_.nonEmpty)
 
@@ -1182,8 +1248,10 @@ def dshEventTime(raw: Json): Option[Long] =
   raw.hcursor.get[Long]("time").toOption
 
 def dshSettled(raw: Json): Boolean =
-  raw.hcursor.get[String]("type").toOption.contains("user/message") &&
-    dshSourceKind(raw).contains("subagent-settled")
+  dshSourceKind(raw).contains("subagent-settled") && raw.hcursor
+    .get[String]("type")
+    .toOption
+    .exists(t => t == "user/message" || t == "agent/inbox/spliced")
 
 /** Parent settled notice is older than the child's latest mux turn/start. */
 def dshSettledStale(settledAt: Option[Long], lastStart: Option[Long]): Boolean =

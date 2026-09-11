@@ -12,6 +12,9 @@ object DshProbe:
         .timeout(Duration.ofMillis(timeoutMs))
         .GET()
         .build()
-      val res = HttpClient.newHttpClient().send(req, HttpResponse.BodyHandlers.discarding())
+      val res = HttpClient.newBuilder()
+        .version(HttpClient.Version.HTTP_1_1)
+        .build()
+        .send(req, HttpResponse.BodyHandlers.discarding())
       res.statusCode() < 500
     catch case NonFatal(_) => false

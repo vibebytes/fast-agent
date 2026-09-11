@@ -73,20 +73,30 @@ class DshLiveSubagentSettleSpec extends AnyFunSuite with Matchers:
       val deadline = System.currentTimeMillis() + 180_000
       var childSid = Option.empty[String]
       var muxChildEnd = false
+      var subagentCalled = false
       var muxSettled = false
-      while System.currentTimeMillis() < deadline && !(muxChildEnd && !loop.childOpen(sid)) do
+      var updated = List.empty[EventRow]
+      while System.currentTimeMillis() < deadline && (loop.childOpen(sid) || updated.isEmpty) do
         drainApprovals(loop, sid)
         mux.asScala.foreach: raw =>
           muxOf(raw).foreach:
             case Mux.Event(s, ev) =>
               val t = ev.hcursor.get[String]("type").toOption.getOrElse("")
+              val name = ev.hcursor.downField("data").get[String]("name").toOption.getOrElse("")
               if s != sid && t == "turn/start" then childSid = Some(s)
               if childSid.contains(s) && t == "turn/end" then muxChildEnd = true
-              if s == sid && sourceKind(ev).contains("subagent-settled") then muxSettled = true
+              if s == sid && t == "tool/call" && (name == "subagent" || name == "subagent_fork") then
+                subagentCalled = true
+              // Settle notices ride the parent follow stream as inbox splices, not
+              // as user/message events (that shape only exists in watch/history).
+              if s == sid && subagentCalled && (t == "agent/inbox/spliced" ||
+                sourceKind(ev).contains("subagent-settled"))
+              then muxSettled = true
             case _ => ()
+        updated = await(loop.events(sid, 0)).filter(r => payloadType(r) == "SubagentUpdated")
         Thread.sleep(200)
-      val updated = await(loop.events(sid, 0)).filter(r => payloadType(r) == "SubagentUpdated")
       val lastActivity = updated.lastOption.map(r => payloadString(r, "activity")).getOrElse("missing")
+      val binding = loop.bindingDebug(sid)
       val types = mux.asScala.flatMap: raw =>
         muxOf(raw).collect:
           case Mux.Event(s, ev) =>
@@ -94,11 +104,12 @@ class DshLiveSubagentSettleSpec extends AnyFunSuite with Matchers:
       .toList
       val clue =
         s"""live mux sid=$sid child=$childSid
-           |muxChildEnd=$muxChildEnd muxSettled=$muxSettled
-           |last=$lastActivity childOpen=${loop.childOpen(sid)}
-           |activities=${updated.map(r => payloadString(r, "activity"))}
-           |muxTypes=$types
-           |""".stripMargin
+muxChildEnd=$muxChildEnd subagentCalled=$subagentCalled muxSettled=$muxSettled
+last=$lastActivity childOpen=${loop.childOpen(sid)}
+binding=$binding
+activities=${updated.map(r => payloadString(r, "activity"))}
+muxTypes=$types
+""".stripMargin
       withClue(clue):
         (muxChildEnd || muxSettled) shouldBe true
         lastActivity shouldBe "inactive"

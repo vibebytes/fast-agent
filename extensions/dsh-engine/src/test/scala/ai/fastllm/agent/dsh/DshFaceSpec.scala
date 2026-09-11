@@ -50,11 +50,11 @@ class DshFaceSpec extends AnyFunSuite with Matchers:
     val remote = FaceClient()
     remote.create = Json.obj(
       "ok" -> Json.False,
-      "error" -> Json.obj("code" -> "session-conflict".asJson, "message" -> "cwd".asJson)
+      "error" -> Json.obj("code" -> "session/cwd-missing".asJson, "message" -> "cwd".asJson)
     )
     val face = DshFace(remote, _ => Cwd, DshLoop(remote, _ => Cwd))
     val json = await(face.dispatch("session.models", Json.obj(), Some(Sid)))
-    json.hcursor.downField("error").get[String]("code").toOption.get shouldBe "session-conflict"
+    json.hcursor.downField("error").get[String]("code").toOption.get shouldBe "session/cwd-missing"
     json.hcursor.downField("error").get[String]("message").toOption.get shouldBe "cwd"
 
   test("bind missing ok does not stamp"):

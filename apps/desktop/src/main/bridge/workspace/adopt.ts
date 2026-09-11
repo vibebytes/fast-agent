@@ -391,6 +391,11 @@ export function createAdopt(host: AdoptHost): WorkspaceAdopt {
 			project.sessions.retryPendingNew();
 		} else if (active?.sessionId) {
 			project.sessions.selectTask(active.id);
+			// Boot --continue resumes a session whose stub chrome came from
+			// workspace_meta — that wire carries no engine kind, so ListSessions is
+			// the only source that can sync the picker with the engine actually
+			// bound to the resumed session.
+			host.requestSessionsList(project);
 		} else if (!project.isDefault) {
 			host.requestSessionsList(project);
 		}

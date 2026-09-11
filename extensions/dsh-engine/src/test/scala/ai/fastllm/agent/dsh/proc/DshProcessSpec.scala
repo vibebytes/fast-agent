@@ -184,8 +184,6 @@ class DshProcessSpec extends AnyFunSuite with Matchers:
 echo "dsh web: http://127.0.0.1:4312/?token=$FAST_DSH_TOKEN"
 """)
     val argv = List("/bin/sh", script.toString)
-    val p1 = DshProcess.spawn(argv, Some(Json.obj("token" -> "tok-explicit".asJson).asObject.get.toMap))
-    await(p1.token) shouldBe Some("tok-explicit")
     val prevRoot = sys.props.get("fast.runtime.root")
     val prevProp = sys.props.get("fast.dsh.token")
     val prevHome = sys.props.get("user.home")
@@ -193,9 +191,12 @@ echo "dsh web: http://127.0.0.1:4312/?token=$FAST_DSH_TOKEN"
     sys.props.update("user.home", dir.toString)
     sys.props.remove("fast.dsh.token")
     try
+      val p1 = DshProcess.spawn(argv, Some(Json.obj("token" -> "tok-explicit".asJson).asObject.get.toMap))
+      await(p1.token) shouldBe Some("tok-explicit")
       val root1 = DshRoots.at(EngineId("dsh"), Some(dir.toString), dir.toString)
       java.nio.file.Files.createDirectories(root1)
       java.nio.file.Files.writeString(root1.resolve(".token"), "from-file")
+      sys.props.remove("fast.dsh.token")
       if sys.env.get("FAST_DSH_TOKEN").forall(_.trim.isEmpty) then
         val p2 = DshProcess.spawn(argv)
         await(p2.token) shouldBe None

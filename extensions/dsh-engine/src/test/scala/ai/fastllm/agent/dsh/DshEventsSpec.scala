@@ -22,8 +22,10 @@ class DshEventsSpec extends AnyFunSuite with Matchers:
       "AssistantDelta",
       "ReasoningDelta",
       "CheckpointEvent",
+      "FinalAnswer",
       "RunStateChanged"
     )
+    fold("text-turn.jsonl").events.collect { case FinalAnswer(_, _, text) => text } shouldBe List("Hello")
     val step = fold("text-turn.jsonl")
     step.events.collect { case RunCreated(_, agentId, runId, parent, _, _) => (agentId, runId, parent) } shouldBe
       List(("dsh", Rid, None))
@@ -144,7 +146,7 @@ class DshEventsSpec extends AnyFunSuite with Matchers:
 
   test("dshRows wrap payloadJson so SessionEventStream can read type"):
     val rows = dshRows(Sid, Rid, load("text-turn.jsonl"))
-    rows.map(_.seq) shouldBe List(1L, 2L, 3L, 4L, 5L, 6L, 7L)
+    rows.map(_.seq) shouldBe List(1L, 2L, 3L, 4L, 5L, 6L, 7L, 8L)
     val types = rows.map: r =>
       parse(r.envelopeJson).toOption.get.hcursor.downField("payload").get[String]("type").toOption.get
     types shouldBe List(
@@ -154,6 +156,7 @@ class DshEventsSpec extends AnyFunSuite with Matchers:
       "AssistantDelta",
       "ReasoningDelta",
       "CheckpointEvent",
+      "FinalAnswer",
       "RunStateChanged"
     )
 

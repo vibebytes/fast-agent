@@ -78,6 +78,7 @@ export function createComposerSend<T extends ComposerTaskLike>(deps: ComposerSen
 		const generateTitle = task.autoTitlePending;
 		const sessionId = task.sessionId;
 		const sampling = composerSampling();
+		const engineKind = deps.engineKind();
 		const ok = deps.send({
 			type: 'SubmitUserMessage',
 			sessionId,
@@ -86,6 +87,7 @@ export function createComposerSend<T extends ComposerTaskLike>(deps: ComposerSen
 				trimmed ||
 				(planBuild ? planBuildDisplayContent(planBuild.name ?? '', planBuild.planId) : ''),
 			...sampling,
+			...(engineKind ? {engineKind} : {}),
 			...(planBuild ? {mode: 'agent'} : {}),
 			...(generateTitle ? {generateTitle: true} : {}),
 			...(mentions && mentions.length > 0 ? {mentions} : {}),

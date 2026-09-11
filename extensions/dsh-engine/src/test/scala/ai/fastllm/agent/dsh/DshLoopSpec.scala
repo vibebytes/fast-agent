@@ -206,12 +206,20 @@ class DshLoopSpec extends AnyFunSuite with Matchers:
     payloadTypes(await(loop.events(Sid, 0))) should not contain "session/title"
     titles shouldBe Vector(Sid -> "Fix the parser")
 
-  test("session-conflict create → Rejected; no Binding"):
+  test("session-conflict create is an idempotent bind, not a rejection"):
     val remote = FakeClient()
     remote.create =
       Json.obj("ok" -> Json.False, "error" -> Json.obj("code" -> "session-conflict".asJson, "message" -> "cwd".asJson))
     val loop = DshLoop(remote, _ => Cwd)
-    await(loop.submit(submit("c1", "hi"))) shouldBe Admit.Rejected("session-conflict")
+    await(loop.submit(submit("c1", "hi"))) shouldBe Admit.Accepted(s"$Sid:c1")
+    methods(remote) shouldBe List("session.create", "session.prompt")
+
+  test("a non-conflict create error still rejects; no Binding"):
+    val remote = FakeClient()
+    remote.create =
+      Json.obj("ok" -> Json.False, "error" -> Json.obj("code" -> "cwd-missing".asJson, "message" -> "cwd".asJson))
+    val loop = DshLoop(remote, _ => Cwd)
+    await(loop.submit(submit("c1", "hi"))) shouldBe Admit.Rejected("cwd-missing")
     methods(remote) shouldBe List("session.create")
     await(loop.events(Sid, 0)) shouldBe Nil
 
@@ -993,6 +1001,23 @@ class DshLoopSpec extends AnyFunSuite with Matchers:
     hold.success(catalog())
     methods(remote).count(_ == "subagent.list") shouldBe 2
     payloadTypes(await(loop.events(Sid, 0))) should contain("SubagentStarted")
+
+  test("subagent/descriptor on the parent stream triggers a list so the child gets watched"):
+    val remote = FakeClient()
+    val loop = DshLoop(remote, _ => Cwd)
+    await(loop.submit(submit("c1", "hi")))
+    methods(remote).count(_ == "subagent.list") shouldBe 0
+    remote.list = catalog(childEntry("child-1", "running", "continuable", "bg"))
+    remote.emit(Sid, ev("subagent/descriptor", 2, """{"sessionId":"child-1","mode":"continuable"}"""))
+    methods(remote).count(_ == "subagent.list") shouldBe 1
+    payloadTypes(await(loop.events(Sid, 0))) should contain("SubagentStarted")
+
+  test("subagent event without a child id does not list"):
+    val remote = FakeClient()
+    val loop = DshLoop(remote, _ => Cwd)
+    await(loop.submit(submit("c1", "hi")))
+    remote.emit(Sid, ev("subagent/descriptor", 2, """{"mode":"continuable"}"""))
+    methods(remote).count(_ == "subagent.list") shouldBe 0
 
   test("unknown child sid registers and replays the triggering frame"):
     val remote = FakeClient()

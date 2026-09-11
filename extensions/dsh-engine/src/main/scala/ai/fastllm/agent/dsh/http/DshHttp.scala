@@ -17,6 +17,9 @@ import scala.jdk.CollectionConverters.*
 import scala.jdk.FutureConverters.*
 import scala.util.control.NonFatal
 
+/** Mux gate timeout — the unary path may still be usable while the mux is still opening. */
+final class DshMuxTimeout(message: String, cause: Throwable) extends RuntimeException(message, cause)
+
 /** Host `/api` over Connection / Typert Remote. Completions hop onto `ec`. */
 class DshHttp(
     portOf: Future[Int],
@@ -94,7 +97,7 @@ class DshHttp(
                 case scala.util.Failure(e) => cf.completeExceptionally(e)
               cf.orTimeout(muxReadySec, TimeUnit.SECONDS).asScala.map(_ => ())
                 .recoverWith:
-                  case NonFatal(e) => Future.failed(RuntimeException(s"dsh mux: ${e.getMessage}", e))
+                  case NonFatal(e) => Future.failed(DshMuxTimeout(s"dsh mux: ${e.getMessage}", e))
 
   def close(): Unit =
     stopped.set(true)
@@ -227,13 +230,24 @@ class DshHttp(
           followSent.remove(sid)
           log.warn(s"dsh follow $sid: ${e.getClass.getSimpleName}: ${e.getMessage}")
 
+  // JDK's WebSocket upgrade bypasses the HttpClient cookieHandler, so the
+  // cookie authorize() stored must be replayed as an explicit header.
+  private def cookieHeader(port: Int): Option[String] =
+    try
+      val jar = cookies.get(URI.create(s"http://127.0.0.1:$port/api/remote.mux"), java.util.Map.of())
+      val header = Option(jar.get("Cookie")).getOrElse(java.util.List.of()).asScala.mkString("; ")
+      if header.isEmpty then None else Some(header)
+    catch case NonFatal(_) => None
+
   private def openMux(): Unit =
     if stopped.get() || socket.isDefined || !muxOpening.compareAndSet(false, true) then ()
     else
       portOf.foreach: port =>
         if stopped.get() then muxOpening.set(false)
         else
-          http.newWebSocketBuilder()
+          val builder = http.newWebSocketBuilder()
+          cookieHeader(port).foreach(h => builder.header("Cookie", h))
+          builder
             .buildAsync(URI.create(s"ws://127.0.0.1:$port/api/remote.mux"), MuxListen())
             .whenComplete: (ws, err) =>
               muxOpening.set(false)

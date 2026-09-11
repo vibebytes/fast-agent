@@ -30,7 +30,8 @@ final case class DshUsage(
 final case class DshFold(
     hasTodoPlan: Boolean = false,
     usage: Map[(Int, Int), DshUsage] = Map.empty,
-    childSeq: Map[String, Long] = Map.empty
+    childSeq: Map[String, Long] = Map.empty,
+    lastAnswer: String = ""
 )
 
 /** One mux SessionEvent. `tokensUsed` only on `turn/end` with at least one step usage. */
@@ -56,7 +57,7 @@ def dshEvents(sessionId: String, runId: String, event: Json, fold: DshFold): Dsh
           RunCreated(sessionId, "dsh", runId),
           TurnStarted(sessionId, runId, turnId)
         ),
-        fold.copy(hasTodoPlan = false)
+        fold.copy(hasTodoPlan = false, lastAnswer = "")
       )
     case "assistant/chunk" | "assistant/live-chunk" =>
       chunkStep(sessionId, runId, data, fold)
@@ -65,15 +66,17 @@ def dshEvents(sessionId: String, runId: String, event: Json, fold: DshFold): Dsh
     case "chunkrow/reasoning-chunks" =>
       DshStep(List(ReasoningDelta(sessionId, runId, rowTexts(data), unitOf(data))), fold)
     case "assistant/message" =>
+      val mt = messageText(data)
       val u = usageOf(data.hcursor.downField("usage").focus.getOrElse(Json.Null))
+      val bump = if mt.nonEmpty then fold.copy(lastAnswer = mt) else fold
       val next =
         (for
           k <- turnStep(data)
           usage <- u
           if !fold.usage.contains(k)
-        yield fold.copy(usage = fold.usage + (k -> usage))).getOrElse(fold)
+        yield bump.copy(usage = bump.usage + (k -> usage))).getOrElse(bump)
       val ev = turnStep(data).toList.map: (turn, step) =>
-        CheckpointEvent(sessionId, runId, s"$turn:$step", messageText(data), u.map(_.billed))
+        CheckpointEvent(sessionId, runId, s"$turn:$step", mt, u.map(_.billed))
       DshStep(ev, next)
     case "tool/call" =>
       val id = data.hcursor.get[String]("callId").toOption.getOrElse("")
@@ -115,12 +118,15 @@ def dshEvents(sessionId: String, runId: String, event: Json, fold: DshFold): Dsh
         raw = rawUsage(fold.usage, n)
       )
       val usageEvents = usageEvent.toList
+      val fin =
+        if status == "completed" && fold.lastAnswer.nonEmpty then List(FinalAnswer(sessionId, runId, fold.lastAnswer))
+        else Nil
       if status == "failed" then
         // Terminal RunFailed (not RunStateChanged): BusyRoots only clear on
         // terminal events, and clients seal the error card from run_failed.
         DshStep(usageEvents :+ RunFailed(sessionId, runId, endFailureMessage(data)), fold.copy(usage = rest), tokensUsed = billed)
       else
-        DshStep(usageEvents :+ RunStateChanged(sessionId, runId, status, turn, billed), fold.copy(usage = rest), tokensUsed = billed)
+        DshStep(usageEvents ++ fin :+ RunStateChanged(sessionId, runId, status, turn, billed), fold.copy(usage = rest), tokensUsed = billed)
     case "todo/write" =>
       val todos = planTodos(data)
       val action = if fold.hasTodoPlan then "replace" else "create"

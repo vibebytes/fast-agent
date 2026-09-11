@@ -273,17 +273,22 @@ export function createTaskLifecycle<T extends LifecycleTask>(deps: TaskLifecycle
 	 * CreateSession payload. Path-hash on `workspaceId` is Slot bind only — Engine
 	 * `splitCreateWorkspace` never forwards hosted/boot hashes to Meta as UUID.
 	 * When Slot is live this skips GetWorkspaceMeta in adoptCreatedSession.
+	 *
+	 * `engineKind` is always sent: the Host resolves an omitted kind to its Registry
+	 * default (`EngineIds.newSession(None, default = engines.defaultId)`), which is
+	 * `dsh` in deployments that override the YAML default. Omitting it for `fast`
+	 * silently created dsh sessions behind a `fast` picker.
 	 */
 	const sendCreateSession = (projectId: string, title: string, taskId: string): boolean => {
 		const workspaceId = deps.workspaceId()?.replace(/^workspace:/, '').trim();
-		const engineKind = tasks.get(taskId)?.engineKind;
+		const engineKind = tasks.get(taskId)?.engineKind ?? 'fast';
 		return deps.send({
 			type: 'CreateSession',
 			projectId,
 			title,
 			taskId,
 			...(workspaceId ? {workspaceId} : {}),
-			...(engineKind === 'dsh' ? {engineKind: 'dsh'} : {})
+			engineKind
 		});
 	};
 
@@ -394,6 +399,12 @@ export function createTaskLifecycle<T extends LifecycleTask>(deps: TaskLifecycle
 				continue;
 			}
 
+			// A SetEngineKind in flight owns this session's engineKind until its
+			// command_result settles — a racing inventory row must not revert the pick.
+			const stickyInfo = pendingEngineBySession.has(info.id)
+				? {...info, engineKind: undefined}
+				: info;
+
 			const named = info.title?.trim() || '';
 			const existing = bySessionId.get(info.id);
 			if (existing) {
@@ -405,7 +416,7 @@ export function createTaskLifecycle<T extends LifecycleTask>(deps: TaskLifecycle
 				) {
 					existing.lastModified = info.lastModified;
 				}
-				opts.applyStickyChrome(existing, info);
+				opts.applyStickyChrome(existing, stickyInfo);
 				tasks.set(existing.id, existing);
 				continue;
 			}
@@ -414,12 +425,12 @@ export function createTaskLifecycle<T extends LifecycleTask>(deps: TaskLifecycle
 			const listOrder = Number.isNaN(engineMs) ? nextListOrder() : engineMs;
 			const task = opts.buildStub(
 				deps.createId(),
-				info,
+				stickyInfo,
 				listOrder,
 				opts.model(),
 				opts.modelDisplay()
 			);
-			opts.applyStickyChrome(task, info);
+			opts.applyStickyChrome(task, stickyInfo);
 			tasks.set(task.id, task);
 			bySessionId.set(info.id, task);
 		}

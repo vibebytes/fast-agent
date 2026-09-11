@@ -26,6 +26,8 @@ export type SessionCmd =
 				ref?: string;
 				entity?: string;
 			}>;
+			/** Explicit engine for THIS message — wins over sticky, rebinds idle sessions. */
+			engineKind?: string;
 	  }
 	/** Read-only Mentions prefix suggest (not a Run). */
 	| {
@@ -117,8 +119,8 @@ export type SessionCmd =
 			appId?: string;
 			/** Local optimistic Task id; Engine echoes on command_result (not stored in Meta). */
 			taskId?: string;
-			/** Optional engineId; omit stores the Registry default. */
-			engineKind?: string;
+		/** Optional engine kind; omit → builtin default (fast). */
+		engineKind?: string;
 	  }
 	| {type: 'FollowUpRemove'; sessionId: string; itemId: string}
 	| {type: 'FollowUpUpdate'; sessionId: string; itemId: string; text: string}
@@ -178,7 +180,8 @@ export const sessionCmdSchemas = [
 			.optional(),
 		images: z
 			.array(z.object({mediaType: z.string(), data: z.string()}))
-			.optional()
+			.optional(),
+		engineKind: z.string().optional()
 	}),
 	z.object({
 		type: z.literal('MentionSuggest'),

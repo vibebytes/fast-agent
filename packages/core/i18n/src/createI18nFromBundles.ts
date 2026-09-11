@@ -13,6 +13,7 @@ export function createI18nFromBundles(
 	void instance.init({
 		lng,
 		fallbackLng: 'en',
+		showSupportNotice: false,
 		resources: Object.fromEntries(
 			Object.entries(bundles).map(([k, v]) => [k, {translation: v}])
 		),

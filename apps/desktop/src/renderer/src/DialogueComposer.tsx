@@ -85,7 +85,7 @@ import {platformModel} from './composerPlatform';
 import {helpNoticeText} from './helpNoticeText';
 import {composerModelLabel, concreteModelDisplay, isUnresolvedModelDisplay} from '@fast-ide/session-view';
 import {matchCatalogEntry, sameModelRef} from '@fast-ide/session-view';
-import {enginePickerKinds, type EngineKindName} from './enginePicker';
+import {enginePickerKinds, shouldResyncChrome, type EngineKindName} from './enginePicker';
 
 /** System blue accent (CONTEXT: #007AFF / #0A84FF). */
 const SYSTEM_BLUE = 'text-[#007AFF] dark:text-[#0A84FF]';
@@ -220,18 +220,36 @@ export const DialogueComposer = memo(function DialogueComposer({
 		void window.fastIde.requestModelList();
 	}, [engineKind, taskId]);
 
+	// Re-sync chrome only when the Task identity changes. Depending on sticky* here
+	// reverted an optimistic pickEngine: the prop lags the local state by one host
+	// round-trip, so a fast pick was clobbered back to the stale dsh chrome.
+	const resyncTaskRef = useRef<string | null>(taskId ?? null);
 	useEffect(() => {
+		if (!shouldResyncChrome(resyncTaskRef.current, taskId)) return;
+		resyncTaskRef.current = taskId ?? null;
 		setRunMode(stickyRunMode);
-		setEngineKind(stickyEngineKind);
 		setEffort(stickyEffort);
 		setThinking(stickyThinking ?? true);
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [taskId]);
+
+	// Engine kind tracks the sticky value on every change. A pick is applied
+	// optimistically by the host (SessionController.setEngineKind) before the
+	// prop echoes, and hydrateSessions ignores engineKind while a SetEngineKind
+	// is in flight — so a value change here is either the pick landing or the
+	// hydrated truth, never a lagging revert.
+	useEffect(() => {
+		setEngineKind(stickyEngineKind);
+	}, [stickyEngineKind]);
+
+	useEffect(() => {
 		if (
 			optimisticModelId &&
 			(sameModelRef(model, optimisticModelId) || sameModelRef(modelDisplay, optimisticModelId))
 		) {
 			setOptimisticModelId(null);
 		}
-	}, [taskId, stickyRunMode, stickyEngineKind, stickyEffort, stickyThinking, model, modelDisplay, optimisticModelId]);
+	}, [model, modelDisplay, optimisticModelId]);
 
 	useEffect(() => {
 		setOptimisticModelId(null);

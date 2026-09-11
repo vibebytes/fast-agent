@@ -1038,7 +1038,7 @@ export class SessionController implements TaskCommands, SessionLifecycle, TaskVi
 				model,
 				modelDisplay,
 				runMode: 'agent',
-				engineKind: 'fast'
+				engineKind: parseEngineKind(info.engineKind)
 			}),
 			restoreChrome: task => this.restoreChromeFromTask(task)
 		});

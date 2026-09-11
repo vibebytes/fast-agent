@@ -84,6 +84,48 @@ test('createTask mints one id, shares it with the row and the CreateSession payl
 	assert.equal(task.pendingNew, true);
 });
 
+test('CreateSession always carries engineKind so a fast picker never falls back to the Host default', () => {
+	const {deps, sent} = makeDeps();
+	const lc = createTaskLifecycle(deps);
+	const task = lc.createTask('Fast please');
+	task.engineKind = 'fast';
+	const create = sent.find(c => c.type === 'CreateSession') as {engineKind?: string};
+	assert.equal(
+		create.engineKind,
+		'fast',
+		'omitting engineKind lets the Host resolve its Registry default (dsh in YAML-overridden deployments)'
+	);
+});
+
+test('CreateSession defaults an unset row engineKind to fast rather than omitting it', () => {
+	const {deps, sent} = makeDeps();
+	const lc = createTaskLifecycle(deps);
+	lc.createTask('Unset');
+	const create = sent.find(c => c.type === 'CreateSession') as {engineKind?: string};
+	assert.equal(create.engineKind, 'fast');
+});
+
+test('CreateSession forwards an explicit dsh picker choice', () => {
+	const {deps, sent} = makeDeps();
+	const base = deps.buildEntry;
+	deps.buildEntry = (id, kind, title, listOrder) => ({...base(id, kind, title, listOrder), engineKind: 'dsh'});
+	const lc = createTaskLifecycle(deps);
+	lc.createTask('Dsh please');
+	const create = sent.find(c => c.type === 'CreateSession') as {engineKind?: string};
+	assert.equal(create.engineKind, 'dsh');
+});
+
+test('retryPendingNew resends the same engineKind as the original create', () => {
+	const {deps, sent} = makeDeps({projectId: () => undefined});
+	const lc = createTaskLifecycle(deps);
+	const task = lc.createTask('Deferred fast');
+	task.engineKind = 'fast';
+	deps.projectId = () => 'proj-late';
+	assert.equal(lc.retryPendingNew(), true);
+	const create = sent.find(c => c.type === 'CreateSession') as {engineKind?: string};
+	assert.equal(create.engineKind, 'fast');
+});
+
 test('createTask without projectId defers to requestRegister instead of sending', () => {
 	const {deps, sent} = makeDeps({projectId: () => undefined});
 	let registered = 0;
