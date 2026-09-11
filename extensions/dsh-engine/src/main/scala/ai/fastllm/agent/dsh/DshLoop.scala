@@ -327,9 +327,10 @@ class DshLoop(
       .flatMap: _ =>
         // A fresh host process forgets every bound session; session.create (idempotent)
         // must precede history/follow or both answer session/not-found and Attach
-        // renders an empty window.
+        // renders an empty window. Force it past the local stamp: only the host can
+        // say whether it still has the session after a restart.
         if cwd.isEmpty then Future.unit
-        else bind(sessionId, cwd).map(_ => ()).recover { case _ => () }
+        else ensure(sessionId, cwd, force = true).map(_ => ()).recover { case _ => () }
       .flatMap: _ =>
         remote.call(
           "session.history",
@@ -337,7 +338,15 @@ class DshLoop(
         )
       .flatMap: json =>
         valueOf(json) match
+          case Left(code) if DshCode.isSessionNotFound(code) && cwd.nonEmpty =>
+            // The host answers session/not-found only when it has no such session at
+            // all, never for an existing session with zero events. An empty window
+            // here makes Attach claim "restored" and stop re-Attaching (§7.9), which
+            // is how a warming-up host turned into a blank transcript.
+            log.warn(s"dsh restore sid=$sessionId: host has no such session yet (cwd=$cwd)")
+            Future.failed(RuntimeException(s"dsh-pending: session $sessionId not bound on host"))
           case Left(code) if DshCode.isSessionNotFound(code) =>
+            log.warn(s"dsh restore sid=$sessionId: $code with no cwd to bind")
             Future.successful(ChannelMessageWindow(Nil, hasMoreOlder = false, totalExchangeCount = 0))
           case Left(err) =>
             log.warn(s"dsh restore sid=$sessionId: $err")
@@ -356,8 +365,8 @@ class DshLoop(
   def bind(sessionId: String, cwd: String): Future[Either[Json, Unit]] = ensure(sessionId, cwd)
 
   /** First submit: `session.create({ cwd, sessionId })`. Same Fast id, same cwd is idempotent. */
-  private def ensure(sessionId: String, cwd: String): Future[Either[Json, Unit]] =
-    if snapshot(sessionId).exists(_.bound) then Future.successful(Right(()))
+  private def ensure(sessionId: String, cwd: String, force: Boolean = false): Future[Either[Json, Unit]] =
+    if !force && snapshot(sessionId).exists(_.bound) then Future.successful(Right(()))
     else
       remote.call(
         "session.create",

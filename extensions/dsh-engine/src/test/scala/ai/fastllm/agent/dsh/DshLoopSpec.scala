@@ -913,20 +913,29 @@ class DshLoopSpec extends AnyFunSuite with Matchers:
     val page = await(DshLoop(remote, _ => Cwd).restore(Sid, None, 20))
     page.rows.map(_.messageType) should not contain "plan"
 
-  test("restore binds an unbound session before history; not-found is an empty window"):
+  test("restore binds an unbound session before history; a host that has not bound it yet fails pending"):
     val remote = FakeClient()
     remote.history = Json.obj("ok" -> Json.False, "error" -> Json.obj("code" -> DshCode.SessionNotFound.asJson))
-    val page = await(DshLoop(remote, _ => Cwd).restore(Sid, None, 20))
-    page.rows shouldBe Nil
-    page.totalExchangeCount shouldBe 0
+    // session/not-found while we hold a cwd means the host has not bound the session
+    // yet (fresh host process). An empty window here makes Attach claim "restored",
+    // which is exactly how a warming-up host produced a blank transcript.
+    val failure = intercept[RuntimeException](await(DshLoop(remote, _ => Cwd).restore(Sid, None, 20)))
+    failure.getMessage should startWith("dsh-pending")
     val names = methods(remote)
     names.indexOf("session.create") should be >= 0
     names.indexOf("session.create") should be < names.indexOf("session.history")
 
-  test("restore accepts the legacy dash not-found code"):
+  test("restore accepts the legacy dash not-found code as pending too"):
     val remote = FakeClient()
     remote.history = Json.obj("ok" -> Json.False, "error" -> Json.obj("code" -> "session-not-found".asJson))
-    await(DshLoop(remote, _ => Cwd).restore(Sid, None, 20)).rows shouldBe Nil
+    val failure = intercept[RuntimeException](await(DshLoop(remote, _ => Cwd).restore(Sid, None, 20)))
+    failure.getMessage should startWith("dsh-pending")
+
+  test("restore falls back to an empty window when there is no cwd to bind"):
+    val remote = FakeClient()
+    remote.history = Json.obj("ok" -> Json.False, "error" -> Json.obj("code" -> DshCode.SessionNotFound.asJson))
+    await(DshLoop(remote, _ => "").restore(Sid, None, 20)).rows shouldBe Nil
+    methods(remote) should not contain "session.create"
 
   test("restore without a cwd skips bind and still returns history"):
     val remote = FakeClient()
