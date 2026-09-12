@@ -58,7 +58,15 @@ class DshLiveSubagentSettleSpec extends AnyFunSuite with Matchers:
     val live = LiveDsh.open
     val http = live.http()
     val mux = ConcurrentLinkedQueue[Json]()
-    val remote = TeeClient(http, mux.add)
+    val remote = TeeClient(http, j => {
+      mux.add(j)
+      Files.writeString(
+        java.nio.file.Path.of("/tmp/mux-dump.jsonl"),
+        j.noSpaces + "\n",
+        java.nio.file.StandardOpenOption.CREATE,
+        java.nio.file.StandardOpenOption.APPEND
+      )
+    })
     val cwd = Files.createTempDirectory("dsh-settle-")
     Files.writeString(cwd.resolve("ping.txt"), "PONG")
     val sid = s"live-settle-${UUID.randomUUID()}"

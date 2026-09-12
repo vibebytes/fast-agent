@@ -24,11 +24,22 @@ object DshBoot:
       onChildOpen: String => Unit = _ => (),
       onError: (String, String) => Unit = (_, _) => (),
       onGoal: (String, String, String, String, String) => Unit = (_, _, _, _, _) => (),
+      river: DshRiver = DshRiver.local(),
       process: Option[DshProcess] = DshProcess.of
   )(using ExecutionContext): Option[DshBoot] =
     process.map: proc =>
       val remote = DshHttp(proc.port, tokenOf = proc.token)
-      val loop = DshLoop(remote, cwdOf, onTitle, onTurnBegin, onTurnEnd, onChildOpen, onError, onGoal)
+      val loop = DshLoop(
+        remote,
+        cwdOf,
+        onTitle = onTitle,
+        onTurnBegin = onTurnBegin,
+        onTurnEnd = onTurnEnd,
+        onChildOpen = onChildOpen,
+        onError = onError,
+        onGoal = onGoal,
+        river = river
+      )
       val face = DshFace(remote, cwdOf, loop)
       remote.ready.onComplete:
         case Success(_) => log.info("dsh host ready")

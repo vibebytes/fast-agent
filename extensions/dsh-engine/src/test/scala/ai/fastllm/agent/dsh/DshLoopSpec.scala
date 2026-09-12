@@ -165,7 +165,7 @@ class DshLoopSpec extends AnyFunSuite with Matchers:
 
   test("events hole sentinel: afterSeq behind bufferFloor is not an empty idle"):
     val remote = FakeClient()
-    val loop = DshLoop(remote, _ => Cwd, bufferCap = 3)
+    val loop = DshLoop(remote, _ => Cwd, bufferCap = 3, river = DshRiver.local(3))
     await(loop.submit(submit("c1", "hi")))
     remote.emit(Sid, ev("turn/start", 1, """{"turn":1}"""))
     (2 to 6).foreach(i => remote.emit(Sid, chunk(i, s"t$i")))
@@ -820,148 +820,6 @@ class DshLoopSpec extends AnyFunSuite with Matchers:
       RouteResult("rejected", "", "not-pending")
     payloadTypes(await(loop.events(Sid, 0))).count(_ == "ApprovalResolved") shouldBe 0
 
-  test("restore text history is not an empty Attach window"):
-    val remote = FakeClient()
-    remote.history = historyOf("text-turn.jsonl")
-    val loop = DshLoop(remote, _ => Cwd)
-    val page = await(loop.restore(Sid, None, 20))
-    page.rows should not be empty
-    page.rows.map(r => (r.role, r.content.getOrElse(""))) shouldBe List(
-      ("user", "hi"),
-      ("assistant", "think"),
-      ("assistant", "Hello")
-    )
-    methods(remote) should contain("session.history")
-    methods(remote) should contain("subagent.list")
-    await(loop.submit(submit("c1", "again"))) shouldBe Admit.Accepted(s"$Sid:c1")
-    methods(remote) should not contain "workspace.create"
-    methods(remote) should contain("session.create")
-    createCwd(remote.calls.find(_._1 == "session.create").get._2) shouldBe Cwd
-
-  test("restore fills child history; parent rows stay linear"):
-    val remote = FakeClient()
-    remote.history = historyOf("text-turn.jsonl")
-    remote.list = catalog(childEntry("child-1", "inactive", "continuable", "bg"))
-    val loop = DshLoop(remote, _ => Cwd)
-    val page = await(loop.restore(Sid, None, 20))
-    methods(remote) should contain("subagent.history")
-    remote.calls.filter(_._1 == "subagent.history").map(_._2.hcursor.get[String]("sessionId").toOption.get) shouldBe
-      List("child-1")
-    page.rows.map(_.sessionId).distinct shouldBe List(Sid)
-    page.rows.flatMap(_.content) should not contain "child-secret"
-    page.rows.head.productArity shouldBe 15
-
-  test("G2.2 reconnect replays child history into child transcript with cursor"):
-    val remote = FakeClient()
-    remote.history = historyOf("text-turn.jsonl")
-    remote.list = catalog(childEntry("child-1", "inactive", "continuable", "bg"))
-    remote.childHistory = Json.obj(
-      "ok" -> Json.True,
-      "value" -> Json.obj(
-        "events" -> Json.arr(
-          Json.obj("event" -> ev("subagent/message", 1, """{"sessionId":"child-1","kind":"text","text":"hi"}""")),
-          Json.obj("event" -> ev("subagent/message", 2, """{"sessionId":"child-1","kind":"text","text":"there"}"""))
-        ),
-        "hasMore" -> Json.False
-      )
-    )
-    val loop = DshLoop(remote, _ => Cwd)
-    await(loop.restore(Sid, None, 20))
-    val rows = await(loop.events(Sid, 0))
-    val deltas = rows.filter(payloadType(_) == "ChildTranscriptDelta")
-    deltas.map(r => (payloadString(r, "childSessionId"), payloadLong(r, "childSeq"))) shouldBe
-      List(("child-1", Some(1L)), ("child-1", Some(2L)))
-    deltas.map(r => payloadString(r, "payloadJson")) shouldBe List(
-      """{"sessionId":"child-1","kind":"text","text":"hi"}""",
-      """{"sessionId":"child-1","kind":"text","text":"there"}"""
-    )
-
-  test("G2.2 child history unavailable falls back to preview only"):
-    val remote = FakeClient()
-    remote.history = historyOf("text-turn.jsonl")
-    remote.list = catalog(childEntry("child-1", "inactive", "continuable", "bg"))
-    remote.childHistory = Json.obj("ok" -> Json.False, "error" -> Json.obj("code" -> "session-not-found".asJson))
-    val loop = DshLoop(remote, _ => Cwd)
-    await(loop.restore(Sid, None, 20))
-    val rows = await(loop.events(Sid, 0))
-    rows.filter(payloadType(_) == "ChildTranscriptDelta") shouldBe Nil
-    remote.emit(Sid, ev("subagent/message", 9, """{"sessionId":"child-1","kind":"text","text":"live"}"""))
-    val after = await(loop.events(Sid, 0))
-    after.filter(payloadType(_) == "ChildTranscriptDelta").map(r => payloadLong(r, "childSeq")) shouldBe
-      List(Some(1L))
-
-  test("restore tools + open todo Plan; compaction stays out; title via onTitle"):
-    val remote = FakeClient()
-    remote.history = historyOf("restore-todo-open.jsonl")
-    var titles = Vector.empty[(String, String)]
-    val loop = DshLoop(remote, _ => Cwd, onTitle = (s, t) => titles = titles :+ (s -> t))
-    val page = await(loop.restore(Sid, None, 20))
-    page.rows.map(_.messageType) should contain("plan")
-    page.rows.find(_.messageType == "plan").get.payloadJson.get should include("read the file")
-    titles shouldBe Vector(Sid -> "Fix the parser")
-
-  test("restore skips compaction events"):
-    val remote = FakeClient()
-    remote.history = historyOf("restore-compaction.jsonl")
-    val page = await(DshLoop(remote, _ => Cwd).restore(Sid, None, 20))
-    page.rows.map(_.messageType) should not contain "compaction"
-    page.rows.map(_.content.getOrElse("")) shouldBe List("hi", "Hello")
-
-  test("todo cleared by turn/start has no Plan card"):
-    val remote = FakeClient()
-    remote.history = historyOf("restore-todo-cleared.jsonl")
-    val page = await(DshLoop(remote, _ => Cwd).restore(Sid, None, 20))
-    page.rows.map(_.messageType) should not contain "plan"
-
-  test("restore binds an unbound session before history; a host that has not bound it yet fails pending"):
-    val remote = FakeClient()
-    remote.history = Json.obj("ok" -> Json.False, "error" -> Json.obj("code" -> DshCode.SessionNotFound.asJson))
-    // session/not-found while we hold a cwd means the host has not bound the session
-    // yet (fresh host process). An empty window here makes Attach claim "restored",
-    // which is exactly how a warming-up host produced a blank transcript.
-    val failure = intercept[RuntimeException](await(DshLoop(remote, _ => Cwd).restore(Sid, None, 20)))
-    failure.getMessage should startWith("dsh-pending")
-    val names = methods(remote)
-    names.indexOf("session.create") should be >= 0
-    names.indexOf("session.create") should be < names.indexOf("session.history")
-
-  test("restore accepts the legacy dash not-found code as pending too"):
-    val remote = FakeClient()
-    remote.history = Json.obj("ok" -> Json.False, "error" -> Json.obj("code" -> "session-not-found".asJson))
-    val failure = intercept[RuntimeException](await(DshLoop(remote, _ => Cwd).restore(Sid, None, 20)))
-    failure.getMessage should startWith("dsh-pending")
-
-  test("restore falls back to an empty window when there is no cwd to bind"):
-    val remote = FakeClient()
-    remote.history = Json.obj("ok" -> Json.False, "error" -> Json.obj("code" -> DshCode.SessionNotFound.asJson))
-    await(DshLoop(remote, _ => "").restore(Sid, None, 20)).rows shouldBe Nil
-    methods(remote) should not contain "session.create"
-
-  test("restore without a cwd skips bind and still returns history"):
-    val remote = FakeClient()
-    remote.history = historyOf("text-turn.jsonl")
-    val page = await(DshLoop(remote, _ => "").restore(Sid, None, 20))
-    page.rows should not be empty
-    methods(remote) should not contain "session.create"
-    methods(remote) should contain("session.history")
-
-  test("restore survives a mux gate timeout; other ready errors still fail"):
-    val muxSlow = FakeClient()
-    muxSlow.readyFail = Some(RuntimeException("dsh mux: timed out after 5s"))
-    muxSlow.history = historyOf("text-turn.jsonl")
-    await(DshLoop(muxSlow, _ => Cwd).restore(Sid, None, 20)).rows should not be empty
-
-    val rejected = FakeClient()
-    rejected.readyFail = Some(RuntimeException("dsh token rejected: bad token"))
-    intercept[RuntimeException]:
-      await(DshLoop(rejected, _ => Cwd).restore(Sid, None, 20))
-
-  test("history internal error fails restore"):
-    val remote = FakeClient()
-    remote.history = Json.obj("ok" -> Json.False, "error" -> Json.obj("code" -> "internal".asJson))
-    intercept[RuntimeException]:
-      await(DshLoop(remote, _ => Cwd).restore(Sid, None, 20))
-
   test("list backfill emits Started and Updated not Finished"):
     val remote = FakeClient()
     remote.list = catalog(childEntry("child-1", "inactive", "one-shot", "explore"))
@@ -995,6 +853,60 @@ class DshLoopSpec extends AnyFunSuite with Matchers:
     payloadString(await(loop.events(Sid, 0)).filter(r => payloadType(r) == "SubagentUpdated").last, "activity") shouldBe
       "running"
     loop.childOpen(Sid) shouldBe true
+
+  test("catalog idle repeat with quiet mux settles a turn-open child"):
+    var now = 0L
+    val remote = FakeClient()
+    remote.list = catalog(childEntry("child-1", "running", "continuable", "bg"))
+    val loop = DshLoop(remote, _ => Cwd, nowMs = () => now)
+    await(loop.submit(submit("c1", "hi")))
+    remote.emitSubscribed(Sid, 0)
+    remote.emit("child-1", ev("turn/start", 1, """{"turn":1}"""))
+    remote.list = catalog(childEntry("child-1", "inactive", "continuable", "bg"))
+    loop.sweepOpenChildren()
+    payloadString(await(loop.events(Sid, 0)).filter(r => payloadType(r) == "SubagentUpdated").last, "activity") shouldBe
+      "running"
+    loop.childOpen(Sid) shouldBe true
+    loop.sweepOpenChildren()
+    payloadString(await(loop.events(Sid, 0)).filter(r => payloadType(r) == "SubagentUpdated").last, "activity") shouldBe
+      "inactive"
+    loop.childOpen(Sid) shouldBe false
+
+  test("child mux traffic between idle reads defers catalog settle"):
+    var now = 0L
+    val remote = FakeClient()
+    remote.list = catalog(childEntry("child-1", "running", "continuable", "bg"))
+    val loop = DshLoop(remote, _ => Cwd, nowMs = () => now)
+    await(loop.submit(submit("c1", "hi")))
+    remote.emitSubscribed(Sid, 0)
+    remote.emit("child-1", ev("turn/start", 1, """{"turn":1}"""))
+    remote.list = catalog(childEntry("child-1", "inactive", "continuable", "bg"))
+    loop.sweepOpenChildren()
+    now = 50L
+    remote.emit("child-1", chunk(2, "busy"))
+    now = 100L
+    loop.sweepOpenChildren()
+    payloadString(await(loop.events(Sid, 0)).filter(r => payloadType(r) == "SubagentUpdated").last, "activity") shouldBe
+      "running"
+    loop.childOpen(Sid) shouldBe true
+    now = 200L
+    loop.sweepOpenChildren()
+    payloadString(await(loop.events(Sid, 0)).filter(r => payloadType(r) == "SubagentUpdated").last, "activity") shouldBe
+      "inactive"
+    loop.childOpen(Sid) shouldBe false
+
+  test("sweep keeps listing after subagent tool/call until the spawn window closes"):
+    var now = 0L
+    val remote = FakeClient()
+    val loop = DshLoop(remote, _ => Cwd, nowMs = () => now)
+    await(loop.submit(submit("c1", "hi")))
+    remote.emit(Sid, ev("tool/call", 2, """{"name":"subagent"}"""))
+    val base = methods(remote).count(_ == "subagent.list")
+    loop.sweepOpenChildren()
+    methods(remote).count(_ == "subagent.list") shouldBe base + 1
+    now = 70000L
+    loop.sweepOpenChildren()
+    methods(remote).count(_ == "subagent.list") shouldBe base + 1
 
   test("tool/call during in-flight list triggers another list"):
     val remote = FakeClient()
@@ -1091,15 +1003,6 @@ class DshLoopSpec extends AnyFunSuite with Matchers:
     remote.listHold = None
     remote.emit("ghost-2", ev("turn/start", 2, """{"turn":1}"""))
     methods(remote).count(_ == "subagent.list") shouldBe 2
-
-  test("restore parent lists an unknown child sid"):
-    val remote = FakeClient()
-    remote.history = Json.obj("ok" -> Json.True, "value" -> Json.obj("events" -> Json.arr(), "hasMore" -> Json.False))
-    val loop = DshLoop(remote, _ => Cwd)
-    await(loop.restore(Sid, None, 20))
-    remote.list = catalog(childEntry("child-1", "inactive", "continuable", "bg"))
-    remote.emit("child-1", ev("turn/start", 1, """{"turn":1}"""))
-    payloadTypes(await(loop.events(Sid, 0))) should contain("SubagentStarted")
 
   test("in-flight stale list does not miss-cache a later unknown sid"):
     val remote = FakeClient()
@@ -1766,7 +1669,7 @@ class DshLoopSpec extends AnyFunSuite with Matchers:
   test("events hole sentinel still fires after parent deltas mix with child cards"):
     val remote = FakeClient()
     remote.list = catalog(childEntry("child-1", "running", "one-shot", "explore"))
-    val loop = DshLoop(remote, _ => Cwd, bufferCap = 3)
+    val loop = DshLoop(remote, _ => Cwd, bufferCap = 3, river = DshRiver.local(3))
     await(loop.submit(submit("c1", "hi")))
     remote.emitSubscribed(Sid, 0)
     remote.emit(Sid, ev("turn/start", 1, """{"turn":1}"""))
@@ -2057,5 +1960,3 @@ private class DummyLoop extends AgentLoop:
   override def answer(cmd: AgentAttachProtocol.Command.AnswerQuestionBatch): Future[RouteResult] =
     Future.successful(RouteResult("rejected", "", "fast_question_batch"))
   def events(sessionId: String, afterSeq: Long): Future[List[EventRow]] = Future.successful(Nil)
-  def restore(sessionId: String, beforeTurnId: Option[String], limit: Int): Future[ChannelMessageWindow] =
-    Future.successful(ChannelMessageWindow(Nil, false, 0))

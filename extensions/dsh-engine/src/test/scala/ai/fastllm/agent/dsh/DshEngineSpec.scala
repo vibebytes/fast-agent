@@ -46,8 +46,6 @@ class DshEngineSpec extends AnyFunSuite with Matchers:
     loop.decides.head.sessionId shouldBe "s1"
     await(session.answer(AgentAttachProtocol.Command.AnswerQuestionBatch("other", "rpc")))
     loop.answers.head.sessionId shouldBe "s1"
-    await(session.restore(Some("t"), 8))
-    loop.restores shouldBe Vector(("s1", Some("t"), 8))
     await(session.events(3L))
     loop.eventAfter shouldBe Vector(("s1", 3L))
     loop.busyFlag = true
@@ -152,7 +150,6 @@ private class EngineRecordingLoop extends AgentLoop:
   var answers: Vector[AgentAttachProtocol.Command.AnswerQuestionBatch] = Vector.empty
   var steers: Vector[AgentAttachProtocol.Command.SteerRun] = Vector.empty
   var queues: Vector[AgentAttachProtocol.Command.QueueMessage] = Vector.empty
-  var restores: Vector[(String, Option[String], Int)] = Vector.empty
   var eventAfter: Vector[(String, Long)] = Vector.empty
   var admit: Admit = Admit.Accepted("run-1")
   var route: RouteResult = RouteResult("accepted", "run-1", "ok")
@@ -177,9 +174,6 @@ private class EngineRecordingLoop extends AgentLoop:
   override def steer(cmd: AgentAttachProtocol.Command.SteerRun) = { steers = steers :+ cmd; Future.successful(admit) }
   override def queue(cmd: AgentAttachProtocol.Command.QueueMessage) = { queues = queues :+ cmd; Future.successful(admit) }
   def events(sessionId: String, afterSeq: Long) = { eventAfter = eventAfter :+ (sessionId -> afterSeq); Future.successful(Nil) }
-  def restore(sessionId: String, beforeTurnId: Option[String], limit: Int) =
-    restores = restores :+ (sessionId, beforeTurnId, limit)
-    Future.successful(ChannelMessageWindow(Nil, false, 0))
   override def busy(sessionId: String) = busyFlag
   override def liveRun(sessionId: String) = live
   override def childOpen(sessionId: String) = child

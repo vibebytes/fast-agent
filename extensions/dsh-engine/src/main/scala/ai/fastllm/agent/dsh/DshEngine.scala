@@ -35,6 +35,7 @@ object DshEngine:
       onChildOpen = sid => host.runs.childOpen(sid),
       onError = (sid, msg) => host.events.error(sid, msg),
       onGoal = (sid, op, phase, title, text) => host.events.goal(sid, op, phase, title, text),
+      river = DshRiver.engine(host.events),
       process = processOf(config)
     )
 
@@ -88,7 +89,6 @@ final class DshSession(
   def cancel(cmd: AgentAttachProtocol.Command.CancelRun) = loop.cancel(cmd.copy(sessionId = sid))
   def decide(cmd: AgentAttachProtocol.Command.DecideApproval) = loop.decide(cmd.copy(sessionId = sid))
   def answer(cmd: AgentAttachProtocol.Command.AnswerQuestionBatch) = loop.answer(cmd.copy(sessionId = sid))
-  def restore(beforeTurnId: Option[String], limit: Int) = loop.restore(sid, beforeTurnId, limit)
   def events(afterSeq: Long) = loop.events(sid, afterSeq)
   def busy: Boolean = loop.busy(sid)
   def liveRun: Option[String] = loop.liveRun(sid)

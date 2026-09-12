@@ -42,6 +42,8 @@ import io.circe.Json
 import io.circe.syntax.*
 import org.slf4j.LoggerFactory
 
+import java.util.concurrent.{Executors, TimeUnit}
+
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success, Try}
 import scala.util.control.NonFatal
@@ -57,7 +59,9 @@ final case class ChildWork(
     turnOpen: Boolean = false,
     lastStartTime: Option[Long] = None,
     preview: String = "",
-    lastPreviewEmitMs: Option[Long] = None
+    lastPreviewEmitMs: Option[Long] = None,
+    lastMuxEventMs: Option[Long] = None,
+    catalogIdleSince: Option[Long] = None
 )
 
 final case class UnknownWork(
@@ -72,7 +76,6 @@ final case class Binding(
     approvals: Map[String, PendingApproval] = Map.empty,
     questions: Map[String, PendingQuestion] = Map.empty,
     children: Map[String, ChildWork] = Map.empty,
-    seq: Long = 0L,
     rows: Vector[EventRow] = Vector.empty,
     fold: DshFold = DshFold(),
     toolCallIds: Vector[String] = Vector.empty,
@@ -86,7 +89,11 @@ final case class Binding(
     turns: Int = 0,
     lastEventMs: Long = 0L,
     liveSinceMs: Long = 0L,
-    childHistory: Map[String, Json] = Map.empty
+    childHistory: Map[String, Json] = Map.empty,
+    wantsChildren: Boolean = false,
+    spawnWatchSince: Option[Long] = None,
+    /** Owning session: the river addresses rows by session, not by binding. */
+    sessionId: String = ""
 )
 
 private case class DshBatch(sessionId: String, events: List[AgentEvent])
@@ -103,6 +110,7 @@ class DshLoop(
     onGoal: (String, String, String, String, String) => Unit = (_, _, _, _, _) => (),
     nowMs: () => Long = () => System.currentTimeMillis(),
     bufferCap: Int = 2048,
+    river: DshRiver = DshRiver.local(),
     maxTurns: Option[Int] = None
 )(using ExecutionContext) extends AgentLoop:
   private lazy val log = LoggerFactory.getLogger(getClass)
@@ -116,9 +124,23 @@ class DshLoop(
   private var listTick = 0L
   private var listBegan = Map.empty[String, Long]
   private var listFresh = Map.empty[String, Long]
-  /** Last DSH river seq handed to a poller. Persist `maxSeq` can sit ahead of this clock. */
-  private var delivered = Map.empty[String, Long]
   private val ingress = OrderedEventIngress[DshBatch](DshRows(), nowMs)
+
+  private val SweepPeriodMs = 10000L
+  private val SpawnWatchMs = 60000L
+  private lazy val sweepTimer =
+    val ex = Executors.newSingleThreadScheduledExecutor: r =>
+      val t = new Thread(r, "dsh-subagent-sweep")
+      t.setDaemon(true)
+      t
+    ex.scheduleWithFixedDelay(() => runSweep(), SweepPeriodMs, SweepPeriodMs, TimeUnit.MILLISECONDS)
+    ex
+
+  private def ensureSweep(): Unit = sweepTimer
+
+  private def runSweep(): Unit =
+    try sweepOpenChildren()
+    catch case NonFatal(e) => log.debug(s"dsh subagent sweep: ${e.getMessage}")
 
   remote.listen("mux"): json =>
     muxOf(json).foreach:
@@ -293,73 +315,40 @@ class DshLoop(
           case Left(e)  => Admit.Rejected(e)
 
   def events(sessionId: String, afterSeq: Long): Future[List[EventRow]] =
-    Future.successful:
+    val (snaps, rows) =
       lock.synchronized:
         ingress.tick()
         val b = snapshot(sessionId)
-        val rows = b.map(_.rows).getOrElse(Vector.empty)
-        val snaps = b.map(x => x.live.values.toList ++ x.uiLive.values.toList).getOrElse(Nil)
-        val floor = rows.headOption.map(_.seq)
-        val high = rows.lastOption.map(_.seq).getOrElse(0L)
-        if afterSeq == Long.MaxValue then snaps
-        else if afterSeq > 0 && floor.exists(f => afterSeq < f - 1) then
-          snaps ++ List(dshGap(floor.get, rows.last.seq))
-        else
-          val cursor = if afterSeq > high then delivered.getOrElse(sessionId, 0L) else afterSeq
-          val raw = rows.filter(_.seq > cursor).toList
-          raw.lastOption.foreach(r => delivered = delivered.updated(sessionId, r.seq))
-          // Persist `maxSeq` and Host `lastApplied` are one clock; the DSH buffer is
-          // another. Hand the poller contiguous seqs after `afterSeq` so persistCursor
-          // advances and Fast UI does not drop eventSeq 1..n as already applied.
-          val out =
-            if afterSeq > high then
-              raw.zipWithIndex.map((r, i) => r.copy(seq = afterSeq + i + 1))
-            else raw
-          snaps ++ out
-
-  def restore(sessionId: String, beforeTurnId: Option[String], limit: Int): Future[ChannelMessageWindow] =
-    val lim = if limit <= 0 then 20 else limit
-    val cwd = cwdOf(sessionId).trim
-    remote.ready
-      // Attach races the engine start: the mux gate can still be timing out while the
-      // unary path is already usable, so a mux timeout must not fail the restore.
-      .recover { case e if Option(e.getMessage).exists(_.startsWith("dsh mux:")) => () }
-      .flatMap: _ =>
-        // A fresh host process forgets every bound session; session.create (idempotent)
-        // must precede history/follow or both answer session/not-found and Attach
-        // renders an empty window. Force it past the local stamp: only the host can
-        // say whether it still has the session after a restart.
-        if cwd.isEmpty then Future.unit
-        else ensure(sessionId, cwd, force = true).map(_ => ()).recover { case _ => () }
-      .flatMap: _ =>
-        remote.call(
-          "session.history",
-          Json.obj("sessionId" -> sessionId.asJson, "maxMessages" -> Json.fromInt((lim * 2).max(50)))
+        (
+          b.map(x => x.live.values.toList ++ x.uiLive.values.toList).getOrElse(Nil),
+          b.map(_.rows).getOrElse(Vector.empty)
         )
-      .flatMap: json =>
-        valueOf(json) match
-          case Left(code) if DshCode.isSessionNotFound(code) && cwd.nonEmpty =>
-            // The host answers session/not-found only when it has no such session at
-            // all, never for an existing session with zero events. An empty window
-            // here makes Attach claim "restored" and stop re-Attaching (§7.9), which
-            // is how a warming-up host turned into a blank transcript.
-            log.warn(s"dsh restore sid=$sessionId: host has no such session yet (cwd=$cwd)")
-            Future.failed(RuntimeException(s"dsh-pending: session $sessionId not bound on host"))
-          case Left(code) if DshCode.isSessionNotFound(code) =>
-            log.warn(s"dsh restore sid=$sessionId: $code with no cwd to bind")
-            Future.successful(ChannelMessageWindow(Nil, hasMoreOlder = false, totalExchangeCount = 0))
-          case Left(err) =>
-            log.warn(s"dsh restore sid=$sessionId: $err")
-            Future.failed(RuntimeException(err))
-          case Right(value) =>
-            val folded = dshHistory(sessionId, historyEvents(value))
-            bindRestore(sessionId, folded.lastSeq)
-            refreshCatalog(sessionId)
-            folded.title.foreach(title => onTitle(sessionId, title))
-            val hasMore = value.hcursor.get[Boolean]("hasMore").toOption.getOrElse(false)
-            val page = dshWindow(folded.rows, beforeTurnId, lim)
-            val out = page.copy(hasMoreOlder = page.hasMoreOlder || hasMore)
-            fillChildHistory(sessionId).map(_ => out)
+    // One clock: rows already carry the seq core assigned, so nothing here may renumber them.
+    // A cursor from another engine (CommandLoop persistCursor after SetEngine) sits above the
+    // river, so the river adopts it once instead of dropping the rows as already-applied.
+    if afterSeq == Long.MaxValue then Future.successful(snaps)
+    else if rows.nonEmpty && afterSeq > rows.last.seq then
+      val adopted = rows.zipWithIndex.map((r, i) => r.copy(seq = afterSeq + 1 + i)).toList
+      river.adopt(sessionId, afterSeq)
+      lock.synchronized:
+        bindings.get(sessionId).foreach(b => bindings = bindings.updated(sessionId, b.copy(rows = adopted.toVector)))
+      Future.successful(snaps ++ adopted)
+    else if rows.isEmpty then
+      // Cold tail (a fresh engine process knows nothing): the river is the source of history.
+      river.read(sessionId, afterSeq).map(snaps ++ _)
+    else if afterSeq + 1 < rows.head.seq then
+      // Cursor below the tail floor: the tail dropped those rows, the river kept them. Serve what
+      // the river still has, and only claim a gap for what nothing can serve.
+      river.read(sessionId, afterSeq).map: older =>
+        val served = (rows.toList ++ older).groupBy(_.seq).values.map(_.head).toList.sortBy(_.seq)
+        val gap =
+          if afterSeq > 0 && served.headOption.exists(_.seq > afterSeq + 1) then
+            List(dshGap(served.head.seq, served.last.seq))
+          else Nil
+        snaps ++ gap ++ served
+    else
+      // Steady state: the tail answers alone, no river round trip.
+      Future.successful(snaps ++ rows.filter(_.seq > afterSeq).toList)
 
   /** Idempotent `session.create({ cwd, sessionId })`. Kind switch and DshCall bind here. */
   def bind(sessionId: String, cwd: String): Future[Either[Json, Unit]] = ensure(sessionId, cwd)
@@ -390,7 +379,7 @@ class DshLoop(
 
   private def stamp(sessionId: String, cwd: String): Unit =
     lock.synchronized:
-      val prev = bindings.getOrElse(sessionId, Binding(cwd))
+      val prev = bindings.getOrElse(sessionId, Binding(cwd, sessionId = sessionId))
       bindings = bindings.updated(
         sessionId,
         putLive(prev.copy(bound = true, cwd = cwd), dshCapsRow(sessionId, queue = caps.queue, goal = true, budget = false))
@@ -461,14 +450,18 @@ class DshLoop(
     raw.hcursor.get[String]("type").toOption match
       case Some("tool/call") =>
         val name = raw.hcursor.downField("data").get[String]("name").toOption.getOrElse("")
-        if name == "subagent" || name == "subagent_fork" then refreshCatalog(sessionId)
+        if name == "subagent" || name == "subagent_fork" then
+          markSpawnWatch(sessionId)
+          refreshCatalog(sessionId)
       // The child session is created asynchronously, so the tool/call refresh above
       // usually runs before subagent.list can see it. A subagent/* event carries the
       // real child id, so re-listing here is the first moment the child is watchable.
       // Without this the child is never followed, its turn/end never reaches the mux,
       // and childOpen stays true forever.
       case Some(t) if t.startsWith("subagent/") =>
-        if dshChildSessionId(raw).isDefined then refreshCatalog(sessionId)
+        if dshChildSessionId(raw).isDefined then
+          markSpawnWatch(sessionId)
+          refreshCatalog(sessionId)
       case _ => ()
 
   private def onParentEvent(sessionId: String, event: Json): Unit =
@@ -486,7 +479,10 @@ class DshLoop(
             t == "session/title" || t == "compaction/start" || t == "compaction/summary" || t == "compaction/end" ||
               t == "goal/change" || t.startsWith("subagent/")
           if dshSettled(raw) then
-            dshSenderSessionId(raw).foreach(idleSettled(sessionId, _, dshEventTime(raw)))
+            dshSenderSessionId(raw) match
+              case Some(sender) => idleSettled(sessionId, sender, dshEventTime(raw))
+              case None =>
+                log.warn(s"dsh subagent-settled notice without sender: sid=$sessionId seq=${dshSeq.getOrElse(-1L)}")
             dshSeq.foreach(s => ingress.consume(sessionId, sessionId, s))
             (None, None)
           else if live.isEmpty && !idleOk && t != "turn/start" then
@@ -753,8 +749,6 @@ class DshLoop(
         case _ => writeRow(cur, payloadJson(e), e)
 
   private def writeRow(cur: Binding, payload: Json, e: AgentEvent, track: Boolean = true): Binding =
-    val seq = cur.seq + 1
-    val row = EventRow(seq, Json.obj("payload" -> payload).noSpaces)
     val liveNext = e match
       case RunStateChanged(_, rid, _, _, _) if cur.liveRunId.contains(rid) => None
       case RunCompleted(_, rid, _) if cur.liveRunId.contains(rid) => None
@@ -766,20 +760,24 @@ class DshLoop(
         (cur.toolCallIds :+ id, dshContext(a).fold(cur.toolArgs)(s => cur.toolArgs.updated(id, s)))
       case _ => (cur.toolCallIds, cur.toolArgs)
     cur.copy(
-      seq = seq,
       liveRunId = liveNext,
       toolCallIds = ids,
       toolArgs = args,
       lastEventMs = nowMs(),
-      rows = (cur.rows :+ row).takeRight(bufferCap)
+      rows = appendRows(cur, List(payload))
     )
+
+  /** River lane: core numbers the rows. A failed append drops the row, never the order. */
+  private def appendRows(b: Binding, payloads: List[Json]): Vector[EventRow] =
+    river.append(b.sessionId, b.liveRunId, payloads) match
+      case seqs if seqs.size == payloads.size =>
+        (b.rows ++ payloads.zip(seqs).map((p, seq) => EventRow(seq, dshRowJson(p)))).takeRight(bufferCap)
+      case _ => b.rows
 
   private def writeNdjson(sessionId: String, payload: Json): Unit =
     lock.synchronized:
       bindings.get(sessionId).foreach: b =>
-        val seq = b.seq + 1
-        val row = EventRow(seq, Json.obj("payload" -> payload).noSpaces)
-        bindings = bindings.updated(sessionId, b.copy(seq = seq, rows = (b.rows :+ row).takeRight(bufferCap)))
+        bindings = bindings.updated(sessionId, b.copy(rows = appendRows(b, List(payload))))
 
   private def writeGoal(sessionId: String, data: Json): Option[Json] =
     val payload = dshGoalPayload(sessionId, data)
@@ -867,32 +865,6 @@ class DshLoop(
     lock.synchronized:
       bindings.get(sessionId).foreach: b =>
         bindings = bindings.updated(sessionId, b.copy(liveRunId = runId))
-
-  private def bindRestore(sessionId: String, lastSeq: Option[Long]): Unit =
-    val cwd = cwdOf(sessionId)
-    lock.synchronized:
-      val prev = bindings.getOrElse(sessionId, Binding(cwd))
-      bindings = bindings.updated(sessionId, putLive(prev, dshCapsRow(sessionId, queue = caps.queue, goal = true, budget = false)))
-      lastSeq.foreach(s => ingress.consume(sessionId, sessionId, s))
-    kickLists()
-
-  private def fillChildHistory(parent: String): Future[Unit] =
-    remote.call("subagent.list", Json.obj("parentSessionId" -> parent.asJson)).flatMap: json =>
-      val ids =
-        valueOf(json).toOption.toList.flatMap: value =>
-          value.hcursor.downField("entries").as[List[Json]].toOption.getOrElse(Nil).flatMap: e =>
-            if e.hcursor.get[String]("kind").toOption.contains("child") then
-              e.hcursor.get[String]("id").toOption.map(_.trim).filter(_.nonEmpty)
-            else None
-      Future.traverse(ids)(id => remote.call("subagent.history", Json.obj("sessionId" -> id.asJson)).map(id -> _)).map:
-        pairs =>
-          lock.synchronized:
-            bindings.get(parent).foreach: b =>
-              bindings = bindings.updated(parent, b.copy(childHistory = pairs.toMap))
-          pairs.foreach: (id, json) =>
-            valueOf(json).toOption.foreach: value =>
-              value.hcursor.downField("events").as[List[Json]].toOption.getOrElse(Nil).zipWithIndex.foreach: (e, i) =>
-                onChildEvent(parent, id, e, replaySeq = Some(i + 1L))
 
   private def hostOf(muxSid: String): Option[String] =
     if bindings.contains(muxSid) then Some(muxSid) else childToParent.get(muxSid)
@@ -988,6 +960,32 @@ class DshLoop(
         missUntil = missUntil.updated(sid, now + 2000)
       unknown = fresh
 
+  private[dsh] def sweepOpenChildren(): Unit =
+    val now = nowMs()
+    val parents =
+      lock.synchronized:
+        val open = bindings.filter: (sid, b) =>
+          b.wantsChildren && (b.children.values.exists(_.activity == "running") ||
+            b.spawnWatchSince.exists(now - _ < SpawnWatchMs))
+        open.keys.toList
+    parents.foreach(refreshCatalog)
+
+  private def markSpawnWatch(sessionId: String): Unit =
+    val now = nowMs()
+    lock.synchronized:
+      bindings.get(sessionId).foreach: b =>
+        bindings = bindings.updated(sessionId, b.copy(wantsChildren = true, spawnWatchSince = Some(now)))
+    ensureSweep()
+
+  private def markCatalogIdle(parent: String, childSid: String, at: Long): Unit =
+    lock.synchronized:
+      bindings.get(parent).foreach: b =>
+        b.children.get(childSid).foreach: c =>
+          bindings = bindings.updated(
+            parent,
+            b.copy(children = b.children.updated(childSid, c.copy(catalogIdleSince = Some(at))))
+          )
+
   private def ingestCatalog(parent: String, json: Json): Boolean =
     valueOf(json) match
       case Left(err) =>
@@ -1018,9 +1016,24 @@ class DshLoop(
                 else if first then
                   setActivity(parent, id, "inactive")
                   appendParent(parent, List(SubagentUpdated(parent, id, "inactive")))
-                else if prev.exists(p => !p.turnOpen && p.activity == "running") then
-                  setActivity(parent, id, "inactive")
-                  appendParent(parent, List(SubagentUpdated(parent, id, "inactive")))
+                else if prev.exists(_.activity == "running") then
+                  // A turn-open child settles only on a second idle read with no child mux
+                  // traffic in between; one stale read must not clobber a live child.
+                  snapshot(parent).flatMap(_.children.get(id)) match
+                    case Some(c) if c.turnOpen =>
+                      val now = nowMs()
+                      c.catalogIdleSince match
+                        case Some(marked) if c.lastMuxEventMs.forall(_ <= marked) =>
+                          setActivity(parent, id, "inactive")
+                          appendParent(parent, List(SubagentUpdated(parent, id, "inactive")))
+                          log.info(
+                            s"dsh catalog settled turn-open child after idle repeat: parent=$parent child=$id " +
+                              s"lastMuxEventMs=${c.lastMuxEventMs.getOrElse(-1L)} idleSince=$marked"
+                          )
+                        case _ => markCatalogIdle(parent, id, now)
+                    case _ =>
+                      setActivity(parent, id, "inactive")
+                      appendParent(parent, List(SubagentUpdated(parent, id, "inactive")))
             case _ => ()
         true
 
@@ -1031,7 +1044,8 @@ class DshLoop(
       bindings.get(parent).foreach: b =>
         val prev = b.children.getOrElse(childSid, ChildWork(childSid, mode, label, "inactive"))
         val next = prev.copy(mode = mode, label = if label.nonEmpty then label else prev.label)
-        bindings = bindings.updated(parent, b.copy(children = b.children.updated(childSid, next)))
+        bindings = bindings.updated(parent, b.copy(wantsChildren = true, children = b.children.updated(childSid, next)))
+    ensureSweep()
 
   private def ensureStarted(parent: String, childSid: String, mode: String, label: String): Unit =
     lock.synchronized:
@@ -1058,17 +1072,32 @@ class DshLoop(
             )
 
   private def setActivity(parent: String, childSid: String, activity: String, turnOpen: Option[Boolean] = None): Unit =
+    val now = nowMs()
     lock.synchronized:
       bindings.get(parent).foreach: b =>
         b.children.get(childSid).foreach: c =>
           bindings = bindings.updated(
             parent,
-            b.copy(children = b.children.updated(childSid, c.copy(activity = activity, turnOpen = turnOpen.getOrElse(c.turnOpen))))
+            b.copy(
+              children = b.children.updated(
+                childSid,
+                c.copy(
+                  activity = activity,
+                  turnOpen = turnOpen.getOrElse(c.turnOpen),
+                  lastMuxEventMs = Some(now),
+                  catalogIdleSince = if activity == "running" then None else c.catalogIdleSince
+                )
+              )
+            )
           )
 
   private def idleSettled(parent: String, childSid: String, settledAt: Option[Long]): Unit =
     snapshot(parent).flatMap(_.children.get(childSid)) match
       case Some(c) if c.activity == "running" && !dshSettledStale(settledAt, c.lastStartTime) =>
+        log.info(
+          s"dsh idle settled running child: parent=$parent child=$childSid settledAt=${settledAt.getOrElse(-1L)} " +
+            s"lastMuxEventMs=${c.lastMuxEventMs.getOrElse(-1L)} turnOpen=${c.turnOpen}"
+        )
         writeChildPreview(parent, childSid, activity = Some("inactive"))
       case _ => ()
 
@@ -1097,8 +1126,19 @@ class DshLoop(
         writeChildPreview(parent, childSid, activity = Some("inactive"), extra = finished)
       case _ =>
         emitChildDelta(parent, raw, replaySeq)
-        dshPreviewDelta(data, t).foreach: delta =>
-          writeChildPreview(parent, childSid, append = Some(delta -> t))
+        dshPreviewDelta(data, t) match
+          case Some(delta) => writeChildPreview(parent, childSid, append = Some(delta -> t))
+          case None        => stampMuxEvent(parent, childSid)
+
+  private def stampMuxEvent(parent: String, childSid: String): Unit =
+    val now = nowMs()
+    lock.synchronized:
+      bindings.get(parent).foreach: b =>
+        b.children.get(childSid).foreach: c =>
+          bindings = bindings.updated(
+            parent,
+            b.copy(children = b.children.updated(childSid, c.copy(lastMuxEventMs = Some(now))))
+          )
 
   private def emitChildDelta(parent: String, raw: Json, replaySeq: Option[Long] = None): Unit =
     val step = lock.synchronized:
@@ -1146,14 +1186,16 @@ class DshLoop(
             case PreviewEmit.Hold =>
               bindings = bindings.updated(
                 parent,
-                b.copy(children = b.children.updated(childSid, c.copy(preview = nextPreview)))
+                b.copy(children = b.children.updated(childSid, c.copy(preview = nextPreview, lastMuxEventMs = Some(now))))
               )
             case _ =>
               val next = c.copy(
                 activity = nextActivity,
                 turnOpen = nextTurnOpen,
                 preview = nextPreview,
-                lastPreviewEmitMs = Some(now)
+                lastPreviewEmitMs = Some(now),
+                lastMuxEventMs = Some(now),
+                catalogIdleSince = if nextActivity == "running" then None else c.catalogIdleSince
               )
               bindings = bindings.updated(
                 parent,
