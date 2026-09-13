@@ -53,26 +53,115 @@ test('parseImportPayload normalizes ecosystem wrappers', () => {
 	});
 });
 
-test('parseImportPayload keeps ecosystem server fields the engine accepts', () => {
-	const blender = parseImportPayload(
-		'{"mcpServers":{"blender":{"command":"uvx","args":["blender-mcp"],"transport":"stdio","autoApprove":["execute_blender_code"],"env":{"PYTHONPATH":"."}}}}'
-	);
-	assert.equal(blender.ok, true);
-	if (blender.ok) {
-		assert.deepEqual(blender.payload, {
-			mcpServers: {blender: {command: 'uvx', args: ['blender-mcp'], transport: 'stdio', env: {PYTHONPATH: '.'}}}
+const blenderClineSettings = JSON.stringify({
+	mcpServers: {
+		blender: {
+			command: 'uvx',
+			args: ['blender-mcp'],
+			env: {},
+			disabled: false,
+			autoApprove: ['execute_blender_code', 'get_scene_info', 'get_object_info', 'get_viewport_screenshot']
+		}
+	}
+});
+
+test('imports the real blender-mcp cline_mcp_settings.json from its README', () => {
+	const res = parseImportPayload(blenderClineSettings);
+	assert.equal(res.ok, true);
+	if (res.ok) {
+		assert.equal(res.count, 1);
+		assert.deepEqual(res.payload.mcpServers.blender, {
+			command: 'uvx',
+			args: ['blender-mcp'],
+			env: {},
+			enabled: true
 		});
 	}
 });
 
-test('parseImportPayload maps disabled and string args, drops engine-unknown junk', () => {
+test('imports the blender export that failed with "unknown field transport"', () => {
 	const res = parseImportPayload(
-		'{"servers":{"a":{"url":"https://x/sse","transport":"sse","headers":{"Authorization":"Bearer t"},"disabled":true,"args":"-y pkg","timeoutShort":10}}}'
+		'{"mcpServers":{"blender":{"command":"uvx","args":["blender-mcp"],"transport":"stdio","env":{},"disabled":false,"autoApprove":["execute_blender_code"]}}}'
 	);
 	assert.equal(res.ok, true);
 	if (res.ok) {
-		assert.deepEqual(res.payload, {
-			mcpServers: {a: {url: 'https://x/sse', transport: 'sse', enabled: false, args: ['-y', 'pkg']}}
+		assert.deepEqual(res.payload.mcpServers.blender, {
+			command: 'uvx',
+			args: ['blender-mcp'],
+			transport: 'stdio',
+			env: {},
+			enabled: true
+		});
+	}
+});
+
+test('imports a real claude_desktop_config.json unchanged', () => {
+	const res = parseImportPayload(
+		JSON.stringify({
+			mcpServers: {
+				filesystem: {
+					command: 'npx',
+					args: ['-y', '@modelcontextprotocol/server-filesystem', '/Users/username/Desktop']
+				},
+				github: {
+					command: 'npx',
+					args: ['-y', '@modelcontextprotocol/server-github'],
+					env: {GITHUB_PERSONAL_ACCESS_TOKEN: '<YOUR_TOKEN>'}
+				}
+			}
+		})
+	);
+	assert.equal(res.ok, true);
+	if (res.ok) {
+		assert.equal(res.count, 2);
+		assert.deepEqual(res.payload.mcpServers.filesystem, {
+			command: 'npx',
+			args: ['-y', '@modelcontextprotocol/server-filesystem', '/Users/username/Desktop']
+		});
+		assert.deepEqual(res.payload.mcpServers.github, {
+			command: 'npx',
+			args: ['-y', '@modelcontextprotocol/server-github'],
+			env: {GITHUB_PERSONAL_ACCESS_TOKEN: '<YOUR_TOKEN>'}
+		});
+	}
+});
+
+test('imports the VS Code mcp.json shape (servers wrapper, type stdio)', () => {
+	const res = parseImportPayload(
+		JSON.stringify({
+			servers: {
+				memory: {
+					type: 'stdio',
+					command: 'npx',
+					args: ['-y', '@modelcontextprotocol/server-memory']
+				}
+			}
+		})
+	);
+	assert.equal(res.ok, true);
+	if (res.ok) {
+		assert.deepEqual(res.payload.mcpServers.memory, {
+			type: 'stdio',
+			command: 'npx',
+			args: ['-y', '@modelcontextprotocol/server-memory']
+		});
+	}
+});
+
+test('imports real remote SSE entries and hand-edited string args', () => {
+	const sentry = parseImportPayload('{"mcpServers":{"sentry":{"transport":"sse","url":"https://mcp.sentry.dev/sse"}}}');
+	assert.equal(sentry.ok, true);
+	if (sentry.ok) {
+		assert.deepEqual(sentry.payload.mcpServers.sentry, {transport: 'sse', url: 'https://mcp.sentry.dev/sse'});
+	}
+	const gmail = parseImportPayload(
+		'{"mcpServers":{"gmail":{"command":"npx","args":"-y @gongrzhe/server-gmail-autoauth-mcp"}}}'
+	);
+	assert.equal(gmail.ok, true);
+	if (gmail.ok) {
+		assert.deepEqual(gmail.payload.mcpServers.gmail, {
+			command: 'npx',
+			args: ['-y', '@gongrzhe/server-gmail-autoauth-mcp']
 		});
 	}
 });
