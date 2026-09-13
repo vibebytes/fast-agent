@@ -19,7 +19,6 @@ export type ServerConfig = {
 	args?: string[];
 	env?: Record<string, string>;
 	url?: string;
-	headers?: Record<string, string>;
 };
 
 export function parseKvLines(text: string): Record<string, string> {
@@ -60,7 +59,6 @@ export function ServerEditDialog({
 	const [args, setArgs] = useState('');
 	const [env, setEnv] = useState('');
 	const [url, setUrl] = useState('');
-	const [headers, setHeaders] = useState('');
 	const [saving, setSaving] = useState(false);
 
 	const reset = () => {
@@ -71,7 +69,6 @@ export function ServerEditDialog({
 		setArgs(Array.isArray(row?.args) ? row.args.join(' ') : (row?.args ?? ''));
 		setEnv(kvLinesOf(row?.env));
 		setUrl(row?.url ?? '');
-		setHeaders('');
 		setSaving(false);
 	};
 
@@ -92,8 +89,7 @@ export function ServerEditDialog({
 					}
 				: {
 						transport,
-						url: url.trim(),
-						headers: headers.trim() ? parseKvLines(headers) : undefined
+						url: url.trim()
 					};
 		const ok = await onSubmit(name.trim(), config);
 		setSaving(false);
@@ -187,30 +183,15 @@ export function ServerEditDialog({
 								<span className="text-xs text-muted-foreground">
 									{t('settings.plugins.mcp.formUrl')}
 								</span>
-								<Input
-									value={url}
-									onChange={e => setUrl(e.target.value)}
-									placeholder="https://mcp.example.com/sse"
-									className={cn('font-mono', !url.trim() && 'border-destructive/50')}
-								/>
-							</label>
-							<label className="block space-y-1">
-								<span className="text-xs text-muted-foreground">
-									{t('settings.plugins.mcp.formHeaders')}
-								</span>
-								<textarea
-									rows={3}
-									value={headers}
-									onChange={e => setHeaders(e.target.value)}
-									className="w-full rounded-md border border-input bg-background px-3 py-2 font-mono text-[12px]"
-									placeholder={'Authorization=Bearer ...'}
-								/>
-								<span className="block text-[11px] text-muted-foreground/70">
-									{t('settings.plugins.mcp.formKvHint')}
-								</span>
-							</label>
-						</>
-					)}
+							<Input
+								value={url}
+								onChange={e => setUrl(e.target.value)}
+								placeholder="https://mcp.example.com/sse"
+								className={cn('font-mono', !url.trim() && 'border-destructive/50')}
+							/>
+						</label>
+					</>
+				)}
 				</div>
 				<DialogFooter className="gap-2">
 					<SettingsButton type="button" variant="outline" onClick={() => onOpenChange(false)}>

@@ -613,7 +613,6 @@
         "formEnv": "Переменные окружения",
         "formKvHint": "Одна запись KEY=VALUE в строке",
         "formUrl": "URL",
-        "formHeaders": "Заголовки",
         "importTitle": "Импорт конфигурации MCP",
         "importDescription": "Вставьте стандартный MCP JSON (формат mcpServers).",
         "importPreview": "Обнаружено серверов: {{count}}",

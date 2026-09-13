@@ -613,7 +613,6 @@
         "formEnv": "Variables de entorno",
         "formKvHint": "Una entrada KEY=VALUE por línea",
         "formUrl": "URL",
-        "formHeaders": "Cabeceras",
         "importTitle": "Importar configuración MCP",
         "importDescription": "Pega un JSON MCP estándar (formato mcpServers).",
         "importPreview": "Se detectaron {{count}} servidores",

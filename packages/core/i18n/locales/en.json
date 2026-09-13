@@ -613,7 +613,6 @@
         "formEnv": "Environment variables",
         "formKvHint": "One KEY=VALUE entry per line",
         "formUrl": "URL",
-        "formHeaders": "Headers",
         "importTitle": "Import MCP config",
         "importDescription": "Paste standard MCP JSON (mcpServers format).",
         "importPreview": "Detected {{count}} servers",

@@ -613,7 +613,6 @@
         "formEnv": "환경 변수",
         "formKvHint": "한 줄에 KEY=VALUE 하나",
         "formUrl": "URL",
-        "formHeaders": "헤더",
         "importTitle": "MCP 설정 가져오기",
         "importDescription": "표준 MCP JSON(mcpServers 형식)을 붙여넣으세요.",
         "importPreview": "서버 {{count}}개 감지됨",

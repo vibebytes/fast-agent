@@ -53,6 +53,30 @@ test('parseImportPayload normalizes ecosystem wrappers', () => {
 	});
 });
 
+test('parseImportPayload keeps ecosystem server fields the engine accepts', () => {
+	const blender = parseImportPayload(
+		'{"mcpServers":{"blender":{"command":"uvx","args":["blender-mcp"],"transport":"stdio","autoApprove":["execute_blender_code"],"env":{"PYTHONPATH":"."}}}}'
+	);
+	assert.equal(blender.ok, true);
+	if (blender.ok) {
+		assert.deepEqual(blender.payload, {
+			mcpServers: {blender: {command: 'uvx', args: ['blender-mcp'], transport: 'stdio', env: {PYTHONPATH: '.'}}}
+		});
+	}
+});
+
+test('parseImportPayload maps disabled and string args, drops engine-unknown junk', () => {
+	const res = parseImportPayload(
+		'{"servers":{"a":{"url":"https://x/sse","transport":"sse","headers":{"Authorization":"Bearer t"},"disabled":true,"args":"-y pkg","timeoutShort":10}}}'
+	);
+	assert.equal(res.ok, true);
+	if (res.ok) {
+		assert.deepEqual(res.payload, {
+			mcpServers: {a: {url: 'https://x/sse', transport: 'sse', enabled: false, args: ['-y', 'pkg']}}
+		});
+	}
+});
+
 test('parseImportPayload rejects junk', () => {
 	assert.equal(parseImportPayload('not json').ok, false);
 	assert.equal(parseImportPayload('[]').ok, false);

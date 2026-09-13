@@ -613,7 +613,6 @@
         "formEnv": "環境変数",
         "formKvHint": "1 行に KEY=VALUE を 1 つ",
         "formUrl": "URL",
-        "formHeaders": "ヘッダー",
         "importTitle": "MCP 設定を読み込む",
         "importDescription": "標準的な MCP JSON（mcpServers 形式）を貼り付けます。",
         "importPreview": "{{count}} 件のサーバーを検出",

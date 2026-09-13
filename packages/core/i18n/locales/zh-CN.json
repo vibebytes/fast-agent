@@ -613,7 +613,6 @@
         "formEnv": "环境变量",
         "formKvHint": "每行一条 KEY=VALUE",
         "formUrl": "URL",
-        "formHeaders": "请求头",
         "importTitle": "导入 MCP 配置",
         "importDescription": "粘贴标准 MCP JSON（mcpServers 格式）。",
         "importPreview": "识别到 {{count}} 个服务",

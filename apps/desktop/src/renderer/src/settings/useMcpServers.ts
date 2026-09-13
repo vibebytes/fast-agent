@@ -66,6 +66,46 @@ function looksLikeServerConfig(value: unknown): boolean {
 	return Object.keys(value as object).some(k => SERVER_CONFIG_KEYS.has(k));
 }
 
+const IMPORT_SERVER_KEYS = new Set([
+	'enabled',
+	'type',
+	'transport',
+	'url',
+	'command',
+	'args',
+	'env',
+	'cwd',
+	'sandbox',
+	'description',
+	'timeout',
+	'startupTimeout',
+	'allowedTools',
+	'blockedTools'
+]);
+
+/** Keeps engine-known fields, maps Cline-style `disabled`/string `args`, drops ecosystem-only junk (headers, autoApprove, ...). */
+function normalizeImportedServer(value: unknown): Record<string, unknown> | null {
+	if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+	const src = value as Record<string, unknown>;
+	const out: Record<string, unknown> = {};
+	for (const [k, v] of Object.entries(src)) {
+		if (IMPORT_SERVER_KEYS.has(k) && v !== null) out[k] = v;
+	}
+	if (typeof src.disabled === 'boolean') out.enabled = !src.disabled;
+	if (typeof out.args === 'string') out.args = (out.args as string).split(/\s+/).filter(Boolean);
+	return Object.keys(out).length > 0 ? out : null;
+}
+
+function normalizeServerMap(input: Record<string, unknown>): {payload: {mcpServers: Record<string, unknown>}; count: number} | null {
+	const servers: Record<string, unknown> = {};
+	for (const [name, cfg] of Object.entries(input)) {
+		const norm = normalizeImportedServer(cfg);
+		if (norm) servers[name] = norm;
+	}
+	const count = Object.keys(servers).length;
+	return count === 0 ? null : {payload: {mcpServers: servers}, count};
+}
+
 /** Accepts fastllm / claude_desktop / plain server-map JSON and normalizes to {mcpServers}. */
 export function parseImportPayload(text: string): ParsedImport {
 	let raw: unknown;
@@ -79,15 +119,14 @@ export function parseImportPayload(text: string): ParsedImport {
 	for (const key of IMPORT_WRAPPER_KEYS) {
 		const inner = obj[key];
 		if (inner && typeof inner === 'object' && !Array.isArray(inner)) {
-			const servers = inner as Record<string, unknown>;
-			const count = Object.keys(servers).length;
-			if (count === 0) return {ok: false, error: 'no servers found'};
-			return {ok: true, payload: {mcpServers: servers}, count};
+			const norm = normalizeServerMap(inner as Record<string, unknown>);
+			if (norm) return {ok: true, ...norm};
 		}
 	}
 	const values = Object.values(obj);
 	if (values.length > 0 && values.every(looksLikeServerConfig)) {
-		return {ok: true, payload: {mcpServers: obj}, count: values.length};
+		const norm = normalizeServerMap(obj);
+		if (norm) return {ok: true, ...norm};
 	}
 	return {ok: false, error: 'no servers found'};
 }
