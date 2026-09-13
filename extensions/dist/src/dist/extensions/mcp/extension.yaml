@@ -1,2 +1,3 @@
 id: mcp
 apiVersion: "1"
+hotUnload: true

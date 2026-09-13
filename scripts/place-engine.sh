@@ -29,7 +29,7 @@ overlay_dist() {
 	mkdir -p "$dest/conf" "$dest/extensions"
 	[[ -d "$ext_dist/conf" ]] && cp -R "$ext_dist/conf/." "$dest/conf/"
 	[[ -d "$ext_dist/extensions" ]] && cp -R "$ext_dist/extensions/." "$dest/extensions/"
-	echo "overlaid $ext_dist (conf/ + extensions/)"
+	echo "overlaid $ext_dist (conf/extensions.yaml + conf/ + extensions/)"
 }
 
 host_os() {

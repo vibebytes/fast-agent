@@ -18,15 +18,20 @@ extensions:
     config:
       global: { timeout: 30000, retryAttempts: 3, retryDelay: 1000 }
       servers:
-        - name: tavily
+        tavily:
           enabled: true
           url: "https://mcp.tavily.com/mcp/"
           timeout: 60000
           auth: { type: query, param: tavilyApiKey }
-        - name: browser
+        browser:
           enabled: false
           url: "http://localhost:3200/sse"
           timeout: 60000
+        # stdio form (design §4.3): `command` is the complete argv; `env` is merged onto the whitelist base set.
+        # filesystem:
+        #   command: [npx, "-y", "@modelcontextprotocol/server-filesystem", /workspace]
+        #   cwd: /workspace
+        #   env: { LOG_LEVEL: info }
 
 services:
   embedder: none
