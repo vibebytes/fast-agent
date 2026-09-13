@@ -1641,6 +1641,7 @@ export class WorkspaceHub {
 		},
 		host_error: (event, handlers) => {
 			if (event.type !== 'host_error') return false;
+			this.hostWait.hostError(event.message);
 			handlers.onError('engine', event.message);
 			handlers.onEvent('engine', event);
 			return true;

@@ -19,6 +19,7 @@ function resultEvent(name: string, patch: Partial<Extract<BridgeEvent, {type: 'c
 function laneOf(reply: (cmd: BridgeCommand) => CommandResult | null, sendOk = true) {
 	const waits: WaitCall[] = [];
 	const sent: string[] = [];
+	const sentCmds: BridgeCommand[] = [];
 	let ready = true;
 	let pending: ((event: CommandResult) => void) | null = null;
 	let pendingReject: ((err: Error) => void) | null = null;
@@ -35,6 +36,7 @@ function laneOf(reply: (cmd: BridgeCommand) => CommandResult | null, sendOk = tr
 		},
 		waitRequest: () => ({token: 'r', promise: new Promise<CommandResult>(() => {})}),
 		send: cmd => {
+			sentCmds.push(cmd);
 			sent.push(String((cmd as {type: string}).type));
 			if (!sendOk) return false;
 			const event = reply(cmd);
@@ -52,6 +54,7 @@ function laneOf(reply: (cmd: BridgeCommand) => CommandResult | null, sendOk = tr
 		lane,
 		waits,
 		sent,
+		sentCmds,
 		setReady: (v: boolean) => {
 			ready = v;
 		}
@@ -102,7 +105,7 @@ test('listMcpServers surfaces engine error message as notice', async () => {
 });
 
 test('mcpServerControl forwards name/op and unwraps the control payload', async () => {
-	const {lane, sent} = laneOf(cmd => {
+	const {lane, sent, sentCmds} = laneOf(cmd => {
 		const c = cmd as {type: string; name?: string; op?: string};
 		if (c.type === 'McpServerControl') {
 			return resultEvent('McpServerControl', {
@@ -115,6 +118,7 @@ test('mcpServerControl forwards name/op and unwraps the control payload', async 
 	assert.ok(r.ok);
 	assert.equal(r.mcp.state, 'running');
 	assert.deepEqual(sent, ['McpServerControl']);
+	assert.deepEqual(sentCmds, [{type: 'McpServerControl', name: 'filesystem', op: 'restart'}]);
 });
 
 test('mcpServerControl rejects rejected status and missing payload', async () => {
@@ -129,7 +133,7 @@ test('mcpServerControl rejects rejected status and missing payload', async () =>
 });
 
 test('mcpServerPut/Enabled/Delete round-trip on the fast plane', async () => {
-	const {lane, sent} = laneOf(cmd => {
+	const {lane, sent, sentCmds} = laneOf(cmd => {
 		const type = String((cmd as {type: string}).type);
 		if (type === 'McpServerDelete') return resultEvent(type);
 		return resultEvent(type, {mcpServers: [oneRow]});
@@ -142,17 +146,29 @@ test('mcpServerPut/Enabled/Delete round-trip on the fast plane', async () => {
 	const del = await mcp.mcpServerDelete('filesystem');
 	assert.deepEqual(del, {ok: true});
 	assert.deepEqual(sent, ['McpServerPut', 'McpServerEnabled', 'McpServerDelete']);
+	assert.deepEqual(sentCmds, [
+		{type: 'McpServerPut', name: 'filesystem', config: {transport: 'stdio', command: 'npx'}},
+		{type: 'McpServerEnabled', name: 'filesystem', enabled: false},
+		{type: 'McpServerDelete', name: 'filesystem'}
+	]);
 });
 
 test('mcpConfigImport/Reload use the slow 30s plane', async () => {
-	const {lane, waits} = laneOf(cmd =>
+	const {lane, waits, sentCmds} = laneOf(cmd =>
 		resultEvent(String((cmd as {type: string}).type), {mcpServers: [oneRow]})
 	);
 	const mcp = createMcp(lane);
-	const imported = await mcp.mcpConfigImport({mcpServers: {fs: {command: 'npx'}}});
+	const payload = {
+		mcpServers: {blender: {command: 'uvx', args: ['blender-mcp'], transport: 'stdio'}}
+	};
+	const imported = await mcp.mcpConfigImport(payload);
 	assert.ok(imported.ok && imported.mcpServers.length === 1);
 	const reloaded = await mcp.mcpConfigReload();
 	assert.ok(reloaded.ok);
+	assert.deepEqual(sentCmds, [
+		{type: 'McpConfigImport', payload},
+		{type: 'McpConfigReload'}
+	]);
 	assert.deepEqual(
 		waits.map(w => w.timeoutMs),
 		[30_000, 30_000]

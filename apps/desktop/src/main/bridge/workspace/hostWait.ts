@@ -140,6 +140,7 @@ export type HostWait = {
 	cancelAll: () => void;
 	resolveByName: (event: CommandResult, checkoutProjectId?: string) => void;
 	resolveByRequestId: (event: CommandResult) => void;
+	hostError: (message: string) => void;
 };
 
 export function createHostWait(opts: {requestWaitMs: number; defaultTimeoutMs?: number}): HostWait {
@@ -231,6 +232,13 @@ export function createHostWait(opts: {requestWaitMs: number; defaultTimeoutMs?: 
 				clearTimeout(entry.timer);
 				entry.resolve(event);
 				return;
+			}
+		},
+		hostError(message) {
+			for (const [token, entry] of byName) {
+				byName.delete(token);
+				clearTimeout(entry.timer);
+				entry.reject(new Error(message));
 			}
 		}
 	};
