@@ -55,6 +55,18 @@ export class SettingsMockStore {
 		state.plugins = state.plugins.map(plugin => plugin.id === pluginId ? {...plugin, enabled} : plugin);
 	}, 'Plugin state updated');
 
+	toggleMcpServer = (name: string, enabled: boolean) => this.commit(state => {
+		state.mcpServers = state.mcpServers.map(server => server.name === name ? {...server, enabled, state: enabled ? 'starting' : 'stopped'} : server);
+	}, 'MCP server state updated');
+
+	restartMcpServer = (name: string) => this.commit(state => {
+		state.mcpServers = state.mcpServers.map(server => server.name === name ? {...server, state: 'running', restartRequired: false, lastError: undefined, restarts: (server.restarts ?? 0) + 1} : server);
+	}, 'MCP server restarted');
+
+	removeMcpServer = (name: string) => this.commit(state => {
+		state.mcpServers = state.mcpServers.filter(server => server.name !== name);
+	}, 'MCP server removed');
+
 	selectProject = (projectId: string) => this.commit(state => {
 		state.selectedProjectId = projectId;
 	}, 'Project selected');

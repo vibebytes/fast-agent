@@ -34,6 +34,8 @@ import {
 } from './SettingsPrimitives';
 import {useSkills, type MarketSkill, type Skill} from './useSkills';
 import {noticeKind, useExtensions, type ExtsView} from './useExtensions';
+import {McpPane, mcpNoticeCopy} from './McpPane';
+import {useMcpServers} from './useMcpServers';
 import type {ExtNote, ExtRow} from '@fastllm/bridge-client';
 import {cn} from '@fast-ide/ui/lib/utils';
 
@@ -49,12 +51,14 @@ export function PluginsSettings({engineReady}: Props) {
 	const {t} = useTranslation();
 	const skills = useSkills(engineReady);
 	const ext = useExtensions(engineReady);
+	const mcp = useMcpServers(engineReady);
 	const [tab, setTab] = useState<TabId>('skills');
 	const [filter, setFilter] = useState('');
 	const [createOpen, setCreateOpen] = useState(false);
 	const [marketOpen, setMarketOpen] = useState(false);
 
 	const totalCount = skills.skills.length;
+	const mcpCount = mcp.servers.length;
 	const extCount = ext.extensions.filter(row => row.phase !== 'Uninstalled').length;
 	const filtered = skills.skills.filter(skill => {
 		const q = filter.trim().toLowerCase();
@@ -78,13 +82,18 @@ export function PluginsSettings({engineReady}: Props) {
 					{extNoticeCopy(ext.notice, t)}
 				</div>
 			) : null}
+			{tab === 'mcp' && mcp.notice ? (
+				<div className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-2 text-xs text-destructive">
+					{mcpNoticeCopy(mcp.notice, t)}
+				</div>
+			) : null}
 
 			{/* Top Segment Tabs */}
 			<div className="inline-flex h-9 items-center rounded-xl border border-border/70 bg-muted/60 p-1">
 				{(
 					[
 						{id: 'skills' as const, label: t('settings.plugins.tab.skills'), count: totalCount, icon: Terminal},
-						{id: 'mcp' as const, label: t('settings.plugins.tab.mcp'), icon: Boxes, hidden: true},
+						{id: 'mcp' as const, label: t('settings.plugins.tab.mcp'), count: mcpCount, icon: Boxes},
 						{id: 'cli' as const, label: t('settings.plugins.tab.cli'), icon: Code2, hidden: true},
 						{
 							id: 'extensions' as const,
@@ -138,7 +147,7 @@ export function PluginsSettings({engineReady}: Props) {
 					onOpenMarket={() => setMarketOpen(true)}
 				/>
 			) : tab === 'mcp' ? (
-				<McpPlaceholder />
+				<McpPane mcp={mcp} />
 			) : tab === 'cli' ? (
 				<CliPlaceholder />
 			) : (
@@ -648,22 +657,6 @@ function MarketDialog({
 				</div>
 			</DialogContent>
 		</Dialog>
-	);
-}
-
-function McpPlaceholder() {
-	const {t} = useTranslation();
-	return (
-		<SettingsSection
-			title={t('settings.plugins.tab.mcp')}
-			description={t('settings.plugins.mcpSubtitle')}
-		>
-			<SettingsState
-				status="empty"
-				title={t('settings.plugins.mcpPlaceholderTitle')}
-				description={t('settings.plugins.mcpPlaceholderDescription')}
-			/>
-		</SettingsSection>
 	);
 }
 

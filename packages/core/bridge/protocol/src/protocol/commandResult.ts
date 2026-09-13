@@ -155,6 +155,42 @@ export const commandResultSchema = z.object({
 				})
 			)
 			.optional(),
+		/** MCP admin rows (ListMcpServers / McpServerPut / McpServerEnabled / McpConfigImport / McpConfigReload). */
+		mcpServers: z
+			.array(
+				z.object({
+					name: z.string(),
+					transport: z.string().optional(),
+					command: z.string().optional(),
+					args: z.union([z.array(z.string()), z.string()]).optional(),
+					env: z.union([z.record(z.string(), z.string()), z.array(z.string())]).optional(),
+					url: z.string().optional(),
+					enabled: z.boolean().optional(),
+					restartRequired: z.boolean().optional(),
+					state: z.string().nullish(),
+					pid: z.number().nullish(),
+					restarts: z.number().nullish(),
+					lastError: z.string().nullish(),
+					stderrTail: z.string().nullish(),
+					connectionStatus: z.string().nullish(),
+					discoveredToolCount: z.number().nullish()
+				})
+			)
+			.optional(),
+		/** MCP control plane result (McpServerControl). */
+		mcp: z
+			.object({
+				ok: z.boolean(),
+				name: z.string(),
+				op: z.string(),
+				state: z.string(),
+				pid: z.number().nullish(),
+				restarts: z.number().nullish(),
+				restartRequired: z.boolean().optional(),
+				lastError: z.string().nullish(),
+				message: z.string().optional()
+			})
+			.optional(),
 		/** L0 engine admin rows (ListEngines / write cmds). */
 		engines: z
 			.array(

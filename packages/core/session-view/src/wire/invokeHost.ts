@@ -20,6 +20,8 @@ import type {
 	HostDirResult,
 	ListWorkspaceDirResult,
 	MarketSkillRow,
+	McpControlResultWire,
+	McpServerRowWire,
 	MobilePairingInfo,
 	ProviderModelPatch,
 	ProviderRow,
@@ -255,6 +257,35 @@ export type InvokeHost = {
 	'engines:cancelInstall': {
 		args: [id: string];
 		result: {ok: true; engines: EngineWireRow[]} | {ok: false; notice: string};
+	};
+	/** MCP server admin (host principal, mirrors Extension admin). */
+	'mcp:list': {
+		args: [];
+		result: {ok: true; mcpServers: McpServerRowWire[]} | {ok: false; notice: string};
+	};
+	'mcp:control': {
+		args: [name: string, op: string];
+		result: {ok: true; mcp: McpControlResultWire} | {ok: false; notice: string};
+	};
+	'mcp:put': {
+		args: [name: string, config: unknown];
+		result: {ok: true; mcpServers: McpServerRowWire[]} | {ok: false; notice: string};
+	};
+	'mcp:enabled': {
+		args: [name: string, enabled: boolean];
+		result: {ok: true; mcpServers: McpServerRowWire[]} | {ok: false; notice: string};
+	};
+	'mcp:delete': {
+		args: [name: string];
+		result: {ok: true} | {ok: false; notice: string};
+	};
+	'mcp:import': {
+		args: [payload: unknown];
+		result: {ok: true; mcpServers: McpServerRowWire[]} | {ok: false; notice: string};
+	};
+	'mcp:reload': {
+		args: [];
+		result: {ok: true; mcpServers: McpServerRowWire[]} | {ok: false; notice: string};
 	};
 	'rules:setEnabled': {
 		args: [projectId: string, ruleId: string, enabled: boolean];

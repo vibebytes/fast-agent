@@ -279,6 +279,14 @@ export function createDesktopHost(deps: DesktopHostDeps): ProductInvokeMap {
 		'engines:uninstall': id => writeEngineAndPublish(hub, publisher, 'UninstallEngine', id),
 		'engines:cancelInstall': id => writeEngineAndPublish(hub, publisher, 'CancelEngineInstall', id),
 
+		'mcp:list': () => hub.listMcpServers(),
+		'mcp:control': (name: string, op: string) => hub.mcpServerControl(name, op),
+		'mcp:put': (name: string, config: unknown) => hub.mcpServerPut(name, config),
+		'mcp:enabled': (name: string, enabled: boolean) => hub.mcpServerEnabled(name, enabled),
+		'mcp:delete': (name: string) => hub.mcpServerDelete(name),
+		'mcp:import': (payload: unknown) => hub.mcpConfigImport(payload),
+		'mcp:reload': () => hub.mcpConfigReload(),
+
 		'rules:list': (projectId: string) => hub.listRules(projectId),
 		'rules:add': (projectId: string, text: string) => hub.addProjectRule(projectId, text),
 		'rules:remove': (projectId: string, ruleId: string) => hub.removeRule(projectId, ruleId),

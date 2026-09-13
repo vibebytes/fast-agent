@@ -45,7 +45,8 @@ test('stopOwnedLocal still Shutdown when connect is delayed', async () => {
 					}
 					return true;
 				},
-				close() {}
+				close() {},
+				stats: () => ({parseFailures: 0, deadLetters: []})
 			};
 		}
 	});
@@ -74,13 +75,14 @@ test('stopOwnedLocal Shutdown when pack stamp matches', async () => {
 				cmds.push(cmd.type);
 				if (cmd.type === 'Hello') {
 					queueMicrotask(() =>
-						wire.onEvent({type: 'HelloOk', engineId: 'pack-v1', daemonPid: 9})
-					);
-				}
-				return true;
-			},
-			close() {}
-		})
+					wire.onEvent({type: 'HelloOk', engineId: 'pack-v1', daemonPid: 9})
+				);
+			}
+			return true;
+		},
+		close() {},
+		stats: () => ({parseFailures: 0, deadLetters: []})
+	})
 	});
 	assert.deepEqual(cmds, ['Hello', 'Shutdown']);
 	assert.equal(alive, false);
@@ -104,13 +106,14 @@ test('stopOwnedLocal leaves a public ws host running', async () => {
 				cmds.push(cmd.type);
 				if (cmd.type === 'Hello') {
 					queueMicrotask(() =>
-						wire.onEvent({type: 'HelloOk', engineId: 'other', daemonPid: 9})
-					);
-				}
-				return true;
-			},
-			close() {}
-		})
+					wire.onEvent({type: 'HelloOk', engineId: 'other', daemonPid: 9})
+				);
+			}
+			return true;
+		},
+		close() {},
+		stats: () => ({parseFailures: 0, deadLetters: []})
+	})
 	});
 	assert.deepEqual(cmds, ['Hello', 'Goodbye']);
 });

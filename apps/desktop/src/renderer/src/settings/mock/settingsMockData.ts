@@ -21,6 +21,13 @@ export const defaultSettingsMockState: MockState = {
 		{id: 'code-review', name: 'Code Review', type: 'Skills', version: '0.8.2', enabled: true, scope: 'Project override', status: 'Ready', permissions: ['Files']},
 		{id: 'shell-helper', name: 'Shell Helper', type: 'CLI', version: '2.0.1', enabled: false, scope: 'Global', status: 'Needs setup', permissions: ['Shell']}
 	],
+	mcpServers: [
+		{name: 'filesystem', transport: 'stdio', command: 'npx', args: ['-y', '@modelcontextprotocol/server-filesystem', '/workspace'], enabled: true, state: 'running', pid: 48213, discoveredToolCount: 11},
+		{name: 'github', transport: 'stdio', command: 'npx', args: ['-y', '@modelcontextprotocol/server-github'], enabled: true, state: 'starting', restarts: 1, discoveredToolCount: 24},
+		{name: 'postgres', transport: 'stdio', command: 'uvx', args: ['mcp-server-postgres', 'postgresql://localhost:5432/app'], enabled: true, state: 'failed', restarts: 3, lastError: 'connection refused: 127.0.0.1:5432', stderrTail: 'error: could not connect to server: Connection refused\n\tIs the server running on host "127.0.0.1" and accepting\n\tTCP/IP connections on port 5432?'},
+		{name: 'linear', transport: 'remote', url: 'https://mcp.linear.app/sse', enabled: true, state: 'running', discoveredToolCount: 8, restartRequired: true},
+		{name: 'sentry', transport: 'remote', url: 'https://mcp.sentry.dev/sse', enabled: false, state: 'stopped'}
+	],
 	projects: [
 		{id: 'fast-ide', name: 'fast-ide', path: '/workspace/fast-ide', status: 'Ready', server: 'Local machine', rules: 4, modelOverride: 'Claude Sonnet', pluginCount: 6},
 		{id: 'demo', name: 'demo-project', path: '/workspace/demo-project', status: 'Needs attention', server: 'dev-server', rules: 2, pluginCount: 2}

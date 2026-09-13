@@ -77,11 +77,28 @@ export type MockHealthCheck = {
 	fixTarget?: string;
 };
 
+export type MockMcpServer = {
+	name: string;
+	transport: 'stdio' | 'remote';
+	command?: string;
+	args?: string[];
+	url?: string;
+	enabled: boolean;
+	state: string;
+	pid?: number;
+	restarts?: number;
+	discoveredToolCount?: number;
+	restartRequired?: boolean;
+	lastError?: string;
+	stderrTail?: string;
+};
+
 export type MockState = {
 	agents: MockAgent[];
 	models: MockModel[];
 	providers: MockProvider[];
 	plugins: MockPlugin[];
+	mcpServers: MockMcpServer[];
 	projects: MockProject[];
 	health: MockHealthCheck[];
 	general: {

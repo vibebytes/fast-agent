@@ -3,6 +3,7 @@ import {eventMeta, refineRiver} from './protocol/river.js';
 import {type HostCommand, hostCommandSchemas, hostEventSchemas} from './protocol/host.js';
 import {type CatalogCommand, catalogCommandSchemas, catalogEventSchemas} from './protocol/catalog.js';
 import {type PluginCommand, pluginCommandSchemas, pluginEventSchemas} from './protocol/plugins.js';
+import {type McpCommand, mcpCommandSchemas} from './protocol/plugins.js';
 import {type OrgCommand, orgCommandSchemas} from './protocol/org.js';
 import {type CheckoutCommand, checkoutCommandSchemas, checkoutEventSchemas} from './protocol/checkout.js';
 import {type SessionCmd, sessionCmdSchemas, sessionCmdEventSchemas} from './protocol/sessionCmd.js';
@@ -24,6 +25,7 @@ export type BridgeCommand =
 	| HostCommand
 	| CatalogCommand
 	| PluginCommand
+	| McpCommand
 	| OrgCommand
 	| CheckoutCommand;
 
@@ -33,6 +35,7 @@ const commandSchemas = [
 	...hostCommandSchemas,
 	...catalogCommandSchemas,
 	...pluginCommandSchemas,
+	...mcpCommandSchemas,
 	...orgCommandSchemas,
 	...checkoutCommandSchemas
 ] as const;

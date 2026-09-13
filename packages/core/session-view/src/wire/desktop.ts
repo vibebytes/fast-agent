@@ -424,6 +424,36 @@ export type EngineCallResult =
 	| {ok: true; method: string; value: unknown}
 	| {ok: false; error: EngineCallError};
 
+export type McpServerRowWire = {
+	name: string;
+	transport?: string;
+	command?: string;
+	args?: string[] | string;
+	env?: Record<string, string> | string[];
+	url?: string;
+	enabled?: boolean;
+	restartRequired?: boolean;
+	state?: string | null;
+	pid?: number | null;
+	restarts?: number | null;
+	lastError?: string | null;
+	stderrTail?: string | null;
+	connectionStatus?: string | null;
+	discoveredToolCount?: number | null;
+};
+
+export type McpControlResultWire = {
+	ok: boolean;
+	name: string;
+	op: string;
+	state: string;
+	pid?: number | null;
+	restarts?: number | null;
+	restartRequired?: boolean;
+	lastError?: string | null;
+	message?: string;
+};
+
 
 export type DshSelection = {
 	provider: string;

@@ -75,6 +75,16 @@ export {
 	type ExtRow
 } from './extensions.js';
 export {
+	mcpAdminMethods,
+	mcpServerOps,
+	type McpAdminApi,
+	type McpControlResult,
+	type McpErr,
+	type McpOk,
+	type McpServerOp,
+	type McpServerRow
+} from './mcp.js';
+export {
 	engAdminMethods,
 	type EngAdminApi,
 	type EngErr,

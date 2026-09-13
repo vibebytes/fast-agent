@@ -53,6 +53,8 @@ import {createTeams, type WorkspaceTeams} from './workspace/teams.js';
 import {createSchedule, type WorkspaceSchedule} from './workspace/schedule.js';
 import {createCatalog, type WorkspaceCatalog} from './workspace/catalog.js';
 import {createPlugins, type WorkspacePlugins} from './workspace/plugins.js';
+import {createMcp, type WorkspaceMcp} from './workspace/mcp.js';
+import type {McpServerOp} from '@fastllm/bridge-client';
 import {createReview, type WorkspaceReview} from './workspace/review.js';
 import {createCheckout, type WorkspaceCheckout} from './workspace/checkout.js';
 import {createComposerHeal, type ComposerHeal} from './workspace/composerHeal.js';
@@ -194,6 +196,7 @@ export class WorkspaceHub {
 	private readonly schedule: WorkspaceSchedule;
 	private readonly catalog: WorkspaceCatalog;
 	private readonly plugins: WorkspacePlugins;
+	private readonly mcp: WorkspaceMcp;
 	private readonly review: WorkspaceReview;
 	private readonly checkout: WorkspaceCheckout;
 	private readonly composerHeal: ComposerHeal;
@@ -249,6 +252,7 @@ export class WorkspaceHub {
 			hostOpen: () => this.bridge != null,
 			applyEngines: rows => this.applyAvailable(rows)
 		});
+		this.mcp = createMcp(lane);
 		this.review = createReview({
 			...lane,
 			ensureSlot: async projectId => {
@@ -1084,6 +1088,27 @@ export class WorkspaceHub {
 	}
 	async extensionStatus(id: string) {
 		return this.plugins.extensionStatus(id);
+	}
+	async listMcpServers() {
+		return this.mcp.listMcpServers();
+	}
+	async mcpServerControl(name: string, op: string) {
+		return this.mcp.mcpServerControl(name, op as McpServerOp);
+	}
+	async mcpServerPut(name: string, config: unknown) {
+		return this.mcp.mcpServerPut(name, config);
+	}
+	async mcpServerEnabled(name: string, enabled: boolean) {
+		return this.mcp.mcpServerEnabled(name, enabled);
+	}
+	async mcpServerDelete(name: string) {
+		return this.mcp.mcpServerDelete(name);
+	}
+	async mcpConfigImport(payload: unknown) {
+		return this.mcp.mcpConfigImport(payload);
+	}
+	async mcpConfigReload() {
+		return this.mcp.mcpConfigReload();
 	}
 	async installExtension(dir: string) {
 		return this.plugins.installExtension(dir);
