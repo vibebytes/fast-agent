@@ -1,10 +1,12 @@
 import {existsSync as fsExistsSync} from 'node:fs';
-import {placedEngineCli, resourcesEngineCli} from '@fastllm/bridge-client';
+import {engineExtensionsDir, placedEngineCli, resourcesEngineCli} from '@fastllm/bridge-client';
 
 export type EngineLaunch = {
 	command: string;
 	args: string[];
 	cwd: string;
+	/** Sibling `extensions/` of the engine install root; omitted if missing or FAST_EXTENSIONS set. */
+	extensionsDir?: string;
 };
 
 export type SessionLaunchMode = 'new' | 'continue' | 'resume';
@@ -110,7 +112,8 @@ export function resolveEngineLaunch(options: ResolveEngineLaunchOptions): Engine
 		return {
 			command: env.FAST_ENGINE_COMMAND,
 			args: withLoopbackWs(withSessionArgs(base, sessionArgs), options.loopbackWsPort),
-			cwd
+			cwd,
+			extensionsDir: engineExtensionsDir(env, env.FAST_ENGINE_COMMAND, exists)
 		};
 	}
 
@@ -123,7 +126,8 @@ export function resolveEngineLaunch(options: ResolveEngineLaunchOptions): Engine
 				withSessionArgs(defaultTransportArgs(transport, options.socketPath), sessionArgs),
 				options.loopbackWsPort
 			),
-			cwd
+			cwd,
+			extensionsDir: engineExtensionsDir(env, bundled, exists)
 		};
 	}
 
@@ -135,7 +139,8 @@ export function resolveEngineLaunch(options: ResolveEngineLaunchOptions): Engine
 				withSessionArgs(defaultTransportArgs(transport, options.socketPath), sessionArgs),
 				options.loopbackWsPort
 			),
-			cwd
+			cwd,
+			extensionsDir: engineExtensionsDir(env, placed, exists)
 		};
 	}
 

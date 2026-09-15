@@ -148,10 +148,16 @@ class DshHttpSpec extends AnyFunSuite with Matchers:
       json.hcursor.downField("value").get[Boolean]("writable").toOption.get shouldBe true
     finally server.stop(0)
 
-  test("ready without token fails immediately"):
-    val remote = DshHttp(Future.successful(1), muxReadySec = 1)
-    val ex = intercept[Exception](await(remote.ready))
-    ex.getMessage should include("dsh token")
+  test("ready without token skips auth and opens the mux"):
+    val (port, server) = serve: (_, _) =>
+      (200, """{"type":"server-response","rpcId":"x","result":{"ok":true,"value":{}}}""")
+    try
+      val remote = DshHttp(Future.successful(port), muxReadySec = 1)
+      try
+        val ex = intercept[Exception](await(remote.ready))
+        ex.getMessage should include("dsh mux")
+      finally remote.close()
+    finally server.stop(0)
 
   test("ready with token times out when mux never opens"):
     val (port, server) = serve: (_, _) =>

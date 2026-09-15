@@ -157,13 +157,12 @@ class DshProcess private (attach: Option[Int], argv: List[String], config: Optio
     attach match
       case Some(p) =>
         portP.trySuccess(p)
-        val ts = sources(config)
-        ts.token match
-          case Some(t) =>
-            rememberToken(t)
-            tokenP.trySuccess(Some(t))
-          case None =>
-            tokenP.tryFailure(RuntimeException(s"dsh token missing (probed: ${ts.probed.mkString(", ")})"))
+        // Attach must reuse the token the engine was launched with. `rememberToken`
+        // persists it to `DshRoots.of()/.token` at spawn, so a fresh JVM attaching to
+        // an already-running dsh still finds it there even though the prop is gone.
+        // No source anywhere means the dsh serves without auth (the probe only lets
+        // us attach a 200), so attach tokenless like spawn's banner-less drain does.
+        tokenP.trySuccess(sources(config).token)
       case None =>
         if argv.isEmpty then
           portP.tryFailure(IllegalStateException("FAST_DSH_COMMAND empty"))
@@ -205,13 +204,6 @@ object DshProcess:
   def attach(port: Int, config: Option[Map[String, Json]] = None): DshProcess = DshProcess(Some(port), Nil, config)
   def spawn(argv: List[String], config: Option[Map[String, Json]] = None): DshProcess = DshProcess(None, argv, config)
   def spawn(command: String): DshProcess = spawn(argvOf(command))
-
-  /** Composition root: only when port or command is set. Official 3080 is `of`, not auto-enabled. */
-  def wanted: Option[DshProcess] =
-    val port =
-      sys.props.get("fast.dsh.port").orElse(sys.env.get("FAST_DSH_PORT")).map(_.trim).filter(_.nonEmpty)
-    val cmd = sys.env.get("FAST_DSH_COMMAND").map(_.trim).filter(_.nonEmpty)
-    if port.isDefined || cmd.isDefined then of else None
 
   /** `fast.dsh.port` / `FAST_DSH_PORT` attaches; else `FAST_DSH_COMMAND` spawns; else official 3080. */
   def of: Option[DshProcess] =

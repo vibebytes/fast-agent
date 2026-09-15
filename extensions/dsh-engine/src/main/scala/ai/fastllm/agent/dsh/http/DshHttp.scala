@@ -122,20 +122,24 @@ class DshHttp(
     if muxOpen.isCompleted then muxOpen.future
     else
       tokenOf.flatMap:
-        case None | Some("") =>
-          Future.failed(RuntimeException("dsh token missing"))
         case Some(tok) =>
           log.info("dsh ready: cookie + $events")
           portOf.flatMap: port =>
-            authorize(port, tok).flatMap: _ =>
-              openMux()
-              val cf = new CompletableFuture[Void]()
-              muxOpen.future.onComplete:
-                case scala.util.Success(_) => cf.complete(null)
-                case scala.util.Failure(e) => cf.completeExceptionally(e)
-              cf.orTimeout(muxReadySec, TimeUnit.SECONDS).asScala.map(_ => ())
-                .recoverWith:
-                  case NonFatal(e) => Future.failed(DshMuxTimeout(s"dsh mux: ${e.getMessage}", e))
+            authorize(port, tok).map(_ => openMux())
+              .flatMap(_ => muxWait())
+        case None =>
+          log.info("dsh ready: no token, opening mux without auth")
+          portOf.map(_ => openMux())
+            .flatMap(_ => muxWait())
+
+  private def muxWait(): Future[Unit] =
+    val cf = new CompletableFuture[Void]()
+    muxOpen.future.onComplete:
+      case scala.util.Success(_) => cf.complete(null)
+      case scala.util.Failure(e) => cf.completeExceptionally(e)
+    cf.orTimeout(muxReadySec, TimeUnit.SECONDS).asScala.map(_ => ())
+      .recoverWith:
+        case NonFatal(e) => Future.failed(DshMuxTimeout(s"dsh mux: ${e.getMessage}", e))
 
   def close(): Unit =
     stopped.set(true)
@@ -306,10 +310,10 @@ class DshHttp(
       val attempt: Runnable = () =>
         if !stopped.get() && gen == reconnectGen.get() then
           tokenOf.foreach:
-            case Some(tok) if tok.nonEmpty =>
+            case Some(tok) =>
               portOf.foreach: port =>
                 authorize(port, tok).foreach(_ => openMux())
-            case _ => ()
+            case None => openMux()
       CompletableFuture.delayedExecutor(delay, TimeUnit.SECONDS, (r: Runnable) => ec.execute(r)).execute(attempt)
 
   private def onRemote(raw: Json): Unit =

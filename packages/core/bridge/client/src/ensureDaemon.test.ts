@@ -5,6 +5,7 @@ import {tmpdir} from 'node:os';
 import path from 'node:path';
 import {
 	ensureDaemon,
+	engineExtensionsDir,
 	isBridgeEngineCommand,
 	isLiveBridgeHost,
 	placedEngineCli,
@@ -526,4 +527,59 @@ test('ensureDaemon backs off when pid claim races then connects', async () => {
 	assert.equal(result.spawned, false);
 	assert.equal(result.token, 'race-token');
 	assert.ok(claimAttempts >= 1);
+});
+
+function extensionFixture(): {root: string; cli: string; extensions: string} {
+	const root = mkdtempSync(path.join(tmpdir(), 'fast-ext-'));
+	const cli = path.join(root, 'engine', 'bin', 'fast-cli');
+	const extensions = path.join(root, 'engine', 'extensions');
+	mkdirSync(path.dirname(cli), {recursive: true});
+	writeFileSync(cli, '');
+	mkdirSync(extensions, {recursive: true});
+	return {root, cli, extensions};
+}
+
+test('engineExtensionsDir returns sibling extensions of the engine root', () => {
+	const fx = extensionFixture();
+	assert.equal(engineExtensionsDir({}, fx.cli), fx.extensions);
+});
+
+test('engineExtensionsDir skips bare commands without a path separator', () => {
+	assert.equal(engineExtensionsDir({}, 'fast-cli'), undefined);
+});
+
+test('engineExtensionsDir never overrides explicit FAST_EXTENSIONS', () => {
+	const fx = extensionFixture();
+	assert.equal(engineExtensionsDir({FAST_EXTENSIONS: '/custom/ext'}, fx.cli), undefined);
+});
+
+test('engineExtensionsDir requires the sibling dir to exist', () => {
+	const root = mkdtempSync(path.join(tmpdir(), 'fast-ext-'));
+	assert.equal(engineExtensionsDir({}, path.join(root, 'engine', 'bin', 'fast-cli')), undefined);
+});
+
+test('resolveDaemonLaunch seeds FAST_EXTENSIONS from the bundled engine root', () => {
+	const fx = extensionFixture();
+	const env: NodeJS.ProcessEnv = {FAST_BUNDLED_ENGINE: fx.cli};
+	resolveDaemonLaunch(path.join(fx.root, 'b.sock'), env);
+	assert.equal(env.FAST_EXTENSIONS, fx.extensions);
+});
+
+test('resolveDaemonLaunch seeds FAST_EXTENSIONS from the placed engine root', () => {
+	const root = mkdtempSync(path.join(tmpdir(), 'fast-ext-'));
+	const cli = path.join(root, 'modules', 'engine', 'current', 'bin', 'fast-cli');
+	const extensions = path.join(root, 'modules', 'engine', 'current', 'extensions');
+	mkdirSync(path.dirname(cli), {recursive: true});
+	writeFileSync(cli, '');
+	mkdirSync(extensions, {recursive: true});
+	const env: NodeJS.ProcessEnv = {FAST_AGENT_ROOT: root};
+	resolveDaemonLaunch(path.join(root, 'b.sock'), env);
+	assert.equal(env.FAST_EXTENSIONS, extensions);
+});
+
+test('resolveDaemonLaunch keeps an explicit FAST_EXTENSIONS', () => {
+	const fx = extensionFixture();
+	const env: NodeJS.ProcessEnv = {FAST_BUNDLED_ENGINE: fx.cli, FAST_EXTENSIONS: '/custom/ext'};
+	resolveDaemonLaunch(path.join(fx.root, 'b.sock'), env);
+	assert.equal(env.FAST_EXTENSIONS, '/custom/ext');
 });

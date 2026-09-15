@@ -30,6 +30,7 @@ test('applyPackagedRuntime sets bundled engine and prepends bin', () => {
 	assert.equal(env.FAST_WANT_ENGINE_ID, '0.3.1 temurin-17-darwin-arm64 2026-09-02T00:00:00.000Z');
 	assert.ok(env.PATH?.startsWith(`${resources}/bin`));
 	assert.ok(env.PATH?.includes(`${resources}/engine/jre/bin`));
+	assert.equal(env.FAST_NODE, `${resources}/bin/node`);
 });
 
 test('applyPackagedRuntime overwrites JAVA_HOME', () => {

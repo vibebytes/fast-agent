@@ -262,6 +262,18 @@ function existingEngineCli(binDir: string): string | undefined {
 	}
 }
 
+/** `<root>/bin/<cli>` → `<root>/extensions`, unless FAST_EXTENSIONS is already set. */
+export function engineExtensionsDir(
+	env: NodeJS.ProcessEnv = process.env,
+	cliPath: string,
+	exists: (path: string) => boolean = existsSync
+): string | undefined {
+	if (env.FAST_EXTENSIONS?.trim()) return undefined;
+	if (!/[\\/]/.test(cliPath)) return undefined;
+	const dir = path.join(path.dirname(path.dirname(cliPath)), 'extensions');
+	return exists(dir) ? dir : undefined;
+}
+
 /** Packaged Desktop / CLI: `$resources/engine/bin/fast-cli`. */
 export function resourcesEngineCli(
 	env: NodeJS.ProcessEnv = process.env,
@@ -316,6 +328,11 @@ function resolveDaemonLaunchBase(
 	const withSession = (args: string[]) =>
 		hasSessionFlag(args) ? args : [...args, '--continue'];
 	const agentRoot = env.FAST_AGENT_ROOT?.trim();
+	const withExtensions = (cli: string) => {
+		const dir = engineExtensionsDir(env, cli);
+		if (dir && env.FAST_EXTENSIONS === undefined) env.FAST_EXTENSIONS = dir;
+		return cli;
+	};
 	if (env.FAST_ENGINE_COMMAND?.trim()) {
 		const base = env.FAST_ENGINE_ARGS?.split(/\s+/).filter(Boolean) ?? [
 			'engine',
@@ -324,7 +341,7 @@ function resolveDaemonLaunchBase(
 		];
 		const withoutTransport = stripTransportArgs(base);
 		return {
-			command: env.FAST_ENGINE_COMMAND,
+			command: withExtensions(env.FAST_ENGINE_COMMAND.trim()),
 			args: withSession([...withoutTransport, ...socketArgs]),
 			cwd: agentRoot
 		};
@@ -334,7 +351,7 @@ function resolveDaemonLaunchBase(
 		(agentRoot ? existingEngineCli(path.join(agentRoot, 'engine', 'bin')) : undefined);
 	if (bundled && existsSync(bundled)) {
 		return {
-			command: bundled,
+			command: withExtensions(bundled),
 			args: withSession(['engine', '--mode', 'bridge', ...socketArgs]),
 			cwd: agentRoot
 		};
@@ -342,7 +359,7 @@ function resolveDaemonLaunchBase(
 	const fromResources = resourcesEngineCli(env);
 	if (fromResources) {
 		return {
-			command: fromResources,
+			command: withExtensions(fromResources),
 			args: withSession(['engine', '--mode', 'bridge', ...socketArgs]),
 			cwd: agentRoot
 		};
@@ -350,7 +367,7 @@ function resolveDaemonLaunchBase(
 	const placed = placedEngineCli([agentRoot], env);
 	if (placed) {
 		return {
-			command: placed,
+			command: withExtensions(placed),
 			args: withSession(['engine', '--mode', 'bridge', ...socketArgs]),
 			cwd: path.dirname(path.dirname(placed))
 		};

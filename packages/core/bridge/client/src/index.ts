@@ -10,6 +10,7 @@ export {
 	engineBinName,
 	placedEngineCli,
 	resourcesEngineCli,
+	engineExtensionsDir,
 	engineCommandLine,
 	isPidAlive,
 	readPidFile,

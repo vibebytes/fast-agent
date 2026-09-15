@@ -20,13 +20,14 @@ object DshRoots:
       || Files.isRegularFile(root.resolve(".installed"))
 
   def argv(root: Path = of()): Option[List[String]] =
-    val bin = root.resolve("node_modules/.bin/dsh")
-    val node = sys.env.get("FAST_NODE").orElse(sys.props.get("fast.node"))
-    val flags = List("web", "--host", "127.0.0.1", "--port", OfficialPort.toString)
-    if Files.isRegularFile(bin) then Some(bin.toAbsolutePath.toString :: flags)
-    else if node.isDefined && installed(root) then
-      Some(node.get :: root.resolve("node_modules/@deepseek-ai/dsh").toString :: flags)
-    else None
+    if !installed(root) then None
+    else
+      val node = sys.env.get("FAST_NODE").orElse(sys.props.get("fast.node")).getOrElse("node")
+      val pkg = root.resolve("node_modules/@deepseek-ai/dsh")
+      val entry = pkg.resolve("lib/bin.js")
+      val target = if Files.isRegularFile(entry) then entry.toAbsolutePath.toString else pkg.toString
+      // --expose-internals: dsh live patchReload (HMR) requires it; --no-open: keep the token URL out of the user's browser
+      Some(node :: "--max-http-header-size=65536" :: "--expose-internals" :: target :: List("web", "--no-open", "--host", "127.0.0.1", "--port", OfficialPort.toString))
 
   def command(root: Path = of()): Option[String] =
     argv(root).map: a =>

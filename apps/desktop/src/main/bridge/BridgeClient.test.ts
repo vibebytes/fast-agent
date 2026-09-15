@@ -6,6 +6,77 @@ import {resolveEngineLaunch} from './engineLaunch.js';
 import {BridgeClient} from './BridgeClient.js';
 import type {BridgeEvent} from '@fastllm/bridge-protocol';
 
+function fakeChild() {
+	const child = new EventEmitter() as EventEmitter & {
+		stdout: PassThrough;
+		stderr: PassThrough;
+		stdin: PassThrough;
+		killed: boolean;
+		pid: number;
+		kill(): void;
+	};
+	return Object.assign(child, {
+		stdout: new PassThrough(),
+		stderr: new PassThrough(),
+		stdin: new PassThrough(),
+		killed: false,
+		pid: 7,
+		kill() {
+			this.killed = true;
+		}
+	});
+}
+
+test('resolveEngineLaunch derives extensionsDir from the engine root', () => {
+	const exists = (p: string) => p === '/opt/engine/extensions';
+	const launch = resolveEngineLaunch({
+		workspaceRoot: '/tmp/ws',
+		env: {FAST_ENGINE_COMMAND: '/opt/engine/bin/fast-cli'},
+		existsSync: exists
+	});
+	assert.equal(launch.extensionsDir, '/opt/engine/extensions');
+});
+
+test('resolveEngineLaunch keeps explicit FAST_EXTENSIONS and omits extensionsDir', () => {
+	const exists = (p: string) => p === '/opt/engine/extensions';
+	const launch = resolveEngineLaunch({
+		workspaceRoot: '/tmp/ws',
+		env: {FAST_ENGINE_COMMAND: '/opt/engine/bin/fast-cli', FAST_EXTENSIONS: '/custom/ext'},
+		existsSync: exists
+	});
+	assert.equal(launch.extensionsDir, undefined);
+});
+
+test('resolveEngineLaunch omits extensionsDir when the sibling dir is missing', () => {
+	const launch = resolveEngineLaunch({
+		workspaceRoot: '/tmp/ws',
+		env: {FAST_ENGINE_COMMAND: '/opt/engine/bin/fast-cli'},
+		existsSync: () => false
+	});
+	assert.equal(launch.extensionsDir, undefined);
+});
+
+test('BridgeClient spawns the engine with FAST_EXTENSIONS from the engine root', async () => {
+	const child = fakeChild();
+	let spawnEnv: NodeJS.ProcessEnv | undefined;
+	const client = new BridgeClient({
+		spawnImpl: (_command, _args, options) => {
+			spawnEnv = options.env;
+			return child as never;
+		}
+	});
+	client.start(
+		'/tmp/ws',
+		{onEvent() {}, onError() {}, onExit() {}},
+		{
+			env: {FAST_ENGINE_COMMAND: '/opt/engine/bin/fast-cli'},
+			existsSync: p => p === '/opt/engine/extensions'
+		}
+	);
+	assert.equal(spawnEnv?.FAST_EXTENSIONS, '/opt/engine/extensions');
+	client.stop();
+});
+
 test('resolveEngineLaunch uses workspace cwd and FAST_ENGINE_* env', () => {
 	const launch = resolveEngineLaunch({
 		workspaceRoot: '/tmp/my-project',
@@ -166,6 +237,31 @@ test('BridgeClient reaches ready when mock engine emits ready NDJSON', async () 
 	assert.ok(events.some(e => e.type === 'ready'));
 	assert.equal(errors.length, 0);
 	client.stop();
+});
+
+test('BridgeClient stopAndWait observes exit emitted synchronously by kill', async () => {
+	const stdout = new PassThrough();
+	const stdin = new PassThrough();
+	const stderr = new PassThrough();
+	const child = Object.assign(new EventEmitter(), {
+		stdout,
+		stderr,
+		stdin,
+		kill(this: EventEmitter) {
+			this.emit('exit', 0, null);
+		}
+	});
+	const client = new BridgeClient({spawnImpl: () => child as never});
+	await client.start('/tmp/ws', {
+		onEvent() {},
+		onError() {},
+		onExit() {}
+	}, {
+		env: {FAST_ENGINE_COMMAND: 'mock', FAST_ENGINE_ARGS: 'engine'},
+		bundledEnginePath: '/unused'
+	});
+
+	assert.equal(await client.stopAndWait(20), true);
 });
 
 test('BridgeClient logs invalid engine JSON without failing the engine', async () => {

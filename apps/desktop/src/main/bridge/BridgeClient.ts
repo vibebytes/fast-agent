@@ -193,7 +193,9 @@ export class BridgeClient {
 
 		const child = this.spawnImpl(launch.command, launch.args, {
 			cwd: launch.cwd,
-			env: childEnv
+			env: launch.extensionsDir
+				? {...childEnv, FAST_EXTENSIONS: launch.extensionsDir}
+				: childEnv
 		});
 		this.child = child;
 		this.stdoutBuffer = '';
@@ -271,6 +273,20 @@ export class BridgeClient {
 			return;
 		}
 		this.stop();
+	}
+
+	async stopAndWait(timeoutMs: number): Promise<boolean> {
+		const child = this.child;
+		if (!child) {
+			this.stop();
+			return true;
+		}
+		const exited = new Promise<void>(resolve => child.once('exit', resolve));
+		this.stop();
+		return Promise.race([
+			exited.then(() => true),
+			new Promise<boolean>(resolve => setTimeout(() => resolve(false), timeoutMs))
+		]);
 	}
 
 	stop(): void {

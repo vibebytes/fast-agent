@@ -160,13 +160,8 @@ export class EngineSessionHarness {
 	async close(): Promise<void> {
 		if (this.closed) return;
 		this.closed = true;
-		this.bridge.stop();
-		if (this.exited) return;
-		await Promise.race([
-			new Promise<void>(resolve => this.exitWaiters.push(resolve)),
-			new Promise<void>(resolve => setTimeout(resolve, EXIT_GRACE_MS))
-		]);
-		if (!this.exited) {
+		const stopped = await this.bridge.stopAndWait(EXIT_GRACE_MS);
+		if (!stopped) {
 			console.error(
 				`[engine-e2e] engine still alive ${EXIT_GRACE_MS}ms after stop() — fixture cleanup will race it\n${this.diagnose()}`
 			);

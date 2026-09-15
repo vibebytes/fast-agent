@@ -98,13 +98,14 @@ class DshInspectSpec extends AnyFunSuite with Matchers with BeforeAndAfterEach:
 
   test("local spawn command never contains npx --yes"):
     val root = DshRoots.of()
-    Files.createDirectories(root.resolve("node_modules/.bin"))
-    Files.writeString(root.resolve("node_modules/.bin/dsh"), "#!/bin/sh\n")
-    Files.createDirectories(root.resolve("node_modules/@deepseek-ai/dsh"))
+    Files.createDirectories(root.resolve("node_modules/@deepseek-ai/dsh/lib"))
     Files.writeString(root.resolve("node_modules/@deepseek-ai/dsh/package.json"), "{}")
+    Files.writeString(root.resolve("node_modules/@deepseek-ai/dsh/lib/bin.js"), "//")
     val cmd = DshRoots.command(root).get
     cmd should not include "npx --yes"
-    DshRoots.argv(root).get.head shouldBe root.resolve("node_modules/.bin/dsh").toAbsolutePath.toString
+    val argv = DshRoots.argv(root).get
+    argv should contain allOf("--max-http-header-size=65536", "--expose-internals", "--no-open")
+    argv(3) shouldBe root.resolve("node_modules/@deepseek-ai/dsh/lib/bin.js").toAbsolutePath.toString
     DshRoots.rejectsNpx("npx --yes @deepseek-ai/dsh web") shouldBe true
 
   private def closedPort(): Int =

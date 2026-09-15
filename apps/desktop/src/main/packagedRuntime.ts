@@ -31,5 +31,7 @@ export function applyPackagedRuntime(input: {
 	const bin = join(input.resourcesPath, 'bin');
 	if (exists(bin)) {
 		input.env.PATH = `${bin}${delimiter}${input.env.PATH ?? ''}`;
+		const node = join(bin, 'node');
+		if (exists(node)) input.env.FAST_NODE ??= node;
 	}
 }

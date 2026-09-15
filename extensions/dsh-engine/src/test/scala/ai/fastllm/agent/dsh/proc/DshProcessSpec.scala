@@ -33,6 +33,8 @@ class DshProcessSpec extends AnyFunSuite with Matchers:
       sys.props.remove("fast.dsh.token")
       launchToken shouldBe Some("from-banner")
       java.nio.file.Files.readString(DshRoots.of().resolve(".token")).trim shouldBe "from-banner"
+      rememberToken("from-banner")
+      await(DshProcess.attach(1234).token) shouldBe Some("from-banner")
     finally
       prevProp match
         case Some(v) => sys.props.update("fast.dsh.token", v)
@@ -40,6 +42,32 @@ class DshProcessSpec extends AnyFunSuite with Matchers:
       prevRoot match
         case Some(v) => sys.props.update("fast.runtime.root", v)
         case None => sys.props.remove("fast.runtime.root")
+
+  test("attach without config reads the launch token from prop or persisted file"):
+    val prevProp = sys.props.get("fast.dsh.token")
+    val prevRoot = sys.props.get("fast.runtime.root")
+    val prevHome = sys.props.get("user.home")
+    val dir = java.nio.file.Files.createTempDirectory("dsh-attach-")
+    sys.props.update("fast.runtime.root", dir.toString)
+    sys.props.update("user.home", dir.toString)
+    sys.props.remove("fast.dsh.token")
+    try
+      val root1 = DshRoots.at(EngineId("dsh"), Some(dir.toString), dir.toString)
+      java.nio.file.Files.createDirectories(root1)
+      java.nio.file.Files.writeString(root1.resolve(".token"), "from-file")
+      await(DshProcess.attach(1234).token) shouldBe Some("from-file")
+      rememberToken("from-banner")
+      await(DshProcess.attach(1234).token) shouldBe Some("from-banner")
+    finally
+      prevProp match
+        case Some(v) => sys.props.update("fast.dsh.token", v)
+        case None => sys.props.remove("fast.dsh.token")
+      prevRoot match
+        case Some(v) => sys.props.update("fast.runtime.root", v)
+        case None => sys.props.remove("fast.runtime.root")
+      prevHome match
+        case Some(v) => sys.props.update("user.home", v)
+        case None => sys.props.remove("user.home")
 
   test("default spawn command is empty and argvOf splits an explicit local command"):
     DefaultCommand shouldBe empty
@@ -56,15 +84,14 @@ class DshProcessSpec extends AnyFunSuite with Matchers:
   test("local spawn argv keeps a bin path that contains spaces"):
     val runtime = java.nio.file.Files.createTempDirectory("Application Support")
     val root = runtime.resolve("engines/dsh")
-    java.nio.file.Files.createDirectories(root.resolve("node_modules/.bin"))
-    val bin = root.resolve("node_modules/.bin/dsh")
-    java.nio.file.Files.writeString(bin, "#!/bin/sh\n")
-    java.nio.file.Files.createDirectories(root.resolve("node_modules/@deepseek-ai/dsh"))
+    java.nio.file.Files.createDirectories(root.resolve("node_modules/@deepseek-ai/dsh/lib"))
     java.nio.file.Files.writeString(root.resolve("node_modules/@deepseek-ai/dsh/package.json"), "{}")
+    java.nio.file.Files.writeString(root.resolve("node_modules/@deepseek-ai/dsh/lib/bin.js"), "//")
     val argv = DshRoots.argv(root).get
-    argv.head shouldBe bin.toAbsolutePath.toString
-    argv.head should include("Application Support")
-    argv.tail shouldBe List("web", "--host", "127.0.0.1", "--port", OfficialPort.toString)
+    argv(3) shouldBe root.resolve("node_modules/@deepseek-ai/dsh/lib/bin.js").toAbsolutePath.toString
+    argv(3) should include("Application Support")
+    argv should contain allOf("--max-http-header-size=65536", "--expose-internals", "--no-open")
+    argv.drop(4) shouldBe List("web", "--no-open", "--host", "127.0.0.1", "--port", OfficialPort.toString)
 
   test("of attaches official 3080 when port and command are unset"):
     OfficialPort shouldBe 3080
@@ -211,7 +238,7 @@ echo "dsh web: http://127.0.0.1:4312/?token=$FAST_DSH_TOKEN"
         case Some(v) => sys.props.update("user.home", v)
         case None => sys.props.remove("user.home")
 
-  test("attach with no token source fails with all probed labels and no token value"):
+  test("attach with no token source anywhere completes tokenless"):
     val prevProp = sys.props.get("fast.dsh.token")
     val prevRoot = sys.props.get("fast.runtime.root")
     val prevHome = sys.props.get("user.home")
@@ -220,17 +247,8 @@ echo "dsh web: http://127.0.0.1:4312/?token=$FAST_DSH_TOKEN"
     sys.props.update("fast.runtime.root", dir.toString)
     sys.props.update("user.home", dir.toString)
     try
-      if sys.env.get("FAST_DSH_TOKEN").forall(_.trim.isEmpty) then
-        val cfg = Json.obj("tokenFile" -> "/nonexistent-xyz/.token".asJson).asObject.get.toMap
-        val p = DshProcess.attach(1234, Some(cfg))
-        val ex = intercept[Exception](await(p.token))
-        ex.getMessage should include("dsh token missing (probed:")
-        ex.getMessage should include("config.token")
-        ex.getMessage should include("config.tokenFile=/nonexistent-xyz/.token(missing)")
-        ex.getMessage should include("fast.dsh.token")
-        ex.getMessage should include("FAST_DSH_TOKEN")
-        ex.getMessage should include(".token")
-        ex.getMessage should not include("secret")
+      await(DshProcess.attach(1234).token) shouldBe None
+      await(DshProcess.attach(1234).port) shouldBe 1234
     finally
       prevProp match
         case Some(v) => sys.props.update("fast.dsh.token", v)

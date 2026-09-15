@@ -16,5 +16,8 @@ object DshProbe:
         .version(HttpClient.Version.HTTP_1_1)
         .build()
         .send(req, HttpResponse.BodyHandlers.discarding())
-      res.statusCode() < 500
+      // 401 means a dsh is bound but its launch token is unknown to us: attaching would
+      // reuse a stale remembered token and every request would 401. Treat it as not ready
+      // so the caller spawns and captures the fresh banner token instead.
+      res.statusCode() < 400
     catch case NonFatal(_) => false
