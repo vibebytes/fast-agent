@@ -587,6 +587,8 @@
         "count": "{{count}} MCP-серверов",
         "emptyTitle": "Нет MCP-серверов",
         "emptyDescription": "Добавьте сервер вручную или импортируйте из JSON.",
+        "loadFailed": "Не удалось загрузить MCP-серверы",
+        "loadFailedDescription": "Не удалось прочитать список MCP из движка.",
         "pid": "PID {{pid}}",
         "restarts": "Перезапусков: {{count}}",
         "tools": "Инструментов: {{count}}",

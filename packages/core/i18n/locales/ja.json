@@ -587,6 +587,8 @@
         "count": "{{count}} 件の MCP サーバー",
         "emptyTitle": "MCP サーバーがありません",
         "emptyDescription": "サーバーを手動で追加するか、JSON 設定から読み込みます。",
+        "loadFailed": "MCP サーバーの読み込みに失敗しました",
+        "loadFailedDescription": "エンジンから MCP サーバー一覧を取得できませんでした。",
         "pid": "PID {{pid}}",
         "restarts": "{{count}} 回再起動",
         "tools": "{{count}} 個のツール",

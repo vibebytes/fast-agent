@@ -54,8 +54,8 @@ export function McpPane({mcp}: {mcp: McpHook}) {
 		return (
 			<SettingsState
 				status="error"
-				title={t('settings.plugins.loadFailed')}
-				description={mcp.notice ?? t('settings.plugins.loadFailedDescription')}
+				title={t('settings.plugins.mcp.loadFailed')}
+				description={mcp.notice ?? t('settings.plugins.mcp.loadFailedDescription')}
 				onRetry={mcp.retry}
 			/>
 		);

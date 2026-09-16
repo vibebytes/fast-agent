@@ -47,8 +47,13 @@ export function createMcp(lane: HostLane): WorkspaceMcp {
 				return {ok: false, notice: r.event.message};
 			}
 			const mcp = r.event.mcp;
-			if (!mcp) return {ok: false, notice: r.event.message || 'mcp control result missing'};
-			return {ok: true, mcp};
+			const mcpName = mcp?.name;
+			const mcpOp = mcp?.op;
+			const mcpState = mcp?.state;
+			if (!mcp || mcpName == null || mcpOp == null || mcpState == null) {
+				return {ok: false, notice: r.event.message || 'mcp control result missing'};
+			}
+			return {ok: true, mcp: {...mcp, name: mcpName, op: mcpOp, state: mcpState}};
 		},
 		async mcpServerPut(name, config) {
 			const r = await hostRequest(

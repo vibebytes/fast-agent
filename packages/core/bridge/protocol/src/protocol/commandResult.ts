@@ -1,6 +1,12 @@
 import {z} from 'zod';
 import {reviewPayload} from './checkout.js';
 
+/** AdminRows emits numeric columns as strings; coerce so ListMcpServers is not dropped. */
+const wireNum = z.preprocess(
+	v => (typeof v === 'string' && v.trim() !== '' ? Number(v) : v),
+	z.number().nullish()
+);
+
 export const commandResultSchema = z.object({
 		type: z.literal('command_result'),
 		name: z.string(),
@@ -163,33 +169,38 @@ export const commandResultSchema = z.object({
 					transport: z.string().optional(),
 					command: z.string().optional(),
 					args: z.union([z.array(z.string()), z.string()]).optional(),
-					env: z.union([z.record(z.string(), z.string()), z.array(z.string())]).optional(),
+					env: z.union([z.record(z.string(), z.string()), z.array(z.string()), z.string()]).optional(),
 					url: z.string().optional(),
 					enabled: z.boolean().optional(),
 					restartRequired: z.boolean().optional(),
 					state: z.string().nullish(),
-					pid: z.number().nullish(),
-					restarts: z.number().nullish(),
+					pid: wireNum,
+					restarts: wireNum,
 					lastError: z.string().nullish(),
 					stderrTail: z.string().nullish(),
 					connectionStatus: z.string().nullish(),
-					discoveredToolCount: z.number().nullish()
+					discoveredToolCount: wireNum
 				})
 			)
 			.optional(),
-		/** MCP control plane result (McpServerControl). */
+		/**
+		 * MCP control result (McpServerControl) or write-plane ack (Put/Enabled/Delete/Import/Reload).
+		 * Write acks historically stuffed `{ok, applied, actions, servers}` here; required control
+		 * fields would drop the whole command_result and the UI timed out waiting for McpConfigImport.
+		 */
 		mcp: z
 			.object({
-				ok: z.boolean(),
-				name: z.string(),
-				op: z.string(),
-				state: z.string(),
-				pid: z.number().nullish(),
-				restarts: z.number().nullish(),
+				ok: z.boolean().optional(),
+				name: z.string().optional(),
+				op: z.string().optional(),
+				state: z.string().optional(),
+				pid: wireNum,
+				restarts: wireNum,
 				restartRequired: z.boolean().optional(),
 				lastError: z.string().nullish(),
 				message: z.string().optional()
 			})
+			.passthrough()
 			.optional(),
 		/** L0 engine admin rows (ListEngines / write cmds). */
 		engines: z

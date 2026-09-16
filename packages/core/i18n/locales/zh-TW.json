@@ -587,6 +587,8 @@
         "count": "{{count}} 個 MCP 服務",
         "emptyTitle": "沒有 MCP 服務",
         "emptyDescription": "手動新增服務，或從 JSON 設定匯入。",
+        "loadFailed": "載入 MCP 失敗",
+        "loadFailedDescription": "無法從引擎讀取 MCP 服務列表。",
         "pid": "PID {{pid}}",
         "restarts": "已重啟 {{count}} 次",
         "tools": "{{count}} 個工具",

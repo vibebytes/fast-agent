@@ -587,6 +587,8 @@
         "count": "{{count}} MCP servers",
         "emptyTitle": "No MCP servers",
         "emptyDescription": "Add a server manually, or import from JSON config.",
+        "loadFailed": "Failed to load MCP servers",
+        "loadFailedDescription": "Could not read MCP servers from the Engine.",
         "pid": "PID {{pid}}",
         "restarts": "{{count}} restarts",
         "tools": "{{count}} tools",

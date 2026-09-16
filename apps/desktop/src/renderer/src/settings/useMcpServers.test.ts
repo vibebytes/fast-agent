@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import {beforeEach, test} from 'node:test';
 import type {McpControlResult, McpServerOp, McpServerRow} from '@fastllm/bridge-client';
 import {mcpStore, mcpNoticeKind, parseImportPayload} from './useMcpServers.js';
+import {rowState} from './McpServerCard.js';
 
 type ListOk = {ok: true; mcpServers: McpServerRow[]};
 type Err = {ok: false; notice: string};
@@ -208,6 +209,32 @@ test('list ready sorts servers and clears notice', async () => {
 	assert.deepEqual(view.servers.map(s => s.name), ['alpha', 'zeta']);
 });
 
+test('control success re-lists and does not surface restart-requested copy', async () => {
+	let lists = 0;
+	mcpStore.bindApi(
+		api({
+			list: async () => {
+				lists += 1;
+				return {ok: true, mcpServers: [server('blender', {state: lists === 1 ? 'starting' : 'running', pid: 1})]};
+			},
+			control: async () => ({
+				ok: true,
+				mcp: controlResult({
+					op: 'restart',
+					state: 'running',
+					message: 'restart requested (state=running)'
+				})
+			})
+		})
+	);
+	mcpStore.setEngineReady(true);
+	const done = await mcpStore.control('blender', 'restart');
+	assert.equal(done, true);
+	assert.equal(lists, 2);
+	assert.equal(mcpStore.getSnapshot().notice, null);
+	assert.equal(mcpStore.getSnapshot().servers[0]?.state, 'running');
+});
+
 test('control ok surfaces message and restart-required refreshes list', async () => {
 	let lists = 0;
 	let sawOp: McpServerOp | null = null;
@@ -303,10 +330,62 @@ test('import ok updates rows', async () => {
 	assert.equal(mcpStore.getSnapshot().servers.length, 1);
 });
 
+test('import with empty rows re-lists instead of wiping', async () => {
+	mcpStore.bindApi(
+		api({
+			import: async () => ({ok: true, mcpServers: []}),
+			list: async () => ({ok: true, mcpServers: [server('blender')]})
+		})
+	);
+	mcpStore.setEngineReady(true);
+	await mcpStore.list();
+	const done = await mcpStore.importServers({mcpServers: {blender: {command: 'uvx'}}});
+	assert.equal(done, true);
+	assert.equal(mcpStore.getSnapshot().servers[0]?.name, 'blender');
+});
+
 test('reload failure sets notice', async () => {
 	mcpStore.bindApi(api({reload: async () => ({ok: false, notice: 'invalid yaml'})}));
 	mcpStore.setEngineReady(true);
 	const done = await mcpStore.reload();
 	assert.equal(done, false);
 	assert.equal(mcpNoticeKind(mcpStore.getSnapshot().notice ?? ''), 'InvalidJson');
+});
+
+test('queued list after a starting snapshot applies running', async () => {
+	let lists = 0;
+	let release!: () => void;
+	const gate = new Promise<void>(resolve => {
+		release = resolve;
+	});
+	mcpStore.bindApi(
+		api({
+			list: async () => {
+				const n = ++lists;
+				if (n === 1) await gate;
+				return {ok: true, mcpServers: [server('blender', {state: n === 1 ? 'starting' : 'running', pid: 1})]};
+			}
+		})
+	);
+	mcpStore.setEngineReady(true);
+	const started = Date.now();
+	while (lists < 1 && Date.now() - started < 1000) await new Promise(r => setTimeout(r, 5));
+	assert.equal(lists, 1);
+	const follow = mcpStore.list();
+	release();
+	await follow;
+	const until = Date.now() + 1000;
+	while (mcpStore.getSnapshot().servers[0]?.state !== 'running' && Date.now() < until) {
+		await new Promise(r => setTimeout(r, 5));
+	}
+	assert.equal(mcpStore.getSnapshot().servers[0]?.state, 'running');
+	assert.equal(lists, 2);
+});
+
+test('rowState uses exact tokens so disconnected is not starting', () => {
+	assert.equal(rowState(server('a', {state: 'starting'})).key, 'starting');
+	assert.equal(rowState(server('a', {state: 'running'})).key, 'running');
+	assert.equal(rowState(server('a', {state: 'disconnected'})).key, 'stopped');
+	assert.equal(rowState(server('a', {connectionStatus: 'disconnected'})).key, 'stopped');
+	assert.equal(rowState(server('a', {state: 'failed'})).key, 'failed');
 });

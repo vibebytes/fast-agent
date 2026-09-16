@@ -587,6 +587,8 @@
         "count": "{{count}} MCP-Server",
         "emptyTitle": "Keine MCP-Server",
         "emptyDescription": "Server manuell hinzufügen oder aus JSON-Konfiguration importieren.",
+        "loadFailed": "MCP-Server konnten nicht geladen werden",
+        "loadFailedDescription": "Die MCP-Serverliste konnte nicht vom Engine gelesen werden.",
         "pid": "PID {{pid}}",
         "restarts": "{{count}} Neustarts",
         "tools": "{{count}} Werkzeuge",

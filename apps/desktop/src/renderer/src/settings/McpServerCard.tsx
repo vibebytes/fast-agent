@@ -1,12 +1,11 @@
 import {useState} from 'react';
 import {useTranslation} from 'react-i18next';
-import {Pencil, RotateCcw, Terminal, Trash2} from 'lucide-react';
+import {ChevronRight, Pencil, RotateCcw, Terminal, Trash2} from 'lucide-react';
 import {Switch} from '@fast-ide/ui/components/switch';
 import {
 	MonoTag,
 	PulseStatusBadge,
-	SettingsButton,
-	settingsControlClass
+	SettingsButton
 } from './SettingsPrimitives';
 import type {McpServerRow} from '@fastllm/bridge-client';
 import {cn} from '@fast-ide/ui/lib/utils';
@@ -14,11 +13,12 @@ import {cn} from '@fast-ide/ui/lib/utils';
 export function rowState(row: McpServerRow): {status: string; key: string} {
 	if (!row.enabled) return {status: 'neutral', key: 'disabled'};
 	const s = (row.state || row.connectionStatus || '').toLowerCase();
-	if (s.includes('fail') || s.includes('error')) return {status: 'error', key: 'failed'};
-	if (s.includes('circuit')) return {status: 'warning', key: 'circuit'};
-	if (s.includes('start') || s.includes('connect')) return {status: 'warning', key: 'starting'};
-	if (s.includes('run') || s.includes('ready') || s.includes('connected'))
+	if (s === 'failed' || s === 'error' || s === 'fail') return {status: 'error', key: 'failed'};
+	if (s === 'circuit') return {status: 'warning', key: 'circuit'};
+	if (s === 'starting' || s === 'connecting') return {status: 'warning', key: 'starting'};
+	if (s === 'running' || s === 'ready' || s === 'connected' || s === 'healthy')
 		return {status: 'healthy', key: 'running'};
+	if (s.includes('fail') || s.includes('error')) return {status: 'error', key: 'failed'};
 	return {status: 'neutral', key: 'stopped'};
 }
 
@@ -144,20 +144,21 @@ export function McpServerCard({
 			) : null}
 
 			{row.stderrTail ? (
-				<div>
+				<div className="min-w-0 overflow-hidden rounded-lg border border-border/50 bg-muted/25">
 					<button
 						type="button"
-						className={cn(
-							settingsControlClass,
-							'h-7 gap-1 rounded-md px-2 text-[11px] text-muted-foreground'
-						)}
+						className="flex h-7 w-full items-center gap-1.5 px-2.5 text-left text-[11px] font-medium text-muted-foreground transition-colors hover:bg-muted/50"
 						onClick={() => setLogsOpen(v => !v)}
+						aria-expanded={logsOpen}
 					>
-						<Terminal className="size-3" />
+						<ChevronRight
+							className={cn('size-3 shrink-0 transition-transform duration-150', logsOpen && 'rotate-90')}
+						/>
+						<Terminal className="size-3 shrink-0 opacity-70" />
 						{t('settings.plugins.mcp.logs')}
 					</button>
 					{logsOpen ? (
-						<pre className="mt-1.5 max-h-40 overflow-auto rounded-md border border-border/50 bg-muted/40 p-2 font-mono text-[11px] leading-relaxed text-muted-foreground">
+						<pre className="max-h-48 overflow-auto border-t border-border/40 bg-background/40 px-2.5 py-2 font-mono text-[11px] leading-relaxed text-muted-foreground whitespace-pre-wrap break-all">
 							{row.stderrTail}
 						</pre>
 					) : null}

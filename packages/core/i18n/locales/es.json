@@ -587,6 +587,8 @@
         "count": "{{count}} servidores MCP",
         "emptyTitle": "No hay servidores MCP",
         "emptyDescription": "Añade un servidor manualmente o impórtalo desde JSON.",
+        "loadFailed": "Error al cargar los servidores MCP",
+        "loadFailedDescription": "No se pudo leer la lista MCP del motor.",
         "pid": "PID {{pid}}",
         "restarts": "{{count}} reinicios",
         "tools": "{{count}} herramientas",

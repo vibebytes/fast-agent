@@ -587,6 +587,8 @@
         "count": "{{count}} serveurs MCP",
         "emptyTitle": "Aucun serveur MCP",
         "emptyDescription": "Ajoutez un serveur manuellement ou importez depuis JSON.",
+        "loadFailed": "Échec du chargement des serveurs MCP",
+        "loadFailedDescription": "Impossible de lire la liste MCP depuis le moteur.",
         "pid": "PID {{pid}}",
         "restarts": "{{count}} redémarrages",
         "tools": "{{count}} outils",

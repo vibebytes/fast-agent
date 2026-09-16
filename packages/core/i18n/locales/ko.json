@@ -587,6 +587,8 @@
         "count": "MCP 서버 {{count}}개",
         "emptyTitle": "MCP 서버가 없습니다",
         "emptyDescription": "서버를 직접 추가하거나 JSON 설정에서 가져오세요.",
+        "loadFailed": "MCP 서버를 불러오지 못했습니다",
+        "loadFailedDescription": "엔진에서 MCP 서버 목록을 읽지 못했습니다.",
         "pid": "PID {{pid}}",
         "restarts": "{{count}}회 재시작됨",
         "tools": "도구 {{count}}개",

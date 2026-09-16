@@ -151,6 +151,9 @@ class McpStore {
 	private view: McpView = viewOf('loading', [], '', null, {}, false);
 	private listeners = new Set<() => void>();
 	private generation = 0;
+	private startingTimer: ReturnType<typeof setTimeout> | null = null;
+	private listing: Promise<void> | null = null;
+	private listAgain = false;
 	private api: McpApi = liveApi();
 
 	bindApi(api: McpApi): void {
@@ -159,6 +162,9 @@ class McpStore {
 
 	resetForTest(): void {
 		this.generation += 1;
+		this.listing = null;
+		this.listAgain = false;
+		this.clearStartingRefresh();
 		this.view = viewOf('loading', [], '', null, {});
 		this.publish();
 	}
@@ -201,29 +207,46 @@ class McpStore {
 	}
 
 	list = async (engineReady = false): Promise<void> => {
-		const gen = ++this.generation;
+		if (this.listing) {
+			this.listAgain = true;
+			return this.listing;
+		}
+		const refresh = this.view.status === 'ready' && this.view.servers.length > 0;
+		const gen = refresh ? this.generation : ++this.generation;
 		if (engineReady || this.view.engineReady) {
 			if (!engineReady && !this.view.engineReady) {
 				this.setView(viewOf('disabled', this.view.servers, this.view.search, null, {}, false));
 				return;
 			}
-			this.patch({status: 'loading', engineReady: true});
+			if (!refresh) this.patch({status: 'loading', engineReady: true});
+			else this.patch({engineReady: true});
 		} else {
 			this.setView(viewOf('disabled', this.view.servers, this.view.search, null, {}, false));
 			return;
 		}
-		try {
-			const res = await this.api.listMcpServers();
-			if (gen !== this.generation) return;
-			if (!res.ok) {
-				this.patch({status: 'error', notice: res.notice});
-				return;
+		this.listing = (async () => {
+			try {
+				const res = await this.api.listMcpServers();
+				if (gen !== this.generation) return;
+				if (!res.ok) {
+					this.patch({status: 'error', notice: res.notice});
+					return;
+				}
+				this.setView(viewOf('ready', sorted(res.mcpServers), this.view.search, null, this.view.busy, true));
+			} catch (e) {
+				if (gen !== this.generation) return;
+				this.patch({status: 'error', notice: errText(e)});
+			} finally {
+				this.listing = null;
+				if (this.listAgain) {
+					this.listAgain = false;
+					void this.list();
+				} else {
+					this.scheduleStartingRefresh();
+				}
 			}
-			this.setView(viewOf('ready', sorted(res.mcpServers), this.view.search, null, this.view.busy, true));
-		} catch (e) {
-			if (gen !== this.generation) return;
-			this.patch({status: 'error', notice: errText(e)});
-		}
+		})();
+		return this.listing;
 	};
 
 	retry = (): void => {
@@ -238,10 +261,36 @@ class McpStore {
 		this.patch({notice: null});
 	}
 
+	private clearStartingRefresh(): void {
+		if (this.startingTimer == null) return;
+		clearTimeout(this.startingTimer);
+		this.startingTimer = null;
+	}
+
+	/** Handshake can take longer than the first list; keep pulling while any row is `starting`. */
+	private scheduleStartingRefresh(): void {
+		this.clearStartingRefresh();
+		if (!this.view.servers.some(r => (r.state ?? '').toLowerCase() === 'starting')) return;
+		this.startingTimer = setTimeout(() => {
+			this.startingTimer = null;
+			void this.list();
+		}, 1500);
+	}
+
 	private applyRows(rows: McpServerRow[] | undefined, notice: string | null = null): void {
 		this.setView(
 			viewOf('ready', sorted(rows ?? this.view.servers), this.view.search, notice, this.view.busy, this.view.engineReady)
 		);
+	}
+
+	/** Write cmds may ack without rows (legacy WriteResult in `mcp`). Re-list instead of wiping. */
+	private async applyWrite(rows: McpServerRow[], notice: string | null = null): Promise<void> {
+		if (rows.length > 0) {
+			this.applyRows(rows, notice);
+			return;
+		}
+		await this.list();
+		if (notice) this.patch({notice, noticeKind: mcpNoticeKind(notice)});
 	}
 
 	control = async (name: string, op: McpServerOp): Promise<boolean> => {
@@ -249,16 +298,14 @@ class McpStore {
 		this.withBusy(name, true);
 		try {
 			const res = await this.api.mcpServerControl(name, op);
+			await this.list();
 			if (!res.ok) {
-				this.applyRows(undefined, res.notice);
+				this.patch({notice: res.notice, noticeKind: mcpNoticeKind(res.notice)});
 				return false;
 			}
-			const notice = res.mcp.restartRequired ? 'restart required' : res.mcp.message ?? null;
-			this.applyRows(undefined, notice);
-			if (res.mcp.restartRequired) {
-				await this.list();
-				this.patch({notice: 'restart required'});
-			}
+			const err = res.mcp.lastError?.trim();
+			if (err) this.patch({notice: err, noticeKind: mcpNoticeKind(err)});
+			else if (res.mcp.restartRequired) this.patch({notice: 'restart required', noticeKind: 'NeedsRestart'});
 			return true;
 		} catch (e) {
 			this.applyRows(undefined, errText(e));
@@ -277,7 +324,7 @@ class McpStore {
 				this.applyRows(undefined, res.notice);
 				return false;
 			}
-			this.applyRows(res.mcpServers);
+			await this.applyWrite(res.mcpServers);
 			return true;
 		} catch (e) {
 			this.applyRows(undefined, errText(e));
@@ -309,7 +356,7 @@ class McpStore {
 				return false;
 			}
 			const restart = res.mcpServers.find(row => row.name === name)?.restartRequired;
-			this.applyRows(res.mcpServers, restart ? 'restart required' : null);
+			await this.applyWrite(res.mcpServers, restart ? 'restart required' : null);
 			return true;
 		} catch (e) {
 			revert(errText(e));
@@ -345,7 +392,7 @@ class McpStore {
 				this.applyRows(undefined, res.notice);
 				return false;
 			}
-			this.applyRows(res.mcpServers);
+			await this.applyWrite(res.mcpServers);
 			return true;
 		} catch (e) {
 			this.applyRows(undefined, errText(e));
@@ -364,7 +411,7 @@ class McpStore {
 				this.applyRows(undefined, res.notice);
 				return false;
 			}
-			this.applyRows(res.mcpServers);
+			await this.applyWrite(res.mcpServers);
 			return true;
 		} catch (e) {
 			this.applyRows(undefined, errText(e));
