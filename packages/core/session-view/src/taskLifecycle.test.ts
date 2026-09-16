@@ -260,22 +260,46 @@ test('retryPendingNew resends CreateSession once and guards against duplicates',
 	assert.equal(sent.filter(c => c.type === 'CreateSession').length, 1);
 });
 
-test('SetEngineKind rejected result reverts staged engineKind', () => {
+test('SetEngineKind rejected result keeps the owned picker kind', () => {
 	const {deps} = makeDeps();
-	const reverted: string[] = [];
-	deps.setActiveEngineKind = k => reverted.push(k);
+	const painted: string[] = [];
+	deps.setActiveEngineKind = k => painted.push(k);
 	const lc = createTaskLifecycle(deps);
 	const task = lc.createTask('Eng');
 	lc.acceptNewSession('sess-a', task.id);
-	task.engineKind = 'fast';
-	lc.stageEngineChange('sess-a', 'fast');
 	task.engineKind = 'dsh';
+	lc.stageEngineChange('sess-a', 'dsh');
 	const stop = lc.handleCommandResult(
 		asEvent({type: 'command_result', name: 'SetEngineKind', sessionId: 'sess-a', status: 'rejected'})
 	);
 	assert.equal(stop.stop, true);
+	assert.equal(task.engineKind, 'dsh');
+	assert.deepEqual(painted, ['dsh']);
+});
+
+test('stale SetEngineKind success does not clobber a later fast pick', () => {
+	const {deps} = makeDeps();
+	const painted: string[] = [];
+	deps.setActiveEngineKind = k => painted.push(k);
+	const lc = createTaskLifecycle(deps);
+	const task = lc.createTask('Eng');
+	lc.acceptNewSession('sess-a', task.id);
+	lc.stageEngineChange('sess-a', 'dsh');
+	task.engineKind = 'dsh';
+	lc.stageEngineChange('sess-a', 'fast');
+	task.engineKind = 'fast';
+	const stop = lc.handleCommandResult(
+		asEvent({
+			type: 'command_result',
+			name: 'SetEngineKind',
+			sessionId: 'sess-a',
+			status: 'success',
+			message: 'dsh'
+		})
+	);
+	assert.equal(stop.stop, true);
 	assert.equal(task.engineKind, 'fast');
-	assert.deepEqual(reverted, ['fast']);
+	assert.deepEqual(painted, []);
 });
 
 test('hydrateSessions upserts stubs, selects isCurrent and restores chrome', () => {

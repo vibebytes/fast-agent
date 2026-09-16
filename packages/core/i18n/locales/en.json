@@ -428,7 +428,7 @@
     },
     "engines": {
       "listTitle": "Supported engines",
-      "listDescription": "The default engine applies to new sessions only. Open sessions stay on their current engine.",
+      "listDescription": "This page installs, enables, and starts engines. Switch a conversation in the composer. The default badge is the fallback when a session omits engineKind; it cannot be changed here.",
       "status": {
         "running": "Running",
         "available": "Available",

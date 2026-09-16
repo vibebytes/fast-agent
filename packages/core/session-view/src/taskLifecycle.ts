@@ -97,7 +97,7 @@ export function createTaskLifecycle<T extends LifecycleTask>(deps: TaskLifecycle
 	const tasks = new Map<string, T>();
 	/** Optimistic rename revert keyed by Engine sessionId. */
 	const pendingTitleBySession = new Map<string, {taskId: string; previous: string}>();
-	/** Optimistic engineKind revert keyed by Engine sessionId. */
+	/** Owned picker kind keyed by Engine sessionId. Hydrate must not overwrite it. */
 	const pendingEngineBySession = new Map<string, EngineKind>();
 	/** Soft-delete waiters keyed by Engine sessionId. */
 	const pendingDeleteBySession = new Map<
@@ -347,7 +347,7 @@ export function createTaskLifecycle<T extends LifecycleTask>(deps: TaskLifecycle
 		return sendCreateSession(projectId, task.title, task.id);
 	};
 
-	/** Stage the active chrome engineKind as the revert value for a SetEngineKind send. */
+	/** Pin the Composer pick so inventory / stale SetEngineKind cannot revert it. */
 	const stageEngineChange = (sessionId: string, engineKind: EngineKind): void => {
 		pendingEngineBySession.set(sessionId, engineKind);
 	};
@@ -399,8 +399,11 @@ export function createTaskLifecycle<T extends LifecycleTask>(deps: TaskLifecycle
 				continue;
 			}
 
-			// A SetEngineKind in flight owns this session's engineKind until its
-			// command_result settles — a racing inventory row must not revert the pick.
+			// The Composer pick owns this session's engineKind until the session
+			// row agrees. A racing inventory row must not revert a fast rollback.
+			const owned = pendingEngineBySession.get(info.id);
+			const settled = parseEngineKind(info.engineKind);
+			if (owned != null && settled === owned) pendingEngineBySession.delete(info.id);
 			const stickyInfo = pendingEngineBySession.has(info.id)
 				? {...info, engineKind: undefined}
 				: info;
@@ -508,18 +511,22 @@ export function createTaskLifecycle<T extends LifecycleTask>(deps: TaskLifecycle
 		if (event.type === 'command_result' && event.name === 'SetEngineKind') {
 			const sid =
 				'sessionId' in event && typeof event.sessionId === 'string' ? event.sessionId : undefined;
-			const pending = sid ? pendingEngineBySession.get(sid) : undefined;
-			if (sid) pendingEngineBySession.delete(sid);
+			const owned = sid ? pendingEngineBySession.get(sid) : undefined;
 			const task = (sid ? deps.taskBySessionId(sid) : null) ?? deps.getActiveTask();
 			if (event.status === 'rejected' || event.status === 'error') {
-				if (pending != null && task) {
-					task.engineKind = pending;
+				// Owned pick wins: a reject for an earlier SetEngine must not roll the
+				// user back off a later fast pick.
+				if (owned != null && task) {
+					task.engineKind = owned;
 					tasks.set(task.id, task);
-					if (deps.getActiveTask()?.id === task.id) deps.setActiveEngineKind(pending);
+					if (deps.getActiveTask()?.id === task.id) deps.setActiveEngineKind(owned);
 					deps.onChange();
 				}
 			} else if (task) {
 				const k = parseEngineKind(event.message);
+				if (owned != null && k !== owned) {
+					return {stop: true, task: deps.getActiveTask()};
+				}
 				task.engineKind = k;
 				tasks.set(task.id, task);
 				if (deps.getActiveTask()?.id === task.id) deps.setActiveEngineKind(k);

@@ -217,7 +217,7 @@ class DshLoop(
   def submit(cmd: AgentAttachProtocol.Command.SubmitUserMessage): Future[Admit] =
     if cmd.skillSlash.isDefined then Future.successful(Admit.Rejected("dsh_slash"))
     else
-      val cwd = cwdOf(cmd.sessionId).trim
+      val cwd = Option(cwdOf(cmd.sessionId)).map(_.trim).getOrElse("")
       log.info(s"dsh submit session=${cmd.sessionId} cwd=$cwd")
       if cwd.isEmpty then Future.successful(Admit.Rejected("cwd missing"))
       else

@@ -29,6 +29,7 @@ object DshBoot:
   )(using ExecutionContext): Option[DshBoot] =
     process.map: proc =>
       val remote = DshHttp(proc.port, tokenOf = proc.token)
+      given ExecutionContext = remote.work
       val loop = DshLoop(
         remote,
         cwdOf,

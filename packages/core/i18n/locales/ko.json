@@ -428,7 +428,7 @@
     },
     "engines": {
       "listTitle": "지원 엔진",
-      "listDescription": "기본 엔진은 새 세션에만 적용됩니다. 열린 세션은 그대로입니다.",
+      "listDescription": "이 페이지는 설치, 사용, 시작/중지입니다. 대화 엔진은 입력창에서 바꿉니다. 기본 표시는 engineKind가 없을 때의 대체값이며 여기서 바꿀 수 없습니다.",
       "status": {
         "running": "실행 중",
         "available": "사용 가능",

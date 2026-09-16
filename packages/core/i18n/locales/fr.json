@@ -428,7 +428,7 @@
     },
     "engines": {
       "listTitle": "Moteurs pris en charge",
-      "listDescription": "Le moteur par défaut s’applique uniquement aux nouvelles sessions. Les sessions ouvertes restent inchangées.",
+      "listDescription": "Cette page installe, active et démarre les moteurs. Changez le moteur d’une conversation dans le compositeur. Le badge par défaut est le repli sans engineKind ; il n’est pas modifiable ici.",
       "status": {
         "running": "En cours",
         "available": "Disponible",

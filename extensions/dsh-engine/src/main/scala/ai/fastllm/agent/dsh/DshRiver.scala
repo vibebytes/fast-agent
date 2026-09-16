@@ -40,8 +40,12 @@ object DshRiver:
   /** Detached river: same numbering contract, process-local storage (tests, host-less runs). */
   def local(cap: Int = 2048): DshRiver = LocalRiver(cap)
 
-  /** Shard-backed river: every seq comes from the Session entity. */
-  def engine(sink: EngineEventSink, timeout: FiniteDuration = 10.seconds): DshRiver =
+  /**
+   * Shard-backed river: every seq comes from the Session entity.
+   * By-name: CliApp starts DSH before CommandLoop assigns `Wave1Host.events`.
+   * A captured Unprovided sink would fail every append with MissingHost.
+   */
+  def engine(sink: => EngineEventSink, timeout: FiniteDuration = 10.seconds): DshRiver =
     EngineRiver(sink, timeout)
 
   private final class LocalRiver(cap: Int) extends DshRiver:
@@ -70,12 +74,14 @@ object DshRiver:
     def read(sessionId: String, afterSeq: Long): Future[List[EventRow]] =
       Future.successful(synchronized(tails.getOrElse(sessionId, Vector.empty).filter(_.seq > afterSeq).toList))
 
-  private final class EngineRiver(sink: EngineEventSink, timeout: FiniteDuration) extends DshRiver with LazyLogging:
+  private final class EngineRiver(sink: => EngineEventSink, timeout: FiniteDuration) extends DshRiver with LazyLogging:
     def append(sessionId: String, runId: Option[String], payloads: List[Json]): List[Long] =
       if payloads.isEmpty then Nil
       else
         val events = payloads.map(Passthrough(sessionId, _))
-        attempt(sink.append(sessionId, runId, events)).orElse(attempt(sink.append(sessionId, runId, events))) match
+        // One ask: Await does not cancel, and a second send would duplicate rows
+        // while SessionEntity is still busy on the first AppendEngine.
+        attempt(sink.append(sessionId, runId, events)) match
           case Right(seqs) if seqs.size == payloads.size => seqs
           case Right(seqs)                               =>
             logger.error(s"dsh river append answered ${seqs.size} seqs for ${payloads.size} rows ($sessionId)")

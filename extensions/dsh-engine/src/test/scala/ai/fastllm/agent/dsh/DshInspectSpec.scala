@@ -57,6 +57,15 @@ class DshInspectSpec extends AnyFunSuite with Matchers with BeforeAndAfterEach:
     probe.process shouldBe ProcessPhase.Stopped
     probe.runningDetail shouldBe None
 
+  test("HTTP 401 without user root is still running"):
+    val server = serve(401)
+    try
+      val port = server.getAddress.getPort
+      val probe = DshInspect().probe(EngineConfig(Map("port" -> Json.fromInt(port))))
+      probe.process shouldBe ProcessPhase.Running
+      probe.runningDetail shouldBe Some(s"127.0.0.1:$port")
+    finally server.stop(0)
+
   test("HTTP ready without user root is missing / running with host:port"):
     val server = serve()
     try
@@ -105,6 +114,7 @@ class DshInspectSpec extends AnyFunSuite with Matchers with BeforeAndAfterEach:
     cmd should not include "npx --yes"
     val argv = DshRoots.argv(root).get
     argv should contain allOf("--max-http-header-size=65536", "--expose-internals", "--no-open")
+    DshRoots.withPort(argv, 4099).takeRight(2) shouldBe List("--port", "4099")
     argv(3) shouldBe root.resolve("node_modules/@deepseek-ai/dsh/lib/bin.js").toAbsolutePath.toString
     DshRoots.rejectsNpx("npx --yes @deepseek-ai/dsh web") shouldBe true
 
@@ -114,13 +124,13 @@ class DshInspectSpec extends AnyFunSuite with Matchers with BeforeAndAfterEach:
     s.close()
     p
 
-  private def serve(): HttpServer =
+  private def serve(status: Int = 200): HttpServer =
     val server = HttpServer.create(InetSocketAddress("127.0.0.1", 0), 0)
     server.createContext(
       "/",
       (ex: HttpExchange) =>
         val body = Array.empty[Byte]
-        ex.sendResponseHeaders(200, body.length)
+        ex.sendResponseHeaders(status, body.length)
         ex.getResponseBody.close()
     )
     server.start()

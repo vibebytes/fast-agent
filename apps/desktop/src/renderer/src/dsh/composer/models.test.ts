@@ -6,6 +6,7 @@ import {
 	effortLabel,
 	failSnap,
 	modelChrome,
+	modelsNotice,
 	okSnap,
 	type DshModelsSnap
 } from './models';
@@ -56,6 +57,12 @@ test('modelChrome does not call the first paint a not-ready failure', () => {
 		spinning: false,
 		pane: 'retry'
 	});
+});
+
+test('modelsNotice hides a Fast-runtime unsupported code', () => {
+	assert.equal(modelsNotice({code: 'unsupported'}), 'DSH 未就绪');
+	assert.equal(modelsNotice({code: 'unsupported', message: 'unsupported'}), 'DSH 未就绪');
+	assert.equal(modelsNotice({code: 'unavailable', message: 'engine unavailable'}), 'engine unavailable');
 });
 
 test('modelChrome shows the engine notice after a failed load and stops spinning', () => {

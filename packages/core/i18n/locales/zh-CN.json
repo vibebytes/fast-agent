@@ -428,7 +428,7 @@
     },
     "engines": {
       "listTitle": "已支持的引擎",
-      "listDescription": "默认引擎只影响新会话。已打开的会话不会改。",
+      "listDescription": "此页只负责安装、启用和启停。切换对话引擎请在对话框里选；默认标记是未指定时的回退，不能在这里改。",
       "status": {
         "running": "运行中",
         "available": "可用",

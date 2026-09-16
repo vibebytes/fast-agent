@@ -86,11 +86,8 @@ export function createSessionModelSettings(deps: SessionModelSettingsDeps) {
 			if (active?.id !== expectedTaskId && active?.sessionId !== expectedTaskId) return false;
 		}
 		const sessionId = deps.commandSessionId();
-		if (!sessionId || catalog.engineKind === k) {
-			catalog.applyEngineKind(k);
-			return Boolean(sessionId);
-		}
-		deps.stageEngineChange(sessionId, catalog.engineKind);
+		if (sessionId) deps.stageEngineChange(sessionId, k);
+		catalog.applyEngineKind(k);
 		return true;
 	}
 

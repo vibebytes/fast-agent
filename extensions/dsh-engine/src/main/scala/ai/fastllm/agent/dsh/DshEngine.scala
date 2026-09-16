@@ -1,7 +1,7 @@
 package ai.fastllm.agent.dsh
 
 import ai.fastllm.agent.channel.{Admit, AgentAttachProtocol, AgentLoop, Caps}
-import ai.fastllm.agent.dsh.proc.{argvOf, DshProcess}
+import ai.fastllm.agent.dsh.proc.{argvOf, sources, DshProcess}
 import ai.fastllm.agent.engine.{
   Engine, EngineCallResult, EngineConfig, EngineHost, EngineId, EngineRuntime,
   EngineSession, EngineSessionContext
@@ -45,8 +45,16 @@ object DshEngine:
     val envCmd = sys.env.get("FAST_DSH_COMMAND").map(_.trim).filter(_.nonEmpty).map(argvOf)
     val local = DshRoots.argv()
     val cmd = cfgCmd.orElse(envCmd).orElse(local).filterNot(a => DshRoots.rejectsNpx(a.mkString(" ")))
-    if DshProbe.ready("127.0.0.1", port) then Some(DshProcess.attach(port, Some(config.fields)))
-    else if cmd.isDefined && DshRoots.installed() then Some(DshProcess.spawn(cmd.get, Some(config.fields)))
+    val live = DshProbe.bound("127.0.0.1", port)
+    val ours = sources(Some(config.fields)).token.exists(t => DshProbe.accepted("127.0.0.1", port, t))
+    // Attach only when this token already opens the live web. A 401 occupant with a
+    // stale disk token is not ours — engine-hosted spawn takes a free port instead
+    // of attaching and then dying with "dsh token rejected".
+    if live && ours then Some(DshProcess.attach(port, Some(config.fields)))
+    else if cmd.isDefined && DshRoots.installed() then
+      val argv = if live then DshRoots.withPort(cmd.get, DshProbe.freePort()) else cmd.get
+      Some(DshProcess.spawn(argv, Some(config.fields)))
+    else if live then Some(DshProcess.attach(port, Some(config.fields)))
     else None
 
 final class DshRuntime(boot: DshBoot)(using ExecutionContext) extends EngineRuntime:

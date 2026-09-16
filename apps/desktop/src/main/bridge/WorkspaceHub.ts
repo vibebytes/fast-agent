@@ -180,6 +180,7 @@ export class WorkspaceHub {
 	private rebindTimer: ReturnType<typeof setTimeout> | null = null;
 	private rebindResetTimer: ReturnType<typeof setTimeout> | null = null;
 	private lastPickerEngineIds: string[] = ['fast'];
+	private lastRegistryIds = new Set<string>(['fast']);
 	private pickerRefreshTimers: ReturnType<typeof setTimeout>[] = [];
 	private rebindAttempts = 0;
 	private shuttingDown = false;
@@ -627,10 +628,9 @@ export class WorkspaceHub {
 		if (!this.bridge || this.engineStatus !== 'ready') {
 			return {ok: false, error: {code: 'unavailable', message: 'Engine not ready'}};
 		}
-		const sid =
-			sessionId?.trim() ||
-			this.getActive()?.sessions.getActiveTask()?.sessionId ||
-			undefined;
+		const sessions = this.getActive()?.sessions;
+		const sid = sessionId?.trim() || sessions?.getActiveTask()?.sessionId || undefined;
+		const engineKind = sessions?.engineKind;
 		const requestId = randomUUID();
 		const {token, promise} = this.hostWait.waitRequest(requestId);
 		if (
@@ -639,7 +639,8 @@ export class WorkspaceHub {
 				method,
 				payload,
 				requestId,
-				...(sid ? {sessionId: sid} : {})
+				...(sid ? {sessionId: sid} : {}),
+				...(engineKind ? {engineKind} : {})
 			})
 		) {
 			this.hostWait.cancel(token);
@@ -927,6 +928,7 @@ export class WorkspaceHub {
 		}
 		this.clearPickerRefresh();
 		this.lastPickerEngineIds = ['fast'];
+		this.lastRegistryIds = new Set(['fast']);
 		this.hostWait.cancelAll();
 		for (const id of [...this.projects.keys()]) {
 			this.projects.get(id)?.sessions.detachAll();
@@ -1215,8 +1217,15 @@ export class WorkspaceHub {
 	}
 	private applyAvailable(rows: EngineWireRow[]): void {
 		this.lastPickerEngineIds = pickerEngineIds(rows);
+		const registry = new Set(
+			rows.filter(r => r.inRegistry).map(r => r.id.trim().toLowerCase()).filter(Boolean)
+		);
+		const gained = [...registry].filter(id => !this.lastRegistryIds.has(id));
+		this.lastRegistryIds = registry;
 		for (const project of this.projects.values()) {
 			project.sessions.setAvailableEngines(this.lastPickerEngineIds);
+			const kind = project.sessions.engineKind;
+			if (kind && gained.includes(kind)) project.sessions.rebindPickedEngine();
 		}
 	}
 

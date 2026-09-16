@@ -428,7 +428,7 @@
     },
     "engines": {
       "listTitle": "Unterstützte Engines",
-      "listDescription": "Die Standard-Engine gilt nur für neue Sitzungen. Offene Sitzungen bleiben unverändert.",
+      "listDescription": "Diese Seite installiert, aktiviert und startet Engines. Die Unterhaltung wechseln Sie im Composer. Das Standard-Abzeichen ist der Fallback ohne engineKind und hier nicht änderbar.",
       "status": {
         "running": "Läuft",
         "available": "Verfügbar",

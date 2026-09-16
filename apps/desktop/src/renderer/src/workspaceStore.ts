@@ -322,7 +322,7 @@ function applyTasksMeta(state: WorkspaceState, meta: TasksMeta): WorkspaceState 
 		modelDisplay: meta.modelDisplay,
 		modelCatalog: meta.modelCatalog,
 		runMode: meta.runMode ?? 'agent',
-		engineKind: meta.engineKind ?? 'fast',
+		engineKind: meta.engineKind ?? state.engineKind ?? 'fast',
 		availableEngineIds: meta.availableEngineIds ?? state.availableEngineIds ?? ['fast'],
 		effort: meta.effort,
 		thinking: meta.thinking,
@@ -384,7 +384,7 @@ function applyTasksStructure(state: WorkspaceState, meta: TasksMeta): WorkspaceS
 					model: meta.model,
 					modelDisplay: meta.modelDisplay,
 					runMode: meta.runMode ?? 'agent',
-					engineKind: meta.engineKind ?? 'fast',
+					engineKind: meta.engineKind ?? state.engineKind,
 					effort: meta.effort,
 					thinking: meta.thinking
 				}

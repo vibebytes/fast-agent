@@ -93,6 +93,50 @@ test('tasks:changed applies availableEngineIds even when focus does not match', 
 	assert.equal(state.engineKind, 'fast');
 });
 
+test('tasks:changed without engineKind keeps a dsh picker choice', () => {
+	const state = fold([
+		focus({activeTaskId: 't1', focusEpoch: 1}),
+		{
+			type: 'tasks:changed',
+			payload: {
+				tasks: [{id: 't1', title: 'T', active: true}],
+				chats: [],
+				defaultTasks: [],
+				activeTaskId: 't1',
+				activeKind: 'task',
+				gate: idleGate,
+				model: 'default',
+				modelDisplay: 'Default',
+				modelCatalog: [],
+				slashCatalog: [],
+				slashCatalogHydrated: false,
+				queue: [],
+				queuePaused: false,
+				engineKind: 'dsh'
+			}
+		},
+		{
+			type: 'tasks:changed',
+			payload: {
+				tasks: [{id: 't1', title: 'T', active: true}],
+				chats: [],
+				defaultTasks: [],
+				activeTaskId: 't1',
+				activeKind: 'task',
+				gate: idleGate,
+				model: 'default',
+				modelDisplay: 'Default',
+				modelCatalog: [],
+				slashCatalog: [],
+				slashCatalogHydrated: false,
+				queue: [],
+				queuePaused: false
+			}
+		}
+	]);
+	assert.equal(state.engineKind, 'dsh');
+});
+
 test('workspace:focus applies availableEngineIds', () => {
 	const state = fold([
 		{

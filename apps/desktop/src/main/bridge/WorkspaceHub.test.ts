@@ -2568,6 +2568,7 @@ test('engineCall times out with requestId when Engine emits no command_result', 
 	if (sent.type === 'EngineCall') {
 		assert.ok(sent.requestId);
 		assert.match(result.error.message ?? '', new RegExp(sent.requestId));
+		assert.equal(sent.engineKind, 'fast');
 	}
 	hub.closeAll();
 });
@@ -2615,6 +2616,31 @@ test('engineCall resolves settings.describe by requestId', async () => {
 	if (!result.ok) return;
 	assert.equal(result.method, 'settings.describe');
 	assert.equal((result.value as {writable?: boolean}).writable, true);
+	hub.closeAll();
+});
+
+test('engineCall sends the Composer engineKind so session.models can hit dsh before submit', async () => {
+	const commands: BridgeCommand[] = [];
+	const hub = new WorkspaceHub({
+		createBridge: () => createFakeBridge(commands),
+		hostCwd: mkdtempSync(path.join(tmpdir(), 'hub-host-')),
+		homeDir: mkdtempSync(path.join(tmpdir(), 'hub-home-')),
+		requestWaitMs: 200
+	});
+	hub.openProject(mkdtempSync(path.join(tmpdir(), 'proj-dsh-kind-')), noopHandlers());
+	await new Promise(r => setTimeout(r, 80));
+	const project = hub.getActive();
+	assert.ok(project);
+	project.sessions.setAvailableEngines(['fast', 'dsh']);
+	assert.equal(project.sessions.setEngineKind('dsh'), true);
+
+	void hub.engineCall('session.models', {}, project.sessions.getActiveTask()?.sessionId);
+	await new Promise(r => setTimeout(r, 20));
+	const sent = commands.find(c => c.type === 'EngineCall');
+	assert.ok(sent && sent.type === 'EngineCall');
+	if (sent.type === 'EngineCall') {
+		assert.equal(sent.engineKind, 'dsh');
+	}
 	hub.closeAll();
 });
 

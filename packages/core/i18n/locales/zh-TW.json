@@ -428,7 +428,7 @@
     },
     "engines": {
       "listTitle": "已支援的引擎",
-      "listDescription": "預設引擎只影響新工作階段。已開啟的工作階段不會變更。",
+      "listDescription": "此頁只負責安裝、啟用和啟停。切換對話引擎請在對話框裡選；預設標記是未指定時的回退，不能在這裡改。",
       "status": {
         "running": "執行中",
         "available": "可用",

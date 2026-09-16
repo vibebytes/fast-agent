@@ -817,12 +817,14 @@ test('EngineCall command and command_result keep engine error.code', () => {
 		method: 'session.models',
 		payload: {sessionId: 's1'},
 		sessionId: 's1',
-		requestId: 'r1'
+		requestId: 'r1',
+		engineKind: 'dsh'
 	});
 	assert.equal(cmd.type, 'EngineCall');
 	if (cmd.type === 'EngineCall') {
 		assert.equal(cmd.method, 'session.models');
 		assert.equal(cmd.sessionId, 's1');
+		assert.equal(cmd.engineKind, 'dsh');
 	}
 	const err = bridgeEventSchema.parse({
 		type: 'command_result',

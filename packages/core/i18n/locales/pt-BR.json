@@ -428,7 +428,7 @@
     },
     "engines": {
       "listTitle": "Mecanismos suportados",
-      "listDescription": "O mecanismo padrão vale só para novas sessões. As abertas não mudam.",
+      "listDescription": "Esta página instala, ativa e inicia motores. Troque o motor da conversa no compositor. O selo padrão é o fallback sem engineKind; não muda aqui.",
       "status": {
         "running": "Em execução",
         "available": "Disponível",

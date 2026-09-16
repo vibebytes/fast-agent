@@ -428,7 +428,7 @@
     },
     "engines": {
       "listTitle": "Motores compatibles",
-      "listDescription": "El motor predeterminado solo afecta a las sesiones nuevas. Las abiertas no cambian.",
+      "listDescription": "Esta página instala, habilita e inicia motores. Cambia el motor de una conversación en el compositor. La marca por defecto es el respaldo sin engineKind; no se cambia aquí.",
       "status": {
         "running": "En ejecución",
         "available": "Disponible",

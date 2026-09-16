@@ -11,17 +11,13 @@ import {
 	SettingsState,
 	type SettingsIcon
 } from './SettingsPrimitives';
+import {isEngineAvailable} from './engineSettings';
 import {engNoticeKind, useEngines} from './useEngines';
 
 const ENGINE_ICON: Record<string, SettingsIcon> = {
 	fast: Zap,
 	dsh: Cpu
 };
-
-function canBeDefault(entry: EngineRow): boolean {
-	if (entry.kind === 'builtin') return true;
-	return entry.adapter === 'ready' && entry.program !== 'missing' && entry.program !== 'installing';
-}
 
 type Tone = 'healthy' | 'warning' | 'error' | 'neutral';
 
@@ -47,7 +43,7 @@ function processTone(phase: EngineRow['process']): Tone {
 function overallStatus(entry: EngineRow): {tone: string; key: string} {
 	if (entry.adapter === 'failed') return {tone: 'error', key: 'failed'};
 	if (entry.process === 'running') return {tone: 'healthy', key: 'running'};
-	if (canBeDefault(entry)) return {tone: 'healthy', key: 'available'};
+	if (isEngineAvailable(entry)) return {tone: 'healthy', key: 'available'};
 	return {tone: 'neutral', key: 'notReady'};
 }
 
@@ -74,7 +70,6 @@ export function EnginesSettings({
 		disable,
 		start,
 		stop,
-		setDefault,
 		install,
 		uninstall,
 		cancelInstall
@@ -123,12 +118,11 @@ export function EnginesSettings({
 				title={t('settings.engines.listTitle')}
 				description={t('settings.engines.listDescription')}
 			>
-				<div role="radiogroup" aria-label={t('settings.engines.listTitle')} className="divide-y divide-border/40">
+				<div aria-label={t('settings.engines.listTitle')} className="divide-y divide-border/40">
 					{engines.map(entry => (
 						<EngineRowView
 							key={entry.id}
 							entry={entry}
-							onDefault={() => void setDefault(entry.id)}
 							onAction={action => {
 								if (action === 'enable') void enable(entry.id);
 								else if (action === 'disable') void disable(entry.id);
@@ -154,17 +148,13 @@ export function EnginesSettings({
 
 function EngineRowView({
 	entry,
-	onDefault,
 	onAction
 }: {
 	entry: EngineRow;
-	onDefault: () => void;
 	onAction: (action: string) => void;
 }) {
 	const {t} = useTranslation();
 	const Icon = ENGINE_ICON[entry.id] ?? Cpu;
-	const available = canBeDefault(entry);
-	const selectable = available && !entry.isDefault;
 	const name = t(`settings.engines.name.${entry.id}`, {defaultValue: entry.id});
 	const kindLabel =
 		entry.kind === 'builtin' ? t('settings.engines.builtin') : t('settings.engines.extension');
@@ -179,23 +169,8 @@ function EngineRowView({
 
 	return (
 		<div
-			role="radio"
-			aria-checked={entry.isDefault}
-			tabIndex={selectable ? 0 : -1}
-			onClick={selectable ? onDefault : undefined}
-			onKeyDown={
-				selectable
-					? event => {
-							if (event.key === 'Enter' || event.key === ' ') {
-								event.preventDefault();
-								onDefault();
-							}
-						}
-					: undefined
-			}
 			className={cn(
 				'relative flex flex-col gap-3 px-4 py-3.5 outline-none transition-colors duration-150 sm:flex-row sm:items-center sm:justify-between sm:gap-4',
-				selectable && 'cursor-pointer hover:bg-muted/30 focus-visible:bg-muted/30',
 				entry.isDefault && 'bg-primary/[0.04]'
 			)}
 		>

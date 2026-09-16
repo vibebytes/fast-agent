@@ -50,6 +50,8 @@ export type SessionCmd =
 			payload?: Record<string, unknown>;
 			sessionId?: string;
 			requestId?: string;
+			/** Composer next-turn pick — routes host RPCs before Submit rebinds. */
+			engineKind?: string;
 	  }
 	|{
 			type: 'SteerRun';
@@ -218,7 +220,8 @@ export const sessionCmdSchemas = [
 		method: z.string(),
 		payload: z.record(z.string(), z.unknown()).optional(),
 		sessionId: z.string().optional(),
-		requestId: z.string().optional()
+		requestId: z.string().optional(),
+		engineKind: z.string().optional()
 	}),
 	z.object({
 		type: z.literal('SteerRun'),

@@ -19,7 +19,7 @@ object DshRoots:
     Files.isRegularFile(root.resolve("node_modules/@deepseek-ai/dsh/package.json"))
       || Files.isRegularFile(root.resolve(".installed"))
 
-  def argv(root: Path = of()): Option[List[String]] =
+  def argv(root: Path = of(), port: Int = OfficialPort): Option[List[String]] =
     if !installed(root) then None
     else
       val node = sys.env.get("FAST_NODE").orElse(sys.props.get("fast.node")).getOrElse("node")
@@ -27,7 +27,12 @@ object DshRoots:
       val entry = pkg.resolve("lib/bin.js")
       val target = if Files.isRegularFile(entry) then entry.toAbsolutePath.toString else pkg.toString
       // --expose-internals: dsh live patchReload (HMR) requires it; --no-open: keep the token URL out of the user's browser
-      Some(node :: "--max-http-header-size=65536" :: "--expose-internals" :: target :: List("web", "--no-open", "--host", "127.0.0.1", "--port", OfficialPort.toString))
+      Some(node :: "--max-http-header-size=65536" :: "--expose-internals" :: target :: List("web", "--no-open", "--host", "127.0.0.1", "--port", port.toString))
+
+  def withPort(argv: List[String], port: Int): List[String] =
+    argv.indexOf("--port") match
+      case i if i >= 0 && i + 1 < argv.length => argv.updated(i + 1, port.toString)
+      case _ => argv ++ List("--port", port.toString)
 
   def command(root: Path = of()): Option[String] =
     argv(root).map: a =>

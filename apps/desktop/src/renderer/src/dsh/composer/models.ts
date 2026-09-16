@@ -25,10 +25,16 @@ const empty: DshModelsSnap = {
 	error: null
 };
 
+export function modelsNotice(error: EngineCallError): string {
+	const raw = (error.message ?? error.code).trim();
+	if (error.code === 'unsupported' || raw === 'unsupported') return 'DSH 未就绪';
+	return error.message ?? error.code;
+}
+
 export function failSnap(error: EngineCallError): DshModelsSnap {
 	return {
 		...empty,
-		notice: error.message ?? error.code,
+		notice: modelsNotice(error),
 		error
 	};
 }
@@ -124,6 +130,25 @@ export function modelChrome(snap: DshModelsSnap): {
 
 let snap: DshModelsSnap = empty;
 const listeners = new Set<() => void>();
+let bootRetry: ReturnType<typeof setTimeout> | undefined;
+let bootAttempt = 0;
+
+function clearBootRetry(): void {
+	if (bootRetry !== undefined) clearTimeout(bootRetry);
+	bootRetry = undefined;
+}
+
+function scheduleBootRetry(sessionId: string | undefined, error: EngineCallError | null): void {
+	clearBootRetry();
+	const code = error?.code ?? '';
+	if (code !== 'unsupported' && code !== 'unavailable') {
+		bootAttempt = 0;
+		return;
+	}
+	if (bootAttempt >= 6) return;
+	bootAttempt += 1;
+	bootRetry = setTimeout(() => void refreshDshModels(sessionId), Math.min(1000 * bootAttempt, 4000));
+}
 
 function emit(next: DshModelsSnap): void {
 	snap = next;
@@ -158,6 +183,12 @@ export async function refreshDshModels(sessionId?: string): Promise<DshModelsSna
 		const result = await get(sessionId);
 		const next = result.ok ? okSnap(result.value) : failSnap(result.error);
 		emit(next);
+		if (next.ready) {
+			bootAttempt = 0;
+			clearBootRetry();
+		} else {
+			scheduleBootRetry(sessionId, next.error);
+		}
 		return next;
 	} catch (e) {
 		const next = failSnap({
@@ -165,6 +196,7 @@ export async function refreshDshModels(sessionId?: string): Promise<DshModelsSna
 			message: e instanceof Error ? e.message : String(e)
 		});
 		emit(next);
+		scheduleBootRetry(sessionId, next.error);
 		return next;
 	}
 }

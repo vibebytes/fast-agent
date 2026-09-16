@@ -3466,10 +3466,11 @@ test('setEngineKind sticks on Task; CreateSession sends dsh only when selected',
 	controller.acceptNewSession('sess-a', a.id, 'ws-1');
 	assert.equal(controller.setEngineKind('fast'), true);
 	assert.equal(controller.engineKind, 'fast');
-	assert.ok(sent.some(c => c.type === 'SetEngine' && c.engineId === 'fast'));
+	assert.ok(!sent.some(c => c.type === 'SetEngine'));
+	assert.ok(sent.some(c => c.type === 'SetEngineKind' && c.kind === 'fast'));
 });
 
-test('SetEngineKind rejected or error reverts optimistic engineKind', () => {
+test('SetEngineKind reject or stale success does not clobber a later pick', () => {
 	const sent: BridgeCommand[] = [];
 	let n = 0;
 	const controller = new SessionController({
@@ -3488,31 +3489,8 @@ test('SetEngineKind rejected or error reverts optimistic engineKind', () => {
 	controller.setAvailableEngines(['fast', 'dsh']);
 	assert.equal(controller.setEngineKind('dsh'), true);
 	assert.equal(controller.engineKind, 'dsh');
-	controller.handleEvent({
-		type: 'command_result',
-		name: 'SetEngineKind',
-		message: 'busy',
-		status: 'rejected',
-		sessionId: 'sess-a'
-	});
+	assert.equal(controller.setEngineKind('fast'), true);
 	assert.equal(controller.engineKind, 'fast');
-	assert.equal(controller.getActiveTask()?.engineKind, 'fast');
-
-	controller.setAvailableEngines(['fast', 'dsh']);
-	assert.equal(controller.setEngineKind('dsh'), true);
-	assert.equal(controller.engineKind, 'dsh');
-	controller.handleEvent({
-		type: 'command_result',
-		name: 'SetEngineKind',
-		message: 'disk full',
-		status: 'error',
-		sessionId: 'sess-a'
-	});
-	assert.equal(controller.engineKind, 'fast');
-	assert.equal(controller.getActiveTask()?.engineKind, 'fast');
-
-	controller.setAvailableEngines(['fast', 'dsh']);
-	assert.equal(controller.setEngineKind('dsh'), true);
 	controller.handleEvent({
 		type: 'command_result',
 		name: 'SetEngineKind',
@@ -3520,8 +3498,95 @@ test('SetEngineKind rejected or error reverts optimistic engineKind', () => {
 		status: 'success',
 		sessionId: 'sess-a'
 	});
+	assert.equal(controller.engineKind, 'fast');
+	assert.equal(controller.getActiveTask()?.engineKind, 'fast');
+
+	assert.equal(controller.setEngineKind('dsh'), true);
+	controller.handleEvent({
+		type: 'command_result',
+		name: 'SetEngineKind',
+		message: 'busy',
+		status: 'rejected',
+		sessionId: 'sess-a'
+	});
 	assert.equal(controller.engineKind, 'dsh');
 	assert.equal(controller.getActiveTask()?.engineKind, 'dsh');
+});
+
+test('setEngineKind dsh survives sessions_list that still reports the bound fast kind', () => {
+	let n = 0;
+	const controller = new SessionController({
+		clientId: 'cli',
+		projectId: () => 'proj-1',
+		workspaceId: () => 'ws-1',
+		send: () => true,
+		createId: () => `id-${++n}`
+	});
+	const a = controller.createTask('A');
+	controller.acceptNewSession('sess-a', a.id, 'ws-1');
+	controller.handleEvent({type: 'Attached', sessionId: 'sess-a', clientId: 'cli'});
+	controller.setAvailableEngines(['fast', 'dsh']);
+	assert.equal(controller.setEngineKind('dsh'), true);
+	assert.equal(controller.engineKind, 'dsh');
+
+	controller.hydrateFromSessionsList([
+		{
+			id: 'sess-a',
+			title: 'A',
+			lastModified: '2026-09-16T00:00:00.000Z',
+			isCurrent: true,
+			engineKind: 'fast'
+		}
+	]);
+	assert.equal(controller.engineKind, 'dsh', 'inventory must not revert the Composer pick');
+	assert.equal(controller.getActiveTask()?.engineKind, 'dsh');
+});
+
+test('setEngineKind dsh survives sessions_list before Attach', () => {
+	let n = 0;
+	const controller = new SessionController({
+		clientId: 'cli',
+		projectId: () => 'proj-1',
+		workspaceId: () => 'ws-1',
+		send: () => true,
+		createId: () => `id-${++n}`
+	});
+	const a = controller.createTask('A');
+	controller.acceptNewSession('sess-a', a.id, 'ws-1');
+	controller.setAvailableEngines(['fast', 'dsh']);
+	assert.equal(controller.setEngineKind('dsh'), true);
+	assert.equal(controller.engineKind, 'dsh');
+
+	controller.hydrateFromSessionsList([
+		{
+			id: 'sess-a',
+			title: 'A',
+			lastModified: '2026-09-16T00:00:00.000Z',
+			isCurrent: true
+		}
+	]);
+	assert.equal(controller.engineKind, 'dsh', 'unattached pick must survive omitted inventory kind');
+	assert.equal(controller.getActiveTask()?.engineKind, 'dsh');
+});
+
+test('setEngineKind applies when expectedTaskId is the pane task even if focus lags', () => {
+	let n = 0;
+	const controller = new SessionController({
+		clientId: 'cli',
+		projectId: () => 'proj-1',
+		workspaceId: () => 'ws-1',
+		send: () => true,
+		createId: () => `id-${++n}`
+	});
+	const a = controller.createTask('A');
+	const b = controller.createTask('B');
+	controller.acceptNewSession('sess-a', a.id, 'ws-1');
+	controller.acceptNewSession('sess-b', b.id, 'ws-1');
+	controller.selectTask(a.id);
+	controller.setAvailableEngines(['fast', 'dsh']);
+	assert.equal(controller.setEngineKind('dsh', b.id), true);
+	assert.equal(controller.engineKind, 'dsh');
+	assert.equal(b.engineKind, 'dsh');
 });
 
 test('setEngineKind dsh without available does not send SetEngine and stays fast', () => {
@@ -3543,7 +3608,29 @@ test('setEngineKind dsh without available does not send SetEngine and stays fast
 	assert.ok(!sent.some(c => c.type === 'SetEngine'));
 	controller.setAvailableEngines(['fast', 'dsh']);
 	assert.equal(controller.setEngineKind('dsh'), true);
-	assert.ok(sent.some(c => c.type === 'SetEngine' && c.engineId === 'dsh'));
+	assert.ok(!sent.some(c => c.type === 'SetEngine'));
+	assert.ok(sent.some(c => c.type === 'SetEngineKind' && c.kind === 'dsh' && c.sessionId === 'sess-a'));
+});
+
+test('rebindPickedEngine resends SetEngineKind for the owned dsh pick', () => {
+	const sent: BridgeCommand[] = [];
+	const controller = new SessionController({
+		clientId: 'cli',
+		projectId: () => 'proj-1',
+		workspaceId: () => 'ws-1',
+		send: cmd => {
+			sent.push(cmd);
+			return true;
+		},
+		createId: () => 'id-1'
+	});
+	const a = controller.createTask('A');
+	controller.acceptNewSession('sess-a', a.id, 'ws-1');
+	controller.setAvailableEngines(['fast', 'dsh']);
+	assert.equal(controller.setEngineKind('dsh'), true);
+	sent.length = 0;
+	controller.rebindPickedEngine();
+	assert.ok(sent.some(c => c.type === 'SetEngineKind' && c.kind === 'dsh' && c.sessionId === 'sess-a'));
 });
 
 test('hydrateFromSessionsList cold-restores runMode and model_settings', () => {

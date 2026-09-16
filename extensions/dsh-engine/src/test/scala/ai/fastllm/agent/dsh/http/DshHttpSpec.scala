@@ -9,8 +9,9 @@ import org.scalatest.matchers.should.Matchers
 import com.sun.net.httpserver.{HttpExchange, HttpServer}
 import java.net.InetSocketAddress
 import java.nio.charset.StandardCharsets
+import java.util.concurrent.{CountDownLatch, Executors, TimeUnit}
 import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.{Await, Future}
+import scala.concurrent.{Await, ExecutionContext, Future}
 import scala.concurrent.duration.*
 
 class DshHttpSpec extends AnyFunSuite with Matchers:
@@ -120,6 +121,34 @@ class DshHttpSpec extends AnyFunSuite with Matchers:
       await(remote.call("settings.describe", Json.obj()))
         .hcursor.downField("error").get[String]("code").toOption.get shouldBe "internal"
     finally server.stop(0)
+
+  test("unary call completes while the construction EC is blocked"):
+    val blocked = Executors.newSingleThreadExecutor()
+    val hold = CountDownLatch(1)
+    blocked.execute: () =>
+      try hold.await(8, TimeUnit.SECONDS)
+      catch case _: InterruptedException => ()
+    given ExecutionContext = ExecutionContext.fromExecutor(blocked)
+    val (port, server) = serve: (method, _) =>
+      method shouldBe "settings/describe"
+      (
+        200,
+        Json.obj(
+          "type" -> "server-response".asJson,
+          "rpcId" -> "echo".asJson,
+          "result" -> Json.obj("ok" -> Json.True, "value" -> Json.obj("ok" -> Json.True))
+        ).noSpaces
+      )
+    try
+      val remote = DshHttp(Future.successful(port))
+      try
+        await(remote.call("settings.describe", Json.obj()))
+          .hcursor.get[Boolean]("ok").toOption.get shouldBe true
+      finally remote.close()
+    finally
+      hold.countDown()
+      blocked.shutdownNow()
+      server.stop(0)
 
   test("settings.describe over HTTP does not require mux"):
     import ai.fastllm.agent.dsh.{DshFace, DshLoop}

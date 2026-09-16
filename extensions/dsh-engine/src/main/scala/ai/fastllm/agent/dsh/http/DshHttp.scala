@@ -10,8 +10,11 @@ import java.net.{CookieManager, URI}
 import java.net.http.{HttpClient, HttpRequest, HttpResponse, WebSocket}
 import java.nio.charset.StandardCharsets
 import java.time.Duration
-import java.util.concurrent.{CompletableFuture, CompletionStage, ConcurrentHashMap, Executors, ThreadFactory, TimeUnit}
-import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.{
+  CompletableFuture, CompletionStage, ConcurrentHashMap, ExecutorService, Executors,
+  RejectedExecutionException, ThreadFactory, TimeUnit
+}
+import java.util.concurrent.atomic.{AtomicBoolean, AtomicInteger}
 import scala.concurrent.{ExecutionContext, Future, Promise}
 import scala.jdk.CollectionConverters.*
 import scala.jdk.FutureConverters.*
@@ -20,22 +23,32 @@ import scala.util.control.NonFatal
 /** Mux gate timeout — the unary path may still be usable while the mux is still opening. */
 final class DshMuxTimeout(message: String, cause: Throwable) extends RuntimeException(message, cause)
 
-/** Host `/api` over Connection / Typert Remote. Completions hop onto `ec`. */
+/** Host `/api` over Connection / Typert Remote.
+  *
+  * I/O and mux work stay off the caller's EC. CliApp starts DSH on the 4-thread
+  * `bridge-commands` pool; a mux follow that `Await`s the session river would
+  * otherwise pin that pool and starve `session.models` / `command_result`.
+  */
 class DshHttp(
     portOf: Future[Int],
     muxReadySec: Long = 5,
     tokenOf: Future[Option[String]] = Future.successful(None)
-)(using ec: ExecutionContext) extends Client:
+) extends Client:
   private lazy val log = LoggerFactory.getLogger(getClass)
+  private val stopped = AtomicBoolean(false)
+  private val ioPool = DshHttp.pool("dsh-io", cached = false)
+  private val muxPool = DshHttp.pool("dsh-mux", cached = true)
+  private given ioEc: ExecutionContext = DshHttp.quiet(ioPool, stopped)
+  /** Loop / face work: cached so a blocking river append cannot pin unary HTTP. */
+  val work: ExecutionContext = DshHttp.quiet(muxPool, stopped)
   private val cookies = CookieManager()
   private val http = HttpClient.newBuilder()
     .version(HttpClient.Version.HTTP_1_1)
     .connectTimeout(Duration.ofSeconds(5))
     .followRedirects(HttpClient.Redirect.NORMAL)
     .cookieHandler(cookies)
-    .executor(r => ec.execute(r))
+    .executor(ioPool)
     .build()
-  private val stopped = AtomicBoolean(false)
   private val muxOpening = AtomicBoolean(false)
   private val authed = Promise[Unit]()
   private val muxOpen = Promise[Unit]()
@@ -148,6 +161,8 @@ class DshHttp(
       try ws.sendClose(WebSocket.NORMAL_CLOSURE, "close").join()
       catch case NonFatal(_) => ()
     socket = None
+    muxPool.shutdown()
+    ioPool.shutdown()
 
   private def post(port: Int, method: String, payload: Json): Future[Json] =
     val slash = remoteOf(method).getOrElse(method.replace('.', '/'))
@@ -314,7 +329,7 @@ class DshHttp(
               portOf.foreach: port =>
                 authorize(port, tok).foreach(_ => openMux())
             case None => openMux()
-      CompletableFuture.delayedExecutor(delay, TimeUnit.SECONDS, (r: Runnable) => ec.execute(r)).execute(attempt)
+      CompletableFuture.delayedExecutor(delay, TimeUnit.SECONDS, ioPool).execute(attempt)
 
   private def onRemote(raw: Json): Unit =
     val frameType = raw.hcursor.get[String]("type").toOption.getOrElse("")
@@ -342,7 +357,7 @@ class DshHttp(
           if n <= 3 then log.warn(s"dsh follow $sid: error #$n, resubscribe in ${delayMs}ms")
           else log.debug(s"dsh follow $sid: error #$n, resubscribe in ${delayMs}ms")
           val task: Runnable = () =>
-            if !stopped.get() then ec.execute { () =>
+            if !stopped.get() then muxPool.execute { () =>
               if followIds.contains(sid) then subscribe(sid)
             }
           followTimer.schedule(task, delayMs, TimeUnit.MILLISECONDS)
@@ -416,7 +431,7 @@ class DshHttp(
         val text = buf.toString
         buf.clear()
         io.circe.parser.parse(text) match
-          case Right(json) => ec.execute(() => onRemote(json))
+          case Right(json) => muxPool.execute(() => onRemote(json))
           case Left(err) =>
             log.warn(s"dsh mux json: ${err.getMessage} bytes=${text.length}")
       ws.request(1)
@@ -438,3 +453,22 @@ class DshHttp(
       muxOpening.set(false)
       log.warn(s"dsh mux error ${error.getClass.getSimpleName}: ${error.getMessage}")
       if !stopped.get() then reopen()
+
+object DshHttp:
+  private def pool(prefix: String, cached: Boolean): ExecutorService =
+    val n = AtomicInteger(0)
+    val factory: ThreadFactory = r =>
+      val t = Thread(r, s"$prefix-${n.incrementAndGet()}")
+      t.setDaemon(true)
+      t
+    if cached then Executors.newCachedThreadPool(factory)
+    else Executors.newFixedThreadPool(4, factory)
+
+  private def quiet(pool: ExecutorService, stopped: AtomicBoolean): ExecutionContext =
+    new ExecutionContext:
+      def execute(r: Runnable): Unit =
+        try pool.execute(r)
+        catch case _: RejectedExecutionException if stopped.get() => ()
+      def reportFailure(t: Throwable): Unit =
+        if !(stopped.get() && t.isInstanceOf[RejectedExecutionException]) then
+          t.printStackTrace()

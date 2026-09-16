@@ -33,7 +33,7 @@ class DshFace(remote: Client, cwdOf: String => String, loop: DshLoop)(using Exec
       sid match
         case None => Future.successful(failJson("bad-request", "sessionId required"))
         case Some(id) =>
-          val cwd = cwdOf(id).trim
+          val cwd = Option(cwdOf(id)).map(_.trim).getOrElse("")
           if cwd.isEmpty then Future.successful(failJson("cwd missing", "cwd missing"))
           else
             remote.ready.flatMap(_ => bind(id, cwd)).flatMap:

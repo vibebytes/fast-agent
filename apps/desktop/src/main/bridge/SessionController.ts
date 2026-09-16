@@ -779,23 +779,36 @@ export class SessionController implements TaskCommands, SessionLifecycle, TaskVi
 	}
 
 	setEngineKind(kind: string, expectedTaskId?: string | null): boolean {
-		const active = this.getActiveTask();
-		if (
-			expectedTaskId &&
-			active?.id !== expectedTaskId &&
-			active?.sessionId !== expectedTaskId
-		) {
-			return false;
-		}
 		const k = parseEngineKind(kind);
 		if (!this.availableIds.has(k)) return false;
-		const sessionId = this.commandSessionId();
+		const active = this.getActiveTask();
+		const target = expectedTaskId
+			? (this.tasks.get(expectedTaskId) ?? this.taskBySessionId(expectedTaskId) ?? null)
+			: active;
+		if (expectedTaskId && !target) return false;
+		const sessionId = target?.sessionId ?? this.commandSessionId();
+		// Picker is the next-turn promise. Submit still carries engineKind.
+		// Idle SetEngineKind rebinds so session.models / skill.list hit DSH
+		// before the first submit. Chrome ignores a stale command_result.
 		if (sessionId) {
-			this.lifecycle.stageEngineChange(sessionId, this.engineKind);
-			this.sendFn({type: 'SetEngine', sessionId, engineId: k});
+			this.lifecycle.stageEngineChange(sessionId, k);
+			this.sendFn({type: 'SetEngineKind', sessionId, kind: k});
+		}
+		if (target && target.id !== active?.id) {
+			target.engineKind = k;
+			this.tasks.set(target.id, target);
 		}
 		this.applyEngineKind(k);
 		return true;
+	}
+
+	/** Rebind after DSH registers — pick may have landed while only Fast was live. */
+	rebindPickedEngine(): void {
+		const k = this.engineKind;
+		const sessionId = this.commandSessionId();
+		if (!sessionId || !this.availableIds.has(k)) return;
+		this.lifecycle.stageEngineChange(sessionId, k);
+		this.sendFn({type: 'SetEngineKind', sessionId, kind: k});
 	}
 
 	setModelSettings(settings: {
