@@ -299,3 +299,61 @@ test('session_restored failed turn paints an ErrorCard, not a done reply', () =>
 	assert.equal(lastAssistant(items)?.status, 'error');
 	assert.equal(regenUserIdOf(items), null);
 });
+
+test('turn_started with supersedes records live provenance and does not add a user row', () => {
+	let state = createTranscriptState();
+	state = applyBridgeEvent(state, {
+		type: 'turn_started',
+		turnId: 'run-old',
+		clientMessageId: 'cm-old',
+		text: '帮我查一下'
+	});
+	state = applyBridgeEvent(state, {
+		type: 'run_failed',
+		runId: 'run-old',
+		error: TRANSPORT,
+		fault: transportFault
+	});
+	const usersBefore = state.entries.filter(e => e.role === 'user').length;
+	state = applyBridgeEvent(state, {
+		type: 'turn_started',
+		turnId: 'run-new',
+		clientMessageId: 'cm-new',
+		text: '',
+		supersedes: 'run-old',
+		supersedesFailed: true
+	});
+	assert.equal(state.superseded['run-old'], 'run-new');
+	assert.equal(state.entries.filter(e => e.role === 'user').length, usersBefore);
+	assert.equal(
+		state.entries.some(e => e.role === 'assistant' && e.turnId === 'run-new' && e.status === 'streaming'),
+		true
+	);
+});
+
+test('restored failed turn retries with engine runId, not the user message id', () => {
+	let state = createTranscriptState();
+	state = applyBridgeEvent(state, {
+		type: 'session_restored',
+		sessionId: 'sess',
+		turns: [
+			{
+				turnId: 'msg-fail',
+				userText: 'again',
+				assistantText: TRANSPORT,
+				failed: true,
+				runId: 'run-engine-9'
+			}
+		]
+	});
+	const assistant = state.entries.find(e => e.role === 'assistant');
+	assert.equal(assistant?.status, 'error');
+	assert.equal(assistant?.turnId, 'msg-fail');
+	assert.equal(assistant?.runId, 'run-engine-9');
+	assert.equal(assistant?.fault?.runId, 'run-engine-9');
+	assert.equal(assistant?.fault?.remedy, 'retry_same');
+	const items = toTimelineItems(state);
+	const card = lastAssistant(items);
+	assert.equal(card?.runId, 'run-engine-9');
+	assert.notEqual(card?.runId, 'msg-fail');
+});

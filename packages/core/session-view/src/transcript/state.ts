@@ -81,6 +81,11 @@ export type TranscriptEntry = {
 	streamIncomplete?: boolean;
 	/** Orphan seal: turn ended without a confirmed terminal — not success, not cancelled. */
 	sealedUnconfirmed?: boolean;
+	/**
+	 * Engine runId when it differs from `turnId` (restored turns key `turnId` by the user
+	 * message id). RerunRun / `supersedes` speak runId — retry must send this when present.
+	 */
+	runId?: string;
 	/** Structured failure info (P1a) from run_failed; drives the ErrorCardRow affordances. */
 	fault?: {
 		kind: string;
@@ -88,6 +93,8 @@ export type TranscriptEntry = {
 		retryableAfterMs?: number;
 		attempts?: number;
 		acceptedTurns?: number;
+		/** Engine run identity when the restored turnId is the user message id. */
+		runId?: string;
 	};
 };
 

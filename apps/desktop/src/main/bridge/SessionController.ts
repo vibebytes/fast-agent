@@ -788,11 +788,11 @@ export class SessionController implements TaskCommands, SessionLifecycle, TaskVi
 		if (expectedTaskId && !target) return false;
 		const sessionId = target?.sessionId ?? this.commandSessionId();
 		// Picker is the next-turn promise. Submit still carries engineKind.
-		// Idle SetEngineKind rebinds so session.models / skill.list hit DSH
+		// Idle SetEngine rebinds so session.models / skill.list hit DSH
 		// before the first submit. Chrome ignores a stale command_result.
 		if (sessionId) {
 			this.lifecycle.stageEngineChange(sessionId, k);
-			this.sendFn({type: 'SetEngineKind', sessionId, kind: k});
+			this.sendFn({type: 'SetEngine', sessionId, kind: k});
 		}
 		if (target && target.id !== active?.id) {
 			target.engineKind = k;
@@ -808,7 +808,7 @@ export class SessionController implements TaskCommands, SessionLifecycle, TaskVi
 		const sessionId = this.commandSessionId();
 		if (!sessionId || !this.availableIds.has(k)) return;
 		this.lifecycle.stageEngineChange(sessionId, k);
-		this.sendFn({type: 'SetEngineKind', sessionId, kind: k});
+		this.sendFn({type: 'SetEngine', sessionId, kind: k});
 	}
 
 	setModelSettings(settings: {

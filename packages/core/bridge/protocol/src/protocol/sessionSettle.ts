@@ -16,6 +16,8 @@ export const sessionSettleSchemas = [
 		budget: z.boolean(),
 		question: z.boolean(),
 		slash: z.boolean(),
+		/** Engine can replay a run (RerunRun). Absent on older hosts — UI uses engineKind. */
+		rerun: z.boolean().optional(),
 		delta: z
 			.object({
 				usage: z.boolean(),

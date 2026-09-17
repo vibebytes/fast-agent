@@ -20,7 +20,14 @@ export const sessionLiveSchemas = [
 		goalId: z.string().optional(),
 		stepId: z.string().optional(),
 		/** Goal outcome notice: `passed` | `failed` | `cancelled`. */
-		goalStatus: z.string().optional()
+		goalStatus: z.string().optional(),
+		/**
+		 * P1b rerun opener: victim runId this turn replaces. Text is empty (the victim's
+		 * user row stays); the client records `superseded[supersedes] = turnId` live.
+		 */
+		supersedes: z.string().nullish(),
+		/** Victim ended in failure (Retry) rather than being regenerated. */
+		supersedesFailed: z.boolean().nullish()
 	}),
 	z.object({
 		type: z.literal('plan_build_submitted'),

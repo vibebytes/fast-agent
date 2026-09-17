@@ -414,6 +414,21 @@ test('bridgeEventSchema accepts large assistant payloads and preserves ordering 
 	assert.equal(assistantDelta.text.length, largeText.length);
 });
 
+test('turn_started accepts optional supersedes provenance', () => {
+	const event = bridgeEventSchema.parse({
+		type: 'turn_started',
+		turnId: 'new-run',
+		text: '',
+		supersedes: 'old-run',
+		supersedesFailed: true
+	});
+	assert.equal(event.type, 'turn_started');
+	if (event.type === 'turn_started') {
+		assert.equal(event.supersedes, 'old-run');
+		assert.equal(event.supersedesFailed, true);
+	}
+});
+
 test('persist river events require a safe positive eventSeq', () => {
 	assert.equal(bridgeEventSchema.parse({type: 'assistant_delta', text: 'x'}).type, 'assistant_delta');
 	assert.throws(() => bridgeEventSchema.parse({type: 'assistant_delta', text: 'x', eventSeq: 0}));
@@ -1308,6 +1323,12 @@ test('dsh_caps carries optional delta capability bits', () => {
 	assert.equal(omitted.type, 'dsh_caps');
 	if (omitted.type === 'dsh_caps') {
 		assert.equal(omitted.delta, undefined);
+	}
+
+	const withRerun = bridgeEventSchema.parse({...base, rerun: false});
+	assert.equal(withRerun.type, 'dsh_caps');
+	if (withRerun.type === 'dsh_caps') {
+		assert.equal(withRerun.rerun, false);
 	}
 
 	const withDelta = bridgeEventSchema.parse({

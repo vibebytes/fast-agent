@@ -20,6 +20,7 @@ export function ErrorCardRow({
 	runId,
 	busy,
 	stale,
+	canRerun = true,
 	onRetry,
 	onContinue
 }: {
@@ -28,6 +29,8 @@ export function ErrorCardRow({
 	runId: string;
 	busy: boolean;
 	stale?: boolean;
+	/** False when the engine cannot replay a run (DSH caps.rerun=false). */
+	canRerun?: boolean;
 	onRetry: (runId: string) => void;
 	onContinue: () => void;
 }) {
@@ -37,7 +40,7 @@ export function ErrorCardRow({
 	// Doc §7 matrix: Retry ⇔ remedy === 'retry_same'. RetryAmended faults
 	// (Malformed/Truncated/Empty(false)/context_length) carry no retryableAfterMs.
 	// No structured fault (third-party engine): retry conservatively, hide Continue.
-	const retryable = fault ? fault.remedy === 'retry_same' : true;
+	const retryable = (fault ? fault.remedy === 'retry_same' : true) && canRerun !== false;
 
 	const rawText = useMemo(() => (text ?? '').trim(), [text]);
 	const summary = useMemo(() => {

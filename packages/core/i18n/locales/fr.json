@@ -1513,7 +1513,8 @@
       "target_stale": "Ce résultat est obsolète — seule la dernière exécution peut être relancée.",
       "unsupported": "Le moteur actuel ne prend pas en charge la relance.",
       "rejected": "La relance a été refusée.",
-      "bannerTitle": "La relance n'a pas été exécutée"
+      "bannerTitle": "La relance n'a pas été exécutée",
+      "timeout": "Aucune réponse à la relance — le moteur a peut-être redémarré. Réessayez."
     },
     "kind": {
       "silent": "Réponse vide ou malformée",

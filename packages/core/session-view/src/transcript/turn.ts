@@ -45,11 +45,19 @@ function isAttachReplayChatOpener(event: BridgeEvent): boolean {
 	return isRiverTurnStarted(event);
 }
 
+/** P1b rerun opener: empty text by design (victim's user row stays), never a river echo. */
+function rerunVictim(event: BridgeEvent): string | undefined {
+	if (event.type !== 'turn_started') return undefined;
+	const victim = event.supersedes?.trim();
+	return victim ? victim : undefined;
+}
+
 /** Persist/river TurnStarted: empty text, not a user/plan/goal opener. */
 function isRiverTurnStarted(
 	event: BridgeEvent
 ): event is Extract<BridgeEvent, {type: 'turn_started'}> {
 	if (event.type !== 'turn_started') return false;
+	if (rerunVictim(event)) return false;
 	if ((event.text ?? '').trim()) return false;
 	if (event.messageType === 'plan_build') return false;
 	if (event.messageType === 'goal_step_conclusion' || event.messageType === 'goal_outcome')
@@ -62,6 +70,7 @@ function isRiverTurnStarted(
 /** River TurnStarted has the engine run id and empty text — remap onto the live optimistic turn. */
 function riverEchoAssistant(state: TranscriptState, event: BridgeEvent): TranscriptEntry | undefined {
 	if (event.type !== 'turn_started') return undefined;
+	if (rerunVictim(event)) return undefined;
 	if ((event.text ?? '').trim()) return undefined;
 	if (event.clientMessageId) return undefined;
 	if (event.messageType === 'plan_build') return undefined;
@@ -184,11 +193,13 @@ export function applyTurnStarted(
 			: null;
 	if (existingAssistant) {
 		if (chromePostRun(state.chrome) && isRiverTurnStarted(event)) return state;
+		const victim = rerunVictim(event);
 		return {
 			...rememberDocument(
 				state,
 				existingAssistant.turnId ?? event.turnId ?? event.clientMessageId
 			),
+			...(victim && event.turnId ? {superseded: {...state.superseded, [victim]: event.turnId}} : {}),
 			chrome: runChromeTransition(state.chrome, {postRun: false, awaiting: false}),
 			entries: state.entries.map(entry => {
 				const matchesAssistant = entry === existingAssistant;
@@ -261,8 +272,14 @@ export function applyTurnStarted(
 		tools: [],
 		segments: []
 	});
+	// P1b: the rerun opener carries provenance — record it now so the victim's answer rows
+	// hide and the desktop's optimistic regenPending retires without waiting for restore.
+	const victim = rerunVictim(event);
+	const superseded =
+		victim && event.turnId ? {superseded: {...state.superseded, [victim]: event.turnId}} : {};
 	return {
 		...rememberDocument(state, event.turnId ?? event.clientMessageId),
+		...superseded,
 		entries,
 		chrome: event.turnId
 			? runChromeTransition(state.chrome, {

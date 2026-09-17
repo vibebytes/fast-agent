@@ -2634,7 +2634,7 @@ test('engineCall sends the Composer engineKind so session.models can hit dsh bef
 	project.sessions.setAvailableEngines(['fast', 'dsh']);
 	assert.equal(project.sessions.setEngineKind('dsh'), true);
 
-	void hub.engineCall('session.models', {}, project.sessions.getActiveTask()?.sessionId);
+	void hub.engineCall('session.models', {}, project.sessions.getActiveTask()?.sessionId ?? undefined);
 	await new Promise(r => setTimeout(r, 20));
 	const sent = commands.find(c => c.type === 'EngineCall');
 	assert.ok(sent && sent.type === 'EngineCall');

@@ -138,19 +138,15 @@ export function createTimelineProjectionCache() {
 		for (const entry of entries) {
 			seen.add(entry.id);
 			// Mirrors toTimelineItems: D4 keeps a superseded FAILED run's error card
-			// visible; regenerate hides only the victim's answer rows.
+			// visible; regenerate hides only the victim's answer rows. Restored rows
+			// key `turnId` by message id and carry the engine run in `runId`.
+			const run = entry.runId ?? entry.turnId;
+			if (entry.role !== 'user' && run && markers[run] && entry.status !== 'error') continue;
 			if (
 				entry.role !== 'user' &&
-				entry.turnId &&
-				markers[entry.turnId] &&
-				entry.status !== 'error'
-			)
-				continue;
-			if (
-				entry.role !== 'user' &&
-				entry.turnId &&
+				run &&
 				entry.status !== 'error' &&
-				options.hiddenRuns?.has(entry.turnId)
+				options.hiddenRuns?.has(run)
 			)
 				continue;
 			const planViewRef =

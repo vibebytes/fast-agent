@@ -3,6 +3,7 @@ import test from 'node:test';
 import {staleErrorCardIds, toTimelineItems} from './timeline.js';
 import {createTimelineProjectionCache} from './timelineCache.js';
 import {createSessionViewProjector} from './sessionView.js';
+import {applyBridgeEvent, createTranscriptState} from './index.js';
 import type {TranscriptEntry} from './transcriptProjection.js';
 
 function userEntry(id: string, turnId: string, text = 'hi'): TranscriptEntry {
@@ -115,6 +116,24 @@ test('projector cache path honors hiddenRuns with realistic display ids', () => 
 	});
 	assert.equal(markerCount(restored), 0);
 	assert.ok(!restored.some(i => i.kind === 'assistant' && i.text === 'first answer'));
+});
+
+test('session_restored superseded map keys by engine runId', () => {
+	let state = createTranscriptState();
+	state = applyBridgeEvent(state, {
+		type: 'session_restored',
+		sessionId: 'sess',
+		turns: [
+			{
+				turnId: 'msg-new',
+				userText: 'retry me',
+				assistantText: 'fixed',
+				runId: 'run-new',
+				supersedes: 'run-old'
+			}
+		]
+	});
+	assert.equal(state.superseded['run-old'], 'run-new');
 });
 
 test('superseded FAILED runs keep their error card (D4) and go stale later', () => {

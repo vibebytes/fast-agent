@@ -361,3 +361,25 @@ test('REPLAY: multi-turn with interleaved snapshot publishes stays equivalent', 
 		`streaming tails must stay narrow, got ${JSON.stringify(tails.map(t => t.entries.length))}`
 	);
 });
+
+test('live turn_started.supersedes patches superseded onto the renderer', async () => {
+	const h = pipeline('sess-supersede');
+	h.feed({type: 'turn_started', turnId: 'run-old', clientMessageId: 'cm-old', text: 'hi'} as BridgeEvent);
+	h.feed({type: 'run_failed', runId: 'run-old', error: 'boom'} as BridgeEvent);
+	h.flush();
+	await h.settle();
+
+	h.feed({
+		type: 'turn_started',
+		turnId: 'run-new',
+		clientMessageId: 'cm-new',
+		text: '',
+		supersedes: 'run-old',
+		supersedesFailed: true
+	} as BridgeEvent);
+	h.flush();
+	await h.settle();
+
+	assert.equal(h.controller.getActiveTask()?.transcript.superseded?.['run-old'], 'run-new');
+	assert.equal(h.rendererState().byTaskId[h.taskId]?.superseded?.['run-old'], 'run-new');
+});

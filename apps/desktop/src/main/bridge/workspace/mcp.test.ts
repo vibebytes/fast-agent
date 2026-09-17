@@ -132,6 +132,22 @@ test('mcpServerControl rejects rejected status and missing payload', async () =>
 	assert.equal(noPayload.ok, false);
 });
 
+test('mcpServerControl requires an explicit outcome and preserves failed outcomes', async () => {
+	const payload = {name: 'fs', op: 'stop', state: 'stopped'};
+	const missing = createMcp(laneOf(() => resultEvent('McpServerControl', {mcp: payload})).lane);
+	assert.deepEqual(await missing.mcpServerControl('fs', 'stop'), {
+		ok: false,
+		notice: 'mcp control result missing'
+	});
+	const failed = createMcp(laneOf(() => resultEvent('McpServerControl', {
+		mcp: {...payload, ok: false}
+	})).lane);
+	assert.deepEqual(await failed.mcpServerControl('fs', 'stop'), {
+		ok: true,
+		mcp: {...payload, ok: false}
+	});
+});
+
 test('mcpServerPut/Enabled/Delete round-trip on the fast plane', async () => {
 	const {lane, sent, sentCmds} = laneOf(cmd => {
 		const type = String((cmd as {type: string}).type);

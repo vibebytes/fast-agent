@@ -1519,7 +1519,8 @@
       "target_stale": "This result is out of date — only the latest run can be retried.",
       "unsupported": "The current engine does not support rerun.",
       "rejected": "Rerun was rejected.",
-      "bannerTitle": "Rerun was not executed"
+      "bannerTitle": "Rerun was not executed",
+      "timeout": "No response to the rerun request — the engine may have restarted. Try again."
     },
     "kind": {
       "silent": "Empty or malformed response",

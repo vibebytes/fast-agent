@@ -58,7 +58,12 @@ export const restoredTurn = z.object({
 	goalAgentName: z.string().nullish(),
 	goalVerdict: z.string().nullish(),
 	/** Assistant settlement `status=failed` — restore as ErrorCard. */
-	failed: z.boolean().nullish()
+	failed: z.boolean().nullish(),
+	/**
+	 * Engine runId of the user submit (≠ turnId, which is the user message id).
+	 * RerunRun and `supersedes` are keyed by runId — the restored ErrorCard retries with this.
+	 */
+	runId: z.string().nullish()
 });
 
 export type SessionRestoreCommand =

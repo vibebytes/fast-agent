@@ -174,6 +174,8 @@ export type DshCaps = {
 	budget: boolean;
 	question: boolean;
 	slash: boolean;
+	/** Engine can replay a run. Absent means the host predates the bit — UI falls back to engineKind. */
+	rerun?: boolean;
 	/** Optional delta-stream capability bits; absent means the host predates them. */
 	delta?: DshDeltaCaps;
 };

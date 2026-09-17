@@ -373,7 +373,8 @@ export function createUiPublisher(deps: UiPublisherDeps) {
 			...(patch.liveTasks !== prev.liveTasks ? {liveTasks: patch.liveTasks} : {}),
 			...(patch.childWork !== prev.childWork ? {childWork: patch.childWork} : {}),
 			...(patch.goalFlow !== prev.goalFlow ? {goalFlow: patch.goalFlow} : {}),
-			...(patch.goalCard !== prev.goalCard ? {goalCard: patch.goalCard} : {})
+			...(patch.goalCard !== prev.goalCard ? {goalCard: patch.goalCard} : {}),
+			...(patch.superseded !== prev.superseded ? {superseded: patch.superseded} : {})
 		};
 		const sectionsChanged =
 			tail.usage !== undefined ||
@@ -389,7 +390,8 @@ export function createUiPublisher(deps: UiPublisherDeps) {
 			tail.liveTasks !== undefined ||
 			tail.childWork !== undefined ||
 			tail.goalFlow !== undefined ||
-			tail.goalCard !== undefined;
+			tail.goalCard !== undefined ||
+			tail.superseded !== undefined;
 		if (!entriesChanged && !sectionsChanged) return;
 
 		send('transcript:tailPatched', tail);

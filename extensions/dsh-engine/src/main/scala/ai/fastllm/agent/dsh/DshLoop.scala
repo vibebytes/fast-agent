@@ -382,7 +382,7 @@ class DshLoop(
       val prev = bindings.getOrElse(sessionId, Binding(cwd, sessionId = sessionId))
       bindings = bindings.updated(
         sessionId,
-        putLive(prev.copy(bound = true, cwd = cwd), dshCapsRow(sessionId, queue = caps.queue, goal = true, budget = false))
+        putLive(prev.copy(bound = true, cwd = cwd), dshCapsRow(sessionId, queue = caps.queue, goal = true, budget = false, rerun = caps.rerun))
       )
     kickLists()
 

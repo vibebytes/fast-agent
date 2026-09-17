@@ -403,8 +403,9 @@ function pushAssistantItems(
 ): void {
 	const tools = entry.tools ?? [];
 	const toolById = new Map(tools.map(t => [t.id, t]));
-	const runId: {readonly runId: string} | Record<string, never> = entry.turnId
-		? ({runId: entry.turnId} as const)
+	const engineRun = engineRunId(entry);
+	const runId: {readonly runId: string} | Record<string, never> = engineRun
+		? ({runId: engineRun} as const)
 		: {};
 
 	const emitExploring = (group: ToolCallView[], groupIndex: number) => {
@@ -579,7 +580,7 @@ function pushAssistantItems(
 		}
 	}
 
-	if (entry.status === 'error') ensureErrorAssistant(items, entry, entry.turnId);
+	if (entry.status === 'error') ensureErrorAssistant(items, entry, engineRunId(entry));
 
 	const hasAssistantSegment = segments.some(s => s.kind === 'assistant' && s.text.trim());
 	if (
@@ -645,6 +646,15 @@ function pushAssistantItems(
 			tone: 'error'
 		});
 	}
+}
+
+/**
+ * Engine run identity for retry / regenerate / supersedes matching. Live entries key
+ * `turnId` by runId; restored entries key it by the user message id and carry the run
+ * separately, so the wire `runId` wins when present.
+ */
+function engineRunId(entry: TranscriptEntry): string | undefined {
+	return entry.runId ?? entry.fault?.runId ?? entry.turnId;
 }
 
 /** Failed turns must end on an error-status assistant (ErrorCard), never a done reply. */
@@ -986,7 +996,7 @@ export function projectEntryToTimelineItems(
 			text,
 			// `/skill args` live turns, or legacy `[Skill: name]…` on restore.
 			isCommand: parseUserSkillDisplay(trimmed) != null,
-			...(entry.turnId ? {runId: entry.turnId} : {}),
+			...(engineRunId(entry) ? {runId: engineRunId(entry)} : {}),
 			...(entry.origin === 'scheduler_generated' ? {origin: entry.origin} : {}),
 			...planBuild
 		});
@@ -1040,20 +1050,15 @@ export function toTimelineItems(
 	const markers = options.rerunMarkers ?? {};
 
 	for (const entry of state.entries) {
+		const run = engineRunId(entry);
 		// D4: a superseded FAILED run keeps its error card visible (stale state
 		// machine grays it once the retry terminal lands); only its answer rows hide.
+		if (entry.role !== 'user' && run && markers[run] && entry.status !== 'error') continue;
 		if (
 			entry.role !== 'user' &&
-			entry.turnId &&
-			markers[entry.turnId] &&
-			entry.status !== 'error'
-		)
-			continue;
-		if (
-			entry.role !== 'user' &&
-			entry.turnId &&
+			run &&
 			entry.status !== 'error' &&
-			options.hiddenRuns?.has(entry.turnId)
+			options.hiddenRuns?.has(run)
 		)
 			continue;
 		rawItems.push(...projectEntryToTimelineItems(entry, prevUser, {...options, planViews}));

@@ -1513,7 +1513,8 @@
       "target_stale": "该结果已过期 — 只能重跑最近一次运行。",
       "unsupported": "当前引擎不支持重跑。",
       "rejected": "重跑请求被拒绝。",
-      "bannerTitle": "重跑请求未执行"
+      "bannerTitle": "重跑请求未执行",
+      "timeout": "重跑请求没有收到响应 — 引擎可能已重启，请再试一次。"
     },
     "kind": {
       "silent": "响应为空或格式错误",

@@ -1,15 +1,15 @@
 import type {BridgeEvent} from '@fastllm/bridge-protocol';
+import type {McpControlResult} from '@fastllm/bridge-client';
 import {hostRequest, type CommandResult, type HostLane} from './hostWait.js';
 
 type Notice = {ok: false; notice: string};
 type McpWireRow = NonNullable<Extract<BridgeEvent, {type: 'command_result'}>['mcpServers']>[number];
-type McpWireControl = NonNullable<Extract<BridgeEvent, {type: 'command_result'}>['mcp']>;
 
 export type McpServerOp = 'start' | 'stop' | 'restart' | 'reset-circuit' | 'status';
 
 export type WorkspaceMcp = {
 	listMcpServers: () => Promise<{ok: true; mcpServers: McpWireRow[]} | Notice>;
-	mcpServerControl: (name: string, op: McpServerOp) => Promise<{ok: true; mcp: McpWireControl} | Notice>;
+	mcpServerControl: (name: string, op: McpServerOp) => Promise<{ok: true; mcp: McpControlResult} | Notice>;
 	mcpServerPut: (name: string, config: unknown) => Promise<{ok: true; mcpServers: McpWireRow[]} | Notice>;
 	mcpServerEnabled: (name: string, enabled: boolean) => Promise<{ok: true; mcpServers: McpWireRow[]} | Notice>;
 	mcpServerDelete: (name: string) => Promise<{ok: true} | Notice>;
@@ -50,10 +50,11 @@ export function createMcp(lane: HostLane): WorkspaceMcp {
 			const mcpName = mcp?.name;
 			const mcpOp = mcp?.op;
 			const mcpState = mcp?.state;
-			if (!mcp || mcpName == null || mcpOp == null || mcpState == null) {
+			const mcpOk = mcp?.ok;
+			if (!mcp || mcpName == null || mcpOp == null || mcpState == null || mcpOk == null) {
 				return {ok: false, notice: r.event.message || 'mcp control result missing'};
 			}
-			return {ok: true, mcp: {...mcp, name: mcpName, op: mcpOp, state: mcpState}};
+			return {ok: true, mcp: {...mcp, ok: mcpOk, name: mcpName, op: mcpOp, state: mcpState}};
 		},
 		async mcpServerPut(name, config) {
 			const r = await hostRequest(

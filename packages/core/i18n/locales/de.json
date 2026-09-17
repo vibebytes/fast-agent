@@ -1513,7 +1513,8 @@
       "target_stale": "Dieses Ergebnis ist veraltet — nur der neueste Lauf kann erneut ausgeführt werden.",
       "unsupported": "Die aktuelle Engine unterstützt keine erneute Ausführung.",
       "rejected": "Die erneute Ausführung wurde abgelehnt.",
-      "bannerTitle": "Erneute Ausführung wurde nicht ausgeführt"
+      "bannerTitle": "Erneute Ausführung wurde nicht ausgeführt",
+      "timeout": "Keine Antwort auf die erneute Ausführung — die Engine wurde möglicherweise neu gestartet. Bitte erneut versuchen."
     },
     "kind": {
       "silent": "Leere oder fehlerhafte Antwort",

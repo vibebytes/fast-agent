@@ -42,7 +42,7 @@ export function applySessionRestored(
 	const superseded = {...state.superseded};
 	for (const rt of event.turns) {
 		if (rt.supersedes) {
-			superseded[rt.supersedes] = rt.turnId;
+			superseded[rt.supersedes] = rt.runId?.trim() || rt.turnId;
 		}
 	}
 	return {
@@ -91,7 +91,7 @@ export function applySessionHistoryPage(
 	const superseded = {...state.superseded};
 	for (const rt of event.turns) {
 		if (rt.supersedes) {
-			superseded[rt.supersedes] = rt.turnId;
+			superseded[rt.supersedes] = rt.runId?.trim() || rt.turnId;
 		}
 	}
 	return {
@@ -128,6 +128,7 @@ function entriesFromRestoredTurns(
 		goalAgentName?: string | null;
 		goalVerdict?: string | null;
 		failed?: boolean | null;
+		runId?: string | null;
 	}>,
 	skipUserTexts?: Set<string>
 ): TranscriptEntry[] {
@@ -174,6 +175,8 @@ function entriesFromRestoredTurns(
 		const userText =
 			rt.userText ||
 			(planBuild ? planBuildDisplayContent(rt.planName ?? '', rt.planId!) : '');
+		// Engine runId ≠ user message id; only carry it when it adds identity.
+		const runId = rt.runId?.trim() ? {runId: rt.runId.trim()} : {};
 		if (userText) {
 			const origin = rt.origin?.trim() || undefined;
 			restoredEntries.push({
@@ -182,6 +185,7 @@ function entriesFromRestoredTurns(
 				text: userText,
 				status: 'done',
 				turnId: rt.turnId,
+				...runId,
 				...(origin ? {origin} : {}),
 				...(planBuild ?? {})
 			});
@@ -193,6 +197,16 @@ function entriesFromRestoredTurns(
 			reasoning: rt.thinking ?? '',
 			status: failed ? 'error' : 'done',
 			turnId: rt.turnId,
+			...runId,
+			...(failed
+				? {
+						fault: {
+							kind: 'engine_error',
+							remedy: 'retry_same',
+							...(rt.runId?.trim() ? {runId: rt.runId.trim()} : {})
+						}
+					}
+				: {}),
 			tools: (rt.tools ?? []).map(t => ({
 				id: t.id,
 				tool: t.tool,

@@ -123,6 +123,14 @@ test('regenerate after a failed run re-runs the message end-to-end', async () =>
 			'turn_started after accepted rerun'
 		);
 		assert.ok(rerunTurnIdx > rerunResultIdx, 'rerun turn starts only after acceptance');
+		const rerunOpener = h.events[rerunTurnIdx] as Extract<BridgeEvent, {type: 'turn_started'}>;
+		assert.equal(rerunOpener.supersedes, failedRunId);
+		await until(
+			() => h.task.transcript.superseded?.[failedRunId],
+			Boolean,
+			'superseded record retires regenPending'
+		);
+		assert.equal(h.task.transcript.superseded?.[failedRunId], rerunOpener.turnId);
 		await until(() => h.c.gate().runState, state => state === 'idle', 'replayed failing turn settles');
 
 		const rerunCmd = h.sent.find(cmd => cmd.type === 'RerunRun') as

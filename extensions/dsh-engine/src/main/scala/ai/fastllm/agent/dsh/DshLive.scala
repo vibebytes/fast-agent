@@ -14,7 +14,7 @@ def dshKnownTool(name: String): Boolean = DshKnownTools.contains(dshTool(name))
 def dshLive(typ: String, fields: (String, Json)*): EventRow =
   EventRow(0L, Json.obj("payload" -> Json.fromFields(("type" -> typ.asJson) +: fields)).noSpaces)
 
-def dshCapsRow(sessionId: String, queue: Boolean, goal: Boolean, budget: Boolean): EventRow =
+def dshCapsRow(sessionId: String, queue: Boolean, goal: Boolean, budget: Boolean, rerun: Boolean = false): EventRow =
   dshLive(
     "dsh_caps",
     "sessionId" -> sessionId.asJson,
@@ -23,7 +23,9 @@ def dshCapsRow(sessionId: String, queue: Boolean, goal: Boolean, budget: Boolean
     "budget" -> budget.asJson,
     // dsh_caps.question and Caps.answerQuestion are independent axes (invariant 2); DSH is always true.
     "question" -> true.asJson,
-    "slash" -> true.asJson
+    "slash" -> true.asJson,
+    // Mirrors Caps.rerun: the ErrorCard hides Retry when the engine cannot replay a run.
+    "rerun" -> rerun.asJson
   )
 
 def dshQueueRow(sessionId: String, items: Json): EventRow =

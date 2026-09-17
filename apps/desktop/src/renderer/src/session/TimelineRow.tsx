@@ -458,6 +458,7 @@ export const TimelineRow = memo(function TimelineRow({
 						runId={item.runId ?? item.id}
 						busy={Boolean(retryBusy)}
 						stale={errorStale === true}
+						canRerun={engineKind !== 'dsh' || dshCaps?.rerun === true}
 						onRetry={runId => onRerun?.(runId)}
 						onContinue={() => onContinueRun?.()}
 					/>

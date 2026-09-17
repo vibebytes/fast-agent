@@ -1513,7 +1513,8 @@
       "target_stale": "Este resultado está desactualizado — solo se puede reintentar la ejecución más reciente.",
       "unsupported": "El motor actual no admite la reejecución.",
       "rejected": "Se rechazó la reejecución.",
-      "bannerTitle": "La reejecución no se ejecutó"
+      "bannerTitle": "La reejecución no se ejecutó",
+      "timeout": "Sin respuesta a la reejecución — es posible que el motor se haya reiniciado. Inténtalo de nuevo."
     },
     "kind": {
       "silent": "Respuesta vacía o mal formada",

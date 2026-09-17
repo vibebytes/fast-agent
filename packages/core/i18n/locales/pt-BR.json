@@ -1513,7 +1513,8 @@
       "target_stale": "Este resultado está desatualizado — somente a execução mais recente pode ser repetida.",
       "unsupported": "O mecanismo atual não oferece suporte a repetição.",
       "rejected": "A repetição foi recusada.",
-      "bannerTitle": "A repetição não foi executada"
+      "bannerTitle": "A repetição não foi executada",
+      "timeout": "Sem resposta à repetição — o mecanismo pode ter sido reiniciado. Tente novamente."
     },
     "kind": {
       "silent": "Resposta vazia ou malformada",

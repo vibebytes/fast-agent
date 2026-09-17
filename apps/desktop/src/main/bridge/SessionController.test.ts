@@ -3466,8 +3466,8 @@ test('setEngineKind sticks on Task; CreateSession sends dsh only when selected',
 	controller.acceptNewSession('sess-a', a.id, 'ws-1');
 	assert.equal(controller.setEngineKind('fast'), true);
 	assert.equal(controller.engineKind, 'fast');
-	assert.ok(!sent.some(c => c.type === 'SetEngine'));
-	assert.ok(sent.some(c => c.type === 'SetEngineKind' && c.kind === 'fast'));
+	assert.ok(!sent.some(c => c.type === 'SetEngineKind'));
+	assert.ok(sent.some(c => c.type === 'SetEngine' && c.kind === 'fast'));
 });
 
 test('SetEngineKind reject or stale success does not clobber a later pick', () => {
@@ -3535,7 +3535,8 @@ test('setEngineKind dsh survives sessions_list that still reports the bound fast
 			title: 'A',
 			lastModified: '2026-09-16T00:00:00.000Z',
 			isCurrent: true,
-			engineKind: 'fast'
+			engineKind: 'fast',
+			messageCount: 0
 		}
 	]);
 	assert.equal(controller.engineKind, 'dsh', 'inventory must not revert the Composer pick');
@@ -3562,7 +3563,8 @@ test('setEngineKind dsh survives sessions_list before Attach', () => {
 			id: 'sess-a',
 			title: 'A',
 			lastModified: '2026-09-16T00:00:00.000Z',
-			isCurrent: true
+			isCurrent: true,
+			messageCount: 0
 		}
 	]);
 	assert.equal(controller.engineKind, 'dsh', 'unattached pick must survive omitted inventory kind');
@@ -3608,11 +3610,11 @@ test('setEngineKind dsh without available does not send SetEngine and stays fast
 	assert.ok(!sent.some(c => c.type === 'SetEngine'));
 	controller.setAvailableEngines(['fast', 'dsh']);
 	assert.equal(controller.setEngineKind('dsh'), true);
-	assert.ok(!sent.some(c => c.type === 'SetEngine'));
-	assert.ok(sent.some(c => c.type === 'SetEngineKind' && c.kind === 'dsh' && c.sessionId === 'sess-a'));
+	assert.ok(!sent.some(c => c.type === 'SetEngineKind'));
+	assert.ok(sent.some(c => c.type === 'SetEngine' && c.kind === 'dsh' && c.sessionId === 'sess-a'));
 });
 
-test('rebindPickedEngine resends SetEngineKind for the owned dsh pick', () => {
+test('rebindPickedEngine resends SetEngine for the owned dsh pick', () => {
 	const sent: BridgeCommand[] = [];
 	const controller = new SessionController({
 		clientId: 'cli',
@@ -3630,7 +3632,7 @@ test('rebindPickedEngine resends SetEngineKind for the owned dsh pick', () => {
 	assert.equal(controller.setEngineKind('dsh'), true);
 	sent.length = 0;
 	controller.rebindPickedEngine();
-	assert.ok(sent.some(c => c.type === 'SetEngineKind' && c.kind === 'dsh' && c.sessionId === 'sess-a'));
+	assert.ok(sent.some(c => c.type === 'SetEngine' && c.kind === 'dsh' && c.sessionId === 'sess-a'));
 });
 
 test('hydrateFromSessionsList cold-restores runMode and model_settings', () => {

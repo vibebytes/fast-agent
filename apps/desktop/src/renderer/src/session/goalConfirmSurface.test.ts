@@ -51,10 +51,29 @@ test('timeout retry is ErrorCard; regenerate click is not a silent no-op', () =>
 		true,
 		'rerunRun false/reject must surface a banner, not void-drop'
 	);
+		assert.equal(
+			pane.includes("code: 'send.session_not_ready'"),
+			true,
+			'session-not-ready from rerun must show the existing send banner'
+		);
+		assert.equal(
+			pane.includes('REGEN_PENDING_TIMEOUT_MS'),
+			true,
+			'regenPending must time out instead of greying Retry forever'
+		);
+		assert.equal(
+			pane.includes("code: 'rerun.timeout'"),
+			true,
+			'dead-man switch surfaces errors.rerun.timeout'
+		);
+});
+
+test('DSH error cards hide Retry unless caps.rerun is true', () => {
+	const row = readFileSync(join(dir, 'TimelineRow.tsx'), 'utf8');
 	assert.equal(
-		pane.includes("code: 'send.session_not_ready'"),
+		row.includes("canRerun={engineKind !== 'dsh' || dshCaps?.rerun === true}"),
 		true,
-		'session-not-ready from rerun must show the existing send banner'
+		'DSH Retry is gated on dshCaps.rerun, not shown by default'
 	);
 });
 

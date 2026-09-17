@@ -302,7 +302,8 @@ export function createSessionEventHost(deps: SessionEventHostDeps) {
 				budget: event.budget,
 				question: event.question,
 				slash: event.slash,
-				...(event.delta ? {delta: event.delta} : {})
+				...(event.delta ? {delta: event.delta} : {}),
+				...(typeof event.rerun === 'boolean' ? {rerun: event.rerun} : {})
 			};
 			deps.tasks.set(task.id, task);
 			return task;

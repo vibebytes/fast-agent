@@ -80,6 +80,8 @@ const EMPTY_LIVE_PROCS: NonNullable<TranscriptSlice['liveProcs']> = [];
 const EMPTY_LIVE_TASKS: NonNullable<TranscriptSlice['liveTasks']> = [];
 const EMPTY_CHILD_WORK: NonNullable<TranscriptSlice['childWork']> = [];
 const STOPPABLE_GOAL_PHASES = new Set(['started', 'paused', 'escalated']);
+/** Rerun opener / rejection must land within this window or the optimistic hide rolls back. */
+const REGEN_PENDING_TIMEOUT_MS = 30_000;
 
 const StableOpenTabStrip = memo(OpenTabStrip);
 
@@ -253,9 +255,9 @@ export const SessionPane = memo(function SessionPane({
 	);
 	const [errorLine, setErrorLine] = useState<string | null>(null);
 	// D10 regenerate: optimistic live hide of the victim answer while the
-	// re-run streams. The wire's turn_started carries no supersedes, so the
-	// client hides the rows itself; a RerunRun rejection (bridge:error with a
-	// rerun.* code) rolls the hide back and the sticky banner explains why.
+	// re-run streams. turn_started.supersedes records provenance live; a
+	// RerunRun rejection (bridge:error with a rerun.* code) rolls the hide
+	// back and the sticky banner explains why.
 	const [regenPending, setRegenPending] = useState<{taskId: string; runId: string} | null>(null);
 	const [regenRejected, setRegenRejected] = useState<{taskId: string | null; code: string} | null>(
 		null
@@ -276,6 +278,20 @@ export const SessionPane = memo(function SessionPane({
 			setRegenPending(null);
 		}
 	}, [regenPending, activeTaskId, transcript]);
+	// Dead-man switch: if neither the rerun opener (superseded record) nor a rerun.*
+	// rejection lands, roll the optimistic hide back instead of greying Retry forever.
+	useEffect(() => {
+		if (!regenPending) return;
+		const pending = regenPending;
+		const timer = window.setTimeout(() => {
+			setRegenPending(current => {
+				if (current !== pending) return current;
+				setRegenRejected({taskId: pending.taskId, code: 'rerun.timeout'});
+				return null;
+			});
+		}, REGEN_PENDING_TIMEOUT_MS);
+		return () => window.clearTimeout(timer);
+	}, [regenPending]);
 	// Keep-alive: each pane owns its stick-to-bottom flag; shared across visits.
 	const stickRefs = useRef(new Map<string, {current: boolean}>());
 	const stickFor = useCallback((id: string | null) => {
