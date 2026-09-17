@@ -191,6 +191,49 @@ test('mcpConfigImport/Reload use the slow 30s plane', async () => {
 	);
 });
 
+const rowOperations = [
+	['ListMcpServers', (mcp: ReturnType<typeof createMcp>) => mcp.listMcpServers()],
+	['McpServerPut', (mcp: ReturnType<typeof createMcp>) => mcp.mcpServerPut('filesystem', {})],
+	['McpServerEnabled', (mcp: ReturnType<typeof createMcp>) => mcp.mcpServerEnabled('filesystem', true)],
+	['McpConfigImport', (mcp: ReturnType<typeof createMcp>) => mcp.mcpConfigImport({})],
+	['McpConfigReload', (mcp: ReturnType<typeof createMcp>) => mcp.mcpConfigReload()]
+] as const;
+
+for (const [name, invoke] of rowOperations) {
+	test(`${name} normalizes JSON env without modifying the engine response`, async () => {
+		const envs = [{TOKEN: 'secret'}, ['TOKEN=secret'], {}, []];
+		const rows = envs.map(env => Object.freeze({...oneRow, env: JSON.stringify(env)}));
+		const event = resultEvent(name, {mcpServers: rows});
+		const before = structuredClone(event);
+		const {lane} = laneOf(() => event);
+		const result = await invoke(createMcp(lane));
+		assert.deepEqual(result, {ok: true, mcpServers: envs.map(env => ({...oneRow, env}))});
+		assert.deepEqual(event, before);
+	});
+
+	test(`${name} preserves structured and absent env`, async () => {
+		const rows = [oneRow, ...[{TOKEN: 'secret'}, ['TOKEN=secret'], {}, []].map(env => ({...oneRow, env}))];
+		const {lane} = laneOf(() => resultEvent(name, {mcpServers: rows}));
+		assert.deepEqual(await invoke(createMcp(lane)), {ok: true, mcpServers: rows});
+	});
+
+	test(`${name} rejects invalid JSON env without leaking values or returning partial rows`, async () => {
+		const invalidEnvs = [
+			'', 'secret-not-json', 'null', '42', 'true', '"secret"',
+			'{"TOKEN":42}', '["secret",42]', '{"TOKEN":{"secret":"value"}}'
+		];
+		for (const env of invalidEnvs) {
+			const {lane} = laneOf(() => resultEvent(name, {
+				mcpServers: [oneRow, {...oneRow, env}]
+			}));
+			assert.deepEqual(await invoke(createMcp(lane)), {
+				ok: false,
+				notice: 'Cannot read MCP response: invalid env JSON for server "filesystem".'
+			});
+		}
+	});
+}
+
 test('send failure yields a notice instead of throwing', async () => {
 	const {lane, sent} = laneOf(() => null, false);
 	const r = await createMcp(lane).listMcpServers();
