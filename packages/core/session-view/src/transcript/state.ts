@@ -205,6 +205,7 @@ export type UsageView = {
 /** One `context_pruned` notice — ids dropped from the model window. */
 export type ContextPruneView = {
 	runId: string;
+	eventSeq?: number;
 	prunedIds: string[];
 	reason: string;
 	remainingTokens?: number;

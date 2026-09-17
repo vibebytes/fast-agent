@@ -54,10 +54,33 @@ export function usageFooter(
 export function contextPruneNotice(
 	state: DeltaSurfaces,
 	caps: DshDeltaCaps | undefined
-): ContextPruneView | null {
+): (ContextPruneView & {text: string}) | null {
 	if (caps?.contextPrune !== true) return null;
-	const notices = state.contextPrunes;
-	return notices?.length ? (notices.at(-1) as ContextPruneView) : null;
+	const notice = state.contextPrunes?.at(-1);
+	if (!notice) return null;
+	let text: string;
+	switch (notice.reason) {
+		case 'nothing-to-compact':
+			text = '当前没有可压缩的历史上下文';
+			break;
+		case 'summary-breaker':
+			text = '摘要压缩暂时熔断，已使用裁剪方式释放上下文';
+			break;
+		case 'summary-fallback':
+			text = '摘要压缩未成功，已回退到裁剪方式';
+			break;
+		case 'summary':
+			text = '历史上下文已压缩为摘要';
+			break;
+		case 'compaction':
+			text = '历史上下文已裁剪';
+			break;
+		default:
+			text = notice.prunedIds.length
+				? `已裁剪 ${notice.prunedIds.length} 条历史上下文`
+				: '历史上下文已调整';
+	}
+	return {...notice, text};
 }
 
 /** Rolling child transcript tail — `null` when the host cannot emit `child_transcript_delta`. */

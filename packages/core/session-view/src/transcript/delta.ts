@@ -106,28 +106,26 @@ export function applyContextPruned(
 	const prunedIds = Array.isArray(event.prunedIds)
 		? event.prunedIds.filter((id): id is string => typeof id === 'string' && !!id.trim())
 		: [];
-	if (!prunedIds.length) return state;
+	const compactionStatus = ['nothing-to-compact', 'summary-breaker', 'summary-fallback', 'summary', 'compaction'].includes(event.reason ?? '');
+	if (!prunedIds.length && !compactionStatus) return state;
 	const remaining =
 		typeof event.remainingTokens === 'number' && Number.isFinite(event.remainingTokens)
 			? event.remainingTokens
 			: undefined;
+	const eventSeq = typeof event.eventSeq === 'number' && Number.isFinite(event.eventSeq)
+		? event.eventSeq
+		: undefined;
+	const prev = state.contextPrunes ?? [];
+	if (eventSeq !== undefined && prev.some(item =>
+		item.runId === runId && item.eventSeq !== undefined && item.eventSeq >= eventSeq
+	)) return state;
 	const notice: ContextPruneView = {
 		runId,
 		prunedIds,
 		reason: typeof event.reason === 'string' ? event.reason : '',
+		...(eventSeq !== undefined ? {eventSeq} : {}),
 		...(remaining !== undefined ? {remainingTokens: remaining} : {})
 	};
-	const prev = state.contextPrunes ?? [];
-	// River replay / resync can re-deliver the same row; identical notices collapse.
-	const duplicate = prev.some(
-		item =>
-			item.runId === notice.runId &&
-			item.reason === notice.reason &&
-			item.remainingTokens === notice.remainingTokens &&
-			item.prunedIds.length === notice.prunedIds.length &&
-			item.prunedIds.every((id, index) => id === notice.prunedIds[index])
-	);
-	if (duplicate) return state;
 	return {...state, contextPrunes: [...prev, notice].slice(-CONTEXT_PRUNE_MAX)};
 }
 

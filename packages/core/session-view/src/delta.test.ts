@@ -63,6 +63,39 @@ test('context_pruned with empty prunedIds is a no-op', () => {
 	assert.equal(state.contextPrunes, undefined);
 });
 
+test('context_pruned preserves A-B-A transitions and ignores replayed event sequences', () => {
+	let state = createTranscriptState();
+	const event = {
+		type: 'context_pruned' as const,
+		runId: 'r1',
+		prunedIds: [],
+		remainingTokens: 100,
+		reason: 'nothing-to-compact',
+		eventSeq: 1
+	};
+	state = applyBridgeEvent(state, event);
+	state = applyBridgeEvent(state, {...event, reason: 'summary', eventSeq: 2});
+	state = applyBridgeEvent(state, {...event, eventSeq: 3});
+	assert.deepEqual(state.contextPrunes?.map(item => item.reason), [
+		'nothing-to-compact', 'summary', 'nothing-to-compact'
+	]);
+	assert.equal(applyBridgeEvent(state, event), state);
+	assert.equal(applyBridgeEvent(state, {...event, eventSeq: 3}), state);
+	state = applyBridgeEvent(state, {...event, eventSeq: 4});
+	assert.equal(state.contextPrunes?.length, 4);
+});
+
+test('context_pruned without event identity does not suppress a new occurrence', () => {
+	let state = createTranscriptState();
+	for (const reason of ['nothing-to-compact', 'summary', 'nothing-to-compact']) {
+		state = applyBridgeEvent(state, {
+			type: 'context_pruned', runId: 'r1', prunedIds: [], reason
+		});
+	}
+	assert.equal(state.contextPrunes?.length, 3);
+	assert.equal(state.contextPrunes?.at(-1)?.reason, 'nothing-to-compact');
+});
+
 test('child_transcript_delta accumulates per child and drops stale seq', () => {
 	let state = createTranscriptState();
 	state = applyBridgeEvent(state, {

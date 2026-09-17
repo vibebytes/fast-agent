@@ -55,6 +55,25 @@ test('contextPruneNotice returns the latest notice only when caps allow it', () 
 	assert.equal(contextPruneNotice(createTranscriptState(), CAPS_ON), null);
 });
 
+const compactionNotices = {
+	'nothing-to-compact': '当前没有可压缩的历史上下文',
+	'summary-breaker': '摘要压缩暂时熔断，已使用裁剪方式释放上下文',
+	'summary-fallback': '摘要压缩未成功，已回退到裁剪方式',
+	'summary': '历史上下文已压缩为摘要',
+	'compaction': '历史上下文已裁剪'
+};
+
+for (const [reason, text] of Object.entries(compactionNotices)) {
+	test(`contextPruneNotice retains ${reason} without message ids`, () => {
+		const state = applyBridgeEvent(createTranscriptState(), {
+			type: 'context_pruned', runId: 'r1', prunedIds: [], reason
+		});
+		assert.equal(contextPruneNotice(state, CAPS_ON)?.reason, reason);
+		assert.equal(contextPruneNotice(state, CAPS_ON)?.text, text);
+		assert.equal(contextPruneNotice(state, CAPS_OFF), null);
+	});
+}
+
 test('childTranscriptText returns the tail only when caps allow it', () => {
 	let state = applyBridgeEvent(createTranscriptState(), {
 		type: 'child_transcript_delta',

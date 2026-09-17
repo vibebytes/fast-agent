@@ -953,9 +953,7 @@ export const SessionPane = memo(function SessionPane({
 					data-slot="context-prune-notice"
 					className="mb-4 rounded-lg border border-border/60 bg-muted/40 px-3 py-2 text-xs text-muted-foreground"
 				>
-					{`已裁剪 ${pruneNotice.prunedIds.length} 条历史上下文${
-						pruneNotice.reason ? `（${pruneNotice.reason}）` : ''
-					}`}
+					{pruneNotice.text}
 				</div>
 			) : null}
 			{regenRejected && regenRejected.taskId === activeTaskId ? (
