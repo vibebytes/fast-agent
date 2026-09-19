@@ -171,6 +171,11 @@
       "thinkingSupported": "Prend en charge la réflexion",
       "thinkingSupportedWithEfforts": "Prend en charge la réflexion ({{efforts}})",
       "thinkingBadge": "Réflexion",
+      "toggleImage": "Basculer la saisie d'image",
+      "imageBadge": "Image",
+      "imageSupported": "Prend en charge la saisie d'image",
+      "supportsImage": "Prend en charge la saisie d'image",
+      "supportsImageDesc": "Le modèle accepte les images en plus du texte",
       "defaultBadge": "Par défaut",
       "primaryDefaultBadge": "Modèle par défaut principal"
     },

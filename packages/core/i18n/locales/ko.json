@@ -171,6 +171,11 @@
       "thinkingSupported": "사고 지원",
       "thinkingSupportedWithEfforts": "사고 지원 ({{efforts}})",
       "thinkingBadge": "사고",
+      "toggleImage": "이미지 입력 전환",
+      "imageBadge": "이미지",
+      "imageSupported": "이미지 입력 지원",
+      "supportsImage": "이미지 입력 지원",
+      "supportsImageDesc": "텍스트 외에 이미지 입력을 받는 모델",
       "defaultBadge": "기본",
       "primaryDefaultBadge": "기본 주력 모델"
     },

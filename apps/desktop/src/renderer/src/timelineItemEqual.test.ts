@@ -46,6 +46,21 @@ test('timelineItemEqual observes rendered Exploring tool details', () => {
 	assert.equal(timelineItemEqual(a, changedTitle), false);
 });
 
+test('timelineItemEqual observes user images for live bubble paint', () => {
+	const a = {
+		kind: 'user',
+		id: 'u1',
+		text: 'see',
+		isCommand: false
+	} as TimelineItem;
+	const withImg = {
+		...a,
+		images: [{mediaType: 'image/png', name: 'a.png', dataUrl: 'data:image/png;base64,xx'}]
+	} as TimelineItem;
+	assert.equal(timelineItemEqual(a, withImg), false);
+	assert.equal(timelineItemEqual(withImg, {...withImg}), true);
+});
+
 test('timelineItemEqual observes user origin used by the scheduled badge', () => {
 	const a = {
 		kind: 'user',

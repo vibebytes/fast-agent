@@ -171,6 +171,11 @@
       "thinkingSupported": "思考をサポート",
       "thinkingSupportedWithEfforts": "思考をサポート ({{efforts}})",
       "thinkingBadge": "思考",
+      "toggleImage": "画像入力を切り替え",
+      "imageBadge": "画像",
+      "imageSupported": "画像入力対応",
+      "supportsImage": "画像入力対応",
+      "supportsImageDesc": "テキストに加えて画像入力を受け付けるモデル",
       "defaultBadge": "デフォルト",
       "primaryDefaultBadge": "既定の主力モデル"
     },

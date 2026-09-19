@@ -183,8 +183,8 @@ const api = {
 	renameTask: (taskId: string, title: string) => invoke('task:rename', taskId, title),
 	deleteTask: (taskId: string, sessionId?: string | null) =>
 		invoke('task:delete', taskId, sessionId),
-	sendMessage: (text, mentions, expectedTaskId) =>
-		invoke('task:send', text, mentions, expectedTaskId),
+	sendMessage: (text, mentions, expectedTaskId, images) =>
+		invoke('task:send', text, mentions, expectedTaskId, images),
 	buildPlan: (planId, name) => invoke('task:buildPlan', planId, name),
 	mentionSuggest: (prefix, requestId, kinds) =>
 		invoke('mention:suggest', prefix, requestId, kinds),

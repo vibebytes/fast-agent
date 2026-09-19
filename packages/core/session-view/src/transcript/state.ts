@@ -45,10 +45,19 @@ export type NetworkWaitState = {
 	elapsedMs?: number;
 };
 
+export type TranscriptImage = {
+	mediaType: string;
+	name?: string;
+	/** data: URL for <img src>; live from composer, restore from RestoredTurn.userImages. */
+	dataUrl: string;
+};
+
 export type TranscriptEntry = {
 	id: string;
 	role: 'user' | 'assistant';
 	text: string;
+	/** User-attached images for bubble display. */
+	images?: TranscriptImage[];
 	reasoning?: string;
 	status: 'streaming' | 'done' | 'error' | 'cancelled';
 	turnId?: string;

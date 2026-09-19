@@ -129,6 +129,7 @@ function entriesFromRestoredTurns(
 		goalVerdict?: string | null;
 		failed?: boolean | null;
 		runId?: string | null;
+		userImages?: Array<{mediaType: string; name?: string | null; dataUrl?: string | null}> | null;
 	}>,
 	skipUserTexts?: Set<string>
 ): TranscriptEntry[] {
@@ -175,9 +176,16 @@ function entriesFromRestoredTurns(
 		const userText =
 			rt.userText ||
 			(planBuild ? planBuildDisplayContent(rt.planName ?? '', rt.planId!) : '');
+		const userImages = (rt.userImages ?? [])
+			.filter(i => typeof i.dataUrl === 'string' && i.dataUrl.startsWith('data:'))
+			.map(i => ({
+				mediaType: i.mediaType,
+				...(i.name?.trim() ? {name: i.name.trim()} : {}),
+				dataUrl: i.dataUrl!
+			}));
 		// Engine runId ≠ user message id; only carry it when it adds identity.
 		const runId = rt.runId?.trim() ? {runId: rt.runId.trim()} : {};
-		if (userText) {
+		if (userText || planBuild || userImages.length > 0) {
 			const origin = rt.origin?.trim() || undefined;
 			restoredEntries.push({
 				id: `user-${rt.turnId}`,
@@ -187,7 +195,8 @@ function entriesFromRestoredTurns(
 				turnId: rt.turnId,
 				...runId,
 				...(origin ? {origin} : {}),
-				...(planBuild ?? {})
+				...(planBuild ?? {}),
+				...(userImages.length ? {images: userImages} : {})
 			});
 		}
 		restoredEntries.push({

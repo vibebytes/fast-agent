@@ -257,7 +257,8 @@ function UserBubble({
 	regen,
 	scheduled,
 	wake,
-	dockedBelow
+	dockedBelow,
+	images
 }: {
 	text: string;
 	canCancel: boolean;
@@ -265,6 +266,7 @@ function UserBubble({
 	scheduled?: boolean;
 	wake?: boolean;
 	dockedBelow?: boolean;
+	images?: Array<{mediaType: string; name?: string; dataUrl: string}>;
 }) {
 	return (
 		<UserMessageShell
@@ -278,9 +280,25 @@ function UserBubble({
 					{scheduled ? 'Scheduled' : 'Background task'}
 				</span>
 			) : null}
-			<CollapsibleBody long={isLongBody(text)}>
-				<MentionText text={text} />
-			</CollapsibleBody>
+			{images && images.length > 0 ? (
+				<div className="mb-2 flex flex-wrap gap-2">
+					{images.map((img, i) => (
+						<img
+							key={`${img.name ?? 'img'}-${i}`}
+							src={img.dataUrl}
+							alt={img.name ?? 'attachment'}
+							title={img.name}
+							className="max-h-40 max-w-[12rem] rounded-md object-cover border border-border/50 cursor-zoom-in"
+							onClick={() => window.open(img.dataUrl, '_blank', 'noopener,noreferrer')}
+						/>
+					))}
+				</div>
+			) : null}
+			{text.trim() ? (
+				<CollapsibleBody long={isLongBody(text)}>
+					<MentionText text={text} />
+				</CollapsibleBody>
+			) : null}
 		</UserMessageShell>
 	);
 }
@@ -395,6 +413,7 @@ export const TimelineRow = memo(function TimelineRow({
 					scheduled={item.origin === 'scheduler_generated'}
 					wake={item.origin === 'background_wake'}
 					dockedBelow={Boolean(item.planBuild)}
+					images={item.images}
 				/>
 			);
 			break;

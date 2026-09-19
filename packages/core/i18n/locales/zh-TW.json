@@ -171,6 +171,11 @@
       "thinkingSupported": "支援深度思考",
       "thinkingSupportedWithEfforts": "支援深度思考 ({{efforts}})",
       "thinkingBadge": "思考",
+      "toggleImage": "切換圖片輸入",
+      "imageBadge": "圖片",
+      "imageSupported": "支援圖片輸入",
+      "supportsImage": "支援圖片輸入",
+      "supportsImageDesc": "模型除文字外還可接收圖片輸入",
       "defaultBadge": "預設",
       "primaryDefaultBadge": "預設主力模型"
     },

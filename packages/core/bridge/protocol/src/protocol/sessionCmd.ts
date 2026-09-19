@@ -28,6 +28,8 @@ export type SessionCmd =
 			}>;
 			/** Explicit engine for THIS message — wins over sticky, rebinds idle sessions. */
 			engineKind?: string;
+			planBuild?: {planId: string; name?: string};
+			images?: Array<{mediaType: string; data: string; name?: string}>;
 	  }
 	/** Read-only Mentions prefix suggest (not a Run). */
 	| {
@@ -57,7 +59,7 @@ export type SessionCmd =
 			type: 'SteerRun';
 			sessionId: string;
 			text: string;
-			images?: Array<{mediaType: string; data: string}>;
+			images?: Array<{mediaType: string; data: string; name?: string}>;
 	  }
 	|{
 			type: 'QueueMessage';
@@ -181,7 +183,13 @@ export const sessionCmdSchemas = [
 			})
 			.optional(),
 		images: z
-			.array(z.object({mediaType: z.string(), data: z.string()}))
+			.array(
+				z.object({
+					mediaType: z.string(),
+					data: z.string(),
+					name: z.string().optional()
+				})
+			)
 			.optional(),
 		engineKind: z.string().optional()
 	}),

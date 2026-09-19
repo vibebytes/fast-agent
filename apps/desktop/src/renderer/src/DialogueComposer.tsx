@@ -48,6 +48,14 @@ import {
 } from 'lucide-react';
 import {useTranslation} from 'react-i18next';
 import {createTaskComposerDraftStore} from './composerDraft';
+import {
+	fileToPending,
+	IMAGE_ACCEPT,
+	revokePending,
+	screenshotName,
+	supportsImageInput,
+	type PendingImage
+} from './imageAttachments';
 import {ModelMenu} from './dsh/composer/ModelMenu';
 import {Notice as DshNotice} from './dsh/composer/Notice';
 import {useDshModels} from './dsh/composer/models';
@@ -267,15 +275,26 @@ export const DialogueComposer = memo(function DialogueComposer({
 	const [mentionGroups, setMentionGroups] = useState<MentionSuggestGroup[]>([]);
 	const [mentionRequestId, setMentionRequestId] = useState<string | null>(null);
 	const [mentionsWarming, setMentionsWarming] = useState(false);
+	const [pendingImages, setPendingImages] = useState<PendingImage[]>([]);
+	const [attachNotice, setAttachNotice] = useState<string | null>(null);
 	const pendingMentionId = useRef<string | null>(null);
 	const mentionTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 	const textareaRef = useRef<HTMLTextAreaElement>(null);
 	const richRef = useRef<MentionRichInputHandle>(null);
+	const fileInputRef = useRef<HTMLInputElement>(null);
 	const slashChipRef = useRef<HTMLSpanElement>(null);
 	const slashMenuListRef = useRef<HTMLDivElement>(null);
 	const atMenuListRef = useRef<HTMLDivElement>(null);
 	/** First-line indent so args wrap under the chip (native textarea can't share line boxes). */
 	const [slashChipIndent, setSlashChipIndent] = useState(0);
+
+	useEffect(() => {
+		setPendingImages(prev => {
+			revokePending(prev);
+			return [];
+		});
+		setAttachNotice(null);
+	}, [taskId]);
 
 	// Teams → Composer @ insert: only consume pending when a chip/ref lands; rAF retry if rich input not ready.
 	useEffect(() => {
@@ -497,6 +516,7 @@ export const DialogueComposer = memo(function DialogueComposer({
 	const activeBrand = activeProvider?.brand;
 	const supportedEfforts = activeModelEntry?.supportedEfforts ?? [];
 	const supportsThinking = activeModelEntry?.supportsThinking === true;
+	const canAttachImages = supportsImageInput(activeModelEntry);
 	const modelButtonFull = useMemo(() => {
 		const catalogDisplay = activeModelEntry?.display ?? '';
 		if (!isUnresolvedModelDisplay(catalogDisplay)) return catalogDisplay;
@@ -703,19 +723,65 @@ export const DialogueComposer = memo(function DialogueComposer({
 		requestAnimationFrame(() => richRef.current?.focus());
 	}
 
-	/** Paste attachments: real files become @file chips; pathless blobs (screenshots) are ignored. */
-	function pasteFiles(files: File[]) {
-		for (const f of files) {
-			const p = window.fastIde.getPathForFile(f);
-			if (!p) continue;
-			pickAt({
-				ref: `@file/${p}`,
-				label: p.split(/[\\/]/).pop() || p,
-				description: p,
-				kind: 'file',
-				locator: p
-			});
+	/** Paste / drop / file-picker: whitelist images → pending drawer; path files otherwise → @file. */
+	async function ingestFiles(files: File[], opts?: {fromPaste?: boolean}) {
+		if (!canAttachImages) {
+			const hasImage = files.some(f => IMAGE_ACCEPT.split(',').includes(f.type) || f.type.startsWith('image/'));
+			if (hasImage) {
+				setAttachNotice(t('shell.composer.imageNotSupported'));
+				return;
+			}
 		}
+		const acceptedCount = pendingImages.filter(p => !p.rejectReason && p.data).length;
+		let nextAccepted = acceptedCount;
+		const additions: PendingImage[] = [];
+		for (const f of files) {
+			const path = window.fastIde.getPathForFile(f);
+			const isImage =
+				IMAGE_ACCEPT.split(',').includes(f.type) ||
+				/\.(png|jpe?g|webp|gif)$/i.test(f.name);
+			if (isImage && canAttachImages) {
+				const defaultName =
+					!path && opts?.fromPaste ? screenshotName() : undefined;
+				const pending = await fileToPending(f, {
+					defaultName,
+					alreadyCount: nextAccepted
+				});
+				if (!pending.rejectReason && pending.data) nextAccepted += 1;
+				additions.push(pending);
+				continue;
+			}
+			if (path) {
+				pickAt({
+					ref: `@file/${path}`,
+					label: path.split(/[\\/]/).pop() || path,
+					description: path,
+					kind: 'file',
+					locator: path
+				});
+			}
+		}
+		if (additions.length) {
+			setPendingImages(prev => [...prev, ...additions]);
+			setAttachNotice(null);
+		}
+	}
+
+	function pasteFiles(files: File[]) {
+		void ingestFiles(files, {fromPaste: true});
+	}
+
+	function removePending(id: string) {
+		setPendingImages(prev => {
+			const hit = prev.find(p => p.id === id);
+			if (hit) URL.revokeObjectURL(hit.previewUrl);
+			return prev.filter(p => p.id !== id);
+		});
+	}
+
+	function clearPending() {
+		revokePending(pendingImages);
+		setPendingImages([]);
 	}
 
 	function clearSlashChip() {
@@ -743,7 +809,8 @@ export const DialogueComposer = memo(function DialogueComposer({
 		restoreChips: MentionChip[],
 		mentions?: MentionChip[]
 	) {
-		if (!text) return;
+		const hasImages = pendingImages.some(p => !p.rejectReason && p.data);
+		if (!text && !hasImages) return;
 		// Hand-typed `/plan …` or `/mode <m>` keeps Mode UI in sync with Engine sticky SetMode.
 		const slashName = text.match(/^\/([^\s]+)/)?.[1]?.toLowerCase();
 		const modeArg = text.match(/^\/mode\s+(agent|plan|ask|yolo)\b/i)?.[1]?.toLowerCase() as
@@ -765,12 +832,17 @@ export const DialogueComposer = memo(function DialogueComposer({
 		setMentionChips([]);
 		setMentionBeforeCaret('');
 		setMentionGroups([]);
+		const imagesWire = pendingImages
+			.filter(p => !p.rejectReason && p.data)
+			.map(p => ({mediaType: p.mediaType, data: p.data, name: p.name}));
+		clearPending();
 		richRef.current?.clear();
 		onSubmitSuccess?.(text);
 		const result = await window.fastIde.sendMessage(
 			text,
 			mentions && mentions.length > 0 ? mentions : undefined,
-			taskId
+			taskId,
+			imagesWire.length > 0 ? imagesWire : undefined
 		);
 		if (!result.ok) {
 			store.restore(restoreDraft);
@@ -807,6 +879,8 @@ export const DialogueComposer = memo(function DialogueComposer({
 			: (snap?.text ?? draft).trim();
 		const chips = selectedSlash ? [] : (snap?.chips ?? mentionChips);
 		const restoreBody = selectedSlash ? draft : (snap?.text ?? draft);
+		const hasImages = pendingImages.some(p => !p.rejectReason && p.data);
+		if (!text && !hasImages) return;
 		await submitText(text, restoreBody, selectedSlash, chips, chips);
 	}
 
@@ -883,11 +957,12 @@ export const DialogueComposer = memo(function DialogueComposer({
 		}
 	}
 
+	const hasSendableImages = pendingImages.some(p => !p.rejectReason && p.data);
 	const canSend =
 		!composerDisabled &&
 		!dshBlocked &&
 		(canSubmitNow || canEnqueue) &&
-		Boolean(selectedSlash || draft.trim() || mentionChips.length > 0);
+		Boolean(selectedSlash || draft.trim() || mentionChips.length > 0 || hasSendableImages);
 
 	const slashCmdValue =
 		flatSlashMenu[slashHighlight] != null
@@ -1042,8 +1117,81 @@ export const DialogueComposer = memo(function DialogueComposer({
 				</div>
 			)}
 
-			<div className={cn('bg-background', hasDrawerAbove ? 'rounded-b-3xl' : 'rounded-3xl')}>
+			<div
+				className={cn('bg-background', hasDrawerAbove ? 'rounded-b-3xl' : 'rounded-3xl')}
+				onDragOver={e => {
+					if (!e.dataTransfer.types.includes('Files')) return;
+					e.preventDefault();
+				}}
+				onDrop={e => {
+					if (!e.dataTransfer.files?.length) return;
+					e.preventDefault();
+					void ingestFiles(Array.from(e.dataTransfer.files));
+				}}
+			>
 				{engineKind === 'dsh' ? <DshNotice /> : null}
+				{pendingImages.length > 0 ? (
+					<div className="flex flex-wrap gap-2 border-b border-border/40 px-4 py-2">
+						{pendingImages.map(img => (
+							<div
+								key={img.id}
+								className={cn(
+									'group relative flex items-center gap-2 rounded-lg border px-2 py-1.5',
+									img.rejectReason
+										? 'border-destructive/40 bg-destructive/5'
+										: 'border-border/60 bg-muted/30'
+								)}
+								title={
+									img.rejectReason === 'too_many'
+										? t('shell.composer.imageTooMany')
+										: img.rejectReason === 'unsupported'
+											? t('shell.composer.imageUnsupportedType')
+											: img.rejectReason === 'too_large'
+												? t('shell.composer.imageTooLarge')
+												: img.rejectReason === 'read_failed'
+													? t('shell.composer.imageReadFailed')
+													: img.name
+								}
+							>
+								<img
+									src={img.previewUrl}
+									alt={img.name}
+									className="size-10 rounded object-cover cursor-zoom-in"
+									onClick={() => window.open(img.previewUrl, '_blank', 'noopener,noreferrer')}
+								/>
+								<div className="min-w-0 max-w-[7rem]">
+									<div className="truncate text-[11px] font-medium">{img.name}</div>
+									<div className="text-[10px] text-muted-foreground">
+										{(img.size / 1024).toFixed(0)} KB
+									</div>
+								</div>
+								<button
+									type="button"
+									className="absolute -right-1.5 -top-1.5 rounded-full bg-background p-0.5 shadow border border-border/60"
+									aria-label={t('shell.composer.removeAttachment')}
+									onClick={() => removePending(img.id)}
+								>
+									<X className="size-3" />
+								</button>
+							</div>
+						))}
+					</div>
+				) : null}
+				{attachNotice ? (
+					<div className="px-4 pt-2 text-[11px] text-amber-600 dark:text-amber-400">{attachNotice}</div>
+				) : null}
+				<input
+					ref={fileInputRef}
+					type="file"
+					accept={IMAGE_ACCEPT}
+					multiple
+					className="hidden"
+					onChange={e => {
+						const files = e.target.files ? Array.from(e.target.files) : [];
+						e.target.value = '';
+						if (files.length) void ingestFiles(files);
+					}}
+				/>
 				<InputGroup
 					className={cn(
 						'rounded-none border-0 bg-transparent shadow-none',
@@ -1109,10 +1257,21 @@ export const DialogueComposer = memo(function DialogueComposer({
 								type="button"
 								size="icon-sm"
 								variant="ghost"
-								className="size-7 shrink-0 rounded-full text-muted-foreground/70 hover:bg-muted/70 hover:text-foreground transition-colors"
-								disabled
+								className="size-7 shrink-0 rounded-full text-muted-foreground/70 hover:bg-muted/70 hover:text-foreground transition-colors disabled:opacity-40"
+								disabled={composerDisabled || !canAttachImages}
 								aria-label={t('shell.composer.addAttachment')}
-								title={t('shell.common.comingSoon')}
+								title={
+									canAttachImages
+										? t('shell.composer.addAttachment')
+										: t('shell.composer.imageNotSupported')
+								}
+								onClick={() => {
+									if (!canAttachImages) {
+										setAttachNotice(t('shell.composer.imageNotSupported'));
+										return;
+									}
+									fileInputRef.current?.click();
+								}}
 							>
 								<Plus className="size-4" />
 							</InputGroupButton>

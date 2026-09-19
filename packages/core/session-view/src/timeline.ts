@@ -49,6 +49,8 @@ export type TimelineItem =
 			showStop?: boolean;
 			/** scheduler_generated when message came from a scheduled job. */
 			origin?: string;
+			/** Attached images for bubble thumbnails. */
+			images?: Array<{mediaType: string; name?: string; dataUrl: string}>;
 			/** PlanBuild dock under this user row (UI Build execution). */
 			planBuild?: {
 				planId: string;
@@ -998,6 +1000,7 @@ export function projectEntryToTimelineItems(
 			isCommand: parseUserSkillDisplay(trimmed) != null,
 			...(engineRunId(entry) ? {runId: engineRunId(entry)} : {}),
 			...(entry.origin === 'scheduler_generated' ? {origin: entry.origin} : {}),
+			...(entry.images?.length ? {images: entry.images} : {}),
 			...planBuild
 		});
 		return items;

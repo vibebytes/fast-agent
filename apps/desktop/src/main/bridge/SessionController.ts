@@ -68,6 +68,11 @@ export class SessionController implements TaskCommands, SessionLifecycle, TaskVi
 	/** Contiguous applied cursor + pending, keyed by sessionId. */
 	private seqBySession = new Map<string, SessionSeq>();
 	private activeTaskId: string | null = null;
+	/** Live bubble images waiting for the next turn_started user row (per session). */
+	private pendingUserImagesBySession = new Map<
+		string,
+		Array<{mediaType: string; name?: string; dataUrl: string}>
+	>();
 	/** Multi-Attach: Sessions kept live after select/create (ADR-0010 extend). */
 	private readonly attach = createSessionAttachStore();
 
@@ -250,7 +255,8 @@ export class SessionController implements TaskCommands, SessionLifecycle, TaskVi
 		goal: this.goal,
 		requestAttach: (task, sessionId, lastEventSeq) =>
 			this.requestAttach(task, sessionId, lastEventSeq),
-		hydrateFromSessionsList: sessions => this.hydrateFromSessionsList(sessions)
+		hydrateFromSessionsList: sessions => this.hydrateFromSessionsList(sessions),
+		takePendingUserImages: sid => this.takePendingUserImages(sid)
 	});
 
 	private get catalog() {
@@ -602,7 +608,8 @@ export class SessionController implements TaskCommands, SessionLifecycle, TaskVi
 	sendMessage(
 		text: string,
 		mentions?: MentionChip[],
-		expectedTaskId?: string | null
+		expectedTaskId?: string | null,
+		images?: Array<{mediaType: string; data: string; name?: string}>
 	): boolean {
 		const active = this.getActiveTask();
 		if (
@@ -614,7 +621,7 @@ export class SessionController implements TaskCommands, SessionLifecycle, TaskVi
 			return false;
 		}
 		const trimmed = text.trim();
-		if (!trimmed) {
+		if (!trimmed && !(images && images.length > 0)) {
 			this.helpNotice = 'errors.send.empty_message';
 			return false;
 		}
@@ -634,14 +641,42 @@ export class SessionController implements TaskCommands, SessionLifecycle, TaskVi
 		// S2/E4: busy (Chat or Goal) → SubmitUserMessage; Session Follow-up queues.
 		// SteerGoal is Goal-drawer「捎话」only — never main Enter.
 		if (busyFollowUp) {
-			return this.composer.submitUserText(routed.text, chips);
+			const ok = this.composer.submitUserText(routed.text, chips, undefined, images);
+			if (ok) this.stashPendingUserImages(images);
+			return ok;
 		}
 
 		if (!this.canSubmitNow()) {
 			this.helpNotice = this.describeSendBlocker();
 			return false;
 		}
-		return this.composer.submitUserText(routed.text, chips);
+		const ok = this.composer.submitUserText(routed.text, chips, undefined, images);
+		if (ok) this.stashPendingUserImages(images);
+		return ok;
+	}
+
+	private stashPendingUserImages(
+		images?: Array<{mediaType: string; data: string; name?: string}>
+	): void {
+		const sid = this.getActiveTask()?.sessionId;
+		if (!sid || !images?.length) return;
+		this.pendingUserImagesBySession.set(
+			sid,
+			images.map(i => ({
+				mediaType: i.mediaType,
+				...(i.name ? {name: i.name} : {}),
+				dataUrl: `data:${i.mediaType};base64,${i.data}`
+			}))
+		);
+	}
+
+	/** Consume pending composer images for a session (live bubble paint). */
+	takePendingUserImages(sessionId: string | null | undefined) {
+		if (!sessionId) return undefined;
+		const imgs = this.pendingUserImagesBySession.get(sessionId);
+		if (!imgs) return undefined;
+		this.pendingUserImagesBySession.delete(sessionId);
+		return imgs;
 	}
 
 	requestMentionSuggest = (prefix: string, requestId: string, kinds?: string[]): boolean =>

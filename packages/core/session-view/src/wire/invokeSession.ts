@@ -45,7 +45,12 @@ export type InvokeSession = {
 		result: TaskMutationResult;
 	};
 	'task:send': {
-		args: [text: string, mentions?: MentionChip[], expectedTaskId?: string | null];
+		args: [
+			text: string,
+			mentions?: MentionChip[],
+			expectedTaskId?: string | null,
+			images?: Array<{mediaType: string; data: string; name?: string}>
+		];
 		result: SendMessageResult;
 	};
 	/** UI Build → PlanBuild (plan_build user + Build Dock). */

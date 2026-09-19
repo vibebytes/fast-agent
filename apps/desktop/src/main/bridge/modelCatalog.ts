@@ -39,7 +39,8 @@ export function catalogFromProviders(
 				providerName: p.name.trim() || p.id,
 				supportsThinking: m.supportsThinking === true,
 				supportedEfforts: m.supportedEfforts ?? [],
-				...(m.defaultEffort ? {defaultEffort: m.defaultEffort} : {})
+				...(m.defaultEffort ? {defaultEffort: m.defaultEffort} : {}),
+				...(m.inputModalities?.length ? {inputModalities: m.inputModalities} : {})
 			});
 		}
 	}

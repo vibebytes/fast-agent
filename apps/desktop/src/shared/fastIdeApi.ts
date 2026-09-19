@@ -536,7 +536,8 @@ export type FastIdeApi = {
 	sendMessage: (
 		text: string,
 		mentions?: MentionChip[],
-		expectedTaskId?: string | null
+		expectedTaskId?: string | null,
+		images?: Array<{mediaType: string; data: string; name?: string}>
 	) => Promise<SendMessageResult>;
 	/** UI Build → PlanBuild (plan_build user + Build Dock). */
 	buildPlan: (planId: string, name?: string) => Promise<SendMessageResult>;

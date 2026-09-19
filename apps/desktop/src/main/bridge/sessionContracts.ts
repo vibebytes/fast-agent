@@ -156,7 +156,8 @@ export type TaskCommands = {
 	sendMessage(
 		text: string,
 		mentions?: MentionChip[],
-		expectedTaskId?: string | null
+		expectedTaskId?: string | null,
+		images?: Array<{mediaType: string; data: string; name?: string}>
 	): boolean;
 	/** UI Build → PlanBuild Submit (`message_type=plan_build`). */
 	buildPlan(planId: string, name?: string): boolean;

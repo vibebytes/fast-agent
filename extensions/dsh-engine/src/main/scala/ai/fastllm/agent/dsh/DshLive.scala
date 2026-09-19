@@ -24,7 +24,6 @@ def dshCapsRow(sessionId: String, queue: Boolean, goal: Boolean, budget: Boolean
     // dsh_caps.question and Caps.answerQuestion are independent axes (invariant 2); DSH is always true.
     "question" -> true.asJson,
     "slash" -> true.asJson,
-    // Mirrors Caps.rerun: the ErrorCard hides Retry when the engine cannot replay a run.
     "rerun" -> rerun.asJson
   )
 

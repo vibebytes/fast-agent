@@ -5,6 +5,7 @@ import {
 	BrainCircuit,
 	Check,
 	Cpu,
+	Image as ImageIcon,
 	Layers,
 	Pin,
 	Plus,
@@ -368,6 +369,15 @@ export function ModelsSettings({engineReady, focusProviderId}: Props) {
 										{op: 'enable', modelId: model.modelId, enabled}
 									]);
 								}}
+								onToggleImage={(model, image) => {
+									void providers.patchModels(provider.id, [
+										{
+											op: 'enable',
+											modelId: model.modelId,
+											inputModalities: image ? ['text', 'image'] : ['text']
+										}
+									]);
+								}}
 								onAdd={() => setAddFor(provider.id)}
 								onSearch={() => setSearchFor(provider.id)}
 								onRemove={model =>
@@ -393,6 +403,7 @@ export function ModelsSettings({engineReady, focusProviderId}: Props) {
 						displayName,
 						supportsThinking,
 						supportedEfforts,
+						supportsImage,
 						defaultEffort
 					) => {
 						const ok = await providers.patchModels(addFor, [
@@ -403,6 +414,7 @@ export function ModelsSettings({engineReady, focusProviderId}: Props) {
 								supportsThinking,
 								supportedEfforts: supportsThinking ? supportedEfforts : [],
 								defaultEffort: supportsThinking ? defaultEffort : undefined,
+								inputModalities: supportsImage ? ['text', 'image'] : undefined,
 								enabled: true
 							}
 						]);
@@ -444,6 +456,7 @@ function ProviderModelsGroup({
 	defaults,
 	onPin,
 	onToggle,
+	onToggleImage,
 	onAdd,
 	onSearch,
 	onRemove
@@ -452,6 +465,7 @@ function ProviderModelsGroup({
 	defaults: ModelsDoc;
 	onPin: (model: SeedModel) => void;
 	onToggle: (model: SeedModel, enabled: boolean) => void;
+	onToggleImage: (model: SeedModel, image: boolean) => void;
 	onAdd: () => void;
 	onSearch: () => void;
 	onRemove: (model: SeedModel) => void;
@@ -546,6 +560,16 @@ function ProviderModelsGroup({
 										{t('settings.models.thinkingBadge')}
 									</Badge>
 								) : null}
+								{model.inputModalities?.includes('image') ? (
+									<Badge
+										variant="secondary"
+										className="text-[10px] px-1.5 py-0 gap-1 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20 font-medium shrink-0"
+										title={t('settings.models.imageSupported')}
+									>
+										<ImageIcon className="size-2.5 stroke-[2.2]" />
+										{t('settings.models.imageBadge')}
+									</Badge>
+								) : null}
 								{model.source === 'manual' ? (
 									<Badge variant="outline" className="text-[10px] px-1 py-0">
 										{t('settings.models.manual')}
@@ -559,6 +583,22 @@ function ProviderModelsGroup({
 							</div>
 
 							<div className="flex shrink-0 items-center gap-2">
+								<SettingsButton
+									size="icon-xs"
+									variant="ghost"
+									className={cn(
+										'cursor-pointer transition-opacity duration-150',
+										model.inputModalities?.includes('image')
+											? 'text-primary opacity-100'
+											: 'opacity-0 group-hover:opacity-100 focus-visible:opacity-100 text-muted-foreground hover:text-foreground'
+									)}
+									disabled={disconnected}
+									onClick={() => onToggleImage(model, !model.inputModalities?.includes('image'))}
+									title={t('settings.models.toggleImage')}
+								>
+									<ImageIcon className="size-3.5" />
+								</SettingsButton>
+
 								<SettingsButton
 									size="icon-xs"
 									variant="ghost"
@@ -705,6 +745,7 @@ function AddModelDialog({
 		displayName: string,
 		supportsThinking: boolean,
 		supportedEfforts: string[],
+		supportsImage: boolean,
 		defaultEffort?: string
 	) => Promise<boolean>;
 }) {
@@ -712,6 +753,7 @@ function AddModelDialog({
 	const [modelId, setModelId] = useState('');
 	const [displayName, setDisplayName] = useState('');
 	const [supportsThinking, setSupportsThinking] = useState(false);
+	const [supportsImage, setSupportsImage] = useState(false);
 	const [supportedEfforts, setSupportedEfforts] = useState<string[]>(['low', 'medium', 'high', 'max']);
 	const [defaultEffort, setDefaultEffort] = useState('medium');
 	const [userToggledThinking, setUserToggledThinking] = useState(false);
@@ -879,6 +921,23 @@ function AddModelDialog({
 							</div>
 						)}
 					</div>
+
+					<div className="flex items-center justify-between gap-3 rounded-xl border border-border/70 bg-muted/25 dark:bg-muted/15 p-3.5">
+						<div className="flex items-center gap-2.5 min-w-0">
+							<div className="size-7 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0 border border-emerald-500/20">
+								<ImageIcon className="size-4 stroke-[2.2]" />
+							</div>
+							<div className="min-w-0">
+								<div className="text-xs font-semibold text-foreground">
+									{t('settings.models.supportsImage')}
+								</div>
+								<div className="text-[10.5px] text-muted-foreground truncate">
+									{t('settings.models.supportsImageDesc')}
+								</div>
+							</div>
+						</div>
+						<Switch size="sm" checked={supportsImage} onCheckedChange={setSupportsImage} />
+					</div>
 				</div>
 
 				<DialogFooter className="gap-2">
@@ -894,6 +953,7 @@ function AddModelDialog({
 								displayName.trim(),
 								supportsThinking,
 								supportsThinking ? supportedEfforts : [],
+								supportsImage,
 								supportsThinking ? defaultEffort : undefined
 							).finally(() => setSaving(false));
 						}}

@@ -71,7 +71,8 @@ export function createComposerSend<T extends ComposerTaskLike>(deps: ComposerSen
 	const submitUserText = (
 		trimmed: string,
 		mentions?: MentionChip[],
-		planBuild?: {planId: string; name?: string}
+		planBuild?: {planId: string; name?: string},
+		images?: Array<{mediaType: string; data: string; name?: string}>
 	): boolean => {
 		const task = deps.getActiveTask();
 		if (!task?.sessionId) return false;
@@ -91,6 +92,7 @@ export function createComposerSend<T extends ComposerTaskLike>(deps: ComposerSen
 			...(planBuild ? {mode: 'agent'} : {}),
 			...(generateTitle ? {generateTitle: true} : {}),
 			...(mentions && mentions.length > 0 ? {mentions} : {}),
+			...(images && images.length > 0 ? {images} : {}),
 			...(planBuild
 				? {planBuild: {planId: planBuild.planId, ...(planBuild.name ? {name: planBuild.name} : {})}}
 				: {})

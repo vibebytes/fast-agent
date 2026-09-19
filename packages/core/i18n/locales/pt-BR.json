@@ -171,6 +171,11 @@
       "thinkingSupported": "Compatível com pensamento",
       "thinkingSupportedWithEfforts": "Compatível com pensamento ({{efforts}})",
       "thinkingBadge": "Pensamento",
+      "toggleImage": "Alternar entrada de imagem",
+      "imageBadge": "Imagem",
+      "imageSupported": "Suporta entrada de imagem",
+      "supportsImage": "Suporta entrada de imagem",
+      "supportsImageDesc": "O modelo aceita imagens além de texto",
       "defaultBadge": "Padrão",
       "primaryDefaultBadge": "Modelo padrão principal"
     },

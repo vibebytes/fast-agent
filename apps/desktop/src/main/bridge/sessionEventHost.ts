@@ -58,6 +58,10 @@ export interface SessionEventHostDeps {
 	goal: GoalModule;
 	requestAttach(task: TaskRecord, sessionId: string, lastEventSeq?: number): boolean;
 	hydrateFromSessionsList(sessions: SessionListInfo[]): void;
+	/** Live multimodal: consume composer images queued for this session. */
+	takePendingUserImages?(
+		sessionId: string | null | undefined
+	): Array<{mediaType: string; name?: string; dataUrl: string}> | undefined;
 }
 
 /**
@@ -328,6 +332,37 @@ export function createSessionEventHost(deps: SessionEventHostDeps) {
 			if (!deltaEventAllowed(ev.type, task.dshCaps?.delta)) return;
 			task.transcript = applyBridgeEvent(task.transcript, ev);
 			task.codeChanges = applyCodeChangeEvent(task.codeChanges, ev);
+			if (ev.type === 'turn_started') {
+				const imgs = deps.takePendingUserImages?.(task.sessionId);
+				if (imgs?.length) {
+					const clientId = 'clientMessageId' in ev ? ev.clientMessageId : undefined;
+					const turnId = 'turnId' in ev ? ev.turnId : undefined;
+					const entries = [...task.transcript.entries];
+					let attached = false;
+					for (let i = 0; i < entries.length; i++) {
+						const e = entries[i];
+						if (e.role !== 'user' || e.images?.length) continue;
+						if (
+							(clientId && e.clientMessageId === clientId) ||
+							(turnId && e.turnId === turnId)
+						) {
+							entries[i] = {...e, images: imgs};
+							attached = true;
+							break;
+						}
+					}
+					if (!attached) {
+						for (let i = entries.length - 1; i >= 0; i--) {
+							const e = entries[i];
+							if (e.role === 'user' && !e.images?.length) {
+								entries[i] = {...e, images: imgs};
+								break;
+							}
+						}
+					}
+					task.transcript = {...task.transcript, entries};
+				}
+			}
 		};
 
 		if (event.type === 'follow_up_changed') {

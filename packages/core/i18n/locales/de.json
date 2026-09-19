@@ -171,6 +171,11 @@
       "thinkingSupported": "Unterstützt Denken",
       "thinkingSupportedWithEfforts": "Unterstützt Denken ({{efforts}})",
       "thinkingBadge": "Denken",
+      "toggleImage": "Bildeingabe umschalten",
+      "imageBadge": "Bild",
+      "imageSupported": "Unterstützt Bildeingabe",
+      "supportsImage": "Unterstützt Bildeingabe",
+      "supportsImageDesc": "Das Modell akzeptiert Bilder zusätzlich zu Text",
       "defaultBadge": "Standard",
       "primaryDefaultBadge": "Primäres Standardmodell"
     },

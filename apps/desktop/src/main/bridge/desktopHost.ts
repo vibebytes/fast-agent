@@ -489,10 +489,10 @@ export function createDesktopHost(deps: DesktopHostDeps): ProductInvokeMap {
 				: {ok: false as const, notice: result.notice ?? 'Delete failed'};
 		},
 
-		'task:send': (text: string, mentions?, expectedTaskId?: string | null) => {
+		'task:send': (text: string, mentions?, expectedTaskId?: string | null, images?) => {
 			const sessions = activeCommands(hub);
 			if (!sessions) return {ok: false};
-			const ok = sessions.sendMessage(text, mentions, expectedTaskId);
+			const ok = sessions.sendMessage(text, mentions, expectedTaskId, images);
 			const notice = sessions.consumeHelpNotice();
 			const openModelPicker = sessions.consumeOpenModelPicker();
 			// Chrome only (queue/gate) + local transcript mutations (/clear).

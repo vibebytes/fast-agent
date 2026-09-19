@@ -316,6 +316,8 @@ export type ProviderModel = {
 	supportedEfforts?: string[];
 	defaultEffort?: string;
 	maxTokens?: number;
+	/** Wire lowercase (e.g. ["text","image"]); absent = text-only. */
+	inputModalities?: string[];
 	enabled: boolean;
 	source: string;
 };
@@ -368,6 +370,7 @@ export type ProviderModelPatch = {
 	supportsThinking?: boolean;
 	supportedEfforts?: string[];
 	defaultEffort?: string;
+	inputModalities?: string[];
 };
 
 /** Settings-center installed skill row (List/Create/SetSkillEnabled). */

@@ -171,6 +171,11 @@
       "thinkingSupported": "Поддерживает размышление",
       "thinkingSupportedWithEfforts": "Поддерживает размышление ({{efforts}})",
       "thinkingBadge": "Размышление",
+      "toggleImage": "Переключить ввод изображений",
+      "imageBadge": "Изображения",
+      "imageSupported": "Поддержка ввода изображений",
+      "supportsImage": "Поддержка ввода изображений",
+      "supportsImageDesc": "Модель принимает изображения помимо текста",
       "defaultBadge": "По умолчанию",
       "primaryDefaultBadge": "Основная модель по умолчанию"
     },

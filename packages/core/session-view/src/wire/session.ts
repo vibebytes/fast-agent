@@ -98,6 +98,8 @@ export type ModelCatalogEntry = {
 	/** Wire effort ladder; empty → hide Effort menu. */
 	supportedEfforts?: string[];
 	defaultEffort?: string;
+	/** Wire lowercase modalities (e.g. ["text","image"]); omit → text-only. */
+	inputModalities?: string[];
 };
 
 /** Structured @ mention chip — Submit passthrough (no Mentions.resolve). */

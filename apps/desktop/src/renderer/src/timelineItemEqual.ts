@@ -26,7 +26,8 @@ export function timelineItemEqual(a: TimelineItem, b: TimelineItem): boolean {
 				(a.planBuild?.planId ?? '') === (b.planBuild?.planId ?? '') &&
 				(a.planBuild?.name ?? '') === (b.planBuild?.name ?? '') &&
 				JSON.stringify(a.planBuild?.plan?.todos ?? null) ===
-					JSON.stringify(b.planBuild?.plan?.todos ?? null)
+					JSON.stringify(b.planBuild?.plan?.todos ?? null) &&
+				JSON.stringify(a.images ?? null) === JSON.stringify(b.images ?? null)
 			);
 		case 'assistant':
 			return b.kind === 'assistant' && a.text === b.text && a.status === b.status;
