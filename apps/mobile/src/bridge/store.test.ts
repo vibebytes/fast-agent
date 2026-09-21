@@ -17,10 +17,11 @@ test('cancel and lease read RunChrome, not the removed parallel flags', () => {
 	assert.match(src, /hasLocalRun/);
 	assert.doesNotMatch(src, /transcript\.activeRunId/);
 	assert.doesNotMatch(src, /transcript\.awaitingCancelSettlement/);
-	const chat = readFileSync(
-		join(dirname(fileURLToPath(import.meta.url)), '../components/chat-view.tsx'),
-		'utf8'
-	);
+	const chatDir = join(dirname(fileURLToPath(import.meta.url)), '../components');
+	const chat = [
+		readFileSync(join(chatDir, 'chat-view.tsx'), 'utf8'),
+		readFileSync(join(chatDir, 'chat/gate.tsx'), 'utf8')
+	].join('\n');
 	assert.match(chat, /chromeRunId/);
 	assert.doesNotMatch(chat, /transcript\.activeRunId/);
 });
