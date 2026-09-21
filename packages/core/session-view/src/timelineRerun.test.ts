@@ -133,7 +133,7 @@ test('session_restored superseded map keys by engine runId', () => {
 			}
 		]
 	});
-	assert.equal(state.superseded['run-old'], 'run-new');
+	assert.equal(state.superseded?.['run-old'], 'run-new');
 });
 
 test('superseded FAILED runs keep their error card (D4) and go stale later', () => {

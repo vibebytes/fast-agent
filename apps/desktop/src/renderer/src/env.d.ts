@@ -7,6 +7,7 @@ export type {
 	BridgeErrorEnvelope,
 	ChildTranscriptView,
 	CodeChange,
+	CompactingView,
 	ComposerGate,
 	ContextInjectionView,
 	ContextPruneView,

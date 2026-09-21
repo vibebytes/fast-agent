@@ -127,7 +127,7 @@ trait DshSubmitSpec:
       await(loop.queue(AgentAttachProtocol.Command.QueueMessage(Sid, "i1", "remove", None))) shouldBe
         Admit.Rejected("queue disabled")
 
-  test("bind emits dsh_caps with five explicit keys"):
+  test("bind emits dsh_caps with explicit keys"):
     val loop = DshLoop(FakeClient(), _ => Cwd)
     await(loop.bind(Sid, Cwd)) shouldBe Right(())
     val rows = await(loop.events(Sid, 0))
@@ -141,7 +141,8 @@ trait DshSubmitSpec:
     p.get[Boolean]("queue").toOption.get shouldBe true
     p.get[Boolean]("goal").toOption.get shouldBe true
     p.get[Boolean]("budget").toOption.get shouldBe false
-    p.keys.map(_.toSet).get shouldBe Set("type", "sessionId", "queue", "goal", "budget", "question", "slash")
+    p.get[Boolean]("rerun").toOption.get shouldBe false
+    p.keys.map(_.toSet).get shouldBe Set("type", "sessionId", "queue", "goal", "budget", "question", "slash", "rerun")
 
   test("dsh_caps last-wins; FastLoop events have no dsh_*"):
     val loop = DshLoop(FakeClient(), _ => Cwd)

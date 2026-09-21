@@ -323,7 +323,7 @@ test('turn_started with supersedes records live provenance and does not add a us
 		supersedes: 'run-old',
 		supersedesFailed: true
 	});
-	assert.equal(state.superseded['run-old'], 'run-new');
+	assert.equal(state.superseded?.['run-old'], 'run-new');
 	assert.equal(state.entries.filter(e => e.role === 'user').length, usersBefore);
 	assert.equal(
 		state.entries.some(e => e.role === 'assistant' && e.turnId === 'run-new' && e.status === 'streaming'),
