@@ -1,8 +1,7 @@
-import {mkdirSync} from 'node:fs';
 import {randomUUID} from 'node:crypto';
 import {homedir} from 'node:os';
 import path from 'node:path';
-import {TERMINAL_PARSE_FAILURE_PREFIX, PROTOCOL_MISMATCH_PREFIX, type BridgeCommand, type BridgeEvent} from '@fastllm/bridge-protocol';
+import {TERMINAL_PARSE_FAILURE_PREFIX, PROTOCOL_MISMATCH_PREFIX, type BridgeEvent} from '@fastllm/bridge-protocol';
 import type {
 	AgentRow,
 	AmbientRule,
@@ -33,22 +32,20 @@ import type {
 	UpsertProviderInput,
 	WorkspaceFsCode,
 	EngineCallResult,
-	EngineCallError,
 	EngineWireRow,
 	HostDirResult,
 	HostDirCreateResult
 } from '@fast-ide/session-view';
 import {stopOwnedLocal, type RemoteBridgeConnectionOptions} from '@fastllm/bridge-client';
 import {BridgeClient} from './BridgeClient.js';
-import {CONNECT_DEADLINE_MS, LOCAL_EDGE_ID, edgeCapabilities, type EdgeCapabilities} from '../remoteEdges.js';
-import {isReservedDefaultFolder, sameRemotePath} from './remotePaths.js';
-import {discoverHostSlashSkills} from './hostSkillDiscovery.js';
+import {LOCAL_EDGE_ID, edgeCapabilities, type EdgeCapabilities} from '../remoteEdges.js';
+import {isReservedDefaultFolder} from './remotePaths.js';
 import {isLocalSaveEcho, rememberLocalSave} from './localSaveEcho.js';
 import {SessionController} from './SessionController.js';
-import {defaultProjectPath, defaultProjectPathOnHost, isDefaultProjectPath} from './defaultProject.js';
+import {isDefaultProjectPath} from './defaultProject.js';
 import {projectHash} from './projectHash.js';
-import {isSessionStreamEvent, sessionIdFromEvent} from './sessionEvents.js';
-import {createHostWait, HostWaitCommands, type HostLane, type HostWait} from './workspace/hostWait.js';
+import {sessionIdFromEvent} from './sessionEvents.js';
+import {createHostWait, type HostLane, type HostWait} from './workspace/hostWait.js';
 import {createTeams, type WorkspaceTeams} from './workspace/teams.js';
 import {createSchedule, type WorkspaceSchedule} from './workspace/schedule.js';
 import {createCatalog, type WorkspaceCatalog} from './workspace/catalog.js';
@@ -59,6 +56,9 @@ import {createReview, type WorkspaceReview} from './workspace/review.js';
 import {createCheckout, type WorkspaceCheckout} from './workspace/checkout.js';
 import {createComposerHeal, type ComposerHeal} from './workspace/composerHeal.js';
 import {createAdopt, isEchoProbePath, type WorkspaceAdopt} from './workspace/adopt.js';
+import {createEngine, type WorkspaceEngine} from './workspace/engine.js';
+import {createProjects, type WorkspaceProjects} from './workspace/projects.js';
+import {createDemux, type WorkspaceDemux} from './workspace/demux.js';
 import {pickerEngineIds} from './workspace/enginePickerIds.js';
 
 export type {AmbientRule, EngineHostStatus, ProjectSnapshot, ProjectStatus};
@@ -202,6 +202,9 @@ export class WorkspaceHub {
 	private readonly checkout: WorkspaceCheckout;
 	private readonly composerHeal: ComposerHeal;
 	private readonly adopt: WorkspaceAdopt;
+	private readonly engine: WorkspaceEngine;
+	private readonly projectOps: WorkspaceProjects;
+	private readonly demux: WorkspaceDemux;
 
 	constructor(deps: WorkspaceHubDeps = {}) {
 		this.createBridge =
@@ -262,7 +265,7 @@ export class WorkspaceHub {
 				if (!this.bridge || this.engineStatus !== 'ready') return {ok: false, notice: 'Engine not ready'};
 				if (!project.slotLive) {
 					try {
-						await this.ensureRegisteredAsync(project);
+						await this.projectOps.ensureRegisteredAsync(project);
 					} catch (e) {
 						return {ok: false, notice: e instanceof Error ? e.message : String(e)};
 					}
@@ -310,10 +313,13 @@ export class WorkspaceHub {
 				this.registerFailed.set(id, message);
 			},
 			hasRegisterFailed: id => this.registerFailed.has(id),
-			mintAdopted: input => this.mintAdoptedProject(input),
+			mintAdopted: input => this.projectOps.mintAdoptedProject(input),
 			pendingSessions: this.pendingSessionsList,
 			requestSessionsList: p => this.requestProjectSessionsList(p as OpenProject)
 		});
+		this.projectOps = createProjects(this as never);
+		this.engine = createEngine(this as never);
+		this.demux = createDemux(this as never);
 	}
 
 	isRemote(): boolean {
@@ -344,186 +350,11 @@ export class WorkspaceHub {
 	}
 
 	async switchEdge(target: SwitchEdgeTarget, handlers: WorkspaceProjectHandlers): Promise<void> {
-		if (target.id === this.committedEdgeId && !this.pendingEdgeId && this.engineStatus === 'ready' && this.bridge) {
-			return;
-		}
-		this.switchAbort?.abort();
-		const attempt = ++this.edgeAttempt;
-		const ac = new AbortController();
-		this.switchAbort = ac;
-		this.pendingEdgeId = target.id;
-		this.engineHandlers = handlers;
-
-		const candidate = this.createBridge();
-		const remote = target.remote
-			? {
-					...target.remote,
-					signal: ac.signal,
-					timeoutMs: target.remote.timeoutMs ?? CONNECT_DEADLINE_MS
-				}
-			: undefined;
-		const buffered: BridgeEvent[] = [];
-		let live = false;
-		const isCurrent = () => attempt === this.edgeAttempt && !ac.signal.aborted;
-
-		const liveHandlers: Parameters<BridgeClient['start']>[1] = {
-			onEvent: event => {
-				if (!isCurrent()) return;
-				if (event.type === 'HelloOk' && event.hostHome) this.hostHome = event.hostHome;
-				if (!live) {
-					buffered.push(event);
-					return;
-				}
-				this.onBridgeEvent(event, handlers);
-			},
-			onError: message => {
-				if (!isCurrent() || !live) return;
-				if (this.reconcileTerminalParseFailure(message, handlers)) return;
-				if (this.noticeProtocolMismatch(message, handlers)) return;
-				this.setEngineStatus('error', message);
-				handlers.onError('engine', message);
-			},
-			onLog: message => {
-				if (!isCurrent()) return;
-				handlers.onLog?.('engine', message);
-			},
-			onExit: (code, signal) => {
-				if (!isCurrent() || this.switchingEdge || this.shuttingDown) return;
-				if (!live) return;
-				this.handleEngineExit(candidate, handlers, code, signal);
-			}
-		};
-
-		try {
-			await candidate.start(
-				this.hostCwd,
-				liveHandlers,
-				{
-					sessionMode: 'continue',
-					remote,
-					clientId: this.createClientId(),
-					wantEngineId: process.env.FAST_WANT_ENGINE_ID
-				}
-			);
-		} catch (error) {
-			candidate.stop();
-			if (ac.signal.aborted || (error instanceof Error && error.name === 'AbortError')) {
-				if (this.pendingEdgeId === target.id && attempt === this.edgeAttempt) {
-					this.pendingEdgeId = null;
-				}
-				throw Object.assign(new Error('aborted'), {name: 'AbortError'});
-			}
-			if (attempt === this.edgeAttempt) this.pendingEdgeId = null;
-			throw error instanceof Error ? error : new Error(String(error));
-		}
-
-		if (!isCurrent()) {
-			candidate.stop();
-			throw Object.assign(new Error('aborted'), {name: 'AbortError'});
-		}
-
-		this.commitCandidate(candidate, target, handlers);
-		live = true;
-		for (const event of buffered) this.onBridgeEvent(event, handlers);
-		this.requestWorkspaceMeta();
+		return this.engine.switchEdge(target, handlers);
 	}
 
-	private commitCandidate(
-		candidate: BridgeClient,
-		target: SwitchEdgeTarget,
-		handlers: WorkspaceProjectHandlers
-	): void {
-		this.switchingEdge = true;
-		const old = this.bridge;
-		if (old && old !== candidate) old.stop();
-		this.clearProjectsForSwitch();
-		this.bridge = candidate;
-		this.committedEdgeId = target.id;
-		this.remoteOpts = target.remote;
-		this.pendingEdgeId = null;
-		this.switchAbort = undefined;
-		this.engineHandshakeOk = true;
-		this.rebindAttempts = 0;
-		this.persistActiveId?.(target.id);
-		this.switchingEdge = false;
-		this.shuttingDown = false;
-		this.engineHandlers = handlers;
-		this.setEngineStatus('ready');
-	}
-
-	private clearProjectsForSwitch(): void {
-		this.failRegisterWaiters(null, 'Edge switched');
-		for (const project of this.projects.values()) {
-			project.sessions.detachAll();
-		}
-		this.projects.clear();
-		this.activeProjectId = null;
-		this.lastReady = null;
-		this.pendingSessionsList.clear();
-	}
-
-	private handleEngineExit(
-		bridge: BridgeClient,
-		handlers: WorkspaceProjectHandlers,
-		code: number | null,
-		signal: NodeJS.Signals | null
-	): void {
-		if (this.bridge !== bridge) return;
-		this.bridge = null;
-		const hostDied = code != null || signal != null;
-		this.failRegisterWaiters(null, `Connection lost (${code ?? signal ?? 'unknown'})`);
-		if (this.rebindResetTimer) {
-			clearTimeout(this.rebindResetTimer);
-			this.rebindResetTimer = null;
-		}
-		for (const project of this.projects.values()) {
-			project.status = 'exited';
-			project.slotLive = false;
-			project.error = `Connection lost (${code ?? signal ?? 'unknown'})`;
-			project.sessions.markEngineLost(`Connection lost (${code ?? signal ?? 'unknown'})`, {
-				failTurns: hostDied
-			});
-			handlers.onExit(project.id, code, signal);
-		}
-		if (!this.shuttingDown && !this.switchingEdge && this.engineHandshakeOk) {
-			this.scheduleRebind(handlers);
-		}
-	}
-
-	async openRemoteProject(
-		serverPath: string,
-		handlers: WorkspaceProjectHandlers
-	): Promise<ProjectSnapshot> {
-		if (!this.isRemote()) throw new Error('openRemoteProject is only available on a remote edge');
-		if (this.pendingEdgeId) throw new Error('Edge switch in progress');
-		const raw = serverPath.trim();
-		if (!raw) throw new Error('Path is required');
-		if (isReservedDefaultFolder(raw)) {
-			throw new Error('Cannot open the hidden Default Project as a folder Project');
-		}
-		const existing = [...this.projects.values()].find(p => sameRemotePath(p.path, raw));
-		if (existing) {
-			this.focusProject(existing.id);
-			return this.snapshot(existing);
-		}
-		this.engineHandlers = handlers;
-		const project = this.adopt.adoptExistingFolder(raw, handlers, undefined, undefined, undefined, {
-			isDefault: false,
-			skipDisk: true
-		}) as OpenProject | undefined;
-		if (!project) throw new Error('Failed to adopt remote folder');
-		if (!this.bridge || this.engineStatus !== 'ready') {
-			this.dropAdoptedRow(project.id);
-			throw new Error('Engine not ready');
-		}
-		try {
-			await this.ensureRegisteredAsync(project);
-			this.requestWorkspaceMeta();
-			return this.snapshot(project);
-		} catch (error) {
-			this.dropAdoptedRow(project.id);
-			throw error instanceof Error ? error : new Error(String(error));
-		}
+	async openRemoteProject(serverPath: string, handlers: WorkspaceProjectHandlers): Promise<ProjectSnapshot> {
+		return this.engine.openRemoteProject(serverPath, handlers);
 	}
 
 	async listHostDir(dirPath?: string) {
@@ -531,12 +362,6 @@ export class WorkspaceHub {
 	}
 	async createHostDir(parent: string, name: string) {
 		return this.checkout.createHostDir(parent, name);
-	}
-	private dropAdoptedRow(id: string): void {
-		this.projects.delete(id);
-		if (this.activeProjectId === id) {
-			this.activeProjectId = [...this.projects.keys()][0] ?? null;
-		}
 	}
 
 	getEngineStatus(): {status: EngineHostStatus; error?: string} {
@@ -620,51 +445,8 @@ export class WorkspaceHub {
 		return this.bridge;
 	}
 
-	async engineCall(
-		method: string,
-		payload: Record<string, unknown> = {},
-		sessionId?: string
-	): Promise<EngineCallResult> {
-		if (!this.bridge || this.engineStatus !== 'ready') {
-			return {ok: false, error: {code: 'unavailable', message: 'Engine not ready'}};
-		}
-		const sessions = this.getActive()?.sessions;
-		const sid = sessionId?.trim() || sessions?.getActiveTask()?.sessionId || undefined;
-		const engineKind = sessions?.engineKind;
-		const requestId = randomUUID();
-		const {token, promise} = this.hostWait.waitRequest(requestId);
-		if (
-			!this.bridge.send({
-				type: 'EngineCall',
-				method,
-				payload,
-				requestId,
-				...(sid ? {sessionId: sid} : {}),
-				...(engineKind ? {engineKind} : {})
-			})
-		) {
-			this.hostWait.cancel(token);
-			return {ok: false, error: {code: 'unavailable', message: 'Failed to send EngineCall'}};
-		}
-		try {
-			const event = await promise;
-			if (event.status === 'error' || event.status === 'rejected') {
-				const err = event.error;
-				if (err && typeof err.code === 'string') {
-					return {ok: false, error: err as EngineCallError};
-				}
-				return {
-					ok: false,
-					error: {code: event.message || 'error', message: event.message}
-				};
-			}
-			return {ok: true, method: event.method ?? method, value: event.value};
-		} catch (e) {
-			return {
-				ok: false,
-				error: {code: 'unavailable', message: e instanceof Error ? e.message : String(e)}
-			};
-		}
+	async engineCall(method: string, payload: Record<string, unknown> = {}, sessionId?: string): Promise<EngineCallResult> {
+		return this.engine.engineCall(method, payload, sessionId);
 	}
 
 	findProjectForTask(taskId: string): OpenProject | null {
@@ -683,89 +465,22 @@ export class WorkspaceHub {
 	 * `ok` only when the Session is actually Attached (slot hash present).
 	 */
 	ensureTasksLive(taskIds: string[]): {ok: string[]; skipped: string[]} {
-		const ok: string[] = [];
-		const skipped: string[] = [];
-		const seen = new Set<string>();
-		for (const raw of taskIds) {
-			const id = raw?.trim();
-			if (!id || seen.has(id)) continue;
-			seen.add(id);
-			const resolved = this.resolveTaskRef(id, id);
-			if (!resolved) {
-				skipped.push(id);
-				continue;
-			}
-			const {project} = resolved;
-			const task = project.sessions.ensureLive(resolved.taskId, {focus: false});
-			const sid = task?.sessionId;
-			// No session yet, no slot hash yet, or Attach did not stick → retry later.
-			if (!sid || !project.workspaceId || !project.sessions.isAttached(sid)) {
-				skipped.push(id);
-				continue;
-			}
-			ok.push(resolved.taskId);
-		}
-		return {ok, skipped};
+		return this.projectOps.ensureTasksLive(taskIds);
 	}
 
 	/** Resolve Project + live Task id (hydrate may remint local ids; sessionId is stable). */
-	resolveTaskRef(
-		taskId: string,
-		sessionId?: string | null
-	): {project: OpenProject; taskId: string} | null {
-		const byId = this.findProjectForTask(taskId);
-		if (byId) return {project: byId, taskId};
-		if (!sessionId) return null;
-		const project = this.projectForSession(sessionId);
-		if (!project) return null;
-		const task =
-			project.sessions.listTasks().find(t => t.sessionId === sessionId) ??
-			project.sessions.listChats().find(t => t.sessionId === sessionId);
-		if (!task) return null;
-		return {project, taskId: task.id};
+	resolveTaskRef(taskId: string, sessionId?: string | null): {project: OpenProject; taskId: string} | null {
+		return this.projectOps.resolveTaskRef(taskId, sessionId);
 	}
 
 	/**
 	 * LivingTask / schedule row click: focus open Project + select Task by Engine sessionId.
 	 * `metaProjectId` is Meta resource id (not local folder id). Does not auto-open folders.
 	 */
-	openLivingSession(
-		sessionId: string,
-		metaProjectId?: string | null
-	):
+	openLivingSession(sessionId: string, metaProjectId?: string | null):
 		| {ok: true; taskId: string; title: string; kind?: string; sessionId: string | null}
 		| {ok: false; notice: string} {
-		const sid = sessionId.trim();
-		if (!sid) return {ok: false, notice: 'sessionId required'};
-
-		let resolved = this.resolveTaskRef(sid, sid);
-		if (!resolved && metaProjectId?.trim()) {
-			const project = this.projectByMetaId(metaProjectId.trim());
-			if (project) {
-				const task =
-					project.sessions.listTasks().find(t => t.sessionId === sid) ??
-					project.sessions.listChats().find(t => t.sessionId === sid);
-				if (task) resolved = {project, taskId: task.id};
-			}
-		}
-		if (!resolved) {
-			return {
-				ok: false,
-				notice: metaProjectId?.trim()
-					? 'Session not in an open Project — open the folder first'
-					: 'Session not found in open Projects'
-			};
-		}
-		this.focusProject(resolved.project.id);
-		const task = resolved.project.sessions.selectTask(resolved.taskId);
-		if (!task) return {ok: false, notice: 'Failed to select task'};
-		return {
-			ok: true,
-			taskId: task.id,
-			title: task.title,
-			kind: task.kind,
-			sessionId: task.sessionId
-		};
+		return this.projectOps.openLivingSession(sessionId, metaProjectId);
 	}
 
 	/** Local OpenProject by Meta project id (incl. default-project). */
@@ -785,22 +500,7 @@ export class WorkspaceHub {
 		}
 	}
 
-	ensureEngine(handlers: WorkspaceProjectHandlers): void {
-		this.engineHandlers = handlers;
-		if (
-			this.bridge &&
-			(this.engineStatus === 'ready' ||
-				this.engineStatus === 'starting' ||
-				this.engineStatus === 'reconnecting')
-		) {
-			return;
-		}
-		if (this.bridge) {
-			this.bridge.stop();
-			this.bridge = null;
-		}
-		this.startEngine(handlers);
-	}
+	ensureEngine(handlers: WorkspaceProjectHandlers): void { this.engine.ensureEngine(handlers); }
 
 	openProject(workspaceRoot: string, handlers: WorkspaceProjectHandlers): ProjectSnapshot {
 		if (this.isRemote()) {
@@ -810,37 +510,10 @@ export class WorkspaceHub {
 		if (isDefaultProjectPath(normalized, this.homeDir)) {
 			throw new Error('Cannot open the hidden Default Project as a folder Project');
 		}
-		return this.openInternal(normalized, handlers, false);
+		return this.projectOps.openInternal(normalized, handlers, false);
 	}
 
-	ensureDefaultProject(handlers: WorkspaceProjectHandlers): ProjectSnapshot {
-		const existing = this.getDefaultProject();
-		if (existing) {
-			this.focusProject(existing.id);
-			return this.snapshot(existing);
-		}
-		if (this.isRemote()) {
-			const home = this.hostHome?.trim();
-			if (!home) throw new Error('Remote host home is unknown');
-			const root = defaultProjectPathOnHost(home);
-			const project = this.adopt.adoptExistingFolder(
-				root,
-				handlers,
-				'default-project',
-				undefined,
-				'Default Project',
-				{isDefault: true, skipDisk: true}
-			);
-			if (!project) throw new Error('Failed to adopt remote default project');
-			const row = project as OpenProject;
-			row.sessions.hydrateFromMeta([]);
-			this.focusProject(row.id);
-			return this.snapshot(row);
-		}
-		const root = defaultProjectPath(this.homeDir);
-		mkdirSync(root, {recursive: true});
-		return this.openInternal(root, handlers, true);
-	}
+	ensureDefaultProject(handlers: WorkspaceProjectHandlers): ProjectSnapshot { return this.projectOps.ensureDefaultProject(handlers); }
 
 	focusProject(projectId: string): boolean {
 		if (!this.projects.has(projectId)) return false;
@@ -867,34 +540,7 @@ export class WorkspaceHub {
 		return this.requestWorkspaceMeta();
 	}
 
-	closeProject(projectId: string): boolean {
-		const project = this.projects.get(projectId);
-		if (!project) return false;
-		const inFlight = project.sessions.isRunActive();
-		project.sessions.detachAll();
-		const metaId = project.metaProjectId ?? (project.isDefault ? undefined : project.id);
-		if (metaId && this.bridge && this.engineStatus === 'ready' && !project.isDefault) {
-			this.bridge.send({
-				type: 'UpdateProjectStatus',
-				projectId: metaId,
-				status: 'closed'
-			});
-		}
-		if (project.workspaceId && this.bridge && !inFlight) {
-			this.bridge.send({type: 'UnregisterWorkspace', workspaceId: project.workspaceId});
-		}
-		this.projects.delete(projectId);
-		this.registerFailed.delete(projectId);
-		this.failRegisterWaiters(projectId, 'Project closed');
-		if (this.activeProjectId === projectId) {
-			const next =
-				[...this.projects.values()].find(p => !p.isDefault)?.id ??
-				this.projects.keys().next().value ??
-				null;
-			this.activeProjectId = (next as string | null) ?? null;
-		}
-		return true;
-	}
+	closeProject(projectId: string): boolean { return this.projectOps.closeProject(projectId); }
 
 	async stopOwnedEngine(): Promise<void> {
 		this.shuttingDown = true;
@@ -914,33 +560,7 @@ export class WorkspaceHub {
 		this.closeAll();
 	}
 
-	closeAll(): void {
-		this.switchAbort?.abort();
-		this.pendingEdgeId = null;
-		this.shuttingDown = true;
-		if (this.rebindTimer) {
-			clearTimeout(this.rebindTimer);
-			this.rebindTimer = null;
-		}
-		if (this.rebindResetTimer) {
-			clearTimeout(this.rebindResetTimer);
-			this.rebindResetTimer = null;
-		}
-		this.clearPickerRefresh();
-		this.lastPickerEngineIds = ['fast'];
-		this.lastRegistryIds = new Set(['fast']);
-		this.hostWait.cancelAll();
-		for (const id of [...this.projects.keys()]) {
-			this.projects.get(id)?.sessions.detachAll();
-			this.projects.delete(id);
-		}
-		this.activeProjectId = null;
-		this.lastReady = null;
-		this.failRegisterWaiters(null, 'Engine shutting down');
-		this.bridge?.stop();
-		this.bridge = null;
-		this.setEngineStatus('exited');
-	}
+	closeAll(): void { this.projectOps.closeAll(); }
 
 	private snapshot(p: OpenProject): ProjectSnapshot {
 		return {
@@ -1276,128 +896,6 @@ export class WorkspaceHub {
 		return ok;
 	}
 
-	private openInternal(
-		workspaceRoot: string,
-		handlers: WorkspaceProjectHandlers,
-		isDefault: boolean
-	): ProjectSnapshot {
-		if (this.isRemote()) {
-			throw new Error('Cannot open a local folder on a remote edge');
-		}
-		const existing = [...this.projects.values()].find(p => p.path === workspaceRoot);
-		if (existing) {
-			this.focusProject(existing.id);
-			return this.snapshot(existing);
-		}
-
-		this.ensureEngine(handlers);
-
-		const id = this.createId();
-		const clientId = this.createClientId();
-		const sessions = new SessionController({
-			clientId,
-			send: (command: BridgeCommand) => this.bridge?.send(command) ?? false,
-			onChange: () => handlers.onSessionsChanged?.(id),
-			workspaceId: () => this.projects.get(id)?.workspaceId,
-			projectId: () => {
-				const p = this.projects.get(id);
-				if (!p) return undefined;
-				if (p.isDefault) return p.metaProjectId ?? 'default-project';
-				return p.metaProjectId;
-			},
-			requestRegister: () => {
-				const p = this.projects.get(id);
-				if (!p) return;
-				if (!p.isDefault && !p.metaProjectId && this.bridge && this.engineStatus === 'ready') {
-					this.bridge.send({
-						type: 'CreateProject',
-						projectType: 'coding',
-						rootPath: p.path,
-						displayName: path.basename(p.path)
-					});
-				}
-				this.ensureRegistered(p);
-			},
-			discoverHostSkills: () =>
-				this.isRemote() ? [] : discoverHostSlashSkills(this.projects.get(id)?.path)
-		});
-
-		const project: OpenProject = {
-			id,
-			path: workspaceRoot,
-			status: isDefault ? 'ready' : 'starting',
-			sessions,
-			clientId,
-			isDefault,
-			cwd: workspaceRoot,
-			metaProjectId: isDefault ? 'default-project' : undefined,
-			displayName: isDefault ? 'Default Project' : path.basename(workspaceRoot)
-		};
-		this.projects.set(id, project);
-		this.activeProjectId = id;
-		sessions.seedHostSlashCatalog();
-		this.stampAvailableEngines(sessions);
-		// Apply engine-level model chrome from a prior Hello ready (no sessionId path).
-		if (this.lastReady) sessions.handleEvent(this.lastReady);
-		if (this.engineHandlers) void this.composerHeal.refreshComposerChrome(this.engineHandlers);
-
-		// Meta identity + optional Slot claim (I/O). Slot is not required for sidebar.
-		if (!isDefault && this.engineStatus === 'ready' && this.bridge) {
-			this.bridge.send({
-				type: 'CreateProject',
-				projectType: 'coding',
-				rootPath: workspaceRoot,
-				displayName: path.basename(workspaceRoot)
-			});
-			this.bridge.send({type: 'RegisterWorkspace', path: workspaceRoot});
-		}
-
-		return this.snapshot(project);
-	}
-
-	/** Meta adopt: mint a row without stealing active focus (§9.3). */
-	private mintAdoptedProject(input: {
-		workspaceRoot: string;
-		handlers: {onSessionsChanged?: (projectId: string) => void};
-		metaProjectId?: string;
-		workspaceId?: string;
-		displayName?: string;
-		isDefault: boolean;
-	}): OpenProject {
-		this.ensureEngine(input.handlers as WorkspaceProjectHandlers);
-		const id = this.createId();
-		const clientId = this.createClientId();
-		const sessions = new SessionController({
-			clientId,
-			send: (command: BridgeCommand) => this.bridge?.send(command) ?? false,
-			onChange: () => input.handlers.onSessionsChanged?.(id),
-			workspaceId: () => this.projects.get(id)?.workspaceId,
-			projectId: () => this.projects.get(id)?.metaProjectId,
-			requestRegister: () => {
-				const p = this.projects.get(id);
-				if (!p) return;
-				this.ensureRegistered(p);
-			},
-			discoverHostSkills: () =>
-				this.isRemote() ? [] : discoverHostSlashSkills(this.projects.get(id)?.path)
-		});
-		const project: OpenProject = {
-			id,
-			path: input.workspaceRoot,
-			status: 'ready',
-			sessions,
-			clientId,
-			isDefault: input.isDefault,
-			cwd: input.workspaceRoot,
-			metaProjectId: input.metaProjectId,
-			workspaceId: input.workspaceId,
-			displayName: input.displayName
-		};
-		this.projects.set(id, project);
-		sessions.seedHostSlashCatalog();
-		this.stampAvailableEngines(sessions);
-		return project;
-	}
 
 	private ensureRegistered(project: OpenProject): void {
 		if (this.engineStatus !== 'ready' || !this.bridge) return;
@@ -1416,26 +914,6 @@ export class WorkspaceHub {
 	}
 
 	/** Review I/O waits for RegisterWorkspace accepted on this connection — not Meta pathHash. */
-	private ensureRegisteredAsync(project: OpenProject): Promise<void> {
-		if (project.slotLive && project.workspaceId) return Promise.resolve();
-		const failed = this.registerFailed.get(project.id);
-		if (failed) return Promise.reject(new Error(failed));
-		this.ensureRegistered(project);
-		if (project.slotLive && project.workspaceId) return Promise.resolve();
-		return new Promise((resolve, reject) => {
-			const waiter: RegisterWaiter = {
-				resolve,
-				reject,
-				timer: setTimeout(() => {
-					this.dropRegisterWaiter(project.id, waiter);
-					reject(new Error('timeout waiting for RegisterWorkspace'));
-				}, this.registerWaitMs)
-			};
-			const waiters = this.registerWaiters.get(project.id) ?? new Set<RegisterWaiter>();
-			waiters.add(waiter);
-			this.registerWaiters.set(project.id, waiters);
-		});
-	}
 
 	private settleRegisterWaiters(project: OpenProject): void {
 		this.registerFailed.delete(project.id);
@@ -1479,54 +957,6 @@ export class WorkspaceHub {
 		return known.some(t => Boolean(t.sessionId) || t.pendingNew);
 	}
 
-	private startEngine(handlers: WorkspaceProjectHandlers): void {
-		this.shuttingDown = false;
-		this.engineHandshakeOk = false;
-		if (!this.isRemote()) mkdirSync(this.hostCwd, {recursive: true});
-		this.setEngineStatus(this.rebindAttempts > 0 ? 'reconnecting' : 'starting');
-		const bridge = this.createBridge();
-		this.bridge = bridge;
-		const remote = this.remoteOpts
-			? {...this.remoteOpts, timeoutMs: this.remoteOpts.timeoutMs ?? CONNECT_DEADLINE_MS}
-			: undefined;
-
-		void Promise.resolve(
-			bridge.start(
-				this.hostCwd,
-				{
-					onEvent: event => {
-						if (event.type === 'HelloOk' && event.hostHome) this.hostHome = event.hostHome;
-						this.onBridgeEvent(event, handlers);
-					},
-					onError: message => {
-						if (this.switchingEdge) return;
-						if (this.reconcileTerminalParseFailure(message, handlers)) return;
-						this.setEngineStatus('error', message);
-						handlers.onError('engine', message);
-					},
-					onLog: message => handlers.onLog?.('engine', message),
-					onExit: (code, signal) => {
-						if (this.switchingEdge || this.shuttingDown) return;
-						this.handleEngineExit(bridge, handlers, code, signal);
-					}
-				},
-				{
-					sessionMode: 'continue',
-					remote,
-					clientId: this.createClientId(),
-					wantEngineId: process.env.FAST_WANT_ENGINE_ID
-				}
-			)
-		)
-			.then(() => {
-				if (this.bridge === bridge) this.engineHandshakeOk = true;
-			})
-			.catch(error => {
-				if (this.bridge === bridge) this.bridge = null;
-				if (error instanceof Error && error.name === 'AbortError') return;
-			});
-	}
-
 	/**
 	 * Resolve Composer model chrome to a ListProviders row.
 	 * Prefer Settings `models.defaultPlatform/defaultModel`, else the provider model
@@ -1560,163 +990,11 @@ export class WorkspaceHub {
 
 	private onBridgeEvent(event: BridgeEvent, handlers: WorkspaceProjectHandlers): void {
 		if (event.type === 'command_result') {
-			if (this.dispatchCommandResult(event, handlers)) return;
-		} else if (this.dispatchTypedEvent(event, handlers)) {
+			if (this.demux.dispatchCommandResult(event, handlers)) return;
+		} else if (this.demux.dispatchTypedEvent(event, handlers)) {
 			return;
 		}
-		this.demuxSession(event, handlers);
-	}
-
-	private dispatchCommandResult(
-		event: Extract<BridgeEvent, {type: 'command_result'}>,
-		handlers: WorkspaceProjectHandlers
-	): boolean {
-		if (event.requestId) this.hostWait.resolveByRequestId(event);
-		if (HostWaitCommands.has(event.name)) {
-			const eventCheckout =
-				'pathHash' in event && typeof event.pathHash === 'string'
-					? this.projectForHash(event.pathHash)?.id
-					: undefined;
-			this.hostWait.resolveByName(event, eventCheckout);
-			handlers.onEvent('engine', event);
-			return true;
-		}
-		if (this.adopt.handleCommand(event, handlers)) return true;
-		if (event.name === 'SetSessionTitle' || event.name === 'UpdateSessionStatus') {
-			this.fanoutSessionChrome(event, handlers);
-			return true;
-		}
-		return false;
-	}
-
-	private dispatchTypedEvent(event: BridgeEvent, handlers: WorkspaceProjectHandlers): boolean {
-		return (this.typedBridge[event.type] ?? this.unhandledType)(event, handlers);
-	}
-
-	private readonly unhandledType = (_event: BridgeEvent, _handlers: WorkspaceProjectHandlers): boolean =>
-		false;
-
-	private readonly typedBridge: Record<
-		string,
-		(event: BridgeEvent, handlers: WorkspaceProjectHandlers) => boolean
-	> = {
-		engine_install_log: event => {
-			if (event.type !== 'engine_install_log') return false;
-			this.engineHandlers?.onEngineInstallLog?.(event);
-			return true;
-		},
-		HelloOk: event => {
-			if (event.type !== 'HelloOk') return false;
-			if (event.hostHome) this.hostHome = event.hostHome;
-			return true;
-		},
-		ready: (event, handlers) => {
-			if (event.type !== 'ready') return false;
-			this.handleReady(event, handlers);
-			return true;
-		},
-		workspace_meta: (event, handlers) => {
-			if (event.type !== 'workspace_meta') return false;
-			this.adopt.applyWorkspaceMeta(event, handlers);
-			handlers.onEvent('engine', event);
-			return true;
-		},
-		settings_changed: (event, handlers) => {
-			if (event.type !== 'settings_changed') return false;
-			if (event.namespace === 'models') void this.composerHeal.refreshComposerChrome(handlers);
-			handlers.onEvent('engine', event);
-			return true;
-		},
-		providers_changed: (event, handlers) => {
-			this.composerHeal.syncComposerCatalog();
-			handlers.onEvent('engine', event);
-			return true;
-		},
-		skills_changed: (event, handlers) => {
-			handlers.onEvent('engine', event);
-			return true;
-		},
-		open_project_set: (event, handlers) => {
-			handlers.onEvent('engine', event);
-			return true;
-		},
-		tree_advanced: (event, handlers) => this.fanoutCheckoutPush(event, handlers),
-		review_changed: (event, handlers) => this.fanoutCheckoutPush(event, handlers),
-		workspace_file_changed: (event, handlers) => {
-			if (event.type !== 'workspace_file_changed') return false;
-			if (this.isLocalSaveEcho(event)) return true;
-			this.fanoutCheckoutPush(event, handlers);
-			return true;
-		},
-		host_error: (event, handlers) => {
-			if (event.type !== 'host_error') return false;
-			this.hostWait.hostError(event.message);
-			handlers.onError('engine', event.message);
-			handlers.onEvent('engine', event);
-			return true;
-		},
-		error: (event, handlers) => this.handleBareError(event, handlers),
-		sessions_list: (event, handlers) => {
-			if (event.type !== 'sessions_list') return false;
-			this.adopt.handleSessionsList(event, handlers);
-			return true;
-		}
-	};
-
-	private handleReady(
-		event: Extract<BridgeEvent, {type: 'ready'}>,
-		handlers: WorkspaceProjectHandlers
-	): void {
-		// ready is not SessionBind authority — CreateSession command_result + taskId binds.
-		// Do not re-GetWorkspaceMeta on every ready (cold-start only on firstReady).
-		// Engine-level model chrome must still reach every Project SessionController —
-		// Hello ready often has no sessionId, and the old path skipped handleEvent entirely
-		// leaving Composer stuck on the placeholder "Default".
-		const firstReady = this.engineStatus !== 'ready';
-		const wasReconnecting = this.engineStatus === 'reconnecting';
-		this.setEngineStatus('ready');
-		// Do not zero backoff on the first ready after a drop — a 2s write-stall
-		// used to reset this and spin Hello/CreateProject every ~5s.
-		this.armStableLease();
-		this.lastReady = event;
-
-		for (const project of this.projects.values()) {
-			project.status = 'ready';
-			project.error = undefined;
-			project.sessions.handleEvent(event);
-		}
-
-		const active = this.getActive();
-		if (active) {
-			handlers.onEvent(active.id, event);
-			handlers.onSessionsChanged?.(active.id);
-		} else {
-			handlers.onEvent('engine', event);
-		}
-
-		if (!wasReconnecting) {
-			void this.composerHeal.refreshComposerChrome(handlers);
-		}
-
-		if (firstReady) {
-			for (const project of this.projects.values()) {
-				if (project.isDefault) continue;
-				if (!this.isRemote() && !project.metaProjectId) {
-					this.bridge?.send({
-						type: 'CreateProject',
-						projectType: 'coding',
-						rootPath: project.path,
-						displayName: path.basename(project.path)
-					});
-				}
-				this.bridge?.send({type: 'RegisterWorkspace', path: project.path});
-			}
-			this.requestWorkspaceMeta();
-			this.refreshPickerEngines(handlers);
-			this.schedulePickerRefresh(handlers);
-		} else if (wasReconnecting) {
-			this.refreshPickerEngines(handlers);
-		}
+		this.demux.demuxSession(event, handlers);
 	}
 
 	private fanoutCheckoutPush(event: BridgeEvent, handlers: WorkspaceProjectHandlers): boolean {
@@ -1762,40 +1040,6 @@ export class WorkspaceHub {
 		return true;
 	}
 
-	private demuxSession(event: BridgeEvent, handlers: WorkspaceProjectHandlers): void {
-		const sessionId =
-			sessionIdFromEvent(event) ??
-			(event.type === 'command_result' && 'sessionId' in event
-				? (event as {sessionId?: string}).sessionId
-				: undefined);
-
-		if (isSessionStreamEvent(event.type)) {
-			if (!sessionId) {
-				handlers.onLog?.('engine', `[session-demux] drop ${event.type} without sessionId`);
-				return;
-			}
-			const project = this.projectForSession(sessionId);
-			if (!project) {
-				handlers.onLog?.(
-					'engine',
-					`[session-demux] drop ${event.type} session unmatched: ${sessionId}`
-				);
-				return;
-			}
-			project.sessions.handleEvent(event);
-			handlers.onEvent(project.id, event);
-			return;
-		}
-
-		const project = sessionId ? this.projectForSession(sessionId) : this.getActive();
-		if (!project) {
-			handlers.onEvent('engine', event);
-			return;
-		}
-		project.sessions.handleEvent(event);
-		handlers.onEvent(project.id, event);
-	}
-
 	private requestProjectSessionsList(project: OpenProject): void {
 		this.pendingSessionsList.add(project.id);
 		project.sessions.requestSessionsList();
@@ -1831,7 +1075,7 @@ export class WorkspaceHub {
 		if (this.rebindTimer) clearTimeout(this.rebindTimer);
 		this.rebindTimer = setTimeout(() => {
 			this.rebindTimer = null;
-			this.startEngine(handlers);
+			this.engine.startEngine(handlers);
 		}, delay);
 	}
 
