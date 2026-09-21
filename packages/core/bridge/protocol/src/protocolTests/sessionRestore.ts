@@ -58,7 +58,10 @@ test('bridgeEventSchema accepts session_restored and sessions_list', () => {
 			failed: true
 		}]
 	});
-	assert.equal(failedTurn.turns[0]?.failed, true);
+	assert.equal(failedTurn.type, 'session_restored');
+	if (failedTurn.type === 'session_restored') {
+		assert.equal(failedTurn.turns[0]?.failed, true);
+	}
 
 	const listed = bridgeEventSchema.parse({
 		type: 'sessions_list',
