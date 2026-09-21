@@ -9,7 +9,7 @@ import {
 	writeFileSync,
 	type PathLike
 } from 'node:fs';
-import {createWriteStream} from 'node:fs';
+import {createRotatingLogStream} from './rotatingLog.js';
 import os from 'node:os';
 import path from 'node:path';
 import {bridgePaths} from './paths.js';
@@ -426,8 +426,8 @@ function defaultSpawnDaemon(
 ): ChildProcess {
 	mkdirSync(opts.logDir, {recursive: true});
 	const stamp = new Date().toISOString().replace(/[:.]/g, '-');
-	const outLog = createWriteStream(path.join(opts.logDir, `bridge-daemon-${stamp}.out.log`), {flags: 'a'});
-	const errLog = createWriteStream(path.join(opts.logDir, `bridge-daemon-${stamp}.err.log`), {flags: 'a'});
+	const outLog = createRotatingLogStream(path.join(opts.logDir, `bridge-daemon-${stamp}.out.log`));
+	const errLog = createRotatingLogStream(path.join(opts.logDir, `bridge-daemon-${stamp}.err.log`));
 	const child = spawn(command, args, {
 		cwd: opts.cwd,
 		env: opts.env,
