@@ -579,7 +579,7 @@ export const DialogueComposer = memo(function DialogueComposer({
 				requestAnimationFrame(() => richRef.current?.focus());
 			}
 			onError?.(
-				helpNoticeText(result.notice ?? 'errors.send.workspace_not_ready', t),
+				helpNoticeText(result.notice ?? 'errors.send.failed', t),
 				taskId
 			);
 		} else {

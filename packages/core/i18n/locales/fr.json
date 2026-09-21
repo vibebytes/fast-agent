@@ -1512,6 +1512,7 @@
       "session_not_ready": "La session n’est pas encore prête — patientez puis réessayez.",
       "composer_locked": "Résolvez l’approbation ou la question en attente avant d’envoyer.",
       "turn_running": "Un tour est déjà en cours — le message devrait être mis en file ; réessayez.",
+      "failed": "Message non envoyé — veuillez réessayer.",
       "workspace_not_ready": "Message non envoyé — l’espace de travail n’est pas encore prêt.",
       "slash_empty": "Tapez / puis choisissez une commande ou un skill.",
       "slash_help": "Slash : choisissez dans le menu (Commandes / Skills). Host : /help /clear /model. /skills liste le Catalogue ; les autres noms chargent un skill puis lancent un Run.",

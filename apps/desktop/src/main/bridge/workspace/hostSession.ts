@@ -186,7 +186,7 @@ export function hostSession(input: {
 
 		'task:send': (text: string, mentions?, expectedTaskId?: string | null, images?) => {
 			const sessions = activeCommands(hub);
-			if (!sessions) return {ok: false};
+			if (!sessions) return {ok: false, notice: 'errors.send.no_active_task'};
 			const ok = sessions.sendMessage(text, mentions, expectedTaskId, images);
 			const notice = sessions.consumeHelpNotice();
 			const openModelPicker = sessions.consumeOpenModelPicker();
@@ -199,7 +199,7 @@ export function hostSession(input: {
 
 		'task:buildPlan': (planId: string, name?: string) => {
 			const sessions = activeCommands(hub);
-			if (!sessions) return {ok: false};
+			if (!sessions) return {ok: false, notice: 'errors.send.no_active_task'};
 			const ok = sessions.buildPlan(planId, name);
 			const notice = sessions.consumeHelpNotice();
 			publisher.flushContentPatchNow();

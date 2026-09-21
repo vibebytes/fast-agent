@@ -1512,6 +1512,7 @@
       "session_not_ready": "La sesión aún no está lista — espera un momento e inténtalo de nuevo.",
       "composer_locked": "Resuelve la aprobación o pregunta pendiente antes de enviar.",
       "turn_running": "Ya hay un turno en ejecución — el mensaje debería encolarse; inténtalo de nuevo.",
+      "failed": "Mensaje no enviado — inténtalo de nuevo.",
       "workspace_not_ready": "Mensaje no enviado — el espacio de trabajo aún no está listo.",
       "slash_empty": "Escribe / y elige un comando o skill.",
       "slash_help": "Barra: elige del menú (Comandos / Skills). Host: /help /clear /model. /skills lista el Catálogo; otros nombres cargan una skill e inician un Run.",

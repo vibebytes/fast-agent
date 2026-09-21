@@ -1512,6 +1512,7 @@
       "session_not_ready": "工作階段尚未就緒 — 請稍候再試。",
       "composer_locked": "傳送前請先處理待處理的核准或問題。",
       "turn_running": "回合已在執行 — 訊息應入隊；請重試。",
+      "failed": "訊息未傳送 — 請重試。",
       "workspace_not_ready": "訊息未傳送 — 工作區尚未就緒。",
       "slash_empty": "輸入 / 然後選擇指令或技能。",
       "slash_help": "斜線：從選單選擇（指令 / 技能）。Host：/help /clear /model。/skills 列出目錄；其他名稱會載入技能並啟動 Run 執行。",

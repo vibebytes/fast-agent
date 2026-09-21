@@ -1512,6 +1512,7 @@
       "session_not_ready": "会话尚未就绪 — 请稍候再试。",
       "composer_locked": "发送前请先处理待处理的审批或问题。",
       "turn_running": "回合已在运行 — 消息应入队；请重试。",
+      "failed": "消息未发送 — 请重试。",
       "workspace_not_ready": "消息未发送 — 工作区尚未就绪。",
       "slash_empty": "输入 / 然后选择命令或技能。",
       "slash_help": "斜杠：从菜单选择（命令 / 技能）。Host：/help /clear /model。/skills 列出目录；其他名称会加载技能并启动 Run 执行。",

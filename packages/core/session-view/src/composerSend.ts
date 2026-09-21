@@ -75,7 +75,10 @@ export function createComposerSend<T extends ComposerTaskLike>(deps: ComposerSen
 		images?: Array<{mediaType: string; data: string; name?: string}>
 	): string | false => {
 		const task = deps.getActiveTask();
-		if (!task?.sessionId) return false;
+		if (!task?.sessionId) {
+			deps.setHelpNotice('errors.send.session_starting');
+			return false;
+		}
 		const generateTitle = task.autoTitlePending;
 		const sessionId = task.sessionId;
 		const sampling = composerSampling();
@@ -98,10 +101,14 @@ export function createComposerSend<T extends ComposerTaskLike>(deps: ComposerSen
 				? {planBuild: {planId: planBuild.planId, ...(planBuild.name ? {name: planBuild.name} : {})}}
 				: {})
 		} as BridgeCommand);
-		if (ok && generateTitle) deps.titleGenRequested.add(sessionId);
-		if (ok && planBuild) pendingPlanBuildPlanId = planBuild.planId;
-		if (ok) deps.touchLastModified(task);
-		return ok ? clientMessageId : false;
+		if (!ok) {
+			deps.setHelpNotice('errors.send.bridge_not_ready');
+			return false;
+		}
+		if (generateTitle) deps.titleGenRequested.add(sessionId);
+		if (planBuild) pendingPlanBuildPlanId = planBuild.planId;
+		deps.touchLastModified(task);
+		return clientMessageId;
 	};
 
 	const sendPinnedCommand = (
@@ -207,7 +214,11 @@ export function createComposerSend<T extends ComposerTaskLike>(deps: ComposerSen
 				deps.setHelpNotice('errors.send.slash_help');
 				return true;
 			}
-			if (name === 'clear') return deps.onClearSlash();
+			if (name === 'clear') {
+				if (deps.onClearSlash()) return true;
+				deps.setHelpNotice('errors.send.no_active_task');
+				return false;
+			}
 			if (name === 'model') {
 				if (deps.engineKind() === 'dsh') return true;
 				if (args) return deps.selectModel(args);

@@ -1518,6 +1518,7 @@
       "session_not_ready": "Session is not ready yet — wait a moment, then try again.",
       "composer_locked": "Resolve the pending approval or question before sending.",
       "turn_running": "A turn is already running — message should enqueue; try again.",
+      "failed": "Message not sent — try again.",
       "workspace_not_ready": "Message not sent — workspace is not ready yet.",
       "slash_empty": "Type / then pick a command or skill.",
       "slash_help": "Slash: pick from the menu (Commands / Skills). Host: /help /clear /model. /skills lists Catalog; other names load a skill then start a Run to execute it.",
