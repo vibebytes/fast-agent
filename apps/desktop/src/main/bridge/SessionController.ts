@@ -3,7 +3,6 @@ import type {MentionChip} from '@fast-ide/session-view';
 import {
 	applyBridgeEvent,
 	applyLeaseExpiry,
-	applyLocalCancel,
 	CANCEL_SETTLEMENT_TIMEOUT_MS,
 	composerGate,
 	createLeaseWatch,
@@ -15,28 +14,20 @@ import {
 	type LeaseWatchHandle,
 	type SessionSeq,
 	type SlashCatalogEntry,
-	chromeAwaitingSettlement,
-	chromeRunId,
-	runChromeTransition
+	chromeAwaitingSettlement
 } from '@fast-ide/session-view';
 import {
-	createCodeChangesState,
-	createComposerSend,
 	createSessionAttachStore,
-	createTaskLifecycle,
 	detachAllSessions,
 	heartbeatAttached,
 	parseEngineKind,
 	requestSessionAttach,
 	resyncSessionAttach,
-	wireUseModel,
 	type EngineKind,
 	type RunMode,
 	type SessionMetaInfo
 } from '@fast-ide/session-view';
 import type {ModelCatalogEntry} from './modelCatalog.js';
-import {resolveSlashRoute} from './slashRoute.js';
-import {promptLine} from './dsh/skills.js';
 import {randomUUID} from 'node:crypto';
 import {
 	taskRunActive,
@@ -48,11 +39,8 @@ import {
 	type TaskRecord,
 	type TaskView
 } from './sessionContracts.js';
-import {createSessionCommands} from './sessionCommands.js';
-import {createSessionEventHost} from './sessionEventHost.js';
-import {createSessionGoal, goalBusyGatePatch, goalLeaseCleanup} from './sessionGoal.js';
-import {createSessionModelSettings} from './sessionModelSettings.js';
-import {createSessionSlashCatalog} from './sessionSlashCatalog.js';
+import {goalBusyGatePatch, goalLeaseCleanup} from './sessionGoal.js';
+import {createSessionGlue, type SessionGlue} from './sessionGlue.js';
 
 export class SessionController implements TaskCommands, SessionLifecycle, TaskView {
 	private readonly clientId: string;
@@ -76,188 +64,19 @@ export class SessionController implements TaskCommands, SessionLifecycle, TaskVi
 	/** Multi-Attach: Sessions kept live after select/create (ADR-0010 extend). */
 	private readonly attach = createSessionAttachStore();
 
-	private readonly commands = createSessionCommands({
-		getActiveTask: () => this.getActiveTask(),
-		taskBySessionId: sessionId => this.taskBySessionId(sessionId),
-		isAttached: sessionId => this.attach.isAttached(sessionId),
-		send: command => this.sendFn(command),
-		createId: () => this.createId(),
-		setHelpNotice: notice => {
-			this.helpNotice = notice;
-		},
-		workspaceId: () => this.workspaceId?.(),
-		settleTask: task => this.tasks.set(task.id, task),
-		onChange: () => this.onChange?.(),
-		armCancelSettle: taskId => this.leaseWatch.armCancelSettle(taskId),
-		composerSampling: () => this.composer.composerSampling()
-	});
-
-	/** Goal-card domain: push/patch/confirm sink + Busy-A′ gate patch (sessionGoal). */
-	private readonly goal = createSessionGoal({
-		getActiveTask: () => this.getActiveTask(),
-		taskBySessionId: sessionId => this.taskBySessionId(sessionId),
-		settleTask: task => this.tasks.set(task.id, task),
-		onChange: () => this.onChange?.(),
-		createId: () => this.createId(),
-		offerCue: (task, kind, wasBusy, success) =>
-			this.eventHost.offerCompletionCue(task, kind, wasBusy, success)
-	});
-
-	/**
-	 * Task create/rename/delete lifecycle + command_result settlement. The deep
-	 * module owns the task map; the Host mints rows (buildTaskEntry) and keeps
-	 * only its own chrome/watchdog state.
-	 */
-	private readonly lifecycle = createTaskLifecycle<TaskRecord>({
-		createId: () => this.createId(),
-		now: () => this.now(),
-		send: cmd => this.sendFn(cmd),
-		projectId: () => this.projectId?.(),
-		workspaceId: () => this.workspaceId?.(),
-		requestRegister: () => this.requestRegister?.(),
-		requestAttach: (task, sessionId, attempt) => {
-			this.requestAttach(task, sessionId, attempt);
-		},
-		selectTask: taskId => this.selectTask(taskId),
-		getActiveTask: () => this.getActiveTask(),
-		getActiveTaskId: () => this.activeTaskId,
-		setActiveTaskId: taskId => {
-			this.activeTaskId = taskId;
-		},
-		setActiveEngineKind: k => {
-			this.catalog.applyEngineKind(k);
-		},
-		setHelpNotice: notice => {
-			this.helpNotice = notice;
-		},
-		onChange: () => this.onChange?.(),
-		taskBySessionId: sid => this.taskBySessionId(sid),
-		taskRunActive: task => taskRunActive(task),
-		cancelRunForTask: (task, reason) => {
-			this.cancelRunForTask(task, reason);
-		},
-		forgetTask: taskId => this.leaseWatch.forgetTask(taskId),
-		attachedSessionIds: this.attach,
-		seqBySession: this.seqBySession,
-		buildEntry: (id, kind, title, listOrder) => this.buildTaskEntry(id, kind, title, listOrder)
-	});
-
-	/** Per-task Cancel Settlement watchdogs — switching tabs must not disarm others. */
+	private readonly glue: SessionGlue;
+	private readonly commands: SessionGlue['commands'];
+	private readonly goal: SessionGlue['goal'];
+	private readonly lifecycle: SessionGlue['lifecycle'];
+	private readonly composer: SessionGlue['composer'];
+	private readonly modelSettings: SessionGlue['modelSettings'];
+	private readonly slashModule: SessionGlue['slashModule'];
+	private readonly eventHost: SessionGlue['eventHost'];
 	private leaseWatch!: LeaseWatchHandle;
-
 	private get tasks(): Map<string, TaskRecord> {
 		return this.lifecycle.tasks;
 	}
-	/**
-	 * Sessions for which this controller sent `generateTitle: true` and is waiting
-	 * for `input_accepted` before clearing `autoTitlePending`.
-	 */
 	private titleGenRequested = new Set<string>();
-	/** Composer send channel — SubmitUserMessage sampling + slash + pinned `command` + `/skills` FIFO. */
-	private readonly composer = createComposerSend<TaskRecord>({
-		createId: () => this.createId(),
-		now: () => this.now(),
-		send: cmd => this.sendFn(cmd),
-		getActiveTask: () => this.getActiveTask(),
-		commandSessionId: () => this.commandSessionId(),
-		canSubmitNow: () => this.canSubmitNow(),
-		canSubmitCommand: () => this.canSubmitCommand(),
-		describeSendBlocker: () => this.describeSendBlocker(),
-		engineKind: () => this.engineKind,
-		promptLine: (name, args) => promptLine(name, args),
-		selectModel: id => this.selectModel(id),
-		requestModelList: () => this.requestModelList(),
-		setHelpNotice: notice => {
-			this.helpNotice = notice;
-		},
-		applyRunMode: mode => this.applyRunMode(mode),
-		effort: () => this.effort,
-		onClearSlash: () => {
-			const task = this.getActiveTask();
-			if (!task) return false;
-			task.transcript = createTranscriptState();
-			task.codeChanges = createCodeChangesState();
-			this.tasks.set(task.id, task);
-			if (task.sessionId && this.attach.isAttached(task.sessionId)) {
-				this.composer.sendPinnedCommand('clear', '', task.sessionId);
-			}
-			return true;
-		},
-		touchLastModified: task => this.touchLastModified(task),
-		useModelOf: (model, modelDisplay) => wireUseModel(model ?? '', modelDisplay ?? ''),
-		catalogHas: ref => this.catalog.catalogHas(ref ?? ''),
-		submitThinking: () => this.catalog.submitThinking(),
-		titleGenRequested: this.titleGenRequested,
-		seedHostSlashCatalog: () => this.slashModule.seedHostSlashCatalog(),
-		slashCatalogLive: () => this.slashModule.bridgeArrived && this.slashModule.entries.length > 0,
-		applyEmptySlashCatalog: () => this.slashModule.applyEmptySlashCatalog(),
-		markSlashCatalogHydrated: () => {
-			this.slashModule.markHydrated();
-		},
-		appendSkillsTranscript: message => {
-			const task = this.getActiveTask();
-			if (!task) return;
-			task.transcript = {
-				...task.transcript,
-				entries: [
-					...task.transcript.entries,
-					{id: this.createId(), role: 'assistant', text: message, status: 'done'}
-				]
-			};
-			this.tasks.set(task.id, task);
-		}
-	});
-
-	/** Sticky Composer chrome + provider catalog (session-view catalogSettings, K17). */
-	private readonly modelSettings = createSessionModelSettings({
-		getActiveTask: () => this.getActiveTask(),
-		tasks: this.tasks,
-		onChange: () => this.onChange?.(),
-		send: cmd => this.sendFn(cmd),
-		commandSessionId: () => this.commandSessionId(),
-		sendPinnedCommand: (name, args, sessionId) =>
-			this.composer.sendPinnedCommand(name, args, sessionId),
-		stageEngineChange: (sessionId, current) => this.lifecycle.stageEngineChange(sessionId, current)
-	});
-
-	/** Slash catalog: Bridge merge + Host disk skills + SkillSlash enrichment (K18). */
-	private readonly slashModule = createSessionSlashCatalog({
-		getActiveTask: () => this.getActiveTask(),
-		engineKind: () => this.modelSettings.catalog.engineKind,
-		onChange: () => this.onChange?.(),
-		discoverHostSkills: () => this.discoverHostSkills?.()
-	});
-
-	/** Event host: host branches + stream projection + completion cues (K19). */
-	private readonly eventHost = createSessionEventHost({
-		clientId: () => this.clientId,
-		send: cmd => this.sendFn(cmd),
-		createId: () => this.createId(),
-		onChange: () => this.onChange?.(),
-		getActiveTask: () => this.getActiveTask(),
-		taskBySessionId: sessionId => this.taskBySessionId(sessionId),
-		tasks: this.tasks,
-		seqBySession: this.seqBySession,
-		titleGenRequested: this.titleGenRequested,
-		setHelpNotice: notice => {
-			this.helpNotice = notice;
-		},
-		lifecycle: this.lifecycle,
-		composer: this.composer,
-		attach: this.attach,
-		commands: {clearHistoryInFlight: sid => this.commands.clearHistoryInFlight(sid)},
-		leaseWatch: {
-			syncCancelSettle: task => this.leaseWatch.syncCancelSettle(task),
-			noteRunLease: (task, event) => this.leaseWatch.noteRunLease(task, event)
-		},
-		model: this.modelSettings,
-		slash: this.slashModule,
-		goal: this.goal,
-		requestAttach: (task, sessionId, lastEventSeq) =>
-			this.requestAttach(task, sessionId, lastEventSeq),
-		hydrateFromSessionsList: sessions => this.hydrateFromSessionsList(sessions),
-		takePendingUserImages: (sid, clientId) => this.takePendingUserImages(sid, clientId)
-	});
 
 	private get catalog() {
 		return this.modelSettings.catalog;
@@ -320,6 +139,14 @@ export class SessionController implements TaskCommands, SessionLifecycle, TaskVi
 		this.projectId = deps.projectId;
 		this.requestRegister = deps.requestRegister;
 		this.discoverHostSkills = deps.discoverHostSkills;
+		this.glue = createSessionGlue(this as never);
+		this.commands = this.glue.commands;
+		this.goal = this.glue.goal;
+		this.lifecycle = this.glue.lifecycle;
+		this.composer = this.glue.composer;
+		this.modelSettings = this.glue.modelSettings;
+		this.slashModule = this.glue.slashModule;
+		this.eventHost = this.glue.eventHost;
 		this.leaseWatch = createLeaseWatch<TaskRecord>({
 			now: () => this.now(),
 			scanIntervalMs: this.leaseScanIntervalMs,
@@ -368,36 +195,7 @@ export class SessionController implements TaskCommands, SessionLifecycle, TaskVi
 	 * re-Attaches — host is still running the turn.
 	 */
 	markEngineLost(reason: string, opts?: {failTurns?: boolean}): void {
-		this.leaseWatch.clearAllCancelSettle();
-		this.rejectPendingDeletes(reason);
-		const failTurns = opts?.failTurns ?? true;
-		for (const task of this.tasks.values()) {
-			if (
-				failTurns &&
-				(chromeRunId(task.transcript.chrome) ||
-					chromeAwaitingSettlement(task.transcript.chrome) ||
-					task.transcript.entries.some(e => e.status === 'streaming'))
-			) {
-				const cancelled = applyLocalCancel(task.transcript);
-				task.transcript = {
-					...cancelled,
-					chrome: runChromeTransition(cancelled.chrome, {run: 'clear', postRun: true, awaiting: 'clear'}),
-					entries: cancelled.entries.map(entry => {
-						if (entry.role !== 'assistant' || entry.status !== 'cancelled') return entry;
-						return {
-							...entry,
-							status: 'error' as const,
-							text: entry.text || reason
-						};
-					})
-				};
-			}
-			task.pendingAttach = false;
-			this.tasks.set(task.id, task);
-		}
-		this.attach.clear();
-		this.leaseWatch.clearLeaseBookkeeping();
-		this.onChange?.();
+		this.glue.markEngineLost(reason, opts);
 	}
 
 	listTasks(): TaskRecord[] {
@@ -498,41 +296,6 @@ export class SessionController implements TaskCommands, SessionLifecycle, TaskVi
 		this.commands.cancelRunForTask(task, reason);
 
 	/**
-	 * Mint a fresh optimistic Task/Chat row (session-view supplies map insert,
-	 * focus and CreateSession send; the Host keeps only row construction).
-	 */
-	private buildTaskEntry(
-		id: string,
-		kind: 'task' | 'chat',
-		title: string,
-		listOrder: number
-	): TaskRecord {
-		return {
-			id,
-			title,
-			kind,
-			sessionId: null,
-			listOrder,
-			lastModified: new Date(listOrder).toISOString(),
-			lastEventSeq: 0,
-			transcript: createTranscriptState(),
-			codeChanges: createCodeChangesState(),
-			pendingNew: true,
-			pendingAttach: false,
-			createRequested: false,
-			autoTitlePending: true,
-			queue: [],
-			queuePaused: false,
-			model: this.model,
-			modelDisplay: this.modelDisplay,
-			runMode: this.runMode,
-			engineKind: this.engineKind,
-			...(this.effort ? {effort: this.effort} : {}),
-			...(this.thinking !== undefined ? {thinking: this.thinking} : {})
-		};
-	}
-
-	/**
 	 * Sole SessionBind authority: CreateSession / NewSession command_result.
 	 * `taskId` must match the local optimistic Task row exactly.
 	 * When Engine already bound to the project path-hash, Attach only — Bind would
@@ -562,43 +325,7 @@ export class SessionController implements TaskCommands, SessionLifecycle, TaskVi
 	 * Close Tab still does not Detach (option B) — this only (re)claims slot I/O.
 	 */
 	ensureLive(taskId: string, opts?: {focus?: boolean}): TaskRecord | null {
-		const focus = opts?.focus ?? false;
-		const task = this.tasks.get(taskId);
-		if (!task) return null;
-		if (focus) {
-			this.activeTaskId = taskId;
-			this.restoreChromeFromTask(task);
-			// Re-arm watchdog when returning to a task still awaiting Cancel Settlement.
-			this.leaseWatch.syncCancelSettle(task);
-		}
-		// Pending create — optional focus only; Bind/Attach wait until sessionId exists.
-		if (!task.sessionId) return task;
-		const workspaceId = this.workspaceId?.();
-		if (!workspaceId) {
-			// Never Attach before Bind — Engine would pin Sessions to boot cwd
-			// ($HOME/fast_workspace). Open Tab reconcile retries after Register.
-			this.requestRegister?.();
-			return task;
-		}
-		// Already bound + restored — nothing to do (focus already applied above).
-		if (
-			this.attach.isAttached(task.sessionId) &&
-			this.attach.isRestored(task.sessionId)
-		) {
-			return task;
-		}
-		// Background ensureLive: already Attach'd — skip; focus path may re-Attach
-		// when session_restored never arrived (same as legacy selectTask).
-		if (this.attach.isAttached(task.sessionId) && !focus) {
-			return task;
-		}
-		this.sendFn({
-			type: 'BindSessionWorkspace',
-			sessionId: task.sessionId,
-			workspaceId
-		});
-		this.requestAttach(task, task.sessionId, task.lastEventSeq);
-		return task;
+		return this.glue.ensureLive(taskId, opts);
 	}
 
 	selectTask(taskId: string): TaskRecord | null {
@@ -611,48 +338,7 @@ export class SessionController implements TaskCommands, SessionLifecycle, TaskVi
 		expectedTaskId?: string | null,
 		images?: Array<{mediaType: string; data: string; name?: string}>
 	): boolean {
-		const active = this.getActiveTask();
-		if (
-			expectedTaskId &&
-			active?.id !== expectedTaskId &&
-			active?.sessionId !== expectedTaskId
-		) {
-			this.helpNotice = 'errors.send.task_changed';
-			return false;
-		}
-		const trimmed = text.trim();
-		if (!trimmed && !(images && images.length > 0)) {
-			this.helpNotice = 'errors.send.empty_message';
-			return false;
-		}
-
-		const chips = mentions && mentions.length > 0 ? mentions : undefined;
-		const routed = resolveSlashRoute(trimmed, this.availableSkillNames());
-		const busyFollowUp =
-			this.canEnqueue() ||
-			(goalKeepsBusy(this.getActiveTask()?.goalCard) && !this.chatTurnActive());
-
-		if (routed.kind === 'slash') {
-			const line = `/${routed.name}${routed.args ? ` ${routed.args}` : ''}`;
-			// Busy skill: Bridge SkillSlash → Session Follow-up (preserves skillSlash payload).
-			return this.composer.handleSlash(line);
-		}
-
-		// S2/E4: busy (Chat or Goal) → SubmitUserMessage; Session Follow-up queues.
-		// SteerGoal is Goal-drawer「捎话」only — never main Enter.
-		if (busyFollowUp) {
-			const cid = this.composer.submitUserText(routed.text, chips, undefined, images);
-			if (cid) this.stashPendingUserImages(cid, images);
-			return Boolean(cid);
-		}
-
-		if (!this.canSubmitNow()) {
-			this.helpNotice = this.describeSendBlocker();
-			return false;
-		}
-		const cid = this.composer.submitUserText(routed.text, chips, undefined, images);
-		if (cid) this.stashPendingUserImages(cid, images);
-		return Boolean(cid);
+		return this.glue.sendMessage(text, mentions, expectedTaskId, images);
 	}
 
 	private stashPendingUserImages(
@@ -701,22 +387,7 @@ export class SessionController implements TaskCommands, SessionLifecycle, TaskVi
 	}
 
 	private describeSendBlocker(): string {
-		const task = this.getActiveTask();
-		if (!task) return 'errors.send.no_active_task';
-		if (task.pendingNew || !task.sessionId) {
-			return 'errors.send.session_starting';
-		}
-		if (task.pendingAttach || !this.attach.isAttached(task.sessionId)) {
-			return 'errors.send.session_not_ready';
-		}
-		const g = this.gate();
-		if (g.composerLocked) {
-			return 'errors.send.composer_locked';
-		}
-		if (g.runState === 'stopping' || g.runState === 'running') {
-			return 'errors.send.turn_running';
-		}
-		return 'errors.send.workspace_not_ready';
+		return this.glue.describeSendBlocker();
 	}
 
 	/** Match Composer chrome: supportsThinking models default thinking On when sticky unset. */
@@ -1069,34 +740,7 @@ export class SessionController implements TaskCommands, SessionLifecycle, TaskVi
 	}
 
 	hydrateFromMeta(sessions: SessionMetaInfo[]): void {
-		this.lifecycle.hydrateSessions(sessions, {
-			model: () => this.model,
-			modelDisplay: () => this.modelDisplay,
-			applyStickyChrome: (task, info) => this.catalog.applyStickyChrome(task, info),
-			buildStub: (id, info, listOrder, model, modelDisplay): TaskRecord => ({
-				id,
-				title: info.title?.trim() || info.id.slice(0, 8),
-				kind: 'task',
-				sessionId: info.id,
-				listOrder,
-				lastModified: info.lastModified,
-				lastEventSeq: 0,
-				transcript: createTranscriptState(),
-				codeChanges: createCodeChangesState(),
-				pendingNew: false,
-				pendingAttach: false,
-				createRequested: false,
-				autoTitlePending: false,
-				queue: [],
-				queuePaused: false,
-				model,
-				modelDisplay,
-				runMode: 'agent',
-				engineKind: parseEngineKind(info.engineKind)
-			}),
-			restoreChrome: task => this.restoreChromeFromTask(task)
-		});
-		this.tasksHydrated = true;
+		this.glue.hydrateFromMeta(sessions);
 	}
 
 	detachAll(): void {
