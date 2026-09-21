@@ -171,10 +171,14 @@ test('SessionPane drawer and DialogueComposer share one visual surface', () => {
 });
 
 test('ProjectsSidebar: Project hover-only; Task selected; compact full-width rows', () => {
-	const src = readFileSync(
-		join(here, '../../../../../apps/desktop/src/renderer/src/ProjectsSidebar.tsx'),
-		'utf8'
-	);
+	const sidebar = join(here, '../../../../../apps/desktop/src/renderer/src');
+	const src = [
+		'ProjectsSidebar.tsx',
+		'sidebar/TaskRows.tsx',
+		'sidebar/ProjectTreeRow.tsx'
+	]
+		.map(file => readFileSync(join(sidebar, file), 'utf8'))
+		.join('\n');
 	assert.match(src, /!project\.active && 'hover:bg-sidebar-accent'/);
 	assert.doesNotMatch(
 		src,
@@ -188,10 +192,14 @@ test('ProjectsSidebar: Project hover-only; Task selected; compact full-width row
 });
 
 test('ProjectsSidebar: default Tasks delegate archive/delete with Default Project scope', () => {
-	const src = readFileSync(
-		join(here, '../../../../../apps/desktop/src/renderer/src/ProjectsSidebar.tsx'),
-		'utf8'
-	);
+	const sidebar = join(here, '../../../../../apps/desktop/src/renderer/src');
+	const src = [
+		'ProjectsSidebar.tsx',
+		'sidebar/TaskRows.tsx',
+		'sidebar/ProjectTreeRow.tsx'
+	]
+		.map(file => readFileSync(join(sidebar, file), 'utf8'))
+		.join('\n');
 	assert.match(src, /defaultProject=\{model\.defaultProjectSnapshot\}/);
 	assert.match(
 		src,
