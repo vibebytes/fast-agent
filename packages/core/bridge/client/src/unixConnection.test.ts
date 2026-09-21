@@ -265,6 +265,48 @@ test('connectUnix successful parse resets consecutive mismatch streak', async ()
 	}
 });
 
+test('connectUnix send reports success for a payload past the write highWaterMark', async () => {
+	const dir = mkdtempSync(path.join(tmpdir(), 'unix-big-'));
+	const socketPath = path.join(dir, 'b.sock');
+	const server = net.createServer();
+	const peerP = new Promise<net.Socket>(resolve => server.once('connection', resolve));
+	await new Promise<void>((resolve, reject) => {
+		server.listen(socketPath, resolve);
+		server.once('error', reject);
+	});
+	let close = () => {};
+	try {
+		const conn = await connectUnix(socketPath, {
+			onEvent: () => {},
+			onError: () => {},
+			onClose: () => {}
+		});
+		close = conn.close;
+		const peer = await peerP;
+		const firstLine = new Promise<string>(resolve => {
+			let buf = '';
+			peer.on('data', chunk => {
+				buf += chunk.toString();
+				const nl = buf.indexOf('\n');
+				if (nl >= 0) resolve(buf.slice(0, nl));
+			});
+		});
+		// A pasted screenshot dwarfs the 16 KiB default: write() answers with
+		// backpressure, not failure, and the line still reaches the Engine.
+		const ok = conn.send({
+			type: 'SubmitUserMessage',
+			sessionId: 's',
+			clientMessageId: 'c1',
+			text: 'x'.repeat(1_000_000)
+		});
+		assert.equal(ok, true);
+		assert.equal(JSON.parse(await firstLine).clientMessageId, 'c1');
+	} finally {
+		close();
+		await new Promise<void>(resolve => server.close(() => resolve()));
+	}
+});
+
 test('connectUnix timeoutMs rejects when the socket never accepts', async () => {
 	const dir = mkdtempSync(path.join(tmpdir(), 'unix-timeout-'));
 	const socketPath = path.join(dir, 'missing.sock');

@@ -253,7 +253,10 @@ export class BridgeClient {
 			return false;
 		}
 		try {
-			return this.child.stdin.write(`${JSON.stringify(command)}\n`);
+			// `write` answers false for backpressure past highWaterMark; the line is
+			// still queued, so only a throw means the command was not sent.
+			this.child.stdin.write(`${JSON.stringify(command)}\n`);
+			return true;
 		} catch (error) {
 			this.handlers?.onError(error instanceof Error ? error.message : String(error));
 			return false;

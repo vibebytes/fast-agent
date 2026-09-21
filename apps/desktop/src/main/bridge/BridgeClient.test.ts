@@ -264,6 +264,33 @@ test('BridgeClient stopAndWait observes exit emitted synchronously by kill', asy
 	assert.equal(await client.stopAndWait(20), true);
 });
 
+test('BridgeClient send reports success when engine stdin applies backpressure', async () => {
+	const child = Object.assign(fakeChild(), {stdin: new PassThrough({highWaterMark: 16})});
+	const errors: string[] = [];
+	const client = new BridgeClient({spawnImpl: () => child as never});
+	await client.start('/tmp/ws', {
+		onEvent() {},
+		onError: message => errors.push(message),
+		onExit() {}
+	}, {
+		env: {FAST_ENGINE_COMMAND: 'mock', FAST_ENGINE_ARGS: 'engine'},
+		bundledEnginePath: '/unused'
+	});
+
+	// A pasted screenshot blows past highWaterMark: `write` answers false, but the
+	// command is queued and the Engine runs it — the Composer must not say "not sent".
+	const ok = client.send({
+		type: 'SubmitUserMessage',
+		sessionId: 's',
+		clientMessageId: 'c1',
+		text: 'x'.repeat(1_000)
+	});
+
+	assert.equal(ok, true);
+	assert.deepEqual(errors, []);
+	assert.match(String(child.stdin.read()), /"clientMessageId":"c1"/);
+});
+
 test('BridgeClient logs invalid engine JSON without failing the engine', async () => {
 	const stdout = new PassThrough();
 	const stdin = new PassThrough();
