@@ -1,7 +1,6 @@
 import {
 	memo,
 	useEffect,
-	useLayoutEffect,
 	useMemo,
 	useRef,
 	useState,
@@ -9,81 +8,24 @@ import {
 	type FormEvent,
 	type KeyboardEvent
 } from 'react';
-import {
-	Command,
-	CommandEmpty,
-	CommandGroup,
-	CommandInput,
-	CommandItem,
-	CommandList
-} from '@fast-ide/ui/components/command';
-import {
-	InputGroup,
-	InputGroupAddon,
-	InputGroupButton,
-	InputGroupTextarea
-} from '@fast-ide/ui/components/input-group';
-import {Popover, PopoverContent, PopoverTrigger} from '@fast-ide/ui/components/popover';
+import {InputGroup, InputGroupTextarea} from '@fast-ide/ui/components/input-group';
 import {cn} from '@fast-ide/ui/lib/utils';
-import {
-	ArrowUp,
-	ArrowUpRight,
-	Bot,
-	Boxes,
-	Brain,
-	BrainCircuit,
-	Check,
-	ChevronDown,
-	ChevronRight,
-	Layers,
-	Plus,
-	Search,
-	SearchX,
-	Settings,
-	SlidersHorizontal,
-	Sparkles,
-	Square,
-	X,
-	Zap
-} from 'lucide-react';
+import {Boxes, X} from 'lucide-react';
 import {useTranslation} from 'react-i18next';
 import {createTaskComposerDraftStore} from './composerDraft';
-import {
-	fileToPending,
-	IMAGE_ACCEPT,
-	revokePending,
-	screenshotName,
-	supportsImageInput,
-	type PendingImage
-} from './imageAttachments';
-import {ModelMenu} from './dsh/composer/ModelMenu';
+import {revokePending, supportsImageInput, type PendingImage} from './imageAttachments';
 import {Notice as DshNotice} from './dsh/composer/Notice';
 import {useDshModels} from './dsh/composer/models';
 import {refreshDshSkills, useDshSkills} from './dsh/skills/skills';
 import type {MentionChip, ModelCatalogEntry, SlashCatalogEntry} from './env';
-import {getModelCapabilityBadges} from './modelBrand';
-import {catalogProvider, groupCatalogEntries} from './catalogGroup';
-import {
-	atSuggestPrefix,
-	atQuery,
-	exactAtMatch,
-	groupAtItems,
-	groupsToAtItems,
-	kindTitle,
-	type AtItem,
-	type MentionSuggestGroup
-} from './atCatalog';
+import {catalogProvider} from './catalogGroup';
+import {atQuery, type AtItem} from './atCatalog';
 import {
 	MentionRichInput,
 	type MentionRichInputHandle
 } from './MentionRichInput';
 import {
-	exactSlashMatch,
-	filterSlashMenu,
-	flattenSlashMenu,
 	formatSlashSubmit,
-	HOST_SLASH_COMMANDS,
-	skillsFromCatalog,
 	slashQuery,
 	type SlashItem
 } from './slashCatalog';
@@ -91,44 +33,36 @@ import {ensurePlanPrefix, stripAutoPlanPrefix} from './planPrefix';
 import {clampEffort} from './effortClamp';
 import {platformModel} from './composerPlatform';
 import {helpNoticeText} from './helpNoticeText';
-import {composerModelLabel, concreteModelDisplay, isUnresolvedModelDisplay} from '@fast-ide/session-view';
-import {matchCatalogEntry, sameModelRef} from '@fast-ide/session-view';
+import {
+	composerModelLabel,
+	concreteModelDisplay,
+	isUnresolvedModelDisplay,
+	matchCatalogEntry,
+	sameModelRef
+} from '@fast-ide/session-view';
 import {
 	chromeEngineKind,
-	enginePickerKinds,
 	rememberEnginePick,
 	shouldResyncChrome,
 	type EngineKindName
 } from './enginePicker';
+import {SlashMenu} from './composer/SlashMenu';
+import {AtMenu} from './composer/AtMenu';
+import {ImageDrawer} from './composer/ImageDrawer';
+import {MODEL_EFFORT_LABEL as EFFORT_LABEL} from './composer/ModelStrip';
+import {ingestFiles} from './composer/ingest';
+import {persistModelSettings, useEffortClamp} from './composer/modelSettings';
+import {useSlashCatalog} from './composer/useSlashCatalog';
+import {useMentionSuggest} from './composer/useMentionSuggest';
+import {useMenuScroll} from './composer/useMenuScroll';
+import {ActionStrip} from './composer/ActionStrip';
+import {handleComposerKeyDown} from './composer/keys';
 
-/** System blue accent (CONTEXT: #007AFF / #0A84FF). */
-const SYSTEM_BLUE = 'text-[#007AFF] dark:text-[#0A84FF]';
 const SYSTEM_BLUE_CHIP =
 	'bg-[#007AFF]/10 text-[#007AFF] dark:bg-[#0A84FF]/15 dark:text-[#0A84FF]';
 
-const KNOWN_SLASH_BADGES = new Set(['personal', 'builtin', 'project']);
-
 const RUN_MODES = ['agent', 'plan', 'ask', 'yolo'] as const;
 type RunModeName = (typeof RUN_MODES)[number];
-
-const EFFORT_LABEL: Record<string, string> = {
-	low: 'Low',
-	medium: 'Medium',
-	high: 'High',
-	xhigh: 'Extra',
-	max: 'Max'
-};
-
-/** Scroll `data-menu-idx` row into the CommandList scrollport (not page / not cmdk first-selected). */
-function scrollMenuItemIntoView(list: HTMLElement | null, idx: number): void {
-	if (!list || idx < 0) return;
-	const el = list.querySelector<HTMLElement>(`[data-menu-idx="${idx}"]`);
-	if (!el) return;
-	const cRect = list.getBoundingClientRect();
-	const eRect = el.getBoundingClientRect();
-	if (eRect.top < cRect.top) list.scrollTop -= cRect.top - eRect.top;
-	else if (eRect.bottom > cRect.bottom) list.scrollTop += eRect.bottom - cRect.bottom;
-}
 
 export type DialogueComposerProps = {
 	/** Active Task — draft is remembered per task across tab switches. */
@@ -268,25 +202,17 @@ export const DialogueComposer = memo(function DialogueComposer({
 	const [slashHighlight, setSlashHighlight] = useState(0);
 	const [atHighlight, setAtHighlight] = useState(0);
 	/** Local fallback when Bridge never hydrates (stale Engine / hung /skills). */
-	const [skillsTimedOut, setSkillsTimedOut] = useState(false);
 	const [mentionChips, setMentionChips] = useState<MentionChip[]>([]);
 	/** Text before caret in rich input (chips → refs) for @ suggest. */
 	const [mentionBeforeCaret, setMentionBeforeCaret] = useState('');
-	const [mentionGroups, setMentionGroups] = useState<MentionSuggestGroup[]>([]);
-	const [mentionRequestId, setMentionRequestId] = useState<string | null>(null);
-	const [mentionsWarming, setMentionsWarming] = useState(false);
 	const [pendingImages, setPendingImages] = useState<PendingImage[]>([]);
 	const [attachNotice, setAttachNotice] = useState<string | null>(null);
-	const pendingMentionId = useRef<string | null>(null);
-	const mentionTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 	const textareaRef = useRef<HTMLTextAreaElement>(null);
 	const richRef = useRef<MentionRichInputHandle>(null);
 	const fileInputRef = useRef<HTMLInputElement>(null);
 	const slashChipRef = useRef<HTMLSpanElement>(null);
 	const slashMenuListRef = useRef<HTMLDivElement>(null);
 	const atMenuListRef = useRef<HTMLDivElement>(null);
-	/** First-line indent so args wrap under the chip (native textarea can't share line boxes). */
-	const [slashChipIndent, setSlashChipIndent] = useState(0);
 
 	useEffect(() => {
 		setPendingImages(prev => {
@@ -296,75 +222,46 @@ export const DialogueComposer = memo(function DialogueComposer({
 		setAttachNotice(null);
 	}, [taskId]);
 
-	// Teams → Composer @ insert: only consume pending when a chip/ref lands; rAF retry if rich input not ready.
-	useEffect(() => {
-		if (!pendingMentionInsert) return;
-		let cancelled = false;
-		let attempts = 0;
-		const item = pendingMentionInsert;
-		const tryInsert = () => {
-			if (cancelled) return;
-			if (selectedSlash) {
-				setSelectedSlash(null);
-				store.setDraft('');
-				requestAnimationFrame(tryInsert);
-				return;
-			}
-			const snap = richRef.current?.insertChip(item);
-			const ok = Boolean(
-				snap && (snap.chips.length > 0 || /@[A-Za-z0-9_./:-]+/.test(snap.text))
-			);
-			if (ok && snap) {
-				store.setDraft(snap.text);
-				setMentionChips(snap.chips);
-				setMentionBeforeCaret(snap.beforeCaret);
-				onPendingMentionConsumed?.();
-				return;
-			}
-			if (attempts < 8) {
-				attempts += 1;
-				requestAnimationFrame(tryInsert);
-				return;
-			}
-			// Keep pending — do not clear; next mount / effect can retry.
-		};
-		tryInsert();
-		return () => {
-			cancelled = true;
-		};
-	}, [pendingMentionInsert, onPendingMentionConsumed, store, selectedSlash]);
-
 	const composerDisabled = !canChat || sending || composerLocked;
-	const skills = useMemo(
-		() => skillsFromCatalog(slashRows),
-		[slashRows]
-	);
 	const slashQ = selectedSlash ? null : slashQuery(draft);
 	const atQ =
 		selectedSlash || slashQ !== null ? null : atQuery(mentionBeforeCaret || draft);
 	const slashMenuOpen = slashQ !== null && !composerDisabled;
 	const atMenuOpen = atQ !== null && !composerDisabled;
-	const slashMenuGroups = useMemo(
-		() =>
-			slashQ === null
-				? {commands: [], platform: [], coding: [], external: []}
-				: filterSlashMenu(slashQ, skills, engineKind === 'dsh' ? [] : HOST_SLASH_COMMANDS),
-		[slashQ, skills, engineKind]
-	);
-	const slashSkillsEmpty =
-		slashMenuGroups.platform.length === 0 &&
-		slashMenuGroups.coding.length === 0 &&
-		slashMenuGroups.external.length === 0;
-	const flatSlashMenu = useMemo(() => flattenSlashMenu(slashMenuGroups), [slashMenuGroups]);
-	const flatAtMenu = useMemo(() => {
-		if (!atMenuOpen) return [] as AtItem[];
-		if (mentionRequestId != null && pendingMentionId.current != null
-			&& mentionRequestId !== pendingMentionId.current) {
-			return [] as AtItem[];
-		}
-		return groupsToAtItems(mentionGroups);
-	}, [atMenuOpen, mentionGroups, mentionRequestId]);
-	const atMenuByKind = useMemo(() => groupAtItems(flatAtMenu), [flatAtMenu]);
+	const {slashMenuGroups, slashSkillsEmpty, flatSlashMenu, skillsTimedOut} = useSlashCatalog({
+		slashRows,
+		slashQ,
+		engineKind,
+		slashMenuOpen,
+		slashHydrated
+	});
+	const {mentionGroups, setMentionGroups, mentionsWarming, flatAtMenu, atMenuByKind} =
+		useMentionSuggest({
+			pendingMentionInsert,
+			onPendingMentionConsumed,
+			selectedSlash,
+			setSelectedSlash,
+			store,
+			richRef,
+			composerDisabled,
+			mentionBeforeCaret,
+			draft,
+			atMenuOpen,
+			setMentionChips,
+			setMentionBeforeCaret
+		});
+	const {slashChipIndent} = useMenuScroll({
+		slashMenuOpen,
+		atMenuOpen,
+		slashHighlight,
+		atHighlight,
+		flatSlashLen: flatSlashMenu.length,
+		flatAtLen: flatAtMenu.length,
+		selectedSlash,
+		slashMenuListRef,
+		atMenuListRef,
+		slashChipRef
+	});
 
 	useEffect(() => {
 		if (composerLocked) {
@@ -408,68 +305,6 @@ export const DialogueComposer = memo(function DialogueComposer({
 		setAtHighlight(0);
 	}, [atQ, flatAtMenu.length]);
 
-	// Textarea owns focus; cmdk selection is controlled via `value`. Scroll the active row
-	// inside CommandList (do not query [data-selected] — cmdk may lag one frame).
-	useLayoutEffect(() => {
-		if (!slashMenuOpen) return;
-		scrollMenuItemIntoView(slashMenuListRef.current, slashHighlight);
-	}, [slashHighlight, slashMenuOpen, flatSlashMenu.length]);
-
-	useLayoutEffect(() => {
-		if (!atMenuOpen) return;
-		scrollMenuItemIntoView(atMenuListRef.current, atHighlight);
-	}, [atHighlight, atMenuOpen, flatAtMenu.length]);
-
-	/** Refresh Catalog skills when slash picker opens (not @ — Mentions is authority). */
-	useEffect(() => {
-		if (!slashMenuOpen) return;
-		setSkillsTimedOut(false);
-		void window.fastIde.requestSlashCatalog();
-		const t = window.setTimeout(() => setSkillsTimedOut(true), 8_000);
-		return () => window.clearTimeout(t);
-	}, [slashMenuOpen]);
-
-	/** Debounced Bridge MentionSuggest while `@…` token is active. */
-	useEffect(() => {
-		if (!atMenuOpen || composerDisabled) {
-			setMentionGroups([]);
-			setMentionsWarming(false);
-			return;
-		}
-		const prefix = atSuggestPrefix(mentionBeforeCaret || draft);
-		if (prefix == null) return;
-		if (mentionTimer.current) clearTimeout(mentionTimer.current);
-		setMentionsWarming(true);
-		mentionTimer.current = setTimeout(() => {
-			const requestId = `ms-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-			pendingMentionId.current = requestId;
-			void window.fastIde.mentionSuggest(prefix, requestId);
-		}, 120);
-		return () => {
-			if (mentionTimer.current) clearTimeout(mentionTimer.current);
-		};
-	}, [atMenuOpen, composerDisabled, mentionBeforeCaret, draft]);
-
-	useEffect(() => {
-		return window.fastIde.onBridgeEvent(payload => {
-			const event = payload.event as {
-				type?: string;
-				requestId?: string;
-				groups?: MentionSuggestGroup[];
-			};
-			if (event.type !== 'mention_suggestions' || !event.requestId) return;
-			if (
-				pendingMentionId.current != null &&
-				event.requestId !== pendingMentionId.current
-			) {
-				return;
-			}
-			setMentionRequestId(event.requestId);
-			setMentionGroups(event.groups ?? []);
-			setMentionsWarming(false);
-		});
-	}, []);
-
 	useEffect(() => {
 		if (!taskId) return;
 		// The draft store is Task-scoped and survives this keyed remount. Clearing
@@ -479,25 +314,6 @@ export const DialogueComposer = memo(function DialogueComposer({
 		setMentionGroups([]);
 		setMentionBeforeCaret(initialDraft);
 	}, [taskId, initialDraft]);
-
-	useEffect(() => {
-		if (slashHydrated || slashRows.length > 0) setSkillsTimedOut(false);
-	}, [slashHydrated, slashRows.length]);
-
-	useLayoutEffect(() => {
-		if (!selectedSlash) {
-			setSlashChipIndent(0);
-			return;
-		}
-		const el = slashChipRef.current;
-		if (!el) return;
-		const gap = 8;
-		const sync = () => setSlashChipIndent(el.offsetWidth + gap);
-		sync();
-		const ro = new ResizeObserver(sync);
-		ro.observe(el);
-		return () => ro.disconnect();
-	}, [selectedSlash, selectedSlash?.label]);
 
 	const effectiveModel = optimisticModelId ?? model;
 	const activeModelEntry = useMemo(
@@ -546,73 +362,15 @@ export const DialogueComposer = memo(function DialogueComposer({
 		return t('shell.composer.thinkingOn', {defaultValue: '思考 · 开'});
 	}, [supportsThinking, supportedEfforts.length, thinking, effort, t]);
 
-	const getEffortDesc = (e: string) => {
-		switch (e) {
-			case 'low':
-				return t('shell.composer.effortLow', {defaultValue: '快速轻量，日常对话'});
-			case 'medium':
-				return t('shell.composer.effortMedium', {defaultValue: '均衡推荐，日常编码'});
-			case 'high':
-				return t('shell.composer.effortHigh', {defaultValue: '深度分析，复杂难题'});
-			case 'xhigh':
-			case 'max':
-				return t('shell.composer.effortExtra', {defaultValue: '极限算力，复杂推理'});
-			default:
-				return '';
-		}
-	};
-
-	useEffect(() => {
-		if (!activeModelEntry) return;
-		const next = clampEffort(effort, supportedEfforts, activeModelEntry.defaultEffort);
-		if (next !== effort) setEffort(next);
-		if (!supportsThinking && thinking) setThinking(false);
-		// Do not SetModelSettings(true) on mount — races selectTask and can overwrite Off.
-		// Wire default On lives in SessionController.submitThinking when sticky unset.
-	}, [activeModelEntry, supportedEfforts, supportsThinking]); // eslint-disable-line react-hooks/exhaustive-deps
-
-	const filteredCatalog = useMemo(() => {
-		if (!modelSearch.trim()) return modelCatalog;
-		const q = modelSearch.trim().toLowerCase();
-		return modelCatalog.filter(entry => {
-			const {cleanName, providerLabel, brand} = catalogProvider(entry);
-			return (
-				cleanName.toLowerCase().includes(q) ||
-				entry.display.toLowerCase().includes(q) ||
-				entry.id.toLowerCase().includes(q) ||
-				providerLabel.toLowerCase().includes(q) ||
-				brand.name.toLowerCase().includes(q) ||
-				brand.shortName.toLowerCase().includes(q) ||
-				entry.aliases.some(a => a.toLowerCase().includes(q))
-			);
-		});
-	}, [modelCatalog, modelSearch]);
-
-	const groupedCatalog = useMemo(
-		() => groupCatalogEntries(filteredCatalog),
-		[filteredCatalog]
-	);
-
-	async function openModelPicker() {
-		if (composerLocked || !canChat) return;
-		setModelSearch('');
-		setModelPopOpen(true);
-		void window.fastIde.requestModelList();
-	}
-
-	async function persistModelSettings(
-		platform: string,
-		modelId: string,
-		nextEffort?: string,
-		nextThinking?: boolean
-	) {
-		await window.fastIde.setModelSettings({
-			platform,
-			model: modelId,
-			...(nextEffort ? {effort: nextEffort} : {}),
-			...(nextThinking !== undefined ? {thinking: nextThinking} : {})
-		});
-	}
+	useEffortClamp({
+		activeModelEntry,
+		effort,
+		setEffort,
+		thinking,
+		setThinking,
+		supportedEfforts,
+		supportsThinking
+	});
 
 	async function pickModel(id: string) {
 		setOptimisticModelId(id);
@@ -723,52 +481,20 @@ export const DialogueComposer = memo(function DialogueComposer({
 		requestAnimationFrame(() => richRef.current?.focus());
 	}
 
-	/** Paste / drop / file-picker: whitelist images → pending drawer; path files otherwise → @file. */
-	async function ingestFiles(files: File[], opts?: {fromPaste?: boolean}) {
-		if (!canAttachImages) {
-			const hasImage = files.some(f => IMAGE_ACCEPT.split(',').includes(f.type) || f.type.startsWith('image/'));
-			if (hasImage) {
-				setAttachNotice(t('shell.composer.imageNotSupported'));
-				return;
-			}
-		}
-		const acceptedCount = pendingImages.filter(p => !p.rejectReason && p.data).length;
-		let nextAccepted = acceptedCount;
-		const additions: PendingImage[] = [];
-		for (const f of files) {
-			const path = window.fastIde.getPathForFile(f);
-			const isImage =
-				IMAGE_ACCEPT.split(',').includes(f.type) ||
-				/\.(png|jpe?g|webp|gif)$/i.test(f.name);
-			if (isImage && canAttachImages) {
-				const defaultName =
-					!path && opts?.fromPaste ? screenshotName() : undefined;
-				const pending = await fileToPending(f, {
-					defaultName,
-					alreadyCount: nextAccepted
-				});
-				if (!pending.rejectReason && pending.data) nextAccepted += 1;
-				additions.push(pending);
-				continue;
-			}
-			if (path) {
-				pickAt({
-					ref: `@file/${path}`,
-					label: path.split(/[\\/]/).pop() || path,
-					description: path,
-					kind: 'file',
-					locator: path
-				});
-			}
-		}
-		if (additions.length) {
-			setPendingImages(prev => [...prev, ...additions]);
-			setAttachNotice(null);
-		}
+	function takeFiles(files: File[], opts?: {fromPaste?: boolean}) {
+		void ingestFiles(files, {
+			fromPaste: opts?.fromPaste,
+			canAttachImages,
+			pendingImages,
+			unsupportedNotice: t('shell.composer.imageNotSupported'),
+			pickAt,
+			setPendingImages,
+			setAttachNotice
+		});
 	}
 
 	function pasteFiles(files: File[]) {
-		void ingestFiles(files, {fromPaste: true});
+		takeFiles(files, {fromPaste: true});
 	}
 
 	function removePending(id: string) {
@@ -777,11 +503,6 @@ export const DialogueComposer = memo(function DialogueComposer({
 			if (hit) URL.revokeObjectURL(hit.previewUrl);
 			return prev.filter(p => p.id !== id);
 		});
-	}
-
-	function clearPending() {
-		revokePending(pendingImages);
-		setPendingImages([]);
 	}
 
 	function clearSlashChip() {
@@ -890,76 +611,24 @@ export const DialogueComposer = memo(function DialogueComposer({
 	}
 
 	function onComposerKeyDown(e: KeyboardEvent<HTMLTextAreaElement | HTMLDivElement>) {
-		if (slashMenuOpen && flatSlashMenu.length > 0) {
-			if (e.key === 'ArrowDown') {
-				e.preventDefault();
-				setSlashHighlight(i => (i + 1) % flatSlashMenu.length);
-				return;
-			}
-			if (e.key === 'ArrowUp') {
-				e.preventDefault();
-				setSlashHighlight(i => (i - 1 + flatSlashMenu.length) % flatSlashMenu.length);
-				return;
-			}
-			if (e.key === 'Tab') {
-				e.preventDefault();
-				const item = flatSlashMenu[slashHighlight] ?? flatSlashMenu[0];
-				if (item) pickSlash(item);
-				return;
-			}
-			if (e.key === 'Enter' && !e.shiftKey) {
-				e.preventDefault();
-				const item =
-					exactSlashMatch(slashQ ?? '', flatSlashMenu) ??
-					flatSlashMenu[slashHighlight] ??
-					flatSlashMenu[0];
-				if (item) pickSlash(item);
-				return;
-			}
-		}
-
-		if (atMenuOpen && flatAtMenu.length > 0) {
-			if (e.key === 'ArrowDown') {
-				e.preventDefault();
-				setAtHighlight(i => (i + 1) % flatAtMenu.length);
-				return;
-			}
-			if (e.key === 'ArrowUp') {
-				e.preventDefault();
-				setAtHighlight(i => (i - 1 + flatAtMenu.length) % flatAtMenu.length);
-				return;
-			}
-			if (e.key === 'Tab') {
-				e.preventDefault();
-				const item = flatAtMenu[atHighlight] ?? flatAtMenu[0];
-				if (item) pickAt(item);
-				return;
-			}
-			if (e.key === 'Enter' && !e.shiftKey) {
-				e.preventDefault();
-				const item =
-					exactAtMatch(atQ ?? '', flatAtMenu) ?? flatAtMenu[atHighlight] ?? flatAtMenu[0];
-				if (item) pickAt(item);
-				return;
-			}
-		}
-
-		if (
-			selectedSlash &&
-			(e.key === 'Backspace' || e.key === 'Delete') &&
-			draft.length === 0 &&
-			!e.metaKey &&
-			!e.ctrlKey
-		) {
-			e.preventDefault();
-			clearSlashChip();
-			return;
-		}
-
-		if (e.key === 'Enter' && !e.shiftKey) {
-			e.preventDefault();
-			void onSubmit(e as unknown as FormEvent);
-		}
+		handleComposerKeyDown(e, {
+			slashMenuOpen,
+			flatSlashMenu,
+			slashHighlight,
+			setSlashHighlight,
+			slashQ,
+			pickSlash,
+			atMenuOpen,
+			flatAtMenu,
+			atHighlight,
+			setAtHighlight,
+			atQ,
+			pickAt,
+			selectedSlash,
+			draft,
+			clearSlashChip,
+			onSubmit
+		});
 	}
 
 	const hasSendableImages = pendingImages.some(p => !p.rejectReason && p.data);
@@ -975,151 +644,36 @@ export const DialogueComposer = memo(function DialogueComposer({
 			: '';
 	const atCmdValue = flatAtMenu[atHighlight]?.ref ?? '';
 
-	function renderSlashMenuItem(item: SlashItem, idx: number) {
-		return (
-			<CommandItem
-				key={`${item.kind}-${item.name}`}
-				value={`${item.kind}:${item.name}`}
-				data-menu-idx={idx}
-				onMouseEnter={() => setSlashHighlight(idx)}
-				onSelect={() => pickSlash(item)}
-			>
-				{item.kind === 'skill' && (
-					<Boxes className={cn('size-3.5 shrink-0', SYSTEM_BLUE)} />
-				)}
-				<span className="min-w-28 font-medium">{item.label}</span>
-				<span className="flex-1 truncate text-muted-foreground">{item.description}</span>
-				{item.badge && (
-					<span className="text-[11px] text-muted-foreground">
-						{KNOWN_SLASH_BADGES.has(item.badge)
-							? t(`slash.badge.${item.badge}`)
-							: item.badge}
-					</span>
-				)}
-			</CommandItem>
-		);
-	}
-
-	function renderAtMenuItem(item: AtItem, idx: number) {
-		return (
-			<CommandItem
-				key={item.ref}
-				value={item.ref}
-				data-menu-idx={idx}
-				onMouseEnter={() => setAtHighlight(idx)}
-				onSelect={() => pickAt(item)}
-			>
-				{item.kind === 'skill' ? (
-					<Boxes className={cn('size-3.5 shrink-0', SYSTEM_BLUE)} />
-				) : (
-					<Bot className="size-3.5 shrink-0 text-muted-foreground" />
-				)}
-				<span className="min-w-28 font-medium">{item.label}</span>
-				<span className="flex-1 truncate text-muted-foreground">{item.description}</span>
-			</CommandItem>
-		);
-	}
-
 	return (
 		<form
 			className={cn('shrink-0 space-y-2', composerLocked && 'opacity-90')}
 			onSubmit={onSubmit}
 		>
 			{slashMenuOpen && (
-				<div className="absolute inset-x-0 bottom-full z-30 mb-1 overflow-hidden rounded-2xl border border-border/70 bg-popover shadow-lg">
-					<Command
-						shouldFilter={false}
-						value={slashCmdValue}
-						onValueChange={v => {
-							const idx = flatSlashMenu.findIndex(
-								i => `${i.kind}:${i.name}` === v
-							);
-							if (idx >= 0) setSlashHighlight(idx);
-						}}
-						className="max-h-80"
-					>
-						<CommandList ref={slashMenuListRef}>
-							{/* Only when the whole menu is empty — avoid stacking with the skill-loading hint. */}
-							{flatSlashMenu.length === 0 &&
-								!(!slashHydrated && !skillsTimedOut && slashSkillsEmpty) && (
-									<CommandEmpty>
-										{slashRows.length === 0 ? t('shell.composer.noSkills') : t('shell.composer.noMatch')}
-									</CommandEmpty>
-								)}
-							{slashMenuGroups.commands.length > 0 && (
-								<CommandGroup heading={t('shell.composer.groupCommands')}>
-									{slashMenuGroups.commands.map(item =>
-										renderSlashMenuItem(item, flatSlashMenu.indexOf(item))
-									)}
-								</CommandGroup>
-							)}
-							{slashMenuGroups.platform.length > 0 && (
-								<CommandGroup heading={t('shell.composer.groupPlatform')}>
-									{slashMenuGroups.platform.map(item =>
-										renderSlashMenuItem(item, flatSlashMenu.indexOf(item))
-									)}
-								</CommandGroup>
-							)}
-							{slashMenuGroups.coding.length > 0 && (
-								<CommandGroup heading={t('shell.composer.groupCoding')}>
-									{slashMenuGroups.coding.map(item =>
-										renderSlashMenuItem(item, flatSlashMenu.indexOf(item))
-									)}
-								</CommandGroup>
-							)}
-							{slashMenuGroups.external.length > 0 && (
-								<CommandGroup heading={t('shell.composer.groupExternal')}>
-									{slashMenuGroups.external.map(item =>
-										renderSlashMenuItem(item, flatSlashMenu.indexOf(item))
-									)}
-								</CommandGroup>
-							)}
-							{/* Loading / empty catalog under commands — never "无匹配" when commands already hit. */}
-							{slashSkillsEmpty &&
-								!slashHydrated &&
-								!skillsTimedOut && (
-									<div className="px-2 py-1.5 text-xs text-muted-foreground">{t('shell.composer.loadingSkills')}</div>
-								)}
-						</CommandList>
-					</Command>
-				</div>
+				<SlashMenu
+					slashCmdValue={slashCmdValue}
+					flatSlashMenu={flatSlashMenu}
+					slashMenuGroups={slashMenuGroups}
+					slashHydrated={slashHydrated}
+					skillsTimedOut={skillsTimedOut}
+					slashSkillsEmpty={slashSkillsEmpty}
+					slashRowsLength={slashRows.length}
+					listRef={slashMenuListRef}
+					onHighlight={setSlashHighlight}
+					onPick={pickSlash}
+				/>
 			)}
 
 			{atMenuOpen && (
-				<div className="absolute inset-x-0 bottom-full z-30 mb-1 overflow-hidden rounded-2xl border border-border/70 bg-popover shadow-lg">
-					<Command
-						shouldFilter={false}
-						value={atCmdValue}
-						onValueChange={v => {
-							const idx = flatAtMenu.findIndex(i => i.ref === v);
-							if (idx >= 0) setAtHighlight(idx);
-						}}
-						className="max-h-80"
-					>
-						<CommandList ref={atMenuListRef}>
-							<CommandEmpty>
-								{mentionsWarming
-									? t('shell.composer.loadingMentions')
-									: t('shell.composer.noMentions')}
-							</CommandEmpty>
-							{atMenuByKind.length === 0 ? (
-								<div className="px-2 py-1.5 text-xs text-muted-foreground">
-									{mentionsWarming
-										? t('shell.composer.loadingMentions')
-										: t('shell.composer.noMentions')}
-								</div>
-							) : (
-								atMenuByKind.map(group => (
-									<CommandGroup key={group.kind} heading={kindTitle(group.kind)}>
-										{group.items.map(item =>
-											renderAtMenuItem(item, flatAtMenu.indexOf(item))
-										)}
-									</CommandGroup>
-								))
-							)}
-						</CommandList>
-					</Command>
-				</div>
+				<AtMenu
+					atCmdValue={atCmdValue}
+					flatAtMenu={flatAtMenu}
+					atMenuByKind={atMenuByKind}
+					mentionsWarming={mentionsWarming}
+					listRef={atMenuListRef}
+					onHighlight={setAtHighlight}
+					onPick={pickAt}
+				/>
 			)}
 
 			<div
@@ -1131,71 +685,16 @@ export const DialogueComposer = memo(function DialogueComposer({
 				onDrop={e => {
 					if (!e.dataTransfer.files?.length) return;
 					e.preventDefault();
-					void ingestFiles(Array.from(e.dataTransfer.files));
+					takeFiles(Array.from(e.dataTransfer.files));
 				}}
 			>
 				{engineKind === 'dsh' ? <DshNotice /> : null}
-				{pendingImages.length > 0 ? (
-					<div className="flex flex-wrap gap-2 border-b border-border/40 px-4 py-2">
-						{pendingImages.map(img => (
-							<div
-								key={img.id}
-								className={cn(
-									'group relative flex items-center gap-2 rounded-lg border px-2 py-1.5',
-									img.rejectReason
-										? 'border-destructive/40 bg-destructive/5'
-										: 'border-border/60 bg-muted/30'
-								)}
-								title={
-									img.rejectReason === 'too_many'
-										? t('shell.composer.imageTooMany')
-										: img.rejectReason === 'unsupported'
-											? t('shell.composer.imageUnsupportedType')
-											: img.rejectReason === 'too_large'
-												? t('shell.composer.imageTooLarge')
-												: img.rejectReason === 'read_failed'
-													? t('shell.composer.imageReadFailed')
-													: img.name
-								}
-							>
-								<img
-									src={img.previewUrl}
-									alt={img.name}
-									className="size-10 rounded object-cover cursor-zoom-in"
-									onClick={() => window.open(img.previewUrl, '_blank', 'noopener,noreferrer')}
-								/>
-								<div className="min-w-0 max-w-[7rem]">
-									<div className="truncate text-[11px] font-medium">{img.name}</div>
-									<div className="text-[10px] text-muted-foreground">
-										{(img.size / 1024).toFixed(0)} KB
-									</div>
-								</div>
-								<button
-									type="button"
-									className="absolute -right-1.5 -top-1.5 rounded-full bg-background p-0.5 shadow border border-border/60"
-									aria-label={t('shell.composer.removeAttachment')}
-									onClick={() => removePending(img.id)}
-								>
-									<X className="size-3" />
-								</button>
-							</div>
-						))}
-					</div>
-				) : null}
-				{attachNotice ? (
-					<div className="px-4 pt-2 text-[11px] text-amber-600 dark:text-amber-400">{attachNotice}</div>
-				) : null}
-				<input
-					ref={fileInputRef}
-					type="file"
-					accept={IMAGE_ACCEPT}
-					multiple
-					className="hidden"
-					onChange={e => {
-						const files = e.target.files ? Array.from(e.target.files) : [];
-						e.target.value = '';
-						if (files.length) void ingestFiles(files);
-					}}
+				<ImageDrawer
+					pendingImages={pendingImages}
+					attachNotice={attachNotice}
+					fileInputRef={fileInputRef}
+					onRemove={removePending}
+					onPickFiles={takeFiles}
 				/>
 				<InputGroup
 					className={cn(
@@ -1256,577 +755,20 @@ export const DialogueComposer = memo(function DialogueComposer({
 							/>
 						</div>
 					)}
-					<InputGroupAddon align="block-end" className="justify-between gap-2 px-3.5 pb-3 pt-1">
-						<div className="flex items-center gap-1.5 min-w-0">
-							<InputGroupButton
-								type="button"
-								size="icon-sm"
-								variant="ghost"
-								className="size-7 shrink-0 rounded-full text-muted-foreground/70 hover:bg-muted/70 hover:text-foreground transition-colors disabled:opacity-40"
-								disabled={composerDisabled || !canAttachImages}
-								aria-label={t('shell.composer.addAttachment')}
-								title={
-									canAttachImages
-										? t('shell.composer.addAttachment')
-										: t('shell.composer.imageNotSupported')
-								}
-								onClick={() => {
-									if (!canAttachImages) {
-										setAttachNotice(t('shell.composer.imageNotSupported'));
-										return;
-									}
-									fileInputRef.current?.click();
-								}}
-							>
-								<Plus className="size-4" />
-							</InputGroupButton>
-							<Popover open={enginePopOpen} onOpenChange={setEnginePopOpen}>
-								<PopoverTrigger asChild>
-									<InputGroupButton
-										type="button"
-										size="sm"
-										variant="ghost"
-										className="h-7 shrink-0 gap-1 rounded-full px-2.5 text-xs font-medium capitalize text-muted-foreground hover:bg-muted/70 hover:text-foreground transition-colors"
-										disabled={composerDisabled}
-										aria-label={t('shell.composer.engineKind')}
-									>
-										{engineKind === 'dsh' ? t('shell.composer.engineDsh') : t('shell.composer.engineFast')}
-										<ChevronDown className="size-3 opacity-60" />
-									</InputGroupButton>
-								</PopoverTrigger>
-								<PopoverContent className="w-40 p-1" align="start">
-									{enginePickerKinds(availableEngineIds).map(k => (
-										<button
-											key={k}
-											type="button"
-											className={cn(
-												'flex w-full items-center justify-between rounded-md px-2 py-1.5 text-left text-sm capitalize hover:bg-accent',
-												k === engineKind && 'bg-accent'
-											)}
-											onClick={() => void pickEngine(k)}
-										>
-											{k === 'dsh' ? t('shell.composer.engineDsh') : t('shell.composer.engineFast')}
-											{k === engineKind && <Check className="size-3.5" />}
-										</button>
-									))}
-								</PopoverContent>
-							</Popover>
-							{engineKind !== 'dsh' && (
-							<Popover open={modePopOpen} onOpenChange={setModePopOpen}>
-								<PopoverTrigger asChild>
-									<InputGroupButton
-										type="button"
-										size="sm"
-										variant="ghost"
-										className="h-7 shrink-0 gap-1 rounded-full px-2.5 text-xs font-medium capitalize text-muted-foreground hover:bg-muted/70 hover:text-foreground transition-colors"
-										disabled={composerDisabled}
-										aria-label={t('shell.composer.runMode')}
-									>
-										{runMode}
-										<ChevronDown className="size-3 opacity-60" />
-									</InputGroupButton>
-								</PopoverTrigger>
-								<PopoverContent className="w-40 p-1" align="start">
-									{RUN_MODES.map(m => (
-										<button
-											key={m}
-											type="button"
-											className={cn(
-												'flex w-full items-center justify-between rounded-md px-2 py-1.5 text-left text-sm capitalize hover:bg-accent',
-												m === runMode && 'bg-accent'
-											)}
-											onClick={() => void pickMode(m)}
-										>
-											{m}
-											{m === runMode && <Check className="size-3.5" />}
-										</button>
-									))}
-								</PopoverContent>
-							</Popover>
-							)}
-							{engineKind === 'dsh' ? (
-								<ModelMenu sessionId={sessionId} disabled={composerDisabled} />
-							) : (
-							<Popover open={modelPopOpen} onOpenChange={setModelPopOpen}>
-								<PopoverTrigger asChild>
-									<InputGroupButton
-										type="button"
-										size="sm"
-										variant="ghost"
-										title={modelButtonFull}
-										aria-label={modelButtonFull}
-										className={cn(
-											'h-7 max-w-[14rem] shrink-0 gap-1.5 rounded-full px-2.5 text-xs font-medium transition-all duration-150 border border-transparent',
-											modelPopOpen
-												? 'bg-muted text-foreground border-border/70 shadow-xs'
-												: 'text-muted-foreground hover:bg-muted/70 hover:text-foreground'
-										)}
-										disabled={composerDisabled}
-										onClick={() => {
-											if (!modelPopOpen) void openModelPicker();
-										}}
-									>
-										<span
-											className={cn(
-												'size-2 rounded-full shrink-0',
-												activeBrand?.dotBg ?? 'bg-muted-foreground'
-											)}
-										/>
-										<span className="truncate">{modelButtonLabel}</span>
-										<ChevronDown
-											className={cn(
-												'size-3 shrink-0 opacity-60 transition-transform duration-200',
-												modelPopOpen && 'rotate-180'
-											)}
-										/>
-									</InputGroupButton>
-								</PopoverTrigger>
-								<PopoverContent
-									className="w-[380px] max-w-[calc(100vw-24px)] p-0 shadow-2xl border border-border/80 rounded-2xl overflow-hidden bg-popover/98 backdrop-blur-xl animate-in fade-in-0 zoom-in-95 duration-150 flex flex-col"
-									align="start"
-									sideOffset={8}
-								>
-									<div className="border-b border-border/60 bg-background/60 px-3 py-2">
-										<div className="relative flex items-center">
-											<Search className="size-3.5 text-muted-foreground/80 shrink-0 mr-2" />
-											<input
-												type="text"
-												placeholder={t('shell.composer.searchModelsPlaceholder', {
-													defaultValue: '搜索模型名称、ID 或提供商…'
-												})}
-												value={modelSearch}
-												onChange={e => setModelSearch(e.target.value)}
-												className="h-6 w-full bg-transparent text-xs text-foreground placeholder:text-muted-foreground/60 outline-none"
-												autoFocus
-											/>
-											{modelSearch.trim() && (
-												<button
-													type="button"
-													onClick={() => setModelSearch('')}
-													className="size-5 rounded-full hover:bg-muted flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors cursor-pointer mr-1"
-													aria-label="Clear search"
-												>
-													<X className="size-3" />
-												</button>
-											)}
-											{modelSearch.trim() && (
-												<span className="text-[10px] font-mono px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground shrink-0">
-													{filteredCatalog.length}
-												</span>
-											)}
-										</div>
-									</div>
+					<ActionStrip
+						{...{
+							composerDisabled, canAttachImages, setAttachNotice, fileInputRef,
+							enginePopOpen, setEnginePopOpen, engineKind, availableEngineIds, pickEngine,
+							modePopOpen, setModePopOpen, runMode, pickMode, sessionId,
+							modelPopOpen, setModelPopOpen, modelButtonFull, modelButtonLabel, activeBrand,
+							composerLocked, canChat, setModelSearch, modelCatalog, modelSearch,
+							effectiveModel, pickModel, thinkingPopOpen, setThinkingPopOpen,
+							supportsThinking, supportedEfforts, thinking, thinkingButtonLabel, effort,
+							toggleThinking, pickEffort, stopKind, canSteer, canSubmitNow, canSend,
+							selectedSlash, richRef, draft, store
+						}}
+					/>
 
-									<div className="max-h-[320px] overflow-y-auto p-1.5 space-y-2">
-										{filteredCatalog.length === 0 ? (
-											<div className="flex flex-col items-center justify-center py-8 px-4 text-center">
-												<div className="size-10 rounded-full bg-muted/70 flex items-center justify-center text-muted-foreground mb-2.5">
-													<SearchX className="size-5" />
-												</div>
-												<p className="text-xs font-semibold text-foreground mb-1">
-													{modelCatalog.length === 0
-														? t('shell.composer.loadingModels', {
-																defaultValue: '正在加载模型…'
-															})
-														: t('shell.composer.noModelMatch', {
-																defaultValue: '未找到匹配的模型'
-															})}
-												</p>
-												<p className="text-[11px] text-muted-foreground max-w-[240px] mb-3 leading-relaxed">
-													{t('shell.composer.noModelHint', {
-														defaultValue: '尝试使用其他关键词，或前往设置配置新模型'
-													})}
-												</p>
-												<button
-													type="button"
-													onClick={() => {
-														setModelPopOpen(false);
-														window.dispatchEvent(
-															new CustomEvent('fast-ide:open-settings', {
-																detail: {section: 'models'}
-															})
-														);
-													}}
-													className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border/80 bg-background hover:bg-muted text-xs font-medium text-foreground transition-all shadow-xs cursor-pointer"
-												>
-													<Settings className="size-3.5 text-muted-foreground" />
-													<span>
-														{t('shell.composer.manageModels', {
-															defaultValue: '配置模型与提供商'
-														})}
-													</span>
-												</button>
-											</div>
-										) : (
-											groupedCatalog.map(group => {
-												const brand = catalogProvider(group.items[0]!.entry).brand;
-												return (
-													<div key={group.providerKey} className="space-y-1">
-														<div className="flex items-center justify-between px-2.5 py-1 text-[11px] font-semibold text-muted-foreground">
-															<div className="flex items-center gap-1.5 min-w-0">
-																<span
-																	className={cn(
-																		'size-4 rounded text-[9.5px] font-bold flex items-center justify-center shrink-0 shadow-2xs',
-																		brand.iconBg
-																	)}
-																>
-																	{brand.shortName}
-																</span>
-																<span className="truncate">{group.providerLabel}</span>
-															</div>
-															<span className="text-[10px] font-mono px-1.5 py-0.2 rounded-full bg-muted/60 text-muted-foreground font-normal">
-																{t('shell.composer.modelCountSimple', {
-																	count: group.items.length,
-																	defaultValue: `${group.items.length} 个模型`
-																})}
-															</span>
-														</div>
-
-														<div className="space-y-0.5">
-															{group.items.map(({entry, cleanName}) => {
-																const isSelected = matchCatalogEntry(entry, effectiveModel);
-																const badges = getModelCapabilityBadges(entry, cleanName);
-
-																return (
-																	<button
-																		key={entry.id}
-																		type="button"
-																		onClick={() => void pickModel(entry.id)}
-																		className={cn(
-																			'group relative w-full flex items-center justify-between gap-2.5 px-2.5 py-2 rounded-xl text-left transition-all duration-150 cursor-pointer border',
-																			isSelected
-																				? 'bg-primary/10 border-primary/25 text-primary shadow-2xs'
-																				: 'border-transparent hover:bg-muted/70 hover:border-border/50 text-foreground'
-																		)}
-																	>
-																		<div className="min-w-0 flex-1 flex items-start gap-2.5">
-																			<div
-																				className={cn(
-																					'mt-0.5 size-7 rounded-lg flex items-center justify-center shrink-0 transition-colors border',
-																					isSelected
-																						? 'bg-primary/15 border-primary/30 text-primary'
-																						: 'bg-muted/50 border-border/40 text-muted-foreground group-hover:text-foreground group-hover:bg-muted'
-																				)}
-																			>
-																				{badges.some(b => b.key === 'thinking') ? (
-																					<BrainCircuit className="size-3.5" />
-																				) : badges.some(b => b.key === 'fast') ? (
-																					<Zap className="size-3.5" />
-																				) : (
-																					<Sparkles className="size-3.5" />
-																				)}
-																			</div>
-
-																			<div className="min-w-0 flex-1 space-y-0.5">
-																				<div className="flex items-center gap-1.5">
-																					<span
-																						className={cn(
-																							'text-xs font-semibold truncate',
-																							isSelected
-																								? 'text-primary font-bold'
-																								: 'text-foreground group-hover:text-primary transition-colors'
-																						)}
-																					>
-																						{cleanName}
-																					</span>
-																				</div>
-
-																				<div className="flex items-center gap-1.5 flex-wrap">
-																					<span
-																						className="font-mono text-[10px] text-muted-foreground/70 truncate max-w-[170px]"
-																						title={entry.id}
-																					>
-																						{entry.id}
-																					</span>
-																					{badges.map(b => (
-																						<span
-																							key={b.key}
-																							className={cn(
-																								'text-[9.5px] px-1.5 py-0.2 rounded border font-medium leading-none',
-																								b.className
-																							)}
-																						>
-																							{b.label}
-																						</span>
-																					))}
-																				</div>
-																			</div>
-																		</div>
-
-																		<div className="shrink-0 flex items-center gap-1">
-																			{isSelected ? (
-																				<div className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary text-primary-foreground text-[10px] font-medium shadow-xs animate-in fade-in-50 zoom-in-95">
-																					<Check className="size-3 stroke-[2.5]" />
-																					<span>
-																						{t('shell.composer.currentModel', {
-																							defaultValue: '当前'
-																						})}
-																					</span>
-																				</div>
-																			) : (
-																				<ChevronRight className="size-3.5 text-muted-foreground/40 opacity-0 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all" />
-																			)}
-																		</div>
-																	</button>
-																);
-															})}
-														</div>
-													</div>
-												);
-											})
-										)}
-									</div>
-
-									<div className="flex items-center justify-between px-3.5 py-2 bg-muted/40 dark:bg-muted/20 border-t border-border/60 text-xs">
-										<span className="text-[11px] text-muted-foreground flex items-center gap-1.5 font-medium">
-											<Layers className="size-3 text-muted-foreground/70" />
-											{t('shell.composer.modelCount', {
-												count: modelCatalog.length,
-												defaultValue: `共 ${modelCatalog.length} 个可用模型`
-											})}
-										</span>
-										<button
-											type="button"
-											onClick={() => {
-												setModelPopOpen(false);
-												window.dispatchEvent(
-													new CustomEvent('fast-ide:open-settings', {
-														detail: {section: 'models'}
-													})
-												);
-											}}
-											className="inline-flex items-center gap-1.5 text-[11px] font-medium text-muted-foreground hover:text-foreground transition-colors cursor-pointer group"
-										>
-											<Settings className="size-3 text-muted-foreground group-hover:text-foreground transition-colors" />
-											<span>
-												{t('shell.composer.manageModels', {
-													defaultValue: '配置模型与提供商'
-												})}
-											</span>
-											<ArrowUpRight className="size-3 opacity-60 group-hover:opacity-100 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
-										</button>
-									</div>
-								</PopoverContent>
-							</Popover>
-							)}
-
-							{/* 独立 思考/力度胶囊 (Thinking & Effort Pill) */}
-							{engineKind !== 'dsh' && (supportsThinking || supportedEfforts.length > 0) && (
-								<Popover open={thinkingPopOpen} onOpenChange={setThinkingPopOpen}>
-									<PopoverTrigger asChild>
-										<InputGroupButton
-											type="button"
-											size="sm"
-											variant="ghost"
-											title={t('shell.composer.thinkingSettings', {defaultValue: '思考设置'})}
-											aria-label={t('shell.composer.thinkingSettings', {defaultValue: '思考设置'})}
-											className={cn(
-												'h-7 shrink-0 gap-1.5 rounded-full px-2.5 text-xs font-medium transition-all duration-150 border',
-												thinkingPopOpen
-													? 'bg-muted text-foreground border-border/70 shadow-xs'
-													: thinking
-														? 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/25 hover:bg-blue-500/15'
-														: 'text-muted-foreground hover:bg-muted/70 hover:text-foreground border-transparent'
-											)}
-											disabled={composerDisabled}
-										>
-											{thinking ? (
-												<BrainCircuit className="size-3.5 text-blue-600 dark:text-blue-400 shrink-0 stroke-[2.2]" />
-											) : (
-												<Brain className="size-3.5 text-muted-foreground shrink-0 opacity-70" />
-											)}
-											<span>{thinkingButtonLabel}</span>
-											<ChevronDown
-												className={cn(
-													'size-3 shrink-0 opacity-60 transition-transform duration-200',
-													thinkingPopOpen && 'rotate-180'
-												)}
-											/>
-										</InputGroupButton>
-									</PopoverTrigger>
-									<PopoverContent
-										className="w-72 p-0 shadow-2xl border border-border/80 rounded-2xl overflow-hidden bg-popover/98 backdrop-blur-xl animate-in fade-in-0 zoom-in-95 duration-150 flex flex-col"
-										align="start"
-										sideOffset={8}
-									>
-										{supportsThinking && (
-											<div className="p-3 border-b border-border/60 bg-muted/30 dark:bg-muted/15">
-												<div className="flex items-center justify-between gap-3">
-													<div className="flex items-center gap-2 min-w-0">
-														<BrainCircuit
-															className={cn(
-																'size-4 shrink-0 transition-colors',
-																thinking ? 'text-primary' : 'text-muted-foreground'
-															)}
-														/>
-														<div className="min-w-0">
-															<div className="text-xs font-semibold text-foreground">
-																{t('shell.composer.thinkingDeep', {defaultValue: '深度思考'})}
-															</div>
-															<div className="text-[10.5px] text-muted-foreground truncate">
-																{t('shell.composer.thinkingDesc', {
-																	defaultValue: '生成回答前进行扩展思考'
-																})}
-															</div>
-														</div>
-													</div>
-													<div className="inline-flex h-7 items-center rounded-lg border border-border/60 bg-background/80 dark:bg-background/40 p-0.5 shadow-2xs shrink-0">
-														<button
-															type="button"
-															onClick={() => void toggleThinking(true)}
-															className={cn(
-																'h-full rounded-[6px] px-2 text-[11px] font-medium transition-all cursor-pointer flex items-center gap-1',
-																thinking
-																	? 'bg-primary text-primary-foreground shadow-xs font-semibold'
-																	: 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
-															)}
-														>
-															{t('shell.composer.thinkingOn', {defaultValue: '开启'})}
-														</button>
-														<button
-															type="button"
-															onClick={() => void toggleThinking(false)}
-															className={cn(
-																'h-full rounded-[6px] px-2 text-[11px] font-medium transition-all cursor-pointer',
-																!thinking
-																	? 'bg-muted text-foreground font-semibold shadow-2xs'
-																	: 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
-															)}
-														>
-															{t('shell.composer.thinkingOff', {defaultValue: '关闭'})}
-														</button>
-													</div>
-												</div>
-											</div>
-										)}
-
-										{supportedEfforts.length > 0 && (
-											<div className="p-2 space-y-1">
-												<div className="px-2 pt-1 pb-1 flex items-center justify-between text-[11px] font-semibold text-muted-foreground">
-													<span className="flex items-center gap-1.5">
-														<SlidersHorizontal className="size-3" />
-														{t('shell.composer.effortLevel', {defaultValue: '思考力度'})}
-													</span>
-													{!thinking && (
-														<span className="text-[10px] text-muted-foreground/70 font-normal">
-															{t('shell.composer.thinkingDisabledHint', {
-																defaultValue: '开启后生效'
-															})}
-														</span>
-													)}
-												</div>
-
-												<div className="space-y-1">
-													{supportedEfforts.map(e => {
-														const isSelected = effort === e;
-														return (
-															<button
-																key={e}
-																type="button"
-																disabled={!thinking}
-																onClick={() => {
-																	void pickEffort(e);
-																}}
-																className={cn(
-																	'group w-full flex items-center justify-between gap-2.5 px-2.5 py-2 rounded-xl text-left transition-all duration-150 border',
-																	!thinking
-																		? 'opacity-40 cursor-not-allowed border-transparent'
-																		: isSelected
-																			? 'bg-primary/10 border-primary/25 text-primary shadow-2xs cursor-pointer'
-																			: 'border-transparent hover:bg-muted/70 hover:border-border/50 text-foreground cursor-pointer'
-																)}
-															>
-																<div className="min-w-0 flex-1">
-																	<div className="flex items-center gap-1.5">
-																		<span
-																			className={cn(
-																				'text-xs font-semibold',
-																				isSelected && thinking ? 'text-primary font-bold' : 'text-foreground'
-																			)}
-																		>
-																			{EFFORT_LABEL[e] ?? e}
-																		</span>
-																	</div>
-																	<p className="text-[10.5px] text-muted-foreground truncate leading-tight mt-0.5">
-																		{getEffortDesc(e)}
-																	</p>
-																</div>
-
-																{isSelected && thinking && (
-																	<div className="size-5 rounded-full bg-primary/15 text-primary flex items-center justify-center shrink-0">
-																		<Check className="size-3 stroke-[2.5]" />
-																	</div>
-																)}
-															</button>
-														);
-													})}
-												</div>
-											</div>
-										)}
-									</PopoverContent>
-								</Popover>
-							)}
-						</div>
-						{stopKind ? (
-							<InputGroupButton
-								type="button"
-								size="icon-sm"
-								variant="default"
-								className="relative size-7 cursor-pointer rounded-full bg-foreground text-background hover:bg-foreground/90 active:scale-95 transition-all shadow-sm"
-								aria-label={
-									stopKind === 'goal' ? t('shell.background.stopGoal') : t('shell.common.stop')
-								}
-								title={
-									stopKind === 'goal'
-										? t('shell.background.stopGoal')
-										: `${t('shell.common.stop')} (Esc)`
-								}
-								onClick={() =>
-									stopKind === 'goal'
-										? void window.fastIde.cancelGoal()
-										: void window.fastIde.cancelRun()
-								}
-							>
-								<Square className="size-2.5 fill-current" />
-								<span className="pointer-events-none absolute inset-0.5 rounded-full border-2 border-background/20 border-t-background animate-spin" />
-							</InputGroupButton>
-						) : (
-							<>
-								{canSteer && !canSubmitNow ? (
-									<InputGroupButton
-										type="button"
-										size="icon-sm"
-										variant="ghost"
-										className="size-7 cursor-pointer rounded-full disabled:opacity-30 disabled:cursor-not-allowed"
-										disabled={!canSend}
-										aria-label="Steer"
-										onClick={() => {
-											const snap = selectedSlash ? null : richRef.current?.snapshot();
-											const text = selectedSlash
-												? formatSlashSubmit(selectedSlash.name, draft)
-												: (snap?.text ?? draft).trim();
-											if (!text) return;
-											void window.fastIde.dshSteer(text);
-											richRef.current?.clear();
-											store.setDraft('');
-										}}
-									>
-										<Zap className="size-3.5" />
-									</InputGroupButton>
-								) : null}
-								<InputGroupButton
-									type="submit"
-									size="icon-sm"
-									variant="default"
-									className="size-7 cursor-pointer rounded-full bg-primary text-primary-foreground hover:opacity-90 active:scale-95 transition-all shadow-sm disabled:opacity-30 disabled:scale-100 disabled:cursor-not-allowed"
-									disabled={!canSend}
-									aria-label={t('shell.common.send')}
-								>
-									<ArrowUp className="size-3.5 stroke-[2.2]" />
-								</InputGroupButton>
-							</>
-						)}
-					</InputGroupAddon>
 				</InputGroup>
 			</div>
 			{composerLocked ? (
