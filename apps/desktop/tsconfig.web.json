@@ -4,8 +4,9 @@
     "src/shared/**/*"
   ],
   "exclude": [
-    "src/renderer/src/**/*.test.ts",
-    "src/shared/**/*.test.ts"
+		"src/renderer/src/**/*.test.ts",
+		"src/renderer/src/workspaceStore/**",
+		"src/shared/**/*.test.ts"
   ],
   "compilerOptions": {
     "target": "ES2022",
