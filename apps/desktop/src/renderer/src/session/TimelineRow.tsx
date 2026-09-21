@@ -282,16 +282,25 @@ function UserBubble({
 			) : null}
 			{images && images.length > 0 ? (
 				<div className="mb-2 flex flex-wrap gap-2">
-					{images.map((img, i) => (
-						<img
-							key={`${img.name ?? 'img'}-${i}`}
-							src={img.dataUrl}
-							alt={img.name ?? 'attachment'}
-							title={img.name}
-							className="max-h-40 max-w-[12rem] rounded-md object-cover border border-border/50 cursor-zoom-in"
-							onClick={() => window.open(img.dataUrl, '_blank', 'noopener,noreferrer')}
-						/>
-					))}
+					{images.map((img, i) =>
+						img.dataUrl ? (
+							<img
+								key={`${img.name ?? 'img'}-${i}`}
+								src={img.dataUrl}
+								alt={img.name ?? 'attachment'}
+								title={img.name}
+								className="max-h-40 max-w-[12rem] rounded-md object-cover border border-border/50 cursor-zoom-in"
+								onClick={() => window.open(img.dataUrl, '_blank', 'noopener,noreferrer')}
+							/>
+						) : (
+							<span
+								key={`${img.name ?? 'img'}-${i}`}
+								className="rounded-md border border-border/50 px-2 py-1 text-xs text-muted-foreground"
+							>
+								{img.name || 'image'}
+							</span>
+						)
+					)}
 				</div>
 			) : null}
 			{text.trim() ? (

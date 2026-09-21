@@ -835,7 +835,8 @@ export const DialogueComposer = memo(function DialogueComposer({
 		const imagesWire = pendingImages
 			.filter(p => !p.rejectReason && p.data)
 			.map(p => ({mediaType: p.mediaType, data: p.data, name: p.name}));
-		clearPending();
+		const restoreImages = pendingImages;
+		setPendingImages([]);
 		richRef.current?.clear();
 		onSubmitSuccess?.(text);
 		const result = await window.fastIde.sendMessage(
@@ -845,6 +846,7 @@ export const DialogueComposer = memo(function DialogueComposer({
 			imagesWire.length > 0 ? imagesWire : undefined
 		);
 		if (!result.ok) {
+			setPendingImages(restoreImages);
 			store.restore(restoreDraft);
 			setSelectedSlash(restoreSlash);
 			setMentionChips(restoreChips);
@@ -859,8 +861,11 @@ export const DialogueComposer = memo(function DialogueComposer({
 				helpNoticeText(result.notice ?? 'errors.send.workspace_not_ready', t),
 				taskId
 			);
-		} else if (result.notice) {
-			onError?.(helpNoticeText(result.notice, t), taskId);
+		} else {
+			revokePending(restoreImages);
+			if (result.notice) {
+				onError?.(helpNoticeText(result.notice, t), taskId);
+			}
 		}
 		if (result.openModelPicker) {
 			setModelSearch('');

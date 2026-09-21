@@ -68,10 +68,10 @@ export class SessionController implements TaskCommands, SessionLifecycle, TaskVi
 	/** Contiguous applied cursor + pending, keyed by sessionId. */
 	private seqBySession = new Map<string, SessionSeq>();
 	private activeTaskId: string | null = null;
-	/** Live bubble images waiting for the next turn_started user row (per session). */
+	/** Live bubble images keyed by session then clientMessageId. */
 	private pendingUserImagesBySession = new Map<
 		string,
-		Array<{mediaType: string; name?: string; dataUrl: string}>
+		Map<string, Array<{mediaType: string; name?: string; dataUrl: string}>>
 	>();
 	/** Multi-Attach: Sessions kept live after select/create (ADR-0010 extend). */
 	private readonly attach = createSessionAttachStore();
@@ -256,7 +256,7 @@ export class SessionController implements TaskCommands, SessionLifecycle, TaskVi
 		requestAttach: (task, sessionId, lastEventSeq) =>
 			this.requestAttach(task, sessionId, lastEventSeq),
 		hydrateFromSessionsList: sessions => this.hydrateFromSessionsList(sessions),
-		takePendingUserImages: sid => this.takePendingUserImages(sid)
+		takePendingUserImages: (sid, clientId) => this.takePendingUserImages(sid, clientId)
 	});
 
 	private get catalog() {
@@ -641,41 +641,47 @@ export class SessionController implements TaskCommands, SessionLifecycle, TaskVi
 		// S2/E4: busy (Chat or Goal) → SubmitUserMessage; Session Follow-up queues.
 		// SteerGoal is Goal-drawer「捎话」only — never main Enter.
 		if (busyFollowUp) {
-			const ok = this.composer.submitUserText(routed.text, chips, undefined, images);
-			if (ok) this.stashPendingUserImages(images);
-			return ok;
+			const cid = this.composer.submitUserText(routed.text, chips, undefined, images);
+			if (cid) this.stashPendingUserImages(cid, images);
+			return Boolean(cid);
 		}
 
 		if (!this.canSubmitNow()) {
 			this.helpNotice = this.describeSendBlocker();
 			return false;
 		}
-		const ok = this.composer.submitUserText(routed.text, chips, undefined, images);
-		if (ok) this.stashPendingUserImages(images);
-		return ok;
+		const cid = this.composer.submitUserText(routed.text, chips, undefined, images);
+		if (cid) this.stashPendingUserImages(cid, images);
+		return Boolean(cid);
 	}
 
 	private stashPendingUserImages(
+		clientMessageId: string,
 		images?: Array<{mediaType: string; data: string; name?: string}>
 	): void {
 		const sid = this.getActiveTask()?.sessionId;
-		if (!sid || !images?.length) return;
-		this.pendingUserImagesBySession.set(
-			sid,
+		if (!sid || !clientMessageId || !images?.length) return;
+		const byClient = this.pendingUserImagesBySession.get(sid) ?? new Map();
+		byClient.set(
+			clientMessageId,
 			images.map(i => ({
 				mediaType: i.mediaType,
 				...(i.name ? {name: i.name} : {}),
 				dataUrl: `data:${i.mediaType};base64,${i.data}`
 			}))
 		);
+		this.pendingUserImagesBySession.set(sid, byClient);
 	}
 
-	/** Consume pending composer images for a session (live bubble paint). */
-	takePendingUserImages(sessionId: string | null | undefined) {
-		if (!sessionId) return undefined;
-		const imgs = this.pendingUserImagesBySession.get(sessionId);
+	/** Consume pending composer images for one client message (live bubble paint). */
+	takePendingUserImages(sessionId: string | null | undefined, clientMessageId?: string | null) {
+		if (!sessionId || !clientMessageId) return undefined;
+		const byClient = this.pendingUserImagesBySession.get(sessionId);
+		if (!byClient) return undefined;
+		const imgs = byClient.get(clientMessageId);
 		if (!imgs) return undefined;
-		this.pendingUserImagesBySession.delete(sessionId);
+		byClient.delete(clientMessageId);
+		if (byClient.size === 0) this.pendingUserImagesBySession.delete(sessionId);
 		return imgs;
 	}
 
@@ -728,7 +734,7 @@ export class SessionController implements TaskCommands, SessionLifecycle, TaskVi
 			this.helpNotice = this.describeSendBlocker();
 			return false;
 		}
-		return this.composer.submitUserText('', undefined, {planId: id, name: name.trim()});
+		return Boolean(this.composer.submitUserText('', undefined, {planId: id, name: name.trim()}));
 	}
 
 	/** Error-card Retry. Engine stops leftover work in the session, then replays lastSubmit. */

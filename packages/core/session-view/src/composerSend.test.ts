@@ -44,7 +44,7 @@ test('submitUserText forwards images onto SubmitUserMessage', () => {
 	});
 
 	const images = [{mediaType: 'image/png', data: 'YWJj', name: 'a.png'}];
-	assert.equal(composer.submitUserText('what is this', undefined, undefined, images), true);
+	assert.equal(composer.submitUserText('what is this', undefined, undefined, images), 'cid');
 	assert.equal(sent.length, 1);
 	const cmd = sent[0] as {type: string; text: string; images?: typeof images};
 	assert.equal(cmd.type, 'SubmitUserMessage');
@@ -97,7 +97,7 @@ test('submitUserText allows images-only (empty text)', () => {
 		composer.submitUserText('', undefined, undefined, [
 			{mediaType: 'image/png', data: 'YWJj', name: 'shot.png'}
 		]),
-		true
+		'cid'
 	);
 	const cmd = sent[0] as {text: string; images: unknown[]};
 	assert.equal(cmd.text, '');

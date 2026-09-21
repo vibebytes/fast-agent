@@ -60,7 +60,8 @@ export interface SessionEventHostDeps {
 	hydrateFromSessionsList(sessions: SessionListInfo[]): void;
 	/** Live multimodal: consume composer images queued for this session. */
 	takePendingUserImages?(
-		sessionId: string | null | undefined
+		sessionId: string | null | undefined,
+		clientMessageId?: string | null
 	): Array<{mediaType: string; name?: string; dataUrl: string}> | undefined;
 }
 
@@ -333,34 +334,17 @@ export function createSessionEventHost(deps: SessionEventHostDeps) {
 			task.transcript = applyBridgeEvent(task.transcript, ev);
 			task.codeChanges = applyCodeChangeEvent(task.codeChanges, ev);
 			if (ev.type === 'turn_started') {
-				const imgs = deps.takePendingUserImages?.(task.sessionId);
-				if (imgs?.length) {
-					const clientId = 'clientMessageId' in ev ? ev.clientMessageId : undefined;
-					const turnId = 'turnId' in ev ? ev.turnId : undefined;
+				const clientId = 'clientMessageId' in ev ? ev.clientMessageId : undefined;
+				const imgs = deps.takePendingUserImages?.(task.sessionId, clientId);
+				if (imgs?.length && clientId) {
 					const entries = [...task.transcript.entries];
-					let attached = false;
-					for (let i = 0; i < entries.length; i++) {
-						const e = entries[i];
-						if (e.role !== 'user' || e.images?.length) continue;
-						if (
-							(clientId && e.clientMessageId === clientId) ||
-							(turnId && e.turnId === turnId)
-						) {
-							entries[i] = {...e, images: imgs};
-							attached = true;
-							break;
-						}
+					const i = entries.findIndex(
+						e => e.role === 'user' && e.clientMessageId === clientId
+					);
+					if (i >= 0) {
+						entries[i] = {...entries[i]!, images: imgs};
+						task.transcript = {...task.transcript, entries};
 					}
-					if (!attached) {
-						for (let i = entries.length - 1; i >= 0; i--) {
-							const e = entries[i];
-							if (e.role === 'user' && !e.images?.length) {
-								entries[i] = {...e, images: imgs};
-								break;
-							}
-						}
-					}
-					task.transcript = {...task.transcript, entries};
 				}
 			}
 		};

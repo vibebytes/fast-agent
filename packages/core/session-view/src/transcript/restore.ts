@@ -177,11 +177,11 @@ function entriesFromRestoredTurns(
 			rt.userText ||
 			(planBuild ? planBuildDisplayContent(rt.planName ?? '', rt.planId!) : '');
 		const userImages = (rt.userImages ?? [])
-			.filter(i => typeof i.dataUrl === 'string' && i.dataUrl.startsWith('data:'))
+			.filter(i => typeof i.mediaType === 'string' && i.mediaType.length > 0)
 			.map(i => ({
 				mediaType: i.mediaType,
 				...(i.name?.trim() ? {name: i.name.trim()} : {}),
-				dataUrl: i.dataUrl!
+				dataUrl: typeof i.dataUrl === 'string' && i.dataUrl.startsWith('data:') ? i.dataUrl : ''
 			}));
 		// Engine runId ≠ user message id; only carry it when it adds identity.
 		const runId = rt.runId?.trim() ? {runId: rt.runId.trim()} : {};

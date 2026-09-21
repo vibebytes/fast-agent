@@ -73,17 +73,18 @@ export function createComposerSend<T extends ComposerTaskLike>(deps: ComposerSen
 		mentions?: MentionChip[],
 		planBuild?: {planId: string; name?: string},
 		images?: Array<{mediaType: string; data: string; name?: string}>
-	): boolean => {
+	): string | false => {
 		const task = deps.getActiveTask();
 		if (!task?.sessionId) return false;
 		const generateTitle = task.autoTitlePending;
 		const sessionId = task.sessionId;
 		const sampling = composerSampling();
 		const engineKind = deps.engineKind();
+		const clientMessageId = deps.createId();
 		const ok = deps.send({
 			type: 'SubmitUserMessage',
 			sessionId,
-			clientMessageId: deps.createId(),
+			clientMessageId,
 			text:
 				trimmed ||
 				(planBuild ? planBuildDisplayContent(planBuild.name ?? '', planBuild.planId) : ''),
@@ -100,7 +101,7 @@ export function createComposerSend<T extends ComposerTaskLike>(deps: ComposerSen
 		if (ok && generateTitle) deps.titleGenRequested.add(sessionId);
 		if (ok && planBuild) pendingPlanBuildPlanId = planBuild.planId;
 		if (ok) deps.touchLastModified(task);
-		return ok;
+		return ok ? clientMessageId : false;
 	};
 
 	const sendPinnedCommand = (
@@ -218,7 +219,7 @@ export function createComposerSend<T extends ComposerTaskLike>(deps: ComposerSen
 					deps.setHelpNotice(deps.describeSendBlocker());
 					return false;
 				}
-				return submitUserText(deps.promptLine(name, args));
+				return Boolean(submitUserText(deps.promptLine(name, args)));
 			}
 			if (!deps.canSubmitCommand()) {
 				deps.setHelpNotice(deps.describeSendBlocker());
