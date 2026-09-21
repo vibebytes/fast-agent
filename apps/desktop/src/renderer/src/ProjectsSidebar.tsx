@@ -79,6 +79,27 @@ export type {ProjectTasksMap};
 
 const DEFAULT_PROJECT_PATH_SENTINEL = '__default__';
 
+/** Leading pin glyph on a pinned row — clicking it unpins instead of opening. */
+function PinnedRowPinButton({onClick}: {onClick: () => void}) {
+	return (
+		<button
+			type="button"
+			aria-label={t('shell.sidebar.unpinTask')}
+			title={t('shell.sidebar.unpinTask')}
+			className={cn(
+				'shrink-0 rounded-sm text-sidebar-muted-foreground outline-none',
+				'hover:text-sidebar-accent-foreground focus-visible:ring-2'
+			)}
+			onClick={e => {
+				e.stopPropagation();
+				onClick();
+			}}
+		>
+			<Pin className="size-3.5 fill-current" />
+		</button>
+	);
+}
+
 function ProjectsSidebarImpl({
 	projects,
 	projectTasks,
@@ -312,6 +333,11 @@ function ProjectsSidebarImpl({
 		]
 	);
 
+	/** Unpin straight from the pin ref — works even when the task is not loaded. */
+	function unpinPinned(pin: PinnedTaskRef) {
+		updateUi(prev => togglePinTask(prev, pin.projectPath, pin.sessionId, pin.title));
+	}
+
 	async function openPinned(pin: PinnedTaskRef, taskId: string | null) {
 		if (taskId) {
 			await onOpenTask(taskId);
@@ -360,13 +386,21 @@ function ProjectsSidebarImpl({
 									return (
 										<SidebarMenuItem key={`${pin.projectPath}::${pin.sessionId}`}>
 											<SidebarMenuButton
+												asChild
 												size="sm"
-												onClick={() => void openPinned(pin, taskId)}
 												tooltip={pin.title}
 												className="text-xs gap-1.5"
 											>
-												<Pin className="size-3.5 shrink-0 text-sidebar-muted-foreground" />
-												<span className="truncate">{pin.title}</span>
+												<div className="flex min-w-0 flex-1 items-center gap-1.5">
+													<PinnedRowPinButton onClick={() => unpinPinned(pin)} />
+													<button
+														type="button"
+														className="min-w-0 flex-1 truncate text-left"
+														onClick={() => void openPinned(pin, taskId)}
+													>
+														{pin.title}
+													</button>
+												</div>
 											</SidebarMenuButton>
 										</SidebarMenuItem>
 									);
@@ -377,14 +411,22 @@ function ProjectsSidebarImpl({
 										<ContextMenuTrigger asChild>
 											<SidebarMenuItem>
 												<SidebarMenuButton
+													asChild
 													size="sm"
-													onClick={() => void openPinned(pin, taskId)}
 													tooltip={pin.title}
 													className="text-xs gap-1.5"
 												>
-													<Pin className="size-3.5 shrink-0 text-sidebar-muted-foreground" />
-													{task.runState ? <RunStateDot runState={task.runState} /> : null}
-													<span className="truncate">{pin.title}</span>
+													<div className="flex min-w-0 flex-1 items-center gap-1.5">
+														<PinnedRowPinButton onClick={() => unpinPinned(pin)} />
+														{task.runState ? <RunStateDot runState={task.runState} /> : null}
+														<button
+															type="button"
+															className="min-w-0 flex-1 truncate text-left"
+															onClick={() => void openPinned(pin, taskId)}
+														>
+															{pin.title}
+														</button>
+													</div>
 												</SidebarMenuButton>
 											</SidebarMenuItem>
 										</ContextMenuTrigger>
