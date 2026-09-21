@@ -5,7 +5,11 @@ import {fileURLToPath} from 'node:url';
 import {test} from 'node:test';
 import {engineOverlay, engineOverlayVisible, reduceShellGate} from './shellGate.js';
 
-const appSrc = readFileSync(join(dirname(fileURLToPath(import.meta.url)), 'App.tsx'), 'utf8');
+const here = dirname(fileURLToPath(import.meta.url));
+const appSrc = [
+	readFileSync(join(here, 'App.tsx'), 'utf8'),
+	readFileSync(join(here, 'shell/AppChrome.tsx'), 'utf8')
+].join('\n');
 
 test('shell gate stays on landing until restored', () => {
 	assert.equal(reduceShellGate('landing', {type: 'workspace:restored'}), 'shell');

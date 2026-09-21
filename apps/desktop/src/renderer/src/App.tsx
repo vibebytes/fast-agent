@@ -4,10 +4,8 @@ import {
 	useCallback,
 	useEffect,
 	useMemo,
-	useRef,
 	useState,
-	useSyncExternalStore,
-	type CSSProperties
+	useSyncExternalStore
 } from 'react';
 import {
 	selectTaskOptimistic,
@@ -24,61 +22,30 @@ import {
 } from './openSetFocus';
 import {useOpenSetChrome} from './useOpenSetChrome';
 import {pullWorkspaceGaps} from './workspaceWire';
-import {Button} from '@fast-ide/ui/components/button';
 import {
 	ResizableHandle,
 	ResizablePanel,
 	ResizablePanelGroup
 } from '@fast-ide/ui/components/resizable';
-import {
-	Sidebar,
-	SidebarContent,
-	SidebarFooter,
-	SidebarHeader,
-	SidebarInset,
-	SidebarMenu,
-	SidebarMenuButton,
-	SidebarMenuItem,
-	SidebarProvider,
-	SidebarSeparator,
-	SidebarTrigger
-} from '@fast-ide/ui/components/sidebar';
-import {TooltipProvider} from '@fast-ide/ui/components/tooltip';
-import {cn} from '@fast-ide/ui/lib/utils';
-import {
-	Clock,
-	MessageSquarePlus,
-	Puzzle,
-	Search,
-	Users
-} from 'lucide-react';
-import {useCommandPaletteShortcut} from './commandPaletteShortcut';
-import {ErrorBoundary} from './ErrorBoundary';
-import {SidebarSystemDirectory} from './SidebarSystemDirectory';
-import {RemoteFolderDialog} from './RemoteFolderDialog';
 import type {EdgesList} from '@fast-ide/session-view';
-import {Settings2, type SettingsSectionId, type SettingsSuite} from './Settings2';
+import {type LayoutPreference, type SettingsSectionId, type SettingsSuite} from './Settings2';
 import {RightWorkbench} from './RightWorkbench';
-import {ProjectsSidebar} from './ProjectsSidebar';
 import {SessionPane} from './session/SessionPane';
 import type {OpenTeamsRequest} from './TeamsWorkbench';
+import {AppChrome} from './shell/AppChrome';
+import {readStored, readStoredBool} from './shell/layoutPrefs';
+import {useAppWindow} from './shell/useAppWindow';
 
 // Heavy, low-frequency surfaces load on first use (perf doc P1-9): Teams pulls
 // @xyflow/react; the palette pulls sidebar chrome — neither belongs to boot.
 const TeamsWorkbench = lazy(() =>
 	import('./TeamsWorkbench').then(m => ({default: m.TeamsWorkbench}))
 );
-const CommandPalette = lazy(() =>
-	import('./CommandPalette').then(m => ({default: m.CommandPalette}))
-);
 import {projectDisplayName} from './sidebarModel';
-import {StatusBar} from './StatusBar';
 import {publishEditorStatus} from './editorStatusStore';
 import {useTranslation} from 'react-i18next';
 import {bridgeErrorText} from './bridgeErrorText';
-import {ThemePicker} from './ThemePicker';
-import {KeepConfirm} from './review/KeepConfirm';
-import {ReviewDirtyPaths, useKeepFlow} from './review/useKeepFlow';
+import {useKeepFlow} from './review/useKeepFlow';
 import {useAgentReview} from './review/useAgentReview';
 import {useGitStatus} from './useGitStatus';
 import {useLocalePrefs} from './useLocalePrefs';
@@ -86,12 +53,7 @@ import {useThemePrefs} from './useThemePrefs';
 import {useApprovalSound} from './useApprovalSound';
 import {useCompletionSound} from './useCompletionSound';
 import {engineOverlay} from './shellGate';
-
-type LayoutPreference = 'coding' | 'general';
-
-/** Flip to show again. */
-const SHOW_SIDEBAR_PLUGINS = false;
-const SHOW_SIDEBAR_TEAMS = false;
+import {ErrorBoundary} from './ErrorBoundary';
 
 /** Resolves after the next frame paints — lets a click ack reach the screen
  * before the heavy focus render blocks the main thread. */
@@ -105,54 +67,6 @@ function afterNextPaint(): Promise<void> {
 
 function samePathList(a: readonly string[], b: readonly string[]): boolean {
 	return a.length === b.length && a.every((p, i) => p === b[i]);
-}
-
-function readStored<T extends string>(key: string, fallback: T, allowed: readonly T[]): T {
-	try {
-		const value = localStorage.getItem(key);
-		if (value && (allowed as readonly string[]).includes(value)) return value as T;
-	} catch {
-		// ignore
-	}
-	return fallback;
-}
-
-function readStoredBool(key: string, fallback: boolean): boolean {
-	try {
-		const value = localStorage.getItem(key);
-		if (value === 'true') return true;
-		if (value === 'false') return false;
-	} catch {
-		// ignore
-	}
-	return fallback;
-}
-
-/** macOS traffic lights + control gap — keep in sync with Electron trafficLightPosition. */
-const DARWIN_TRAFFIC_PAD = 'pl-[72px]';
-
-/** Header / inset reserve for lights + SidebarTrigger when the sidebar is fully hidden. */
-function toggleReserveClass(): string {
-	return window.fastIde.platform === 'darwin' ? 'w-[108px]' : 'w-10';
-}
-
-/**
- * Window-fixed sidebar toggle (Claude / Cursor style).
- * Must sit above a no-drag hole — Electron drag regions steal clicks regardless of z-index.
- */
-function WindowSidebarToggle() {
-	const isDarwin = window.fastIde.platform === 'darwin';
-	return (
-		<div
-			className={cn(
-				'fixed top-0 left-0 z-[100] flex h-10 items-center',
-				isDarwin ? DARWIN_TRAFFIC_PAD : 'pl-2'
-			)}
-			style={{WebkitAppRegion: 'no-drag'} as CSSProperties}
-		>
-			<SidebarTrigger className="app-region-no-drag size-7 shrink-0" />
-		</div>
-	);
 }
 
 function useTaskCodeChanges(store: WorkspaceStore, taskId: string | null) {
@@ -228,19 +142,6 @@ export function App({store}: {store: WorkspaceStore}) {
 	const [settings2Open, setSettings2Open] = useState(false);
 	const [settings2Section, setSettings2Section] = useState<SettingsSectionId>('general');
 	const [settings2Suite, setSettings2Suite] = useState<SettingsSuite>('fast');
-
-	useEffect(() => {
-		const onOpenSettings = (e: Event) => {
-			const customEvent = e as CustomEvent<{section?: SettingsSectionId; suite?: SettingsSuite}>;
-			if (customEvent.detail?.section) {
-				setSettings2Section(customEvent.detail.section);
-			}
-			setSettings2Suite(customEvent.detail?.suite ?? engineKind);
-			setSettings2Open(true);
-		};
-		window.addEventListener('fast-ide:open-settings', onOpenSettings);
-		return () => window.removeEventListener('fast-ide:open-settings', onOpenSettings);
-	}, [engineKind]);
 	const [openTeamsRequest, setOpenTeamsRequest] = useState<OpenTeamsRequest | null>(null);
 	const [pendingMentionInsert, setPendingMentionInsert] = useState<{
 		ref: string;
@@ -259,19 +160,15 @@ export function App({store}: {store: WorkspaceStore}) {
 	const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
 	const [edges, setEdges] = useState<EdgesList | null>(null);
 	const [remoteFolderOpen, setRemoteFolderOpen] = useState(false);
-	useCommandPaletteShortcut(
-		useCallback(() => setCommandPaletteOpen(true), [])
-	);
-	useEffect(() => {
-		void window.fastIde.listEdges().then(setEdges);
-		const off = window.fastIde.onEdgesChanged(setEdges);
-		const onRemote = () => setRemoteFolderOpen(true);
-		window.addEventListener('fast-ide:open-remote-folder', onRemote);
-		return () => {
-			off();
-			window.removeEventListener('fast-ide:open-remote-folder', onRemote);
-		};
-	}, []);
+	useAppWindow({
+		engineKind,
+		setSettings2Section,
+		setSettings2Suite,
+		setSettings2Open,
+		setRemoteFolderOpen,
+		setEdges,
+		setCommandPaletteOpen
+	});
 
 	// Keyed on the list slices (stable across transcript tail patches) — not on
 	// the whole workspace object, which changes identity every dispatch (P0-3).
@@ -504,178 +401,99 @@ export function App({store}: {store: WorkspaceStore}) {
 	const overlay = engineOverlay(engineStatus);
 
 	return (
-		<ReviewDirtyPaths.Provider value={dirtyPaths}>
-		<TooltipProvider>
-			{settings2Open ? (
-				<Settings2
-					paletteId={paletteId}
-					onPaletteChange={setPaletteId}
-					localePref={localePref}
-					onLocaleChange={setLocalePref}
-					layout={layout}
-					onLayoutChange={setLayout}
-					onBack={() => setSettings2Open(false)}
-					engineReady={engineReady}
-					engineStatus={engineStatus}
-					modelCatalog={modelCatalog}
-					initialSection={settings2Section}
-					initialSuite={settings2Suite}
-					sessionId={focusSessionId ?? undefined}
-				/>
-			) : null}
-			<div className={cn('relative flex h-svh min-h-0 w-full flex-col overflow-hidden', settings2Open && 'hidden')}>
-			<SidebarProvider className="relative flex min-h-0 w-full flex-1 overflow-hidden">
-				<WindowSidebarToggle />
-				<Sidebar collapsible="offcanvas">
-					<SidebarHeader className="gap-2 p-0">
-						<div className="flex h-10 items-stretch border-b">
-							{/* No-drag hole under the fixed toggle — drag regions steal Electron clicks. */}
-							<div className={cn('app-region-no-drag shrink-0', toggleReserveClass())} aria-hidden />
-							<div className="app-region-drag flex min-w-0 flex-1 items-center gap-1 pr-1">
-								<span className="app-region-no-drag min-w-0 flex-1 truncate text-sm font-semibold tracking-tight text-sidebar-foreground group-data-[collapsible=icon]:hidden">
-									Fast
-								</span>
-								<Button
-						type="button"
-									variant="ghost"
-									size="icon-sm"
-									className="app-region-no-drag shrink-0 text-sidebar-foreground group-data-[collapsible=icon]:hidden"
-									onClick={() => setCommandPaletteOpen(true)}
-									aria-label={t('shell.sidebar.searchCommands')}
-									title={t('shell.sidebar.searchCommands')}
-								>
-									<Search />
-								</Button>
-							</div>
-						</div>
-						<div className="px-2 pt-1">
-						<SidebarMenu>
-							<SidebarMenuItem>
-								<SidebarMenuButton
-									disabled={!canCreateProjectTask}
-									onClick={() => void createNewTask()}
-									tooltip={t('shell.sidebar.newTask')}
-									className="text-sidebar-foreground"
-								>
-									<MessageSquarePlus />
-									<span>{t('shell.sidebar.newTask')}</span>
-								</SidebarMenuButton>
-							</SidebarMenuItem>
-							{SHOW_SIDEBAR_PLUGINS ? (
-								<SidebarMenuItem>
-									<SidebarMenuButton
-										disabled
-										tooltip={t('settings.navigation.plugins')}
-										className="text-sidebar-foreground disabled:opacity-100"
-									>
-										<Puzzle />
-										<span>{t('settings.navigation.plugins')}</span>
-									</SidebarMenuButton>
-								</SidebarMenuItem>
-							) : null}
-							{SHOW_SIDEBAR_TEAMS ? (
-								<SidebarMenuItem>
-									<SidebarMenuButton
-										tooltip="Teams"
-										className="text-sidebar-foreground"
-										onClick={() => {
-											setCenterMode('teams');
-											setOpenTeamsRequest({nonce: Date.now(), tab: 'teams'});
-										}}
-									>
-										<Users />
-										<span>Teams</span>
-									</SidebarMenuButton>
-								</SidebarMenuItem>
-							) : null}
-							<SidebarMenuItem>
-								<SidebarMenuButton
-									tooltip={t('shell.sidebar.scheduled')}
-									className="text-sidebar-foreground"
-									onClick={() => {
-										setRightRailOpen(true);
-										setOpenScheduledRequest({nonce: Date.now()});
-									}}
-								>
-									<Clock />
-									<span>{t('shell.sidebar.scheduled')}</span>
-								</SidebarMenuButton>
-							</SidebarMenuItem>
-						</SidebarMenu>
-				</div>
-					</SidebarHeader>
-
-					<SidebarContent>
-						<ErrorBoundary label={t('shell.boundary.projects')}>
-							<ProjectsSidebar
-								projects={projects}
-								projectTasks={projectTasks}
-								projectTasksHydrated={projectTasksHydrated}
-								defaultTasks={defaultTasks}
-								defaultTasksHydrated={defaultTasksHydrated}
-								activeTaskId={pressedTaskId ?? activeTaskId}
-								engineReady={engineReady}
-								onCreateDefaultTask={createNewTaskVoid}
-								onOpenTask={openTaskWithTab}
-								onDropOpenTabs={dropOpenTabs}
-							/>
-						</ErrorBoundary>
-					</SidebarContent>
-
-					<SidebarFooter className="gap-0 p-0 group-data-[collapsible=icon]:hidden">
-						<SidebarSeparator className="mx-0" />
-						<SidebarSystemDirectory
-							displayName="Local User"
-							edges={edges}
-							localePref={localePref}
-							onLocaleChange={setLocalePref}
-							onOpenSettings2={() => setSettings2Open(true)}
-							themeContent={
-								<ThemePicker
-									variant="sidebar"
-									paletteId={paletteId}
-									onPaletteChange={setPaletteId}
-								/>
-							}
-						/>
-					</SidebarFooter>
-				</Sidebar>
-
-				<SidebarInset className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-					{overlay.visible ? (
-						<div
-							data-slot="engine-overlay"
-							className="absolute inset-0 z-20 flex items-center justify-center bg-background/70 backdrop-blur-[2px]"
-							role="status"
-							aria-live="polite"
-							aria-label={
-								engineStatus === 'reconnecting'
-									? 'Engine reconnecting'
-									: 'Engine Error'
-							}
-						>
-							<div className="app-region-no-drag flex flex-col items-center gap-3 px-6 text-center">
-								<p className="text-sm font-medium text-foreground">
-									{engineStatus === 'reconnecting'
-										? 'Reconnecting to engine…'
-										: 'Engine Error'}
-								</p>
-								{engineError ? (
-									<p className="max-w-sm text-xs text-muted-foreground">{engineError}</p>
-								) : null}
-								{overlay.showRetry ? (
-									<Button
-										type="button"
-										size="sm"
-										variant="secondary"
-										onClick={() => void window.fastIde.retryEngine()}
-									>
-										Retry
-									</Button>
-								) : null}
-							</div>
-						</div>
-					) : null}
+		<AppChrome
+			dirtyPaths={dirtyPaths}
+			settingsOpen={settings2Open}
+			settings={{
+				paletteId,
+				onPaletteChange: setPaletteId,
+				localePref,
+				onLocaleChange: setLocalePref,
+				layout,
+				onLayoutChange: setLayout,
+				onBack: () => setSettings2Open(false),
+				engineReady,
+				engineStatus,
+				modelCatalog,
+				initialSection: settings2Section,
+				initialSuite: settings2Suite,
+				sessionId: focusSessionId ?? undefined
+			}}
+			sidebar={{
+				canCreateProjectTask,
+				onNewTask: () => void createNewTask(),
+				onOpenPalette: () => setCommandPaletteOpen(true),
+				onOpenScheduled: () => {
+					setRightRailOpen(true);
+					setOpenScheduledRequest({nonce: Date.now()});
+				},
+				onOpenTeams: () => {
+					setCenterMode('teams');
+					setOpenTeamsRequest({nonce: Date.now(), tab: 'teams'});
+				},
+				projects,
+				projectTasks,
+				projectTasksHydrated,
+				defaultTasks,
+				defaultTasksHydrated,
+				activeTaskId: pressedTaskId ?? activeTaskId,
+				engineReady,
+				onCreateDefaultTask: createNewTaskVoid,
+				onOpenTask: openTaskWithTab,
+				onDropOpenTabs: dropOpenTabs,
+				edges,
+				localePref,
+				onLocaleChange: setLocalePref,
+				onOpenSettings2: () => setSettings2Open(true),
+				paletteId,
+				onPaletteChange: setPaletteId
+			}}
+			overlay={{
+				visible: overlay.visible,
+				showRetry: overlay.showRetry,
+				engineStatus,
+				engineError,
+				onRetry: () => void window.fastIde.retryEngine()
+			}}
+			remoteFolderOpen={remoteFolderOpen}
+			onRemoteFolderOpenChange={setRemoteFolderOpen}
+			palette={
+				commandPaletteOpen
+					? {
+							open: commandPaletteOpen,
+							onOpenChange: setCommandPaletteOpen,
+							projects,
+							projectTasks,
+							chats,
+							activeTaskId,
+							onOpenTask: openTaskWithTab,
+							onDropOpenTabs: dropOpenTabs,
+							onOpenTeams: openTeams
+						}
+					: null
+			}
+			status={{
+				projectName: project ? projectDisplayName(project) : null,
+				engineStatus: engineStatus ?? project?.status ?? null,
+				engineError: engineError ?? project?.error ?? null,
+				git: statusGit,
+				modelDisplay: modelDisplay || null,
+				edges,
+				runState: gate.runState,
+				editorVisible: rightRailOpen,
+				onRetryEngine: retryEngine
+			}}
+			keep={
+				keepFlow.pending
+					? {
+							paths: keepFlow.pending,
+							busy: review.busy,
+							onCancel: keepFlow.cancel,
+							onConfirm: keepFlow.confirm
+						}
+					: null
+			}
+		>
 					<ResizablePanelGroup
 						orientation="horizontal"
 						className="min-h-0 flex-1"
@@ -887,45 +705,6 @@ export function App({store}: {store: WorkspaceStore}) {
 							</>
 						) : null}
 					</ResizablePanelGroup>
-				</SidebarInset>
-			</SidebarProvider>
-			<RemoteFolderDialog open={remoteFolderOpen} onOpenChange={setRemoteFolderOpen} />
-			{commandPaletteOpen ? (
-				<Suspense fallback={null}>
-					<CommandPalette
-						open={commandPaletteOpen}
-						onOpenChange={setCommandPaletteOpen}
-						projects={projects}
-						projectTasks={projectTasks}
-						chats={chats}
-						activeTaskId={activeTaskId}
-						onOpenTask={openTaskWithTab}
-						onDropOpenTabs={dropOpenTabs}
-						onOpenTeams={openTeams}
-					/>
-				</Suspense>
-			) : null}
-			<StatusBar
-				projectName={project ? projectDisplayName(project) : null}
-				engineStatus={engineStatus ?? project?.status ?? null}
-				engineError={engineError ?? project?.error ?? null}
-				git={statusGit}
-				modelDisplay={modelDisplay || null}
-				edges={edges}
-				runState={gate.runState}
-				editorVisible={rightRailOpen}
-				onRetryEngine={retryEngine}
-			/>
-			{keepFlow.pending ? (
-				<KeepConfirm
-					paths={keepFlow.pending}
-					busy={review.busy}
-					onCancel={keepFlow.cancel}
-					onConfirm={keepFlow.confirm}
-				/>
-			) : null}
-			</div>
-		</TooltipProvider>
-		</ReviewDirtyPaths.Provider>
+		</AppChrome>
 	);
 }
