@@ -6,6 +6,7 @@ import type {BridgeEvent} from '@fastllm/bridge-protocol';
 import type {ComposerGate} from '../composerGate.js';
 import type {
 	ChildTranscriptView,
+	CompactingView,
 	ContextInjectionView,
 	ContextPruneView,
 	GoalFlowView,
@@ -246,6 +247,8 @@ export type TasksSnapshot = TasksMeta & {
 	transcript: TranscriptEntry[];
 	usage?: UsageView | null;
 	contextPrunes?: ContextPruneView[];
+	/** Stage-B compaction in flight (null/absent when none). */
+	compacting?: CompactingView | null;
 	childTranscripts?: Record<string, ChildTranscriptView>;
 	approvals: PendingApproval[];
 	questions: PendingQuestion[];
@@ -269,6 +272,8 @@ export type TranscriptPatch = {
 	entries: TranscriptEntry[];
 	usage?: UsageView | null;
 	contextPrunes?: ContextPruneView[];
+	/** Stage-B compaction in flight (null/absent when none). */
+	compacting?: CompactingView | null;
 	childTranscripts?: Record<string, ChildTranscriptView>;
 	approvals: PendingApproval[];
 	questions: PendingQuestion[];
@@ -302,6 +307,8 @@ export type TranscriptTailPatch = {
 	entries: TranscriptEntry[];
 	usage?: UsageView | null;
 	contextPrunes?: ContextPruneView[];
+	/** Stage-B compaction in flight (null/absent when none). */
+	compacting?: CompactingView | null;
 	childTranscripts?: Record<string, ChildTranscriptView>;
 	gate: ComposerGate;
 	approvals?: PendingApproval[];
@@ -371,6 +378,8 @@ export type WorkspaceFocus = {
 	transcript?: TranscriptEntry[];
 	usage?: UsageView | null;
 	contextPrunes?: ContextPruneView[];
+	/** Stage-B compaction in flight (null/absent when none). */
+	compacting?: CompactingView | null;
 	childTranscripts?: Record<string, ChildTranscriptView>;
 	superseded?: Record<string, string>;
 	approvals?: PendingApproval[];

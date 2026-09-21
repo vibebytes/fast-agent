@@ -19,7 +19,7 @@ import {
 	type DiffLine
 } from './diff.js';
 import type {PlanTodoView, PlanView} from './plan.js';
-import {fileOp, thoughtChromeFrom, type FileOp, type ThoughtChrome} from './chrome.js';
+import {COMPACTION_WAIT_REASON, fileOp, thoughtChromeFrom, type FileOp, type ThoughtChrome} from './chrome.js';
 import {normalizeToolOutput} from './toolOutput.js';
 
 export type {FileOp, NetworkWait, ThoughtChrome} from './chrome.js';
@@ -609,6 +609,22 @@ function pushAssistantItems(
 				...runId
 			});
 		}
+	}
+
+	// Compaction blocks the turn between tool rounds, when the entry already has segments /
+	// text and no open thought — give the wait its own open row so it is visible anyway.
+	if (
+		entry.status === 'streaming' &&
+		wait?.reason === COMPACTION_WAIT_REASON &&
+		!items.some(i => i.kind === 'thought' && i.open)
+	) {
+		items.push({
+			kind: 'thought',
+			id: `${entry.id}-compacting`,
+			text: '',
+			chrome: thoughtChromeFrom('', {open: true, wait}),
+			open: true
+		});
 	}
 
 	if (entry.status === 'cancelled') {

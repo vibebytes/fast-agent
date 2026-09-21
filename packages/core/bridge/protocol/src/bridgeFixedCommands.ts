@@ -13,6 +13,8 @@
 export const BRIDGE_FIXED_COMMAND_NAMES = [
 	'agents',
 	'clear',
+	'compact',
+	'compress',
 	'confirm-goal',
 	'confirmgoal',
 	'context',

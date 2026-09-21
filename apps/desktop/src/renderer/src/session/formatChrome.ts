@@ -1,4 +1,4 @@
-import type {FileOp, ThoughtChrome} from '@fast-ide/session-view';
+import {COMPACTION_WAIT_REASON, type FileOp, type ThoughtChrome} from '@fast-ide/session-view';
 import type {TFunction} from 'i18next';
 
 export function formatThoughtChrome(chrome: ThoughtChrome, t: TFunction): string {
@@ -19,6 +19,7 @@ export function formatThoughtChrome(chrome: ThoughtChrome, t: TFunction): string
 				});
 			}
 			if (chrome.phase === 'retrying') return t('session.network.reconnecting');
+			if (chrome.reason === COMPACTION_WAIT_REASON) return t('session.network.compacting');
 			return t('session.network.waiting');
 	}
 }

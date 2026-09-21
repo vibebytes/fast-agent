@@ -12,7 +12,7 @@ import {
 	type ReactNode
 } from 'react';
 import {
-	contextPruneNotice,
+	compactionNotice,
 	createSessionViewProjector,
 	placeGoalFlow,
 	regenUserIdOf,
@@ -250,7 +250,7 @@ export const SessionPane = memo(function SessionPane({
 		[transcript, dshCaps]
 	);
 	const pruneNotice = useMemo(
-		() => contextPruneNotice(transcript, dshCaps?.delta),
+		() => compactionNotice(transcript, dshCaps?.delta),
 		[transcript, dshCaps]
 	);
 	const [errorLine, setErrorLine] = useState<string | null>(null);
@@ -951,9 +951,19 @@ export const SessionPane = memo(function SessionPane({
 			{pruneNotice ? (
 				<div
 					data-slot="context-prune-notice"
-					className="mb-4 rounded-lg border border-border/60 bg-muted/40 px-3 py-2 text-xs text-muted-foreground"
+					data-phase={pruneNotice.phase}
+					className="mb-4 flex items-center gap-2 rounded-lg border border-border/60 bg-muted/40 px-3 py-2 text-xs text-muted-foreground"
 				>
-					{pruneNotice.text}
+					{pruneNotice.phase === 'running' ? (
+						<span
+							aria-hidden
+							className="inline-block size-3 shrink-0 animate-spin rounded-full border-2 border-current border-t-transparent"
+						/>
+					) : null}
+					<span>{pruneNotice.text}</span>
+					{pruneNotice.phase === 'done' && pruneNotice.durationMs !== undefined ? (
+						<span className="ml-auto tabular-nums opacity-70">{Math.round(pruneNotice.durationMs / 1000)}s</span>
+					) : null}
 				</div>
 			) : null}
 			{regenRejected && regenRejected.taskId === activeTaskId ? (

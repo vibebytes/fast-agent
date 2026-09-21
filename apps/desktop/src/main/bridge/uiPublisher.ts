@@ -249,6 +249,7 @@ export function createUiPublisher(deps: UiPublisherDeps) {
 			transcript: active?.transcript.entries ?? [],
 			usage: active?.transcript.usage ?? null,
 			contextPrunes: active?.transcript.contextPrunes ?? [],
+			compacting: active?.transcript.compacting ?? null,
 			childTranscripts: active?.transcript.childTranscripts ?? {},
 			approvals: active?.transcript.approvals ?? [],
 			questions: active?.transcript.questions ?? [],
@@ -285,6 +286,7 @@ export function createUiPublisher(deps: UiPublisherDeps) {
 			entries: active.transcript.entries,
 			usage: active.transcript.usage ?? null,
 			contextPrunes: active.transcript.contextPrunes ?? EMPTY_PRUNES,
+			compacting: active.transcript.compacting ?? null,
 			childTranscripts: active.transcript.childTranscripts ?? EMPTY_CHILDREN,
 			approvals: active.transcript.approvals,
 			questions: active.transcript.questions,
@@ -358,6 +360,7 @@ export function createUiPublisher(deps: UiPublisherDeps) {
 			gate: patch.gate,
 			...(patch.usage !== prev.usage ? {usage: patch.usage} : {}),
 			...(patch.contextPrunes !== prev.contextPrunes ? {contextPrunes: patch.contextPrunes} : {}),
+			...(patch.compacting !== prev.compacting ? {compacting: patch.compacting} : {}),
 			...(patch.childTranscripts !== prev.childTranscripts
 				? {childTranscripts: patch.childTranscripts}
 				: {}),
@@ -379,6 +382,7 @@ export function createUiPublisher(deps: UiPublisherDeps) {
 		const sectionsChanged =
 			tail.usage !== undefined ||
 			tail.contextPrunes !== undefined ||
+			tail.compacting !== undefined ||
 			tail.childTranscripts !== undefined ||
 			tail.approvals !== undefined ||
 			tail.questions !== undefined ||

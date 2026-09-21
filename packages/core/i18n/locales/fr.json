@@ -1569,6 +1569,7 @@
     },
     "network": {
       "waiting": "En attente du réseau",
+      "compacting": "Compression du contexte",
       "reconnecting": "Reconnexion",
       "reconnectingProgress": "Reconnexion ({{attempt}}/{{maxAttempts}})"
     },

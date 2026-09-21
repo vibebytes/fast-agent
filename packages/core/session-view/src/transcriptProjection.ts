@@ -4,6 +4,7 @@ import {entryMatchesKey} from './turnIdentity.js';
 import {applyContextInjected} from './transcript/context.js';
 import {
 	applyChildTranscriptDelta,
+	applyContextCompacting,
 	applyContextPruned,
 	applyGoalDelta,
 	applyUsageReported
@@ -67,6 +68,7 @@ export {
 } from './transcript/state.js';
 export type {
 	ChildTranscriptView,
+	CompactingView,
 	ContextInjectionView,
 	ContextPruneView,
 	EntrySegment,
@@ -155,6 +157,8 @@ export function applyBridgeEvent(state: TranscriptState, event: BridgeEvent): Tr
 			return applyUsageReported(state, event);
 		case 'context_pruned':
 			return applyContextPruned(state, event);
+		case 'context_compacting':
+			return applyContextCompacting(state, event);
 		case 'child_transcript_delta':
 			return applyChildTranscriptDelta(state, event);
 		case 'goal_delta':

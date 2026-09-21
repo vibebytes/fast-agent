@@ -5,14 +5,25 @@ export type ThoughtChrome =
 	| {kind: 'brief'}
 	| {kind: 'done'}
 	| {kind: 'duration'; seconds: number}
-	| {kind: 'network'; phase: 'waiting' | 'retrying'; attempt?: number; maxAttempts?: number};
+	| {
+			kind: 'network';
+			phase: 'waiting' | 'retrying';
+			attempt?: number;
+			maxAttempts?: number;
+			/** Server-side reason; `context_compaction` = a Stage-B summary call is blocking the turn. */
+			reason?: string;
+	  };
 
 export type FileOp = 'edit' | 'write' | 'diff';
+
+/** `llm_network_wait.reason` sent while the agent summarises its own context. */
+export const COMPACTION_WAIT_REASON = 'context_compaction';
 
 export type NetworkWait = {
 	phase: 'retrying' | 'waiting';
 	attempt?: number;
 	maxAttempts?: number;
+	reason?: string;
 };
 
 /**
@@ -25,6 +36,7 @@ const en = {
 	'session.thought.done': 'Thought',
 	'session.thought.duration': (seconds: number) => `Thought for ${seconds}s`,
 	'session.network.waiting': 'Waiting for network',
+	'session.network.compacting': 'Compacting context',
 	'session.network.reconnecting': 'Reconnecting',
 	'session.network.reconnectingProgress': (attempt: number, maxAttempts: number) =>
 		`Reconnecting (${attempt}/${maxAttempts})`,
@@ -47,7 +59,8 @@ export function thoughtChromeFrom(
 			kind: 'network',
 			phase: opts.wait.phase,
 			attempt: opts.wait.attempt,
-			maxAttempts: opts.wait.maxAttempts
+			maxAttempts: opts.wait.maxAttempts,
+			...(opts.wait.reason ? {reason: opts.wait.reason} : {})
 		};
 	}
 	if (opts.open) return {kind: 'open'};
@@ -83,6 +96,7 @@ export function formatThoughtChromeEn(chrome: ThoughtChrome): string {
 				return en['session.network.reconnectingProgress'](chrome.attempt, chrome.maxAttempts);
 			}
 			if (chrome.phase === 'retrying') return en['session.network.reconnecting'];
+			if (chrome.reason === COMPACTION_WAIT_REASON) return en['session.network.compacting'];
 			return en['session.network.waiting'];
 	}
 }
@@ -101,6 +115,7 @@ export function networkWaitLabel(wait?: NetworkWait): string | undefined {
 		kind: 'network',
 		phase: wait.phase,
 		attempt: wait.attempt,
-		maxAttempts: wait.maxAttempts
+		maxAttempts: wait.maxAttempts,
+		reason: wait.reason
 	});
 }

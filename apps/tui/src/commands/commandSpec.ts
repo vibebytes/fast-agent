@@ -39,7 +39,7 @@ export const COMMAND_SPECS: CommandSpec[] = [
 	{name: 'resume', owner: 'hybrid', availability: 'ready', description: 'Resume a saved session', usage: '/resume [latest|<id>]'},
 	{name: 'usage', owner: 'engine', availability: 'ready', description: 'Show token usage', usage: '/usage'},
 	{name: 'rule', owner: 'engine', availability: 'ready', description: 'Manage long-term project rules', usage: '/rule add <text> | /rule list | /rule remove <id>'},
-	{name: 'compact', owner: 'engine', availability: 'ready', description: 'Compress conversation context', usage: '/compact', aliases: ['compress']},
+	{name: 'compact', owner: 'engine', availability: 'ready', description: 'Compress conversation context (optional focus text tells the summary what to keep)', usage: '/compact [focus]', aliases: ['compress']},
 	{name: 'context', owner: 'engine', availability: 'ready', description: 'Inspect current context state', usage: '/context', aliases: ['ctx']},
 	{name: 'copy', owner: 'engine', availability: 'ready', description: 'Copy last response', usage: '/copy'},
 	{name: 'undo', owner: 'hybrid', availability: 'ready', description: 'Undo last exchange', usage: '/undo'},

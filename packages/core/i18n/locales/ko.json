@@ -1569,6 +1569,7 @@
     },
     "network": {
       "waiting": "네트워크 대기 중",
+      "compacting": "컨텍스트 압축 중",
       "reconnecting": "다시 연결 중",
       "reconnectingProgress": "다시 연결 중 ({{attempt}}/{{maxAttempts}})"
     },

@@ -48,6 +48,7 @@ export const PERSIST_RIVER_TYPES = new Set([
 	'dsh_goal_changed',
 	'usage_reported',
 	'child_transcript_delta',
+	'context_compacting',
 	'context_pruned',
 	'goal_delta'
 ]);
@@ -95,6 +96,7 @@ const LIVE_CALLBACK_TYPES = new Set([
 	// Incremental rivers (§1.2): UI-only visibility, snapshot is authoritative.
 	'usage_reported',
 	'child_transcript_delta',
+	'context_compacting',
 	'context_pruned',
 	'goal_delta',
 	'run_state'

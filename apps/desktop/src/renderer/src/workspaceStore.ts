@@ -31,6 +31,7 @@ import type {
 	DshGoalView,
 	SlashCatalogEntry,
 	ChildTranscriptView,
+	CompactingView,
 	ContextPruneView,
 	UsageView,
 	TaskSummary,
@@ -51,6 +52,8 @@ export type TranscriptSlice = {
 	usage?: UsageView;
 	/** Context prune boundary rows (older pruned turns are hidden). */
 	contextPrunes?: ContextPruneView[];
+	/** Stage-B compaction in flight for the active run. */
+	compacting?: CompactingView;
 	/** Child loop transcripts keyed by child call id. */
 	childTranscripts?: Record<string, ChildTranscriptView>;
 	approvals: PendingApproval[];
@@ -560,6 +563,7 @@ export function reduceWorkspace(state: WorkspaceState, event: WorkspaceEvent): W
 						entries: snap.transcript,
 						usage: snap.usage ?? undefined,
 						contextPrunes: snap.contextPrunes ?? [],
+						compacting: snap.compacting ?? undefined,
 						childTranscripts: snap.childTranscripts ?? {},
 						approvals: snap.approvals,
 						questions: snap.questions,
@@ -595,6 +599,7 @@ export function reduceWorkspace(state: WorkspaceState, event: WorkspaceEvent): W
 					entries: payload.entries,
 					usage: payload.usage ?? undefined,
 					contextPrunes: payload.contextPrunes ?? [],
+					compacting: payload.compacting ?? undefined,
 					childTranscripts: payload.childTranscripts ?? {},
 					approvals: payload.approvals,
 					questions: payload.questions,
@@ -635,6 +640,7 @@ export function reduceWorkspace(state: WorkspaceState, event: WorkspaceEvent): W
 				entries,
 				usage: payload.usage ?? existing.usage ?? undefined,
 				contextPrunes: payload.contextPrunes ?? existing.contextPrunes ?? [],
+				compacting: payload.compacting === undefined ? existing.compacting : (payload.compacting ?? undefined),
 				childTranscripts: payload.childTranscripts ?? existing.childTranscripts ?? {},
 				approvals: payload.approvals ?? existing.approvals,
 				questions: payload.questions ?? existing.questions,
@@ -739,6 +745,7 @@ export function reduceWorkspace(state: WorkspaceState, event: WorkspaceEvent): W
 						entries: p.transcript,
 						usage: p.usage ?? undefined,
 						contextPrunes: p.contextPrunes ?? [],
+						compacting: p.compacting ?? undefined,
 						childTranscripts: p.childTranscripts ?? {},
 						approvals: p.approvals ?? [],
 						questions: p.questions ?? [],

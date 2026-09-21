@@ -1569,6 +1569,7 @@
     },
     "network": {
       "waiting": "等待網路",
+      "compacting": "正在壓縮上下文",
       "reconnecting": "重新連線中",
       "reconnectingProgress": "重新連線中（{{attempt}}/{{maxAttempts}}）"
     },

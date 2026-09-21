@@ -35,6 +35,30 @@ test('reducer appends user and streaming assistant messages', () => {
 	assert.equal(assistantText(state), 'hi there');
 });
 
+test('reducer surfaces a compaction result as a system line; plain window trims stay quiet', () => {
+	let state = reducer(initialState, {type: 'submit_user', text: 'hello', clientMessageId: 'client_1'});
+	state = reducer(state, {type: 'engine_event', event: {type: 'input_accepted', clientMessageId: 'client_1', turnId: 'turn_1'}});
+	state = reducer(state, {type: 'engine_event', event: {type: 'assistant_delta', turnId: 'turn_1', text: 'hi'}});
+	state = reducer(state, {type: 'engine_event', event: {type: 'context_compacting', runId: 'turn_1', trigger: 'threshold', tokensBefore: 120_000}});
+	assert.equal(state.transcript.compacting?.runId, 'turn_1');
+	const before = lastLocalTurn(state)?.systemMessages.length ?? 0;
+	state = reducer(state, {type: 'engine_event', event: {
+		type: 'context_pruned', runId: 'turn_1', prunedIds: [], reason: 'summary', remainingTokens: 48_000, durationMs: 30_000
+	}});
+	assert.equal(state.transcript.compacting, undefined);
+	const line = lastLocalTurn(state)?.systemMessages.at(-1);
+	assert.equal(line?.role, 'system');
+	assert.equal(line?.text, '历史上下文已压缩为摘要（120k → 48k）');
+	// A bare window trim (no compaction reason) adds nothing.
+	state = reducer(state, {type: 'engine_event', event: {type: 'context_pruned', runId: 'turn_1', prunedIds: ['m1'], reason: 'window'}});
+	assert.equal(lastLocalTurn(state)?.systemMessages.length, (before || 0) + 1);
+	// A replayed copy of an already-applied prune (same eventSeq) does not add a second line.
+	state = reducer(state, {type: 'engine_event', event: {type: 'context_pruned', runId: 'turn_1', prunedIds: [], reason: 'summary', eventSeq: 7}});
+	const afterFirst = lastLocalTurn(state)?.systemMessages.length ?? 0;
+	state = reducer(state, {type: 'engine_event', event: {type: 'context_pruned', runId: 'turn_1', prunedIds: [], reason: 'summary', eventSeq: 7}});
+	assert.equal(lastLocalTurn(state)?.systemMessages.length, afterFirst);
+});
+
 test('reducer captures llm_request snapshots', () => {
 	const state = reducer(initialState, {type: 'engine_event', event: {
 		type: 'llm_request',

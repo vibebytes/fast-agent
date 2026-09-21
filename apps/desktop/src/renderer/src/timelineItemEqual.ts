@@ -5,7 +5,10 @@ function thoughtChromeEqual(a: ThoughtChrome, b: ThoughtChrome): boolean {
 	if (a.kind === 'duration' && b.kind === 'duration') return a.seconds === b.seconds;
 	if (a.kind === 'network' && b.kind === 'network') {
 		return (
-			a.phase === b.phase && a.attempt === b.attempt && a.maxAttempts === b.maxAttempts
+			a.phase === b.phase &&
+			a.attempt === b.attempt &&
+			a.maxAttempts === b.maxAttempts &&
+			a.reason === b.reason
 		);
 	}
 	return true;

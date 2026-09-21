@@ -3,6 +3,7 @@ import {
 	applyLocalCancel,
 	chromeAwaitingSettlement,
 	chromePostRun,
+	contextPruneText,
 	createTranscriptState,
 	runChromeTransition,
 	type TranscriptEntry,
@@ -1032,10 +1033,22 @@ function applyEvent(state: UiState, event: BridgeEvent): UiState {
 		}
 		case 'error':
 			return {...withTranscript, errors: [...state.errors, event.message], status: 'error'};
+		case 'context_pruned': {
+			// Compaction result as a visible system line (the running phase rides the streaming
+			// answer's wait chrome via session-view). Pure window trims stay quiet, and so does a
+			// replayed event session-view already deduplicated (notice list unchanged by reference).
+			const notices = withTranscript.transcript.contextPrunes;
+			const appended = notices !== state.transcript.contextPrunes ? notices?.at(-1) : undefined;
+			return appended && COMPACTION_REASONS.has(appended.reason)
+				? pushLocalSystem(withTranscript, {id: nextId('system'), role: 'system', text: contextPruneText(appended)})
+				: withTranscript;
+		}
 		default:
 			return withTranscript;
 	}
 }
+
+const COMPACTION_REASONS = new Set(['summary', 'summary-fallback', 'summary-breaker', 'compaction', 'nothing-to-compact']);
 
 function seedOptimisticTurn(transcript: TranscriptState, text: string, clientMessageId: string): TranscriptState {
 	return {

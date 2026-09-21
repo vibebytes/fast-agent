@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
+	COMPACTION_WAIT_REASON,
 	formatThoughtChromeEn,
 	networkWaitLabel,
 	thoughtChromeFrom
@@ -66,6 +67,33 @@ test('llm_network_wait sets waitState on streaming assistant and clears on first
 	state = applyBridgeEvent(state, {type: 'assistant_delta', turnId: 'run_1', text: 'hi'});
 	const after = state.entries.find(e => e.role === 'assistant');
 	assert.equal(after!.waitState, undefined);
+});
+
+test('llm_network_wait with reason=context_compaction labels the wait as compaction', () => {
+	assert.equal(
+		networkWaitLabel({phase: 'waiting', reason: COMPACTION_WAIT_REASON}),
+		'Compacting context'
+	);
+	let state = createTranscriptState();
+	state = applyBridgeEvent(state, {type: 'turn_started', turnId: 'run_1'});
+	state = applyBridgeEvent(state, {
+		type: 'llm_network_wait',
+		runId: 'run_1',
+		phase: 'waiting',
+		reason: COMPACTION_WAIT_REASON
+	});
+	const thought = toTimelineItems(state).find(i => i.kind === 'thought' && i.open);
+	assert.ok(thought && thought.kind === 'thought');
+	assert.deepEqual(thought.chrome, {
+		kind: 'network',
+		phase: 'waiting',
+		attempt: undefined,
+		maxAttempts: undefined,
+		reason: COMPACTION_WAIT_REASON
+	});
+	assert.equal(formatThoughtChromeEn(thought.chrome), 'Compacting context');
+	state = applyBridgeEvent(state, {type: 'llm_network_wait', runId: 'run_1', phase: 'cleared'});
+	assert.equal(state.entries.find(e => e.role === 'assistant')!.waitState, undefined);
 });
 
 test('llm_network_wait ignored on finished assistant (live-only)', () => {

@@ -6,6 +6,8 @@ import {BRIDGE_FIXED_COMMAND_NAMES, isBridgeFixedCommand} from './bridgeFixedCom
 const EXPECTED_SORTED = [
 	'agents',
 	'clear',
+	'compact',
+	'compress',
 	'confirm-goal',
 	'confirmgoal',
 	'context',

@@ -103,12 +103,22 @@ export const sessionSettleSchemas = [
 		payloadJson: z.string(),
 		sessionId: z.string().optional()
 	}),
+	/** Stage-B compaction started; the run is blocked on a summary call. Closed by `context_pruned`. */
+	z.object({
+		type: z.literal('context_compacting'),
+		runId: z.string(),
+		trigger: z.string().optional(),
+		tokensBefore: z.number().optional(),
+		sessionId: z.string().optional()
+	}),
 	z.object({
 		type: z.literal('context_pruned'),
 		runId: z.string(),
 		prunedIds: z.array(z.string()),
 		remainingTokens: z.number().optional(),
 		reason: z.string(),
+		tokensBefore: z.number().optional(),
+		durationMs: z.number().optional(),
 		sessionId: z.string().optional()
 	}),
 	z.object({

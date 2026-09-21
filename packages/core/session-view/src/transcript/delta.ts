@@ -1,13 +1,17 @@
 import type {BridgeEvent} from '@fastllm/bridge-protocol';
 import type {
 	ChildTranscriptView,
+	CompactingView,
 	ContextPruneView,
 	GoalFlowMember,
+	TranscriptEntry,
 	TranscriptState,
 	UsageView
 } from './state.js';
 import type {DshDeltaCaps} from '../wire/session.js';
+import {COMPACTION_WAIT_REASON} from '../chrome.js';
 import {sameRunId} from '../turnIdentity.js';
+import {patchAssistant} from './entry.js';
 
 /** Cap on retained child transcript tail per child session (chars). */
 export const CHILD_TRANSCRIPT_MAX = 4000;
@@ -18,6 +22,7 @@ const DELTA_CAP_BY_TYPE: Record<string, keyof DshDeltaCaps> = {
 	usage_reported: 'usage',
 	child_transcript_delta: 'childTranscript',
 	context_pruned: 'contextPrune',
+	context_compacting: 'contextPrune',
 	goal_delta: 'goalDelta'
 };
 
@@ -119,14 +124,61 @@ export function applyContextPruned(
 	if (eventSeq !== undefined && prev.some(item =>
 		item.runId === runId && item.eventSeq !== undefined && item.eventSeq >= eventSeq
 	)) return state;
+	const finite = (v: unknown): number | undefined =>
+		typeof v === 'number' && Number.isFinite(v) ? v : undefined;
+	const tokensBefore = finite(event.tokensBefore) ?? state.compacting?.tokensBefore;
+	const durationMs = finite(event.durationMs);
 	const notice: ContextPruneView = {
 		runId,
 		prunedIds,
 		reason: typeof event.reason === 'string' ? event.reason : '',
 		...(eventSeq !== undefined ? {eventSeq} : {}),
-		...(remaining !== undefined ? {remainingTokens: remaining} : {})
+		...(remaining !== undefined ? {remainingTokens: remaining} : {}),
+		...(tokensBefore !== undefined ? {tokensBefore} : {}),
+		...(durationMs !== undefined ? {durationMs} : {})
 	};
-	return {...state, contextPrunes: [...prev, notice].slice(-CONTEXT_PRUNE_MAX)};
+	// The prune closes this run's running state and the wait chrome it put on the streaming answer.
+	const {compacting: running, ...rest} = state;
+	const base = running && !sameRunId(running.runId, runId) ? state : rest;
+	const closed = patchAssistant(base, runId, entry =>
+		entry.waitState?.reason === COMPACTION_WAIT_REASON ? withoutWait(entry) : entry
+	);
+	return {...closed, contextPrunes: [...prev, notice].slice(-CONTEXT_PRUNE_MAX)};
+}
+
+/**
+ * `context_compacting`: the run is blocked on a Stage-B summary call. Recorded as the
+ * run-level `compacting` state (banner / status surfaces) and, while an answer is still
+ * streaming, as wait chrome on that entry — the same slot network waits use, so every
+ * host that shows "Waiting for network" shows "Compacting context" with no extra wiring.
+ */
+export function applyContextCompacting(
+	state: TranscriptState,
+	event: Extract<BridgeEvent, {type: 'context_compacting'}>
+): TranscriptState {
+	const runId = typeof event.runId === 'string' ? event.runId.trim() : '';
+	if (!runId) return state;
+	const tokensBefore =
+		typeof event.tokensBefore === 'number' && Number.isFinite(event.tokensBefore)
+			? event.tokensBefore
+			: undefined;
+	const compacting: CompactingView = {
+		runId,
+		trigger: typeof event.trigger === 'string' ? event.trigger : '',
+		startedAt: Date.now(),
+		...(tokensBefore !== undefined ? {tokensBefore} : {})
+	};
+	const withState = {...state, compacting};
+	return patchAssistant(withState, runId, entry =>
+		entry.status === 'streaming'
+			? {...entry, waitState: {phase: 'waiting', reason: COMPACTION_WAIT_REASON}}
+			: entry
+	);
+}
+
+function withoutWait(entry: TranscriptEntry): TranscriptEntry {
+	const {waitState: _removed, ...rest} = entry;
+	return rest;
 }
 
 export function applyChildTranscriptDelta(

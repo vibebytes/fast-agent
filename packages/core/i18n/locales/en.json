@@ -1615,6 +1615,7 @@
     },
     "network": {
       "waiting": "Waiting for network",
+      "compacting": "Compacting context",
       "reconnecting": "Reconnecting",
       "reconnectingProgress": "Reconnecting ({{attempt}}/{{maxAttempts}})"
     },

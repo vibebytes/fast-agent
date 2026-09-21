@@ -7,6 +7,7 @@ import {
 	entryTurnIdIs,
 	isGoalNoticeId,
 	isScheduledId,
+	sameRunId,
 	sameTurn,
 	serverRunIdOf
 } from '../turnIdentity.js';
@@ -14,9 +15,10 @@ import {patchAssistant, sealOpenThinking, sealStreamingAsDone} from './entry.js'
 import type {TranscriptEntry, TranscriptState} from './state.js';
 
 /** Per-run delta views (usage / prune notices) must not leak into the next turn. */
-const freshRunDeltas: Pick<TranscriptState, 'usage' | 'contextPrunes'> = {
+const freshRunDeltas: Pick<TranscriptState, 'usage' | 'contextPrunes' | 'compacting'> = {
 	usage: undefined,
-	contextPrunes: undefined
+	contextPrunes: undefined,
+	compacting: undefined
 };
 
 /** Opener belongs to a Turn the transcript already shows — by id, or by repeating
@@ -327,9 +329,11 @@ export function applyTurnFinished(
 	event: Extract<BridgeEvent, {type: 'turn_finished'}>
 ): TranscriptState {
 	const finishesActive = finishesActiveRun(state, event.turnId);
+	// A compaction that never got its context_pruned (run died) must not keep spinning.
+	const {compacting: _c, ...withoutCompacting} = state;
 	const patched = patchAssistant(
 		{
-			...state,
+			...(state.compacting && sameRunId(state.compacting.runId, event.turnId) ? withoutCompacting : state),
 			chrome: runChromeTransition(
 				state.chrome,
 				finishesActive

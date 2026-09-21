@@ -218,6 +218,20 @@ export type ContextPruneView = {
 	prunedIds: string[];
 	reason: string;
 	remainingTokens?: number;
+	/** Estimate before the cut; with `remainingTokens` gives the "before → after" line. */
+	tokensBefore?: number;
+	/** Wall time of the summary call this prune closed, when one ran. */
+	durationMs?: number;
+};
+
+/** `context_compacting` in flight for a run — cleared by the matching `context_pruned`. */
+export type CompactingView = {
+	runId: string;
+	/** threshold | manual | overflow | run-end */
+	trigger: string;
+	/** Client clock when the event arrived (elapsed display). */
+	startedAt: number;
+	tokensBefore?: number;
 };
 
 /** Rolling child transcript tail from `child_transcript_delta` (per child session). */
@@ -326,6 +340,8 @@ export type TranscriptState = {
 	usage?: UsageView;
 	/** `context_pruned` notices for the active run (window-trim banner). */
 	contextPrunes?: ContextPruneView[];
+	/** Stage-B compaction currently blocking the active run (banner / status). */
+	compacting?: CompactingView;
 	/** Per-child rolling transcript tails from `child_transcript_delta`. */
 	childTranscripts?: Record<string, ChildTranscriptView>;
 };

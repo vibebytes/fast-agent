@@ -1569,6 +1569,7 @@
     },
     "network": {
       "waiting": "Ожидание сети",
+      "compacting": "Сжатие контекста",
       "reconnecting": "Переподключение",
       "reconnectingProgress": "Переподключение ({{attempt}}/{{maxAttempts}})"
     },

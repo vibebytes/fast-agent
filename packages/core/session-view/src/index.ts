@@ -120,6 +120,7 @@ export {
 	oldestLoadedTurnId,
 	type EntrySegment,
 	type ChildTranscriptView,
+	type CompactingView,
 	type ContextPruneView,
 	type GoalFlowMember,
 	type GoalFlowView,
@@ -142,8 +143,12 @@ export {
 
 export {
 	childTranscriptText,
+	compactionNotice,
 	contextPruneNotice,
+	contextPruneText,
+	tokenSpan,
 	usageFooter,
+	type CompactionNotice,
 	type UsageBucketRow,
 	type UsageFooterView
 } from './transcript/usage.js';
@@ -151,6 +156,7 @@ export {
 export {deltaEventAllowed} from './transcript/delta.js';
 
 export {
+	COMPACTION_WAIT_REASON,
 	fileOp,
 	formatFileOpEn,
 	formatThoughtChromeEn,
