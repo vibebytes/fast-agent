@@ -5,9 +5,12 @@ import {fileURLToPath} from 'node:url';
 import test from 'node:test';
 
 const dir = dirname(fileURLToPath(import.meta.url));
+const pane = [
+	readFileSync(join(dir, 'SessionPane.tsx'), 'utf8'),
+	readFileSync(join(dir, 'paneEffects.tsx'), 'utf8')
+].join('\n');
 
 test('awaiting_confirm is chat history — GoalCardPanel is not the confirm gate', () => {
-	const pane = readFileSync(join(dir, 'SessionPane.tsx'), 'utf8');
 	assert.equal(
 		pane.includes('GoalCardPanel'),
 		false,
@@ -16,7 +19,6 @@ test('awaiting_confirm is chat history — GoalCardPanel is not the confirm gate
 });
 
 test('awaiting_confirm does not light composer Stop (unconfirmed plan is not a running Goal)', () => {
-	const pane = readFileSync(join(dir, 'SessionPane.tsx'), 'utf8');
 	assert.equal(
 		/STOPPABLE_GOAL_PHASES = new Set\(\[[^\]]*awaiting_confirm/.test(pane),
 		false,
@@ -25,7 +27,6 @@ test('awaiting_confirm does not light composer Stop (unconfirmed plan is not a r
 });
 
 test('timeout retry is ErrorCard; regenerate click is not a silent no-op', () => {
-	const pane = readFileSync(join(dir, 'SessionPane.tsx'), 'utf8');
 	assert.equal(
 		pane.includes('regenUserIdOf'),
 		true,
