@@ -19,6 +19,30 @@ import {
 	settleReadyEngines
 } from './kit.js';
 
+function changesAck(
+	commands: BridgeCommand[],
+	pathHash: string,
+	review: Record<string, unknown>,
+	extra?: {message?: string; status?: string; workspaceId?: string}
+): BridgeEvent {
+	const matches = commands.filter(c => c.type === 'ListReviewChanges') as Array<{
+		requestId?: string;
+		workspaceId?: string;
+	}>;
+	const sent = extra?.workspaceId
+		? matches.find(c => c.workspaceId === extra.workspaceId)
+		: matches[matches.length - 1];
+	return {
+		type: 'command_result',
+		name: 'ListReviewChanges',
+		message: extra?.message ?? 'ok',
+		status: extra?.status ?? 'success',
+		pathHash,
+		requestId: sent?.requestId,
+		review
+	} as unknown as BridgeEvent;
+}
+
 test('review_changed routes by pathHash to the owning Project, not the focused one', async () => {
 	const commands: BridgeCommand[] = [];
 	let bridge: FakeBridge | null = null;
@@ -97,34 +121,32 @@ test('review answers are matched by checkout, so two Projects cannot cross', asy
 	await new Promise(r => setTimeout(r, 20));
 	assert.equal(commands.filter(c => c.type === 'ListReviewChanges').length, 2);
 
-	// Answer B's first: without hash matching, A's waiter is older and would swallow it.
-	bridge!.__inject({
-		type: 'command_result',
-		name: 'ListReviewChanges',
-		message: '1 change',
-		status: 'success',
-		pathHash: projectHash(b),
-		review: {
-			revision: 7,
-			changes: [
-				{
-					id: 'chg-b',
-					checkpointId: 'ckpt-b',
-					path: 'b.txt',
-					kind: 'modified',
-					state: {kind: 'pending'}
-				}
-			]
-		}
-	} as unknown as BridgeEvent);
-	bridge!.__inject({
-		type: 'command_result',
-		name: 'ListReviewChanges',
-		message: '0 changes',
-		status: 'success',
-		pathHash: projectHash(a),
-		review: {revision: 2, changes: []}
-	} as unknown as BridgeEvent);
+	// Answer B's first: correlation is requestId, so B's payload must not land on A.
+	bridge!.__inject(
+		changesAck(
+			commands,
+			projectHash(b),
+			{
+				revision: 7,
+				changes: [
+					{
+						id: 'chg-b',
+						checkpointId: 'ckpt-b',
+						path: 'b.txt',
+						kind: 'modified',
+						state: {kind: 'pending'}
+					}
+				]
+			},
+			{message: '1 change', workspaceId: projectHash(b)}
+		)
+	);
+	bridge!.__inject(
+		changesAck(commands, projectHash(a), {revision: 2, changes: []}, {
+			message: '0 changes',
+			workspaceId: projectHash(a)
+		})
+	);
 
 	const [answerA, answerB] = await Promise.all([askedA, askedB]);
 	assert.ok(answerA.ok && answerB.ok);
@@ -157,14 +179,7 @@ test('listReviewChanges forwards the session id to the daemon', async () => {
 	assert.ok(sent);
 	assert.equal((sent as {sessionId?: string}).sessionId, 'sess-42');
 
-	bridge!.__inject({
-		type: 'command_result',
-		name: 'ListReviewChanges',
-		message: '0 changes',
-		status: 'success',
-		pathHash: projectHash(root),
-		review: {revision: 1, changes: []}
-	} as unknown as BridgeEvent);
+	bridge!.__inject(changesAck(commands, projectHash(root), {revision: 1, changes: []}, {message: '0 changes'}));
 	const answer = await asked;
 	assert.ok(answer.ok);
 	hub.closeAll();
@@ -189,14 +204,12 @@ test('a review command on an unprotected workspace answers unavailable', async (
 
 	const asked = hub.listReviewChanges(project.id);
 	await new Promise(r => setTimeout(r, 20));
-	bridge!.__inject({
-		type: 'command_result',
-		name: 'ListReviewChanges',
-		message: 'Workspace checkpoints are off',
-		status: 'unavailable',
-		pathHash: projectHash(root),
-		review: {available: false}
-	} as unknown as BridgeEvent);
+	bridge!.__inject(
+		changesAck(commands, projectHash(root), {available: false}, {
+			message: 'Workspace checkpoints are off',
+			status: 'unavailable'
+		})
+	);
 
 	const answer = await asked;
 	assert.equal(answer.ok, false);
@@ -267,15 +280,20 @@ test('review: keep then review_changed push re-reads; stale plan refuses with da
 	});
 	await new Promise(r => setTimeout(r, 80));
 	const hash = projectHash(root);
-	const inject = (payload: Record<string, unknown>) =>
+	const inject = (payload: Record<string, unknown>) => {
+		const sent = [...commands].reverse().find(c => c.type === 'ListReviewChanges') as
+			| {requestId?: string}
+			| undefined;
 		bridge!.__inject({
 			type: 'command_result',
 			name: 'ListReviewChanges',
 			message: 'fake',
 			status: 'success',
 			pathHash: hash,
+			requestId: sent?.requestId,
 			...payload
 		});
+	};
 
 	const listed = hub.listReviewChanges(project.id);
 	await new Promise(r => setTimeout(r, 20));
@@ -459,14 +477,7 @@ test('a review op racing RegisterWorkspace parks until the hash lands', async ()
 	assert.ok(sent);
 	assert.equal((sent as {workspaceId?: string}).workspaceId, projectHash(root));
 
-	bridge!.__inject({
-		type: 'command_result',
-		name: 'ListReviewChanges',
-		message: '0 changes',
-		status: 'success',
-		pathHash: projectHash(root),
-		review: {revision: 1, changes: []}
-	} as unknown as BridgeEvent);
+	bridge!.__inject(changesAck(commands, projectHash(root), {revision: 1, changes: []}, {message: '0 changes'}));
 	const answer = await asked;
 	assert.ok(answer.ok);
 	hub.closeAll();
@@ -537,14 +548,7 @@ test('review ignores a Meta pathHash that is not this folder and waits for Regis
 	assert.equal(sent.workspaceId, projectHash(opened));
 	assert.equal(project.slotLive, true);
 
-	bridge!.__inject({
-		type: 'command_result',
-		name: 'ListReviewChanges',
-		message: '0 changes',
-		status: 'success',
-		pathHash: projectHash(opened),
-		review: {revision: 1, changes: []}
-	} as unknown as BridgeEvent);
+	bridge!.__inject(changesAck(commands, projectHash(opened), {revision: 1, changes: []}, {message: '0 changes'}));
 	const answer = await asked;
 	assert.ok(answer.ok);
 
@@ -649,5 +653,128 @@ test('a failed RegisterWorkspace makes later review ops fail fast without re-reg
 		registersBefore,
 		'failed registration must not be re-sent for a later op'
 	);
+	hub.closeAll();
+});
+
+test('concurrent listReviewChanges for the same session sends one command', async () => {
+	const commands: BridgeCommand[] = [];
+	let bridge: FakeBridge | null = null;
+	const hub = new WorkspaceHub({
+		createBridge: () => {
+			bridge = createFakeBridge(commands);
+			return bridge;
+		},
+		hostCwd: mkdtempSync(path.join(tmpdir(), 'hub-host-')),
+		homeDir: mkdtempSync(path.join(tmpdir(), 'hub-home-'))
+	});
+	const root = mkdtempSync(path.join(tmpdir(), 'proj-rev-coalesce-'));
+	hub.openProject(root, noopHandlers());
+	await new Promise(r => setTimeout(r, 120));
+	const project = hub.getById(hub.listProjects()[0]!.id)!;
+
+	const first = hub.listReviewChanges(project.id, null, 'sess-1');
+	const second = hub.listReviewChanges(project.id, null, 'sess-1');
+	await new Promise(r => setTimeout(r, 20));
+	assert.equal(commands.filter(c => c.type === 'ListReviewChanges').length, 1);
+
+	bridge!.__inject(changesAck(commands, projectHash(root), {revision: 3, changes: []}));
+	const [a, b] = await Promise.all([first, second]);
+	assert.equal(a.ok && a.list.revision, 3);
+	assert.equal(b.ok && b.list.revision, 3);
+	hub.closeAll();
+});
+
+test('a new list for the same project cancels the previous session list', async () => {
+	const commands: BridgeCommand[] = [];
+	let bridge: FakeBridge | null = null;
+	const hub = new WorkspaceHub({
+		createBridge: () => {
+			bridge = createFakeBridge(commands);
+			return bridge;
+		},
+		hostCwd: mkdtempSync(path.join(tmpdir(), 'hub-host-')),
+		homeDir: mkdtempSync(path.join(tmpdir(), 'hub-home-'))
+	});
+	const root = mkdtempSync(path.join(tmpdir(), 'proj-rev-cancel-'));
+	hub.openProject(root, noopHandlers());
+	await new Promise(r => setTimeout(r, 120));
+	const project = hub.getById(hub.listProjects()[0]!.id)!;
+
+	const first = hub.listReviewChanges(project.id, null, 'sess-a');
+	await new Promise(r => setTimeout(r, 20));
+	const second = hub.listReviewChanges(project.id, null, 'sess-b');
+	const firstAnswer = await first;
+	assert.equal(firstAnswer.ok, false);
+	if (!firstAnswer.ok) assert.match(firstAnswer.notice, /send failed/);
+
+	await new Promise(r => setTimeout(r, 20));
+	bridge!.__inject(changesAck(commands, projectHash(root), {revision: 4, changes: []}));
+	const secondAnswer = await second;
+	assert.equal(secondAnswer.ok && secondAnswer.list.revision, 4);
+	hub.closeAll();
+});
+
+test('a late ListReviewChanges answer does not complete the next list', async () => {
+	const commands: BridgeCommand[] = [];
+	let bridge: FakeBridge | null = null;
+	const hub = new WorkspaceHub({
+		createBridge: () => {
+			bridge = createFakeBridge(commands);
+			return bridge;
+		},
+		hostCwd: mkdtempSync(path.join(tmpdir(), 'hub-host-')),
+		homeDir: mkdtempSync(path.join(tmpdir(), 'hub-home-'))
+	});
+	const root = mkdtempSync(path.join(tmpdir(), 'proj-rev-late-'));
+	hub.openProject(root, noopHandlers());
+	await new Promise(r => setTimeout(r, 120));
+	const project = hub.getById(hub.listProjects()[0]!.id)!;
+
+	const first = hub.listReviewChanges(project.id, null, 'sess-a');
+	await new Promise(r => setTimeout(r, 20));
+	const firstCmd = commands.find(c => c.type === 'ListReviewChanges') as {requestId?: string};
+	assert.ok(firstCmd?.requestId);
+
+	bridge!.__inject({
+		type: 'command_result',
+		name: 'ListReviewChanges',
+		message: 'stale',
+		status: 'success',
+		pathHash: projectHash(root),
+		requestId: 'stale-id',
+		review: {revision: 9, changes: []}
+	} as unknown as BridgeEvent);
+	let firstSettled = false;
+	void first.then(() => {
+		firstSettled = true;
+	});
+	await new Promise(r => setTimeout(r, 20));
+	assert.equal(firstSettled, false);
+
+	bridge!.__inject(changesAck(commands, projectHash(root), {revision: 1, changes: []}));
+	const firstAnswer = await first;
+	assert.equal(firstAnswer.ok && firstAnswer.list.revision, 1);
+
+	const second = hub.listReviewChanges(project.id, null, 'sess-b');
+	await new Promise(r => setTimeout(r, 20));
+	bridge!.__inject({
+		type: 'command_result',
+		name: 'ListReviewChanges',
+		message: 'replay',
+		status: 'success',
+		pathHash: projectHash(root),
+		requestId: firstCmd.requestId,
+		review: {revision: 1, changes: []}
+	} as unknown as BridgeEvent);
+	let secondSettled = false;
+	void second.then(() => {
+		secondSettled = true;
+	});
+	await new Promise(r => setTimeout(r, 20));
+	assert.equal(secondSettled, false);
+
+	bridge!.__inject(changesAck(commands, projectHash(root), {revision: 4, changes: []}));
+	const secondAnswer = await second;
+	assert.equal(secondAnswer.ok && secondAnswer.list.revision, 4);
 	hub.closeAll();
 });

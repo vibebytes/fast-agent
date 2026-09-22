@@ -55,6 +55,7 @@ import type {
 	TaskSelectTrace,
 	TaskSummary,
 	TasksMeta,
+	TaskBodySnapshot,
 	TasksSnapshot,
 	TeamRow,
 	TranscriptPatch,
@@ -548,6 +549,7 @@ export type FastIdeApi = {
 		kinds?: string[]
 	) => Promise<boolean>;
 	listTasks: () => Promise<TasksSnapshot>;
+	taskBody: (taskId: string) => Promise<TaskBodySnapshot | null>;
 	decideApproval: (approvalId: string, approved: boolean, reason?: string) => Promise<boolean>;
 	/** ②′ Goal card actions — the only Goal gate surface. Optional goalId for LivingTask rail. */
 	confirmGoal: (patchJson?: string) => Promise<boolean>;

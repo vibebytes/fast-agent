@@ -215,6 +215,8 @@ export function hostSession(input: {
 
 		'task:list': () => publisher.buildTasksSnapshot(),
 
+		'task:body': (taskId: string) => publisher.buildTaskBody(taskId),
+
 		'model:list': async () => {
 			await hub.refreshComposerCatalog();
 			publisher.publishWorkspace();

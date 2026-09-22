@@ -5,6 +5,7 @@
 import type {BridgeEvent} from '@fastllm/bridge-protocol';
 import type {
 	ComposerGate,
+	TaskBodySnapshot,
 	TasksMeta,
 	TasksSnapshot,
 	TranscriptPatch,
@@ -264,6 +265,40 @@ export function createUiPublisher(deps: UiPublisherDeps) {
 			goalFlow: active?.transcript.goalFlow,
 			goalCard: active?.goalCard ?? null
 		};
+	}
+
+	/** One Task's body. Cold neighbor pulls this instead of the full task list. */
+	function buildTaskBody(taskId: string): TaskBodySnapshot | null {
+		for (const snap of hub.listProjects()) {
+			const sessions = hub.getById(snap.id)?.sessions;
+			if (!sessions) continue;
+			const task =
+				sessions.listTasks().find(t => t.id === taskId) ??
+				sessions.listChats().find(t => t.id === taskId);
+			if (!task) continue;
+			return {
+				taskId: task.id,
+				bodyRevision: bodyRevision(task),
+				entries: task.transcript.entries,
+				usage: task.transcript.usage ?? null,
+				contextPrunes: task.transcript.contextPrunes ?? [],
+				compacting: task.transcript.compacting ?? null,
+				childTranscripts: task.transcript.childTranscripts ?? {},
+				approvals: task.transcript.approvals,
+				questions: task.transcript.questions,
+				questionBatches: task.transcript.questionBatches,
+				subagents: task.transcript.subagents,
+				contextInjections: task.transcript.contextInjections,
+				superseded: task.transcript.superseded ?? {},
+				codeChanges: task.codeChanges.entries,
+				liveProcs: task.transcript.liveProcs ?? [],
+				liveTasks: task.transcript.liveTasks ?? [],
+				childWork: task.transcript.childWork ?? [],
+				goalFlow: task.transcript.goalFlow,
+				goalCard: task.goalCard ?? null
+			};
+		}
+		return null;
 	}
 
 	// Undefined sections must fall back to SHARED empty containers: the tail
@@ -665,6 +700,7 @@ export function createUiPublisher(deps: UiPublisherDeps) {
 		currentFocusEpoch,
 		buildTasksMeta,
 		buildTasksSnapshot,
+		buildTaskBody,
 		buildProjectTaskLists,
 		buildProjectTasksHydrated,
 		/** @deprecated Prefer buildTasksSnapshot / buildTasksMeta. */

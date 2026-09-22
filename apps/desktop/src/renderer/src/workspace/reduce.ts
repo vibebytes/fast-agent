@@ -77,6 +77,40 @@ export function reduceWorkspace(state: WorkspaceState, event: WorkspaceEvent): W
 			}
 			return next;
 		}
+		case 'body:pulled': {
+			const {payload} = event;
+			if (
+				payload.bodyRevision !== undefined &&
+				(state.bodyRevision[payload.taskId] ?? 0) > payload.bodyRevision
+			) {
+				return state;
+			}
+			return applyBody(
+				state,
+				payload.taskId,
+				{
+					entries: payload.entries,
+					usage: payload.usage ?? undefined,
+					contextPrunes: payload.contextPrunes ?? [],
+					compacting: payload.compacting ?? undefined,
+					childTranscripts: payload.childTranscripts ?? {},
+					approvals: payload.approvals,
+					questions: payload.questions,
+					questionBatches: payload.questionBatches ?? [],
+					subagents: payload.subagents ?? [],
+					contextInjections: payload.contextInjections ?? [],
+					superseded: payload.superseded ?? {},
+					codeChanges: payload.codeChanges,
+					liveProcs: payload.liveProcs ?? [],
+					liveTasks: payload.liveTasks ?? [],
+					childWork: payload.childWork ?? [],
+					goalFlow: payload.goalFlow,
+					goalCard: payload.goalCard ?? null
+				},
+				true,
+				payload.bodyRevision
+			);
+		}
 		case 'transcript:patched': {
 			const {payload} = event;
 			if (

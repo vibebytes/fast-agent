@@ -8,6 +8,7 @@ import type {
 	TaskMutationResult,
 	TaskSelectTrace,
 	TaskSummary,
+	TaskBodySnapshot,
 	TasksSnapshot,
 	SlashCatalogEntry
 } from './session.js';
@@ -61,6 +62,8 @@ export type InvokeSession = {
 		result: boolean;
 	};
 	'task:list': {args: []; result: TasksSnapshot};
+	/** One Task body. Bootstrap without a task id stays on `task:list`. */
+	'task:body': {args: [taskId: string]; result: TaskBodySnapshot | null};
 	'task:approve': {
 		args: [approvalId: string, approved: boolean, reason?: string];
 		result: boolean;

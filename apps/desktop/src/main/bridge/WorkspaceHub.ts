@@ -685,13 +685,19 @@ export class WorkspaceHub {
 		return this.catalog.listProviders();
 	}
 	async upsertProvider(input: UpsertProviderInput) {
-		return this.catalog.upsertProvider(input);
+		const result = await this.catalog.upsertProvider(input);
+		if (result.ok) this.composerHeal.invalidateComposerCatalog();
+		return result;
 	}
 	async deleteProvider(id: string) {
-		return this.catalog.deleteProvider(id);
+		const result = await this.catalog.deleteProvider(id);
+		if (result.ok) this.composerHeal.invalidateComposerCatalog();
+		return result;
 	}
 	async setProviderEnabled(id: string, enabled: boolean) {
-		return this.catalog.setProviderEnabled(id, enabled);
+		const result = await this.catalog.setProviderEnabled(id, enabled);
+		if (result.ok) this.composerHeal.invalidateComposerCatalog();
+		return result;
 	}
 	async testProvider(id: string) {
 		return this.catalog.testProvider(id);

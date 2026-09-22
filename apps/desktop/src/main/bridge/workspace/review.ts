@@ -1,3 +1,4 @@
+import {randomUUID} from 'node:crypto';
 import type {BridgeCommand} from '@fastllm/bridge-protocol';
 import type {
 	FileReviewDiff,
@@ -14,6 +15,8 @@ import type {HostLane} from './hostWait.js';
 type ReviewPayload = NonNullable<Extract<BridgeEvent, {type: 'command_result'}>['review']>;
 
 const RestoreWaitMs = 60_000;
+/** Longer than the engine ReadTimeout (30s), so a late answer is not handed to the next waiter. */
+const ReviewReadWaitMs = 35_000;
 
 export type ReviewLane = HostLane & {
 	ensureSlot: (
@@ -66,6 +69,10 @@ export type WorkspaceReview = {
 
 export function createReview(lane: ReviewLane): WorkspaceReview {
 	const tails = new Map<string, Promise<void>>();
+	const listInflight = new Map<
+		string,
+		{promise: Promise<{ok: true; list: ReviewList} | ReviewRefusal>; token: string; projectId: string}
+	>();
 
 	const reviewOp = (
 		projectId: string,
@@ -87,6 +94,28 @@ export function createReview(lane: ReviewLane): WorkspaceReview {
 		return run;
 	};
 
+	const readReview = (event: {
+		message: string;
+		status?: string;
+		review?: ReviewPayload;
+	}): {ok: true; review: ReviewPayload} | ReviewRefusal => {
+		const review = (event.review ?? {}) as ReviewPayload;
+		if (event.status === 'unavailable' || review.available === false) {
+			return {ok: false, notice: event.message, unavailable: true};
+		}
+		if (event.status === 'error' || event.status === 'rejected') {
+			return {
+				ok: false,
+				notice: event.message,
+				revision: review.revision,
+				conflicts: review.conflicts,
+				movedPaths: review.movedPaths,
+				expired: review.expired
+			};
+		}
+		return {ok: true, review};
+	};
+
 	const sendReview = async (
 		projectId: string,
 		name: string,
@@ -101,22 +130,7 @@ export function createReview(lane: ReviewLane): WorkspaceReview {
 			return {ok: false, notice: `Failed to send ${name}`};
 		}
 		try {
-			const event = await promise;
-			const review = (event.review ?? {}) as ReviewPayload;
-			if (event.status === 'unavailable' || review.available === false) {
-				return {ok: false, notice: event.message, unavailable: true};
-			}
-			if (event.status === 'error' || event.status === 'rejected') {
-				return {
-					ok: false,
-					notice: event.message,
-					revision: review.revision,
-					conflicts: review.conflicts,
-					movedPaths: review.movedPaths,
-					expired: review.expired
-				};
-			}
-			return {ok: true, review};
+			return readReview(await promise);
 		} catch (e) {
 			return {ok: false, notice: e instanceof Error ? e.message : String(e)};
 		}
@@ -137,24 +151,70 @@ export function createReview(lane: ReviewLane): WorkspaceReview {
 
 	return {
 		listReviewChanges(projectId, checkpointId, sessionId) {
-			return reviewOp(projectId, 'ListReviewChanges', hash => ({
-				type: 'ListReviewChanges',
-				workspaceId: hash,
-				...(checkpointId ? {checkpointId} : {}),
-				...(sessionId ? {sessionId} : {})
-			})).then(answer =>
-				answer.ok
-					? {
-							ok: true as const,
-							list: {
-								revision: answer.review.revision ?? 0,
-								changes: (answer.review.changes ?? []) as ReviewList['changes'],
-								available: answer.review.available !== false,
-								checkpoints: (answer.review.checkpoints ?? []) as ReviewList['checkpoints']
+			const key = `${projectId}\0${sessionId ?? ''}\0${checkpointId ?? ''}`;
+			const existing = listInflight.get(key);
+			if (existing) return existing.promise;
+			for (const [other, entry] of listInflight) {
+				if (entry.projectId !== projectId) continue;
+				lane.cancel(entry.token);
+				listInflight.delete(other);
+			}
+			const requestId = randomUUID();
+			const waited = lane.waitRequest(requestId, ReviewReadWaitMs);
+			const tracked: {
+				promise: Promise<{ok: true; list: ReviewList} | ReviewRefusal>;
+				token: string;
+				projectId: string;
+			} = {
+				promise: Promise.resolve({ok: false, notice: 'send failed'}),
+				token: waited.token,
+				projectId
+			};
+			const run = (async (): Promise<{ok: true; list: ReviewList} | ReviewRefusal> => {
+				const slot = await lane.ensureSlot(projectId);
+				if (listInflight.get(key)?.token !== waited.token) {
+					void waited.promise.catch(() => {});
+					return {ok: false, notice: 'send failed'};
+				}
+				if (!slot.ok) {
+					lane.cancel(waited.token);
+					void waited.promise.catch(() => {});
+					return slot;
+				}
+				const sent = lane.send({
+					type: 'ListReviewChanges',
+					workspaceId: slot.hash,
+					requestId,
+					...(checkpointId ? {checkpointId} : {}),
+					...(sessionId ? {sessionId} : {})
+				});
+				if (!sent) {
+					lane.cancel(waited.token);
+					void waited.promise.catch(() => {});
+					return {ok: false, notice: 'Failed to send ListReviewChanges'};
+				}
+				try {
+					const answer = readReview(await waited.promise);
+					return answer.ok
+						? {
+								ok: true,
+								list: {
+									revision: answer.review.revision ?? 0,
+									changes: (answer.review.changes ?? []) as ReviewList['changes'],
+									available: answer.review.available !== false,
+									checkpoints: (answer.review.checkpoints ?? []) as ReviewList['checkpoints']
+								}
 							}
-						}
-					: answer
-			);
+						: answer;
+				} catch (e) {
+					return {ok: false, notice: e instanceof Error ? e.message : String(e)};
+				}
+			})();
+			tracked.promise = run.finally(() => {
+				if (listInflight.get(key)?.promise === tracked.promise) listInflight.delete(key);
+			});
+			listInflight.set(key, tracked);
+			return tracked.promise;
 		},
 		async getReviewChange(projectId, changeId) {
 			const answer = await reviewOp(projectId, 'GetReviewChange', hash => ({

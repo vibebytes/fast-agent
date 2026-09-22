@@ -333,7 +333,7 @@ export function App({store}: {store: WorkspaceStore}) {
 		projects.find(p => p.active && p.status === 'ready') ??
 		projects.find(p => p.status === 'ready') ??
 		null;
-	const canCreateProjectTask = engineReady || Boolean(readyProject);
+	const canCreateProjectTask = Boolean(readyProject) || engineStatus !== 'error';
 
 	const createNewTask = useCallback(async () => {
 		// Top New task always targets the hidden Default Project.

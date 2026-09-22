@@ -1,54 +1,26 @@
 import assert from 'node:assert/strict';
 import {test} from 'node:test';
-import type {TasksSnapshot} from './env';
+import type {TaskBodySnapshot} from './env';
 import {createWorkspaceStore} from './workspaceStore.js';
 import {pullTaskBodies} from './workspaceWire.js';
-
-const idleGate = {
-	runState: 'idle' as const,
-	canSubmitNow: false,
-	canEnqueue: false,
-	canCancel: false,
-	composerLocked: false,
-	lockReason: null
-};
-
-function emptyTasks(): TasksSnapshot {
-	return {
-		tasks: [],
-		chats: [],
-		defaultTasks: [],
-		activeTaskId: null,
-		activeKind: null,
-		gate: idleGate,
-		model: 'default',
-		modelDisplay: 'Default',
-		modelCatalog: [],
-		slashCatalog: [],
-		slashCatalogHydrated: false,
-		queue: [],
-		queuePaused: false,
-		transcript: [],
-		approvals: [],
-		questions: [],
-		codeChanges: []
-	};
-}
 
 test('pullTaskBodies deduplicates per Task without letting A absorb B', async () => {
 	const previous = Object.getOwnPropertyDescriptor(globalThis, 'window');
 	let calls = 0;
-	let resolve!: (value: TasksSnapshot) => void;
-	const pending = new Promise<TasksSnapshot>(done => {
+	let resolve!: (value: TaskBodySnapshot | null) => void;
+	const pending = new Promise<TaskBodySnapshot | null>(done => {
 		resolve = done;
 	});
 	Object.defineProperty(globalThis, 'window', {
 		configurable: true,
 		value: {
 			fastIde: {
-				listTasks: () => {
+				taskBody: () => {
 					calls += 1;
 					return pending;
+				},
+				listTasks: () => {
+					throw new Error('per-task pull must not list every task');
 				}
 			}
 		}
@@ -63,7 +35,13 @@ test('pullTaskBodies deduplicates per Task without letting A absorb B', async ()
 		const taskB = pullTaskBodies(store, 'task-b');
 		assert.notEqual(taskB, bootstrap);
 		assert.equal(calls, 2);
-		resolve(emptyTasks());
+		resolve({
+			taskId: 'task-a',
+			entries: [],
+			approvals: [],
+			questions: [],
+			codeChanges: []
+		});
 		await Promise.all([bootstrap, sessionPane, taskB]);
 
 		const later = pullTaskBodies(store, 'task-a');

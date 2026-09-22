@@ -26,11 +26,30 @@ export type SessionAttachStore = {
 	first(): string | undefined;
 	size(): number;
 	clear(): void;
+	/** True while a Bind for this session is outstanding, or until `now` passes the 5s budget. */
+	bindInFlight(sessionId: string, now: number): boolean;
+	/**
+	 * True from Bind send until `session_restored` (or the 5s budget).
+	 * `clearBind` does not end it: Bind acks in tens of ms, restore does not.
+	 */
+	liveInFlight(sessionId: string, now: number): boolean;
+	armBind(sessionId: string, now: number): void;
+	clearBind(sessionId: string): void;
+	/** End the restore window early (Bind error). */
+	releaseLive(sessionId: string): void;
+	/** Count a failed Bind. True while another attempt is still allowed (3 total). */
+	noteBindFailure(sessionId: string): boolean;
+	resetBindFailure(sessionId: string): void;
 };
 
 export function createSessionAttachStore(): SessionAttachStore {
 	const attached = new Set<string>();
 	const restored = new Set<string>();
+	const bindSentAt = new Map<string, number>();
+	const liveSentAt = new Map<string, number>();
+	const bindFailures = new Map<string, number>();
+	const bindBudgetMs = 5_000;
+	const bindRetryCap = 3;
 	return {
 		bind(sessionId) {
 			attached.add(sessionId);
@@ -43,6 +62,7 @@ export function createSessionAttachStore(): SessionAttachStore {
 		},
 		markRestored(sessionId) {
 			restored.add(sessionId);
+			liveSentAt.delete(sessionId);
 		},
 		isRestored(sessionId) {
 			return sessionId != null && restored.has(sessionId);
@@ -60,6 +80,45 @@ export function createSessionAttachStore(): SessionAttachStore {
 		clear() {
 			attached.clear();
 			restored.clear();
+			bindSentAt.clear();
+			liveSentAt.clear();
+			bindFailures.clear();
+		},
+		bindInFlight(sessionId, now) {
+			const at = bindSentAt.get(sessionId);
+			if (at == null) return false;
+			if (now - at >= bindBudgetMs) {
+				bindSentAt.delete(sessionId);
+				return false;
+			}
+			return true;
+		},
+		liveInFlight(sessionId, now) {
+			const at = liveSentAt.get(sessionId);
+			if (at == null) return false;
+			if (now - at >= bindBudgetMs) {
+				liveSentAt.delete(sessionId);
+				return false;
+			}
+			return true;
+		},
+		armBind(sessionId, now) {
+			bindSentAt.set(sessionId, now);
+			liveSentAt.set(sessionId, now);
+		},
+		clearBind(sessionId) {
+			bindSentAt.delete(sessionId);
+		},
+		releaseLive(sessionId) {
+			liveSentAt.delete(sessionId);
+		},
+		noteBindFailure(sessionId) {
+			const n = (bindFailures.get(sessionId) ?? 0) + 1;
+			bindFailures.set(sessionId, n);
+			return n < bindRetryCap;
+		},
+		resetBindFailure(sessionId) {
+			bindFailures.delete(sessionId);
 		}
 	};
 }
@@ -115,6 +174,9 @@ export function settleAttachedEvent<T extends AttachableTask>(
 	}
 }
 
+/** First `session_restored` window. Matches engine `MessageExchangeWindows.DefaultLimit`. */
+export const AttachHistoryLimit = 8;
+
 export type AttachRequest<T extends AttachableTask> = {
 	tasks: Map<string, T>;
 	task: T;
@@ -124,6 +186,8 @@ export type AttachRequest<T extends AttachableTask> = {
 	clientId: string;
 	attach: SessionAttachStore;
 	settleTask(task: T): void;
+	/** Override the restore window. Default is {@link AttachHistoryLimit}. */
+	limit?: number;
 };
 
 /**
@@ -144,7 +208,7 @@ export function requestSessionAttach<T extends AttachableTask>(req: AttachReques
 		sessionId: req.sessionId,
 		clientId: req.clientId,
 		lastEventSeq: req.lastEventSeq ?? 0,
-		limit: 20
+		limit: req.limit ?? AttachHistoryLimit
 	});
 	if (ok) {
 		req.attach.bind(req.sessionId);

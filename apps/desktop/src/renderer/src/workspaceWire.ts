@@ -17,14 +17,15 @@ export function pullTaskBodies(
 	const pending = pulls.get(key);
 	if (pending) return pending;
 	let request: Promise<void>;
-	request = window.fastIde
-		.listTasks()
-		.then(payload => {
-			// An optimistic B focus may request before main has processed B's
-			// select. Never let the resulting A snapshot populate the wrong pull.
-			if (taskId && payload.activeTaskId !== taskId) return;
-			store.dispatch({type: 'tasks:pull', payload});
-		})
+	const pull = taskId
+		? window.fastIde.taskBody(taskId).then(body => {
+				if (!body) return;
+				store.dispatch({type: 'body:pulled', payload: body});
+			})
+		: window.fastIde.listTasks().then(payload => {
+				store.dispatch({type: 'tasks:pull', payload});
+			});
+	request = pull
 		.finally(() => {
 			if (pulls.get(key) === request) pulls.delete(key);
 			if (pulls.size === 0) taskBodyPulls.delete(store);

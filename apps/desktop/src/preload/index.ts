@@ -189,6 +189,7 @@ const api = {
 	mentionSuggest: (prefix, requestId, kinds) =>
 		invoke('mention:suggest', prefix, requestId, kinds),
 	listTasks: () => invoke('task:list'),
+	taskBody: (taskId: string) => invoke('task:body', taskId),
 	decideApproval: (approvalId: string, approved: boolean, reason?: string) =>
 		invoke('task:approve', approvalId, approved, reason),
 	confirmGoal: (patchJson?: string) => invoke('goal:confirm', patchJson),

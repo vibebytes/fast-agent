@@ -57,6 +57,8 @@ export interface SessionEventHostDeps {
 	slash: SlashModule;
 	goal: GoalModule;
 	requestAttach(task: TaskRecord, sessionId: string, lastEventSeq?: number): boolean;
+	/** Re-run ensureLive after a failed Bind. The host has already cleared in-flight and unbound. */
+	retryBind(taskId: string): void;
 	hydrateFromSessionsList(sessions: SessionListInfo[]): void;
 	/** Live multimodal: consume composer images queued for this session. */
 	takePendingUserImages?(
@@ -229,6 +231,32 @@ export function createSessionEventHost(deps: SessionEventHostDeps) {
 			return {stop: true, task: deps.getActiveTask()};
 		}
 
+		// Bind errors match the slash-failure painter below (non-empty message, unknown name).
+		// Settle them here so a rejected workspace does not stick for the 5s in-flight budget.
+		if (
+			event.type === 'command_result' &&
+			event.name === 'BindSessionWorkspace' &&
+			event.status === 'error'
+		) {
+			const sid =
+				'sessionId' in event && typeof event.sessionId === 'string' ? event.sessionId : undefined;
+			if (sid) {
+				deps.attach.clearBind(sid);
+				deps.attach.releaseLive(sid);
+				deps.attach.unbind(sid);
+				if (deps.attach.noteBindFailure(sid)) {
+					const task = deps.taskBySessionId(sid);
+					if (task) deps.retryBind(task.id);
+				} else if (event.message?.trim()) {
+					deps.setHelpNotice(event.message.trim());
+				}
+			}
+			return {
+				stop: true,
+				task: (sid ? deps.taskBySessionId(sid) : null) ?? deps.getActiveTask()
+			};
+		}
+
 		// Goal-card branches (push + Patch/Confirm/Cancel/Rerun results) — domain module.
 		const goal = deps.goal.goalEvent(event);
 		if (goal.stop) return goal;
@@ -395,6 +423,10 @@ export function createSessionEventHost(deps: SessionEventHostDeps) {
 			if (result.resync) deps.requestAttach(task, seqSession, result.state.lastApplied);
 		} else {
 			paint(event);
+		}
+		if (event.type === 'command_result' && event.name === 'BindSessionWorkspace' && event.sessionId) {
+			deps.attach.clearBind(event.sessionId);
+			deps.attach.resetBindFailure(event.sessionId);
 		}
 		if (event.type === 'session_restored' && eventSession) {
 			deps.attach.markRestored(eventSession);

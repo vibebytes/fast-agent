@@ -103,7 +103,7 @@ export function useAgentReview(projectId: string | null, sessionId: string | nul
 		[]
 	);
 
-	const refresh = useCallback((mode: 'full' | 'incremental' = 'full') => {
+	const refresh = useCallback((mode: 'full' | 'incremental' = 'full', deferNet = false) => {
 		if (!projectId) {
 			setList(emptyReview);
 			setDiff(null);
@@ -112,18 +112,14 @@ export function useAgentReview(projectId: string | null, sessionId: string | nul
 		const key = cacheKey;
 		const seq = ++readSeq.current;
 		const since = mode === 'incremental' ? diffHeld.current?.revision : undefined;
-		void (async () => {
-			const [listSettled, diffSettled] = await Promise.allSettled([
-				window.fastIde.listReviewChanges(projectId, null, sessionId),
-				window.fastIde.listReviewDiff(projectId, since)
-			]);
-			if (seq !== readSeq.current) return;
-			try {
-				if (listSettled.status === 'rejected') {
-					setNotice('Review engine unreachable');
-				} else {
-					const answer = listSettled.value;
+		const run = () => {
+			void (async () => {
+				let list: ReviewList | null = null;
+				try {
+					const answer = await window.fastIde.listReviewChanges(projectId, null, sessionId);
+					if (seq !== readSeq.current) return;
 					if (answer.ok) {
+						list = answer.list;
 						setList(prev => {
 							const stable = sameReviewList(prev, answer.list) ? prev : answer.list;
 							rememberList(listCache.current, key, stable);
@@ -132,6 +128,7 @@ export function useAgentReview(projectId: string | null, sessionId: string | nul
 						setNotice(null);
 					} else if (refusalAction(answer) === 'unavailable') {
 						const unavailable: ReviewList = {revision: 0, changes: [], available: false};
+						list = unavailable;
 						setList(prev => {
 							const stable = sameReviewList(prev, unavailable) ? prev : unavailable;
 							rememberList(listCache.current, key, stable);
@@ -141,27 +138,42 @@ export function useAgentReview(projectId: string | null, sessionId: string | nul
 					} else {
 						setNotice(answer.notice);
 					}
+				} catch {
+					if (seq !== readSeq.current) return;
+					setNotice('Review engine unreachable');
+					if (mode === 'full') setDiff(prev => prev ?? {revision: 0, files: []});
+					return;
 				}
-				if (diffSettled.status === 'fulfilled' && diffSettled.value.ok) {
-					const snapshot = diffSettled.value.diff;
-					setDiff(prev => mergeReviewDiff(mode === 'incremental' ? prev : null, snapshot));
-				} else if (mode === 'full') {
-					// A failed first fetch must not leave the cards spinning "Loading diff...".
-					setDiff(prev => prev ?? {revision: 0, files: []});
-				}
-			} catch {
 				if (seq !== readSeq.current) return;
-				setNotice('Review engine unreachable');
-				if (mode === 'full') setDiff(prev => prev ?? {revision: 0, files: []});
-			}
-		})();
+				const wantDiff = list != null && pendingChanges(list).length > 0;
+				if (!wantDiff) {
+					if (mode === 'full') setDiff(prev => prev ?? {revision: 0, files: []});
+					return;
+				}
+				try {
+					const diffAnswer = await window.fastIde.listReviewDiff(projectId, since);
+					if (seq !== readSeq.current) return;
+					if (diffAnswer.ok) {
+						setDiff(prev => mergeReviewDiff(mode === 'incremental' ? prev : null, diffAnswer.diff));
+					} else if (mode === 'full') {
+						setDiff(prev => prev ?? {revision: 0, files: []});
+					}
+				} catch {
+					if (seq !== readSeq.current) return;
+					if (mode === 'full') setDiff(prev => prev ?? {revision: 0, files: []});
+				}
+			})();
+		};
+		if (!deferNet) run();
+		else if (typeof requestIdleCallback === 'function') requestIdleCallback(() => run());
+		else setTimeout(run, 0);
 	}, [projectId, sessionId, cacheKey]);
 
 	useEffect(() => {
 		// List swap happens render-phase above; only chrome resets here.
 		setNotice(null);
 		setExpired(EMPTY_EXPIRED);
-		refresh();
+		refresh('full', true);
 	}, [refresh, cacheKey]);
 
 	useEffect(() => {

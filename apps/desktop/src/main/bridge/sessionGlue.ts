@@ -228,6 +228,8 @@ export function createSessionGlue(h: SessionGlueHost): SessionGlue {
 		discoverHostSkills: () => h.discoverHostSkills?.()
 	});
 
+	let ensureLiveRef: (taskId: string, opts?: {focus?: boolean}) => TaskRecord | null = () => null;
+
 	const eventHost = createSessionEventHost({
 		clientId: () => h.clientId,
 		send: cmd => h.sendFn(cmd),
@@ -255,10 +257,15 @@ export function createSessionGlue(h: SessionGlueHost): SessionGlue {
 		requestAttach: (task, sessionId, lastEventSeq) =>
 			h.requestAttach(task, sessionId, lastEventSeq),
 		hydrateFromSessionsList: sessions => h.hydrateFromSessionsList(sessions),
-		takePendingUserImages: (sid, clientId) => h.takePendingUserImages(sid, clientId)
+		takePendingUserImages: (sid, clientId) => h.takePendingUserImages(sid, clientId),
+		retryBind(taskId: string) {
+			setTimeout(() => {
+				ensureLiveRef(taskId, {focus: false});
+			}, 200);
+		}
 	});
 
-	return {
+	const glue: SessionGlue = {
 		commands,
 		goal,
 		lifecycle,
@@ -318,6 +325,7 @@ export function createSessionGlue(h: SessionGlueHost): SessionGlue {
 				h.requestRegister?.();
 				return task;
 			}
+			if (h.attach.liveInFlight(task.sessionId, h.now())) return task;
 			// Already bound + restored — nothing to do (focus already applied above).
 			if (h.attach.isAttached(task.sessionId) && h.attach.isRestored(task.sessionId)) {
 				return task;
@@ -327,6 +335,7 @@ export function createSessionGlue(h: SessionGlueHost): SessionGlue {
 			if (h.attach.isAttached(task.sessionId) && !focus) {
 				return task;
 			}
+			h.attach.armBind(task.sessionId, h.now());
 			h.sendFn({
 				type: 'BindSessionWorkspace',
 				sessionId: task.sessionId,
@@ -417,4 +426,6 @@ export function createSessionGlue(h: SessionGlueHost): SessionGlue {
 			h.tasksHydrated = true;
 		}
 	};
+	ensureLiveRef = (taskId, opts) => glue.ensureLive(taskId, opts);
+	return glue;
 }

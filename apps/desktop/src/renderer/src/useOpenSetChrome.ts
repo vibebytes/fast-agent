@@ -3,7 +3,8 @@ import {emptyOpenSet, toggleGroupExpand, type OpenSet} from './openSet';
 import {loadOpenSetChrome, saveOpenSetChrome} from './openSetChrome';
 import type {OpenSetInventoryRow} from './openSet';
 import {
-	closeOpenTab,
+	addedOpenTabIds,
+	closeOpenTabPaint,
 	dropOpenTabIds,
 	ensureOpenTask,
 	openTabLiveTaskIds,
@@ -21,6 +22,14 @@ import {
 import type {EngineHostStatus} from './env';
 
 type OpenRefSource = Parameters<typeof resolveTaskOpenRef>[0];
+
+function afterNextPaint(): Promise<void> {
+	return new Promise(resolve => {
+		requestAnimationFrame(() => {
+			requestAnimationFrame(() => resolve());
+		});
+	});
+}
 
 /**
  * Open Tab chrome lifecycle (perf doc P2-14, extracted from App): cold restore,
@@ -72,11 +81,16 @@ export function useOpenSetChrome(input: {
 	openSetRef.current = openSet;
 	const [openSetReady, setOpenSetReady] = useState(false);
 
-	const commitOpenSet = useCallback((next: OpenSet) => {
+	const commitOpenSet = useCallback((next: OpenSet, persist = true) => {
 		openSetRef.current = next;
 		setOpenSet(next);
-		saveOpenSetChrome(next);
+		if (persist) saveOpenSetChrome(next);
 	}, []);
+	/** While set, the ensure-open effect must not put a closing tab back. */
+	const paneHoldRef = useRef<string | null>(null);
+	const closeGenRef = useRef(0);
+	/** Logical open set across a deferred close, so a second click does not see the hold frame. */
+	const logicalRef = useRef<OpenSet | null>(null);
 
 	const applyOpenSetChange = useCallback(
 		(next: OpenSet) => {
@@ -116,14 +130,25 @@ export function useOpenSetChrome(input: {
 	 * Wait for slotReadyKey (workspaceId), not only engine ready — Bind before
 	 * Register leaves background tabs unbound with no retry.
 	 */
+	const openTabIdsKey = openSet.tabs.map(t => t.id).join('\n');
+	const seenTabIdsRef = useRef<string[] | null>(null);
+	const slotEpochRef = useRef('');
 	useEffect(() => {
 		if (!openSetReady) return;
 		if (engineStatus !== 'ready') return;
 		if (!slotReadyKey) return;
 		const ids = openTabLiveTaskIds(openSetRef.current);
-		if (ids.length === 0) return;
-		void ensureTasksLiveOptimistic(ids);
-	}, [openSetReady, engineStatus, slotReadyKey, openSet.tabs, inventoryIds]);
+		const epoch = `${engineStatus}\0${slotReadyKey}`;
+		const slotChanged = slotEpochRef.current !== epoch;
+		slotEpochRef.current = epoch;
+		const target =
+			slotChanged || seenTabIdsRef.current == null
+				? ids
+				: addedOpenTabIds(seenTabIdsRef.current, ids);
+		seenTabIdsRef.current = ids;
+		if (target.length === 0) return;
+		void ensureTasksLiveOptimistic(target);
+	}, [openSetReady, engineStatus, slotReadyKey, openTabIdsKey]);
 
 	/** Inventory shrink (e.g. Project left Engine open set) → drop vanished Open Tabs. */
 	useEffect(() => {
@@ -158,6 +183,7 @@ export function useOpenSetChrome(input: {
 	/** Engine Focus Change (createTask / select) → ensure Open Tab — after chrome hydrate. */
 	useEffect(() => {
 		if (!openSetReady) return;
+		if (paneHoldRef.current) return;
 		if (!activeTaskId) return;
 		const ref = resolveTaskOpenRef(openRefSource, activeTaskId);
 		if (!ref) return;
@@ -176,13 +202,33 @@ export function useOpenSetChrome(input: {
 
 	const closeOpenTabChrome = useCallback(
 		(tabId: string) => {
-			const {set: next, focusTaskId} = closeOpenTab(openSetRef.current, tabId);
-			commitOpenSet(next);
-			if (focusTaskId) {
-				void selectTaskOptimistic(store, focusTaskId);
-			} else {
-				clearTaskFocusOptimistic(store);
+			const base = logicalRef.current ?? openSetRef.current;
+			const step = closeOpenTabPaint(base, tabId);
+			logicalRef.current = step.settled;
+			const gen = ++closeGenRef.current;
+			if (!step.deferPane) {
+				paneHoldRef.current = null;
+				commitOpenSet(step.settled);
+				void afterNextPaint().then(() => {
+					if (gen !== closeGenRef.current) return;
+					logicalRef.current = null;
+					if (step.focusTaskId) void selectTaskOptimistic(store, step.focusTaskId);
+					else clearTaskFocusOptimistic(store);
+				});
+				return;
 			}
+			// Strip updates this frame; the heavy pane switch waits until it has painted.
+			paneHoldRef.current = tabId;
+			commitOpenSet(step.immediate, false);
+			void afterNextPaint().then(async () => {
+				if (gen !== closeGenRef.current) return;
+				const settled = logicalRef.current ?? step.settled;
+				logicalRef.current = null;
+				commitOpenSet(settled);
+				if (settled.activeTabId) await selectTaskOptimistic(store, settled.activeTabId);
+				else clearTaskFocusOptimistic(store);
+				if (gen === closeGenRef.current) paneHoldRef.current = null;
+			});
 		},
 		[store, commitOpenSet]
 	);

@@ -177,6 +177,8 @@ export type CheckoutCommand =
 			sessionId?: string;
 			checkpointId?: string;
 			tenantId?: string;
+			/** Correlates `command_result` when several lists are in flight. */
+			requestId?: string;
 	  }
 	| {
 			type: 'GetReviewChange';
@@ -326,7 +328,8 @@ export const checkoutCommandSchemas = [
 		workspaceId: z.string().optional(),
 		sessionId: z.string().optional(),
 		checkpointId: z.string().optional(),
-		tenantId: z.string().optional()
+		tenantId: z.string().optional(),
+		requestId: z.string().optional()
 	}),
 	z.object({
 		type: z.literal('GetReviewChange'),

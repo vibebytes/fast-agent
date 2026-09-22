@@ -32,6 +32,7 @@ export type {
 	DshQueueItem,
 	DshGoalView,
 	SlashCatalogEntry,
+	TaskBodySnapshot,
 	TaskSummary,
 	TasksMeta,
 	TasksSnapshot,

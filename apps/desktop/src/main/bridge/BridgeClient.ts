@@ -203,6 +203,27 @@ export class BridgeClient {
 		const decodeStderr = utf8Stream();
 
 		const isCurrent = () => generation === this.generation && this.handlers === handlers;
+		// session_restored / session_history_page yield so the renderer can paint.
+		// Later lines in the same chunk (and chunks that arrive before the timer) stay behind that yield.
+		let deferredEvents: BridgeEvent[] | null = null;
+		const flushDeferred = () => {
+			const batch = deferredEvents;
+			deferredEvents = null;
+			if (!batch || !isCurrent()) return;
+			for (const event of batch) handlers.onEvent(event);
+		};
+		const deliver = (event: BridgeEvent) => {
+			if (deferredEvents) {
+				deferredEvents.push(event);
+				return;
+			}
+			if (event.type === 'session_restored' || event.type === 'session_history_page') {
+				deferredEvents = [event];
+				setImmediate(flushDeferred);
+				return;
+			}
+			handlers.onEvent(event);
+		};
 
 		child.stdout.on('data', chunk => {
 			if (!isCurrent()) return;
@@ -211,8 +232,7 @@ export class BridgeClient {
 					return;
 				}
 				try {
-					const parsed = bridgeEventSchema.parse(JSON.parse(line));
-					handlers.onEvent(parsed);
+					deliver(bridgeEventSchema.parse(JSON.parse(line)));
 				} catch {
 					reportInvalidEngineLine(line, {
 						onTerminal: message => handlers.onError(message),

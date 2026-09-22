@@ -13,6 +13,7 @@ export type ComposerHealProject = {
 
 export type ComposerHeal = {
 	refreshComposerCatalog: () => Promise<void>;
+	invalidateComposerCatalog: () => void;
 	syncComposerCatalog: () => void;
 	refreshComposerChrome: (handlers: HealHandlers) => Promise<void>;
 };
@@ -24,6 +25,8 @@ export function createComposerHeal(deps: {
 	active: () => ComposerHealProject | null;
 }): ComposerHeal {
 	let composerCatalogSync: Promise<void> | null = null;
+	let catalogFreshUntil = 0;
+	const catalogTtlMs = 60_000;
 
 	const chromeNeedsHeal = (sessions: SessionController): boolean => {
 		const cat = sessions.modelCatalog;
@@ -51,29 +54,35 @@ export function createComposerHeal(deps: {
 		return null;
 	};
 
-	const loadComposerCatalogFromProviders = async (): Promise<void> => {
+	const loadComposerCatalogFromProviders = async (): Promise<boolean> => {
 		const res = await deps.catalog.listProviders();
-		if (!res.ok) return;
+		if (!res.ok) return false;
 		if (res.providers.length > 0) {
 			const current = deps.active()?.sessions.model ?? '';
 			const catalog = catalogFromProviders(res.providers, current);
 			for (const project of deps.projects()) {
 				project.sessions.applyProviderCatalog(catalog);
 			}
-			return;
+			return true;
 		}
 		for (const project of deps.projects()) {
 			project.sessions.requestModelList();
 		}
+		return true;
 	};
 
-	const syncComposerCatalogFromProviders = (): Promise<void> => {
-		if (composerCatalogSync) return composerCatalogSync;
+	const syncComposerCatalogFromProviders = (force = false): Promise<void> => {
+		if (!force && Date.now() < catalogFreshUntil) return Promise.resolve();
+		if (!force && composerCatalogSync) return composerCatalogSync;
 		if (!deps.ready()) return Promise.resolve();
 		const run = loadComposerCatalogFromProviders();
-		const wrapped = run.finally(() => {
-			if (composerCatalogSync === wrapped) composerCatalogSync = null;
-		});
+		const wrapped = run
+			.then(ok => {
+				if (ok) catalogFreshUntil = Date.now() + catalogTtlMs;
+			})
+			.finally(() => {
+				if (composerCatalogSync === wrapped) composerCatalogSync = null;
+			});
 		composerCatalogSync = wrapped;
 		return wrapped;
 	};
@@ -135,9 +144,13 @@ export function createComposerHeal(deps: {
 	};
 
 	return {
-		refreshComposerCatalog: () => syncComposerCatalogFromProviders(),
+		refreshComposerCatalog: () => syncComposerCatalogFromProviders(false),
+		invalidateComposerCatalog: () => {
+			catalogFreshUntil = 0;
+		},
 		syncComposerCatalog: () => {
-			void syncComposerCatalogFromProviders();
+			catalogFreshUntil = 0;
+			void syncComposerCatalogFromProviders(true);
 		},
 		async refreshComposerChrome(handlers) {
 			await syncComposerCatalogFromProviders();

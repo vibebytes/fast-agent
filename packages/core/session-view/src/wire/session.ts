@@ -291,6 +291,9 @@ export type TranscriptPatch = {
 	goalCard?: GoalCardView | null;
 };
 
+/** One Task's transcript body (`task:body`). No chrome, no composer gate. */
+export type TaskBodySnapshot = Omit<TranscriptPatch, 'gate'>;
+
 /**
  * Incremental content flush (perf doc P0-1): only the changed entry tail crosses
  * IPC instead of the whole Transcript. Optional sections are present only when
@@ -338,7 +341,7 @@ export type ProjectsSnapshot = {
 /**
  * Focus Change: one-shot chrome packet (ADR-0005). Slim since perf doc P1-6:
  * Transcript body fields are optional and normally absent — the renderer keeps
- * its per-task cache; cold bodies arrive via `task:list` pull or the next
+ * its per-task cache; cold bodies arrive via `task:body` (or `task:list` on bootstrap) or the next
  * transcript patch. `goalCard` stays (host truth for background goal updates).
  * No projectTasks — sidebar lists stay on projects:changed.
  */

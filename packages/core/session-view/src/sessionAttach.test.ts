@@ -6,6 +6,7 @@ import {
 	detachAllSessions,
 	detachTargets,
 	heartbeatAttached,
+	AttachHistoryLimit,
 	requestSessionAttach,
 	resolveEventTask,
 	sessionIdFromEvent,
@@ -26,6 +27,71 @@ function makeTask(id: string, sessionId: string | null = null): AttachableTask {
 function streamEvent(sessionId: string): BridgeEvent {
 	return {type: 'assistant_delta', sessionId, delta: 'x'} as unknown as BridgeEvent;
 }
+
+test('bindInFlight stays set for 5s and clears on clearBind or expiry', () => {
+	const attach = createSessionAttachStore();
+	assert.equal(attach.bindInFlight('s1', 1_000), false);
+	attach.armBind('s1', 1_000);
+	assert.equal(attach.bindInFlight('s1', 1_000), true);
+	assert.equal(attach.bindInFlight('s1', 5_999), true);
+	assert.equal(attach.bindInFlight('s1', 6_000), false);
+	attach.armBind('s1', 7_000);
+	attach.clearBind('s1');
+	assert.equal(attach.bindInFlight('s1', 7_000), false);
+	attach.armBind('s1', 8_000);
+	attach.clear();
+	assert.equal(attach.bindInFlight('s1', 8_000), false);
+});
+
+test('liveInFlight survives clearBind and ends on restore or the 5s budget', () => {
+	const attach = createSessionAttachStore();
+	attach.armBind('s1', 1_000);
+	attach.clearBind('s1');
+	assert.equal(attach.bindInFlight('s1', 1_000), false);
+	assert.equal(attach.liveInFlight('s1', 1_000), true);
+	assert.equal(attach.liveInFlight('s1', 5_999), true);
+	assert.equal(attach.liveInFlight('s1', 6_000), false);
+	attach.armBind('s1', 7_000);
+	attach.markRestored('s1');
+	assert.equal(attach.liveInFlight('s1', 7_000), false);
+	attach.armBind('s1', 8_000);
+	attach.releaseLive('s1');
+	assert.equal(attach.liveInFlight('s1', 8_000), false);
+});
+
+test('requestSessionAttach asks for the default history window', () => {
+	const attach = createSessionAttachStore();
+	const task = makeTask('t1', null);
+	const tasks = new Map<string, AttachableTask>([['t1', task]]);
+	const sent: BridgeCommand[] = [];
+	requestSessionAttach({
+		tasks,
+		task,
+		sessionId: 's1',
+		send: cmd => {
+			sent.push(cmd);
+			return true;
+		},
+		clientId: 'cli',
+		attach,
+		settleTask: () => {}
+	});
+	const cmd = sent[0] as {type: string; limit?: number};
+	assert.equal(cmd.type, 'AttachSession');
+	assert.equal(cmd.limit, AttachHistoryLimit);
+	assert.equal(AttachHistoryLimit, 8);
+});
+
+test('noteBindFailure allows two retries then stops, and clear resets the count', () => {
+	const attach = createSessionAttachStore();
+	assert.equal(attach.noteBindFailure('s1'), true);
+	assert.equal(attach.noteBindFailure('s1'), true);
+	assert.equal(attach.noteBindFailure('s1'), false);
+	attach.resetBindFailure('s1');
+	assert.equal(attach.noteBindFailure('s1'), true);
+	attach.clear();
+	assert.equal(attach.noteBindFailure('s1'), true);
+});
 
 test('resolveEventTask prefers session-bound task and demuxes stream by session', () => {
 	const bySession = makeTask('t1', 's1');

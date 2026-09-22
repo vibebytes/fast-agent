@@ -10,7 +10,9 @@ import {
 	toggleGroupExpand
 } from './openSet.js';
 import {
+	addedOpenTabIds,
 	closeOpenTab,
+	closeOpenTabPaint,
 	DEFAULT_OPEN_TAB_PROJECT_ID,
 	DEFAULT_TAB_GROUP_LABEL,
 	dropOpenTabIds,
@@ -63,6 +65,45 @@ test('close last Open Tab yields empty set and null focus (no Archive semantics)
 	assert.equal(closed.focusTaskId, null);
 	assert.equal(closed.set.tabs.length, 0);
 	assert.equal(closed.set.activeTabId, null);
+});
+
+test('closing the active tab paints the strip first and keeps the pane', () => {
+	let set = emptyOpenSet();
+	set = ensureOpenTask(set, {id: 'a', title: 'A', projectId: 'p1'});
+	set = ensureOpenTask(set, {id: 'b', title: 'B', projectId: 'p1'});
+	const paint = closeOpenTabPaint(set, 'b');
+	assert.equal(paint.deferPane, true);
+	assert.deepEqual(
+		paint.immediate.tabs.map(t => t.id),
+		['a']
+	);
+	assert.equal(paint.immediate.activeTabId, 'b');
+	assert.equal(paint.settled.activeTabId, 'a');
+	assert.equal(paint.focusTaskId, 'a');
+});
+
+test('closing an inactive tab is a single commit', () => {
+	let set = emptyOpenSet();
+	set = ensureOpenTask(set, {id: 'a', title: 'A', projectId: 'p1'});
+	set = ensureOpenTask(set, {id: 'b', title: 'B', projectId: 'p1'});
+	const paint = closeOpenTabPaint(set, 'a');
+	assert.equal(paint.deferPane, false);
+	assert.equal(paint.immediate, paint.settled);
+	assert.equal(paint.focusTaskId, 'b');
+});
+
+test('closing the last tab does not defer an empty pane', () => {
+	const set = ensureOpenTask(emptyOpenSet(), {id: 'only', title: 'Only', projectId: 'p1'});
+	const paint = closeOpenTabPaint(set, 'only');
+	assert.equal(paint.deferPane, false);
+	assert.equal(paint.focusTaskId, null);
+	assert.equal(paint.settled.tabs.length, 0);
+});
+
+test('addedOpenTabIds ignores a shrink and reports only new ids', () => {
+	assert.deepEqual(addedOpenTabIds(['a', 'b'], ['a']), []);
+	assert.deepEqual(addedOpenTabIds(['a'], ['a', 'c']), ['c']);
+	assert.deepEqual(addedOpenTabIds([], ['a', 'b']), ['a', 'b']);
 });
 
 test('closing inactive Open Tab does not change focus target', () => {

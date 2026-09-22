@@ -2,6 +2,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
+	AttachHistoryLimit,
 	applyBridgeEvent,
 	chromeAwaitingSettlement,
 	chromeFromServer,
@@ -56,7 +57,7 @@ test('SessionController new task sends CreateSession with path-hash then Attach'
 	if (attach?.type === 'AttachSession') {
 		assert.equal(attach.sessionId, 'engine-sess-1');
 		assert.equal(attach.lastEventSeq, 0);
-		assert.equal(attach.limit, 20);
+		assert.equal(attach.limit, AttachHistoryLimit);
 	}
 	assert.equal(controller.getActiveTask()?.sessionId, 'engine-sess-1');
 	assert.equal(controller.canSendMessage(), true);
@@ -280,6 +281,74 @@ test('ensureLive Bind+Attach without moving focus (Open Tab background)', () => 
 		undefined,
 		'already attached background must not re-Bind'
 	);
+	controller.ensureLive(bg.id, {focus: true});
+	assert.equal(
+		sent.find(c => c.type === 'BindSessionWorkspace'),
+		undefined,
+		'focus while the first Bind is in flight must not send another Bind'
+	);
+});
+
+test('Bind accepted before session_restored does not re-Attach', () => {
+	const sent: BridgeCommand[] = [];
+	const controller = new SessionController({
+		clientId: 'cli',
+		workspaceId: () => 'ws-hash',
+		send: cmd => {
+			sent.push(cmd);
+			return true;
+		},
+		createId: (() => {
+			let n = 0;
+			return () => `id-${++n}`;
+		})()
+	});
+	controller.hydrateFromMeta([{id: 'sess-bg', title: 'Background', status: 'active'}]);
+	const bg = controller.listTasks().find(t => t.sessionId === 'sess-bg');
+	assert.ok(bg);
+	controller.ensureLive(bg.id, {focus: true});
+	controller.handleEvent({
+		type: 'command_result',
+		name: 'BindSessionWorkspace',
+		status: 'accepted',
+		sessionId: 'sess-bg',
+		message: 'ok'
+	} as BridgeEvent);
+	sent.length = 0;
+	controller.selectTask(bg.id);
+	assert.equal(sent.find(c => c.type === 'AttachSession'), undefined);
+	assert.equal(sent.find(c => c.type === 'BindSessionWorkspace'), undefined);
+});
+
+test('Bind error clears in-flight and retries ensureLive', async () => {
+	const sent: BridgeCommand[] = [];
+	const controller = new SessionController({
+		clientId: 'cli',
+		workspaceId: () => 'ws-hash',
+		send: cmd => {
+			sent.push(cmd);
+			return true;
+		},
+		createId: (() => {
+			let n = 0;
+			return () => `id-${++n}`;
+		})()
+	});
+	controller.hydrateFromMeta([{id: 'sess-bg', title: 'Background', status: 'active'}]);
+	const bg = controller.listTasks().find(t => t.sessionId === 'sess-bg');
+	assert.ok(bg);
+	controller.ensureLive(bg.id, {focus: true});
+	assert.equal(sent.filter(c => c.type === 'BindSessionWorkspace').length, 1);
+	controller.handleEvent({
+		type: 'command_result',
+		name: 'BindSessionWorkspace',
+		status: 'error',
+		sessionId: 'sess-bg',
+		message: 'workspace not registered: ws-hash'
+	} as BridgeEvent);
+	assert.equal(controller.isAttached('sess-bg'), false);
+	await new Promise(resolve => setTimeout(resolve, 250));
+	assert.equal(sent.filter(c => c.type === 'BindSessionWorkspace').length, 2);
 });
 
 test('selectTask is ensureLive with focus', () => {

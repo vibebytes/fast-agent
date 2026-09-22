@@ -258,6 +258,16 @@ test('buildTasksSnapshot carries transcript; buildTasksMeta has no body fields',
 	assert.equal('transcript' in meta, false);
 	assert.equal('bodyRevision' in meta, false);
 	assert.equal(meta.activeTaskId, full.activeTaskId);
+
+	const body = publisher.buildTaskBody(full.activeTaskId!);
+	assert.ok(body);
+	assert.equal(body.taskId, full.activeTaskId);
+	assert.ok(Array.isArray(body.entries));
+	assert.equal('tasks' in body, false);
+	assert.equal('chats' in body, false);
+	assert.equal('projects' in body, false);
+	assert.equal('modelCatalog' in body, false);
+	assert.equal(publisher.buildTaskBody('missing-task'), null);
 });
 
 test('publishFocusChange: single workspace:focus without projectTasks', () => {

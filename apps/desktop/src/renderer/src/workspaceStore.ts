@@ -35,6 +35,7 @@ import type {
 	ContextPruneView,
 	UsageView,
 	TaskSummary,
+	TaskBodySnapshot,
 	TasksMeta,
 	TasksSnapshot,
 	TranscriptEntry,
@@ -148,6 +149,7 @@ export type WorkspaceChromeSnapshot = Omit<
 export type WorkspaceEvent =
 	| {type: 'tasks:changed'; payload: TasksMeta}
 	| {type: 'tasks:pull'; payload: TasksSnapshot}
+	| {type: 'body:pulled'; payload: TaskBodySnapshot}
 	| {type: 'transcript:patched'; payload: TranscriptPatch}
 	| {type: 'transcript:tailPatched'; payload: TranscriptTailPatch}
 	| {type: 'projects:changed'; payload: ProjectsSnapshot}

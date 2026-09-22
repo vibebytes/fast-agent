@@ -62,6 +62,50 @@ export function closeOpenTab(
 	return {set: next, focusTaskId: next.activeTabId};
 }
 
+/**
+ * Two-commit close of the active tab.
+ *
+ * `immediate` drops the tab but keeps `activeTabId` on the closing conversation,
+ * so the first frame only repaints the strip. `settled` is the neighbor focus,
+ * applied after that frame paints. Closing an inactive tab, or the last tab,
+ * needs one commit: `deferPane` is false and both sets are the settled one.
+ */
+export type ClosePaint = {
+	immediate: OpenSet;
+	settled: OpenSet;
+	focusTaskId: string | null;
+	deferPane: boolean;
+};
+
+export function closeOpenTabPaint(set: OpenSet, tabId: string): ClosePaint {
+	const settled = closeOpenTab(set, tabId);
+	const wasActive = set.activeTabId === tabId && set.tabs.some(t => t.id === tabId);
+	if (!wasActive || settled.focusTaskId == null) {
+		return {
+			immediate: settled.set,
+			settled: settled.set,
+			focusTaskId: settled.focusTaskId,
+			deferPane: false
+		};
+	}
+	return {
+		immediate: {
+			tabs: set.tabs.filter(t => t.id !== tabId),
+			activeTabId: tabId,
+			expandedGroupKey: settled.set.expandedGroupKey
+		},
+		settled: settled.set,
+		focusTaskId: settled.focusTaskId,
+		deferPane: true
+	};
+}
+
+/** Ids present in `next` but not `prev`. A close only shrinks the set. */
+export function addedOpenTabIds(prev: readonly string[], next: readonly string[]): string[] {
+	const seen = new Set(prev);
+	return next.filter(id => id && !seen.has(id));
+}
+
 type TaskRow = {
 	id: string;
 	title: string;

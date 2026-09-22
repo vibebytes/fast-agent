@@ -434,3 +434,68 @@ test('BridgeClient delivers CommandLoop turn_finished without eventSeq', async (
 	client.stop();
 });
 
+test('BridgeClient delivers events after session_restored in chunk order', async () => {
+	const stdout = new PassThrough();
+	const stdin = new PassThrough();
+	const stderr = new PassThrough();
+	const child = Object.assign(new EventEmitter(), {
+		stdout,
+		stderr,
+		stdin,
+		killed: false,
+		pid: 3,
+		kill() {
+			this.killed = true;
+		}
+	});
+
+	const events: string[] = [];
+	const client = new BridgeClient({
+		spawnImpl: () => child as never
+	});
+
+	await new Promise<void>((resolve, reject) => {
+		const timer = setTimeout(() => reject(new Error('ordered events never arrived')), 1000);
+		client.start(
+			'/tmp/ws',
+			{
+				onEvent(event) {
+					events.push(event.type);
+					if (event.type === 'assistant_delta') {
+						clearTimeout(timer);
+						resolve();
+					}
+				},
+				onError(msg) {
+					clearTimeout(timer);
+					reject(new Error(msg));
+				},
+				onExit() {}
+			},
+			{
+				env: {FAST_ENGINE_COMMAND: 'mock', FAST_ENGINE_ARGS: 'x'},
+				bundledEnginePath: '/unused'
+			}
+		);
+		queueMicrotask(() => {
+			const restored = JSON.stringify({
+				type: 'session_restored',
+				sessionId: 's1',
+				turns: []
+			});
+			const delta = JSON.stringify({
+				type: 'assistant_delta',
+				sessionId: 's1',
+				text: 'a'
+			});
+			stdout.write(`${restored}\n${delta}\n`);
+		});
+	});
+
+	assert.deepEqual(
+		events.filter(type => type !== 'engine_status'),
+		['session_restored', 'assistant_delta']
+	);
+	client.stop();
+});
+
