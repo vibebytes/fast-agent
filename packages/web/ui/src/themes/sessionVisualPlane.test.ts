@@ -89,7 +89,7 @@ test('Transcript uses a quiet execution rail and human-readable skill context', 
 	assert.match(timeline, /data-slot="process-rail"/);
 	assert.match(timeline, /before:bg-muted-foreground\/45/);
 	assert.doesNotMatch(timeline, />▸</);
-	assert.match(markdown, /text-\[13\.5px\] leading-\[1\.65\]/);
+	assert.match(markdown, /text-\[15px\] leading-\[1\.65\]/);
 	assert.match(tool, /Skill/);
 	assert.match(tool, /parseSkillEnvelope/);
 });
@@ -124,11 +124,12 @@ test('default light --sidebar sits one plane step below --background', () => {
 	assert.match(block, /--sidebar:\s*oklch\(0\.98\s+0\s+0\)/);
 });
 
-test('sidebar menu uses compact h-7 Clear hover/selected', () => {
+test('sidebar menu uses inset rounded rows on theme tokens', () => {
 	const src = readFileSync(join(here, '../components/sidebar.tsx'), 'utf8');
 	assert.match(src, /hover:bg-sidebar-accent/);
 	assert.match(src, /data-\[active=true\]:bg-sidebar-accent/);
-	assert.match(src, /sm:\s*"h-7 text-xs"/);
+	assert.doesNotMatch(src, /data-\[active=true\]:font-medium/);
+	assert.match(src, /sm:\s*"h-8 text-xs"/);
 	assert.doesNotMatch(src, /SIDEBAR_ROW_CHROME/);
 	assert.doesNotMatch(src, /mx-3\.5[\s\S]{0,80}border-l border-sidebar-border/);
 });
@@ -185,7 +186,7 @@ test('ProjectsSidebar: Project hover-only; Task selected; compact full-width row
 		/group\/project-row[\s\S]{0,200}project\.active &&\s*\n\s*'bg-sidebar-accent/
 	);
 	assert.match(src, /taskActive &&/);
-	assert.match(src, /relative flex h-7 w-full min-w-0 items-center rounded-sm/);
+	assert.match(src, /relative flex h-8 w-full min-w-0 items-center rounded-md/);
 	assert.match(src, /pl-7/);
 	assert.doesNotMatch(src, /border-l border-sidebar-border/);
 	assert.doesNotMatch(src, /\bml-3\b/);

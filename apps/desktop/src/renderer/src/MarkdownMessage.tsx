@@ -479,16 +479,16 @@ export function MarkdownMessage({
 	return (
 		<div
 			className={cn(
-				'markdown-message w-full max-w-none text-[13.5px] leading-[1.65] tracking-[-0.006em] text-foreground',
+				'markdown-message w-full max-w-none text-[15px] leading-[1.65] text-foreground',
 				'[&>:first-child]:mt-0 [&>:last-child]:mb-0',
-				'[&_p]:my-2 [&_ul]:my-2 [&_ol]:my-2 [&_li]:my-0.5',
+				'[&_p]:my-2 [&_ul]:my-2 [&_ol]:my-2 [&_li]:my-1.5 [&_li_li]:my-0.5',
 				'[&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5',
 				'[&_strong]:font-semibold [&_strong]:text-foreground',
 				'[&_a]:text-primary [&_a]:underline-offset-2 hover:[&_a]:underline',
 				'[&_blockquote]:my-3 [&_blockquote]:rounded-r-md [&_blockquote]:border-l-[3px] [&_blockquote]:border-primary/40 [&_blockquote]:bg-muted/20 [&_blockquote]:py-1.5 [&_blockquote]:pl-3.5 [&_blockquote]:pr-3 [&_blockquote]:text-muted-foreground',
-				'[&_h1]:mb-2.5 [&_h1]:mt-5 [&_h1]:text-[16px] [&_h1]:font-semibold [&_h1]:leading-6 [&_h1]:tracking-tight [&_h1]:text-foreground',
-				'[&_h2]:mb-2 [&_h2]:mt-4 [&_h2]:text-[14.5px] [&_h2]:font-semibold [&_h2]:leading-snug [&_h2]:text-foreground',
-				'[&_h3]:mb-1.5 [&_h3]:mt-3 [&_h3]:text-[13.5px] [&_h3]:font-semibold [&_h3]:text-foreground',
+				'[&_h1]:mb-2.5 [&_h1]:mt-5 [&_h1]:text-[18px] [&_h1]:font-semibold [&_h1]:leading-6 [&_h1]:tracking-tight [&_h1]:text-foreground',
+				'[&_h2]:mb-2 [&_h2]:mt-4 [&_h2]:text-[16.5px] [&_h2]:font-semibold [&_h2]:leading-snug [&_h2]:text-foreground',
+				'[&_h3]:mb-1.5 [&_h3]:mt-3 [&_h3]:text-[16px] [&_h3]:font-semibold [&_h3]:text-foreground',
 				'[&_hr]:my-4 [&_hr]:border-border/70',
 				'[&_table]:my-3 [&_table]:w-full [&_table]:text-[12.5px] [&_table]:tracking-normal',
 				'[&_th]:border [&_th]:border-border/70 [&_th]:bg-muted/40 [&_th]:px-2.5 [&_th]:py-1.5 [&_th]:text-left [&_th]:font-semibold',

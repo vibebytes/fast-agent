@@ -389,7 +389,7 @@ function ProjectsSidebarImpl({
 												asChild
 												size="sm"
 												tooltip={pin.title}
-												className="text-xs gap-1.5"
+												className="gap-1.5 text-sm"
 											>
 												<div className="flex min-w-0 flex-1 items-center gap-1.5">
 													<PinnedRowPinButton onClick={() => unpinPinned(pin)} />
@@ -414,7 +414,7 @@ function ProjectsSidebarImpl({
 													asChild
 													size="sm"
 													tooltip={pin.title}
-													className="text-xs gap-1.5"
+													className="gap-1.5 text-sm"
 												>
 													<div className="flex min-w-0 flex-1 items-center gap-1.5">
 														<PinnedRowPinButton onClick={() => unpinPinned(pin)} />
@@ -452,19 +452,18 @@ function ProjectsSidebarImpl({
 				</SidebarGroup>
 			) : null}
 
-			<SidebarGroup className="gap-0.5 px-2 py-1">
+			<SidebarGroup className="gap-1 px-2 pt-3 pb-1">
 				<div
 					className={cn(
-						'group/projects-bar flex h-7 w-full items-center gap-0.5 rounded-sm pr-0.5 pl-2',
-						'hover:bg-sidebar-accent'
+						'group/projects-bar flex h-8 w-full items-center gap-0.5 rounded-md pr-0.5 pl-2'
 					)}
 				>
 					<button
 						type="button"
 						className={cn(
-							'flex h-full min-w-0 flex-1 items-center gap-1 text-left text-xs font-medium',
+							'flex h-full min-w-0 flex-1 items-center gap-1 text-left text-xs font-normal',
 							'text-sidebar-muted-foreground outline-none',
-							'group-hover/projects-bar:text-sidebar-accent-foreground'
+							'hover:text-sidebar-foreground'
 						)}
 						onClick={() =>
 							updateUi(prev => setProjectsSectionOpen(prev, !prev.projectsSectionOpen))

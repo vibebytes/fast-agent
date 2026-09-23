@@ -47,35 +47,28 @@ export function RemoteServerPicker({edges}: {edges: EdgesList | null}) {
 	];
 
 	return (
-		<div className="px-2 pt-1 pb-0.5">
+		<div className="px-2 pt-2 pb-1">
 			<DropdownMenu open={open} onOpenChange={setOpen}>
 				<DropdownMenuTrigger asChild>
 					<button
 						type="button"
 						className={cn(
-							'group/server flex h-8 w-full min-w-0 items-center gap-2 rounded-md border px-2 text-left',
-							'border-sidebar-border/70 bg-sidebar-accent/40 text-xs text-sidebar-foreground',
-							'transition-colors outline-none hover:border-sidebar-border hover:bg-sidebar-accent',
-							'data-[state=open]:border-sidebar-border data-[state=open]:bg-sidebar-accent',
+							'group/server flex h-8 w-full min-w-0 items-center gap-2 rounded-md px-2 text-left',
+							'text-sm text-sidebar-foreground outline-none',
+							'hover:bg-sidebar-accent',
+							'data-[state=open]:bg-sidebar-accent',
 							'focus-visible:ring-2 focus-visible:ring-sidebar-ring'
 						)}
 						aria-label={t('shell.sidebar.remoteServers')}
 					>
-						<span
-							className={cn(
-								'flex size-5 shrink-0 items-center justify-center rounded-[5px]',
-								'bg-violet-500/15 text-violet-500'
-							)}
-						>
-							{connecting ? (
-								<Loader2 className="size-3 animate-spin" />
-							) : activeId === 'local' ? (
-								<Monitor className="size-3" />
-							) : (
-								<HardDrive className="size-3" />
-							)}
-						</span>
-						<span className="min-w-0 flex-1 truncate font-medium" title={activeName}>
+						{connecting ? (
+							<Loader2 className="size-4 shrink-0 animate-spin stroke-[1.5] text-sidebar-muted-foreground" />
+						) : activeId === 'local' ? (
+							<Monitor className="size-4 shrink-0 stroke-[1.5] text-sidebar-muted-foreground" />
+						) : (
+							<HardDrive className="size-4 shrink-0 stroke-[1.5] text-sidebar-muted-foreground" />
+						)}
+						<span className="min-w-0 flex-1 truncate" title={activeName}>
 							{activeName}
 						</span>
 						{connecting ? (
@@ -83,14 +76,11 @@ export function RemoteServerPicker({edges}: {edges: EdgesList | null}) {
 								{t('shell.sidebar.connecting')}
 							</span>
 						) : (
-							<span
-								aria-hidden
-								className="size-1.5 shrink-0 rounded-full bg-emerald-500"
-							/>
+							<span aria-hidden className="size-1.5 shrink-0 rounded-full bg-emerald-500" />
 						)}
 						<ChevronDown
 							className={cn(
-								'size-3.5 shrink-0 text-sidebar-muted-foreground transition-transform',
+								'size-3.5 shrink-0 stroke-[1.5] text-sidebar-muted-foreground transition-transform',
 								open && 'rotate-180'
 							)}
 						/>

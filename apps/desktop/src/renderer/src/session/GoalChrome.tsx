@@ -172,7 +172,7 @@ export function GoalStepConclusionChrome({
 				) : null}
 			</div>
 			{item.text.trim() ? (
-				<div className="border-l-2 border-border/50 pl-3 text-[13.5px] leading-[1.65]">
+				<div className="border-l-2 border-border/50 pl-3 text-[15px] leading-[1.65]">
 					<StreamingMarkdownMessage
 						text={item.text}
 						streaming={item.status === 'streaming'}
@@ -217,7 +217,7 @@ export function GoalOutcomeChrome({
 				/>
 			</div>
 			{item.text.trim() ? (
-				<div className="border-l-2 border-border/50 pl-3 text-[13.5px] leading-[1.65] text-muted-foreground">
+				<div className="border-l-2 border-border/50 pl-3 text-[15px] leading-[1.65] text-muted-foreground">
 					<StreamingMarkdownMessage
 						text={item.text}
 						streaming={item.status === 'streaming'}

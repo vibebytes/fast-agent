@@ -47,7 +47,16 @@ test('resolveSidebarColor: dark does not sink (card ?? background)', () => {
 	);
 });
 
-test('withSidebar light sinks muted into a clearer sidebar-accent', () => {
+test('withSidebar light sets a shallow sidebar-accent under the sidebar plane', () => {
 	const vars = withSidebar({background: 'oklch(1 0 0)', muted: 'oklch(0.967 0 0)'}, 'light');
-	assert.equal(vars['sidebar-accent'], 'oklch(0.917 0 0)');
+	assert.equal(vars.sidebar, 'oklch(0.98 0 0)');
+	assert.equal(vars['sidebar-accent'], 'oklch(0.95 0 0)');
+});
+
+test('withSidebar keeps an explicit sidebar-accent', () => {
+	const vars = withSidebar(
+		{background: 'oklch(1 0 0)', 'sidebar-accent': 'oklch(0.8 0.02 20)'},
+		'light'
+	);
+	assert.equal(vars['sidebar-accent'], 'oklch(0.8 0.02 20)');
 });

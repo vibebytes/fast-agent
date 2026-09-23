@@ -86,7 +86,7 @@ function UserMessageShell({
 				className={cn(
 					'w-full border-0 bg-muted/70',
 					dockedBelow ? 'rounded-t-2xl rounded-b-none' : 'rounded-2xl',
-					'px-4 py-3 text-[13px] leading-relaxed text-foreground wrap-break-word',
+					'px-4 py-3 text-[15px] leading-[1.65] text-foreground wrap-break-word',
 					canCancel && 'pr-12',
 					className
 				)}

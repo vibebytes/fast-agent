@@ -10,8 +10,10 @@ import {SidebarMenuButton, SidebarMenuItem} from '@fast-ide/ui/components/sideba
 import {Tooltip, TooltipContent, TooltipTrigger} from '@fast-ide/ui/components/tooltip';
 import {cn} from '@fast-ide/ui/lib/utils';
 import {Archive, Pin} from 'lucide-react';
+import {useTranslation} from 'react-i18next';
 import type {ProjectSnapshot, TaskSummary} from '../env';
 import {type TaskRow} from '../sidebarModel';
+import {relativeLabel} from './scheduledList';
 import {TaskMenuItems, contextChrome} from './sidebarMenus';
 
 export function RunStateDot({runState}: {runState: 'running' | 'completed-unseen'}) {
@@ -60,6 +62,17 @@ export function taskMenuPropsOf(
 		onArchive: () => actions.requestArchiveTask(project, task),
 		onDelete: () => actions.requestDeleteTask(project, task)
 	};
+}
+
+function RowTime({iso}: {iso?: string}) {
+	const {i18n} = useTranslation();
+	const label = relativeLabel(iso, Date.now(), i18n.language);
+	if (!label) return null;
+	return (
+		<span className="pointer-events-none absolute right-2 max-w-[42%] truncate text-xs text-sidebar-muted-foreground group-hover/task:opacity-0">
+			{label}
+		</span>
+	);
 }
 
 function TaskHoverActions({
@@ -153,11 +166,12 @@ export const FlatTaskRow = memo(function FlatTaskRow({
 						isActive={row.isActive && project.active}
 						onClick={() => actions.openTask(task.id)}
 						tooltip={`${task.title} · ${displayProjectName ?? ''}`}
-						className="text-xs gap-1.5"
+						className="gap-1.5 pr-16 text-sm"
 					>
 						{task.runState ? <RunStateDot runState={task.runState} /> : null}
 						<span className="truncate">{task.title}</span>
 					</SidebarMenuButton>
+					<RowTime iso={task.lastModified} />
 					<TaskHoverActions
 						project={project}
 						projectPath={row.projectPath}
@@ -189,21 +203,22 @@ export const TreeTaskRow = memo(function TreeTaskRow({
 		<ContextMenu>
 			<ContextMenuTrigger asChild>
 				<li className="group/task relative w-full min-w-0 list-none">
-					<div
-						className={cn(
-							'relative flex h-7 w-full min-w-0 items-center rounded-sm',
-							'hover:bg-sidebar-accent',
-							taskActive && 'bg-sidebar-accent font-medium text-sidebar-accent-foreground'
-						)}
-					>
-						<button
-							type="button"
-							className="flex h-7 w-full min-w-0 items-center truncate pr-14 pl-7 text-left text-xs leading-none text-sidebar-foreground outline-none gap-1.5"
-							onClick={() => actions.openTask(task.id)}
+						<div
+							className={cn(
+								'relative flex h-8 w-full min-w-0 items-center rounded-md',
+								'hover:bg-sidebar-accent',
+								taskActive && 'bg-sidebar-accent'
+							)}
 						>
-							{task.runState ? <RunStateDot runState={task.runState} /> : null}
-							<span className="truncate">{task.title}</span>
-						</button>
+							<button
+								type="button"
+								className="flex h-8 w-full min-w-0 items-center gap-1.5 truncate pr-16 pl-7 text-left text-sm leading-5 text-sidebar-foreground outline-none"
+								onClick={() => actions.openTask(task.id)}
+							>
+								{task.runState ? <RunStateDot runState={task.runState} /> : null}
+								<span className="truncate">{task.title}</span>
+							</button>
+							<RowTime iso={task.lastModified} />
 						<TaskHoverActions
 							project={project}
 							projectPath={row.projectPath}
@@ -235,16 +250,17 @@ export const DefaultTaskRow = memo(
 		return (
 			<ContextMenu>
 				<ContextMenuTrigger asChild>
-					<SidebarMenuItem>
+					<SidebarMenuItem className="group/task relative">
 						<SidebarMenuButton
 							size="sm"
 							isActive={isActive}
 							onClick={() => actions.openTask(task.id)}
-							className="text-xs gap-1.5"
+							className="gap-1.5 pr-16 text-sm"
 						>
 							{task.runState ? <RunStateDot runState={task.runState} /> : null}
 							<span>{task.title}</span>
 						</SidebarMenuButton>
+						<RowTime iso={task.lastModified} />
 					</SidebarMenuItem>
 				</ContextMenuTrigger>
 				<ContextMenuContent className="w-52">

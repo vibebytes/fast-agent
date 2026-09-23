@@ -1,7 +1,17 @@
 import {getPaletteTheme, type PaletteModeVars} from './catalog';
 
-/** Light-mode step: sidebar sits slightly below background (Codex-like plane). */
+/** Light-mode step: sidebar sits slightly below background. */
 export const SIDEBAR_LIGHT_SINK_L = 0.02;
+
+/** How far a row pill sits from the sidebar plane. Light sinks, dark lifts. */
+export const SIDEBAR_ACCENT_STEP_L = 0.03;
+
+/** Shallow hover/selected fill. An explicit palette `sidebar-accent` still wins. */
+function accentOnPlane(sidebar: string | undefined, mode: 'light' | 'dark'): string | undefined {
+	if (!sidebar) return undefined;
+	const delta = mode === 'light' ? SIDEBAR_ACCENT_STEP_L : -SIDEBAR_ACCENT_STEP_L;
+	return sinkOklchLightness(sidebar, delta);
+}
 
 const MANAGED_KEYS = [
 	'background',
@@ -43,7 +53,7 @@ const MANAGED_KEYS = [
 export function sinkOklchLightness(color: string, delta = SIDEBAR_LIGHT_SINK_L): string {
 	const m = /^oklch\(\s*([0-9]*\.?[0-9]+)/i.exec(color.trim());
 	if (!m) return color;
-	const next = Math.max(0, Number(m[1]) - delta);
+	const next = Math.min(1, Math.max(0, Number(m[1]) - delta));
 	// Preserve trailing channels / alpha as written.
 	return color.replace(/^oklch\(\s*[0-9]*\.?[0-9]+/i, `oklch(${formatL(next)}`);
 }
@@ -74,13 +84,7 @@ export function withSidebar(
 	mode: 'light' | 'dark' = 'light'
 ): PaletteModeVars {
 	const sidebar = resolveSidebarColor(vars, mode);
-	const mutedOrSecondary = vars.muted ?? vars.secondary;
-	// Light: keep Clear row pills — sink muted so hover/selected stay visible on sunk sidebar.
-	const sidebarAccent =
-		vars['sidebar-accent'] ??
-		(mode === 'light' && mutedOrSecondary
-			? sinkOklchLightness(mutedOrSecondary, 0.05)
-			: mutedOrSecondary);
+	const sidebarAccent = vars['sidebar-accent'] ?? accentOnPlane(sidebar, mode);
 	return {
 		...vars,
 		...(sidebar ? {sidebar} : {}),

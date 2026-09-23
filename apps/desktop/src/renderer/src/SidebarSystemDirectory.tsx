@@ -92,15 +92,11 @@ export function SidebarSystemDirectory({
 		}
 	}
 	return (
-		<div className={cn('w-full border-t border-sidebar-border/60 bg-sidebar/50', className)}>
+		<div className={cn('w-full', className)}>
 			<DropdownMenu>
-				{/*
-				  Hover must paint the full footer cell (edge-to-edge under the separator),
-				  not an inset rounded chip — otherwise it reads as a floating pill.
-				*/}
 				<div
 					className={cn(
-						'group/system flex h-10 w-full items-center gap-0.5 px-3',
+						'group/system flex h-8 w-full items-center gap-0.5 rounded-md px-2',
 						'hover:bg-sidebar-accent',
 						'has-[[data-state=open]]:bg-sidebar-accent'
 					)}
@@ -116,11 +112,11 @@ export function SidebarSystemDirectory({
 							aria-label={t('shell.sidebar.systemDirectory')}
 						>
 							<Avatar size="sm" className="size-6">
-								<AvatarFallback className="bg-violet-500 text-[10px] font-medium text-white">
+								<AvatarFallback className="bg-sidebar-primary text-[10px] font-medium text-sidebar-primary-foreground">
 									{initials}
 								</AvatarFallback>
 							</Avatar>
-							<span className="min-w-0 flex-1 truncate font-medium">{displayName}</span>
+							<span className="min-w-0 flex-1 truncate">{displayName}</span>
 						</button>
 					</DropdownMenuTrigger>
 					<Button
@@ -146,7 +142,7 @@ export function SidebarSystemDirectory({
 				>
 						<DropdownMenuLabel className="flex items-center gap-2 p-2 font-normal">
 							<Avatar size="sm" className="size-7">
-								<AvatarFallback className="bg-violet-500 text-[11px] font-medium text-white">
+								<AvatarFallback className="bg-sidebar-primary text-[11px] font-medium text-sidebar-primary-foreground">
 									{initials}
 								</AvatarFallback>
 							</Avatar>

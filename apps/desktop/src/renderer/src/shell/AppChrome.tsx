@@ -11,7 +11,6 @@ import {
 	SidebarMenuButton,
 	SidebarMenuItem,
 	SidebarProvider,
-	SidebarSeparator,
 	SidebarTrigger
 } from '@fast-ide/ui/components/sidebar';
 import {TooltipProvider} from '@fast-ide/ui/components/tooltip';
@@ -144,7 +143,7 @@ function AppSidebar({
 						</Button>
 					</div>
 				</div>
-				<div className="px-2 pt-1">
+				<div className="px-2 pt-2 pb-1">
 				<SidebarMenu>
 					<SidebarMenuItem>
 						<SidebarMenuButton
@@ -213,8 +212,7 @@ function AppSidebar({
 				</ErrorBoundary>
 			</SidebarContent>
 
-			<SidebarFooter className="gap-0 p-0 group-data-[collapsible=icon]:hidden">
-				<SidebarSeparator className="mx-0" />
+			<SidebarFooter className="gap-0 p-2 group-data-[collapsible=icon]:hidden">
 				<SidebarSystemDirectory
 					displayName="Local User"
 					edges={edges}

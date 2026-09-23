@@ -68,7 +68,7 @@ export const ProjectTreeRow = memo(
 					<ContextMenuTrigger asChild>
 						<div
 							className={cn(
-								'group/project-row relative flex h-7 w-full min-w-0 items-center rounded-sm',
+								'group/project-row relative flex h-8 w-full min-w-0 items-center rounded-md',
 								// Avoid stacked pills with a selected child Task (Codex-adjacent clash).
 								!project.active && 'hover:bg-sidebar-accent'
 							)}
@@ -77,7 +77,7 @@ export const ProjectTreeRow = memo(
 								type="button"
 								title={shortenedPath}
 								className={cn(
-									'flex h-7 min-w-0 flex-1 items-center gap-1.5 rounded-sm px-1.5 pr-14 text-left text-xs leading-none outline-none',
+									'flex h-8 min-w-0 flex-1 items-center gap-1.5 rounded-md px-1.5 pr-14 text-left text-sm leading-5 outline-none',
 									'hover:bg-transparent'
 								)}
 								onPointerDown={e => {
@@ -109,7 +109,7 @@ export const ProjectTreeRow = memo(
 
 							<div
 								className={cn(
-									'absolute right-0.5 flex h-7 shrink-0 items-center',
+									'absolute right-0.5 flex h-8 shrink-0 items-center',
 									'opacity-0 transition-opacity',
 									'group-hover/project:opacity-100 focus-within:opacity-100',
 									'group-has-[[data-state=open]]/project:opacity-100'
@@ -161,7 +161,7 @@ export const ProjectTreeRow = memo(
 				</ContextMenu>
 
 				{expanded ? (
-					<ul className="relative flex w-full min-w-0 flex-col gap-0 before:absolute before:top-0 before:bottom-1.5 before:left-[11px] before:w-[1px] before:bg-sidebar-border/50">
+					<ul className="relative flex w-full min-w-0 flex-col gap-1 before:absolute before:top-0 before:bottom-1.5 before:left-[11px] before:w-[1px] before:bg-sidebar-border/50">
 						{!hydrated && tasks.length === 0 ? (
 							<li className="px-2 py-0.5 text-xs text-sidebar-muted-foreground">{t('shell.sidebar.loading')}</li>
 						) : tasks.length === 0 ? (

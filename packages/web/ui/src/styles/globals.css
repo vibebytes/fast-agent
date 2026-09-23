@@ -40,8 +40,8 @@
   --sidebar-muted-foreground: oklch(0.72 0 0);
   --sidebar-primary: oklch(0.21 0.006 285.885);
   --sidebar-primary-foreground: oklch(0.985 0 0);
-  /* Clear Codex-like row pill: visibly darker than --sidebar (0.98) */
-  --sidebar-accent: oklch(0.90 0.001 286);
+  /* Row pill: a shallow step under --sidebar (0.98), Codex-like */
+  --sidebar-accent: oklch(0.95 0.001 286);
   --sidebar-accent-foreground: oklch(0.28 0 0);
   --sidebar-border: oklch(0.92 0.004 286.32);
   --sidebar-ring: oklch(0.705 0.015 286.067);
@@ -76,8 +76,8 @@
   --sidebar-muted-foreground: oklch(0.62 0 0);
   --sidebar-primary: oklch(0.488 0.243 264.376);
   --sidebar-primary-foreground: oklch(0.985 0 0);
-  /* Hover/selected pill above dark sidebar plane */
-  --sidebar-accent: oklch(0.32 0.006 286.033);
+  /* Hover/selected pill, a shallow step above the dark sidebar */
+  --sidebar-accent: oklch(0.24 0.006 286.033);
   --sidebar-accent-foreground: oklch(0.98 0 0);
   --sidebar-border: oklch(1 0 0 / 10%);
   --sidebar-ring: oklch(0.552 0.016 285.938);

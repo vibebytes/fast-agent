@@ -170,7 +170,7 @@ export const TimelineRow = memo(function TimelineRow({
 						<Message align="start">
 							<MessageContent>
 								<Bubble variant="ghost" align="start">
-									<BubbleContent className="text-[13.5px] leading-[1.65]">
+									<BubbleContent className="text-[15px] leading-[1.65]">
 								<StreamingMarkdownMessage
 									text={item.text}
 									streaming={item.status === 'streaming'}
