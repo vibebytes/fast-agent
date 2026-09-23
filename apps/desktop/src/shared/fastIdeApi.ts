@@ -287,6 +287,8 @@ export type FastIdeApi = {
 					promptText?: string | null;
 					targetKind?: string | null;
 					targetRef?: string | null;
+					workspaceName?: string | null;
+					workspaceRoot?: string | null;
 				}>;
 		  }
 		| {ok: false; notice: string}
@@ -353,6 +355,7 @@ export type FastIdeApi = {
 					summary?: string | null;
 					error?: string | null;
 					runId?: string | null;
+					sessionTitle?: string | null;
 				}>;
 		  }
 		| {ok: false; notice: string}
@@ -528,6 +531,16 @@ export type FastIdeApi = {
 	openLivingSession: (
 		sessionId: string,
 		metaProjectId?: string | null
+	) => Promise<
+		| {ok: true; taskId: string; title: string; kind?: string; sessionId?: string | null}
+		| {ok: false; notice: string}
+	>;
+	openScheduledRun: (
+		sessionId: string,
+		metaProjectId?: string | null,
+		title?: string,
+		sessionType?: string | null,
+		workspaceRoot?: string | null
 	) => Promise<
 		| {ok: true; taskId: string; title: string; kind?: string; sessionId?: string | null}
 		| {ok: false; notice: string}

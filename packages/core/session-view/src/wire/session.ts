@@ -61,6 +61,8 @@ export type TaskSummary = {
 	runState?: 'running' | 'completed-unseen' | undefined;
 	/** ISO timestamp — sidebar conversation order (newest first). */
 	lastModified?: string;
+	/** Engine `session_type`. `automation` runs stay out of the chat tree. */
+	sessionType?: string;
 };
 
 /** Main-process wall times for one `task:select` (tab-switch diagnosis). */

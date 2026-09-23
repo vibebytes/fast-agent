@@ -52,6 +52,7 @@ function mapEntry(
 		kind: 'task' | 'chat';
 		sessionId: string | null;
 		lastModified?: string;
+		sessionType?: string;
 	},
 	activeId: string | null,
 	taskRunState?: ((taskId: string) => 'running' | 'completed-unseen' | null) | null
@@ -64,7 +65,8 @@ function mapEntry(
 		sessionId: entry.sessionId,
 		active: activeId === entry.id,
 		...(runState ? {runState} : {}),
-		...(entry.lastModified ? {lastModified: entry.lastModified} : {})
+		...(entry.lastModified ? {lastModified: entry.lastModified} : {}),
+		...(entry.sessionType ? {sessionType: entry.sessionType} : {})
 	};
 }
 

@@ -24,6 +24,8 @@ export type TaskRecord = {
 	title: string;
 	kind: 'task' | 'chat';
 	sessionId: string | null;
+	/** Engine session_type, when known. */
+	sessionType?: string;
 	/**
 	 * Conversation recency (ISO). Advances on send / newer Meta `updatedAt`.
 	 * Renderer sidebar sorts project tasks by this (desc); projects stay name-sorted.

@@ -155,6 +155,26 @@ export function hostSession(input: {
 			if (result.ok) publisher.publishFocusChange();
 			return result;
 		},
+		'task:openScheduledRun': (
+			sessionId: string,
+			metaProjectId?: string | null,
+			title?: string,
+			sessionType?: string | null,
+			workspaceRoot?: string | null
+		) => {
+			const result = hub.openScheduledRun(
+				sessionId,
+				metaProjectId,
+				title ?? '',
+				sessionType,
+				workspaceRoot
+			);
+			if (result.ok) {
+				publisher.publishWorkspace();
+				publisher.publishFocusChange();
+			}
+			return result;
+		},
 
 		'task:rename': (taskId: string, title: string) => {
 			const project = hub.findProjectForTask(taskId);

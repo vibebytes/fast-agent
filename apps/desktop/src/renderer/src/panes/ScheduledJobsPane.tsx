@@ -5,25 +5,17 @@ import {cn} from '@fast-ide/ui/lib/utils';
 import {
 	Activity,
 	AlertCircle,
-	CalendarClock,
 	ChevronDown,
-	Clock,
 	Flag,
-	History,
 	Pause,
 	Play,
 	RefreshCw,
 	Square,
 	SquareTerminal,
-	Trash2,
-	Users,
-	Zap
+	Users
 } from 'lucide-react';
-import {openSessionTurn} from '../session/focusTurn';
-import {formatCountdown} from '../session/scheduleCountdown';
 import {asLivingProjects, type LivingProject, type LivingSession} from './livingTasksTypes';
 import {projectLabel} from './projectLabel';
-import {scheduledJobKindLabel, scheduledJobsVisible} from './scheduledJobsVisible';
 
 export type ScheduledJobRow = {
 	id: string;
@@ -39,6 +31,8 @@ export type ScheduledJobRow = {
 	promptText?: string | null;
 	targetKind?: string | null;
 	targetRef?: string | null;
+	workspaceName?: string | null;
+	workspaceRoot?: string | null;
 };
 
 export type ScheduledJobRunRow = {
@@ -51,9 +45,10 @@ export type ScheduledJobRunRow = {
 	summary?: string | null;
 	error?: string | null;
 	runId?: string | null;
+	sessionTitle?: string | null;
 };
 
-/** IDE「调度任务」：上 LivingTask 跨项目树；下 ScheduledJob（跨项目）。 */
+/** Right rail keeps LivingTask only. Plan lists live in the left sidebar. */
 export function ScheduledJobsPane({
 	focusSessionId,
 	onOpenSession,
@@ -68,37 +63,21 @@ export function ScheduledJobsPane({
 		agentId?: string;
 	}) => void;
 }) {
-	const [jobs, setJobs] = useState<ScheduledJobRow[]>([]);
 	const [living, setLiving] = useState<LivingProject[]>([]);
 	const [livingNotice, setLivingNotice] = useState<string | null>(null);
-	const [jobsNotice, setJobsNotice] = useState<string | null>(null);
 	const [busy, setBusy] = useState(false);
-	const [runsByJob, setRunsByJob] = useState<Record<string, ScheduledJobRunRow[]>>({});
-	const [runsOpen, setRunsOpen] = useState<Record<string, boolean>>({});
 	const [expanded, setExpanded] = useState<Record<string, boolean>>({});
-	const [now, setNow] = useState(() => Date.now());
 	const focusRef = useRef<HTMLLIElement | null>(null);
-
-	useEffect(() => {
-		const id = window.setInterval(() => setNow(Date.now()), 1000);
-		return () => window.clearInterval(id);
-	}, []);
 
 	const refresh = useCallback(async () => {
 		setBusy(true);
 		setLivingNotice(null);
-		setJobsNotice(null);
 		try {
-			const [jobsR, livingR] = await Promise.all([
-				window.fastIde.listScheduledJobs(),
-				window.fastIde.listLivingTasks()
-			]);
-			if (!jobsR.ok) setJobsNotice(humanNotice(jobsR.notice));
-			else setJobs(scheduledJobsVisible(jobsR.jobs));
+			const livingR = await window.fastIde.listLivingTasks();
 			if (!livingR.ok) setLivingNotice(humanNotice(livingR.notice));
 			else setLiving(asLivingProjects(livingR.projects));
 		} catch (e) {
-			setJobsNotice(humanNotice(e instanceof Error ? e.message : String(e)));
+			setLivingNotice(humanNotice(e instanceof Error ? e.message : String(e)));
 		} finally {
 			setBusy(false);
 		}
@@ -112,9 +91,6 @@ export function ScheduledJobsPane({
 		let t: number | undefined;
 		const unsub = window.fastIde.onBridgeEvent(payload => {
 			const typ = (payload.event as {type?: string}).type;
-			// child_work_changed = unified lifecycle wire for run/proc/goal/fire (covers
-			// subagent + scheduled-fire changes the old per-kind list missed).
-			// task_updated stays: ScheduledJob definition rows (armed/paused) are not child work.
 			if (typ !== 'child_work_changed' && typ !== 'task_updated') {
 				return;
 			}
@@ -141,87 +117,10 @@ export function ScheduledJobsPane({
 		});
 	}, [focusSessionId, living]);
 
-	const livingNameByMeta = useMemo(() => {
-		const m = new Map<string, string>();
-		for (const p of living) {
-			if (p.projectId) m.set(p.projectId, p.displayName);
-		}
-		return m;
-	}, [living]);
-
-	const jobsByProject = useMemo(() => {
-		const m = new Map<string, {label: string; rows: ScheduledJobRow[]}>();
-		for (const j of jobs) {
-			const pid = j.projectId || '_unknown';
-			const label = projectLabel(
-				pid,
-				j.projectDisplayName || livingNameByMeta.get(pid) || null
-			);
-			const cur = m.get(pid) ?? {label, rows: []};
-			cur.rows.push(j);
-			if (!cur.label || looksUuid(cur.label)) cur.label = label;
-			m.set(pid, cur);
-		}
-		return [...m.entries()];
-	}, [jobs, livingNameByMeta]);
-
 	const livingCount = useMemo(
 		() => living.reduce((n, p) => n + p.sessions.length, 0),
 		[living]
 	);
-
-	async function loadRuns(jobId: string) {
-		setBusy(true);
-		try {
-			const r = await window.fastIde.listScheduledJobRuns(jobId);
-			if (!r.ok) {
-				setJobsNotice(humanNotice(r.notice ?? t('shell.jobs.loadHistoryFailed')));
-				return;
-			}
-			setRunsByJob(prev => ({...prev, [jobId]: r.runs}));
-		} finally {
-			setBusy(false);
-		}
-	}
-
-	async function toggleRuns(jobId: string) {
-		const next = !runsOpen[jobId];
-		setRunsOpen(prev => ({...prev, [jobId]: next}));
-		if (next && !runsByJob[jobId]) await loadRuns(jobId);
-	}
-
-	async function updateCron(job: ScheduledJobRow) {
-		const cronExpr = window.prompt(t('shell.jobs.cronPrompt'), job.cronExpr ?? '')?.trim();
-		if (!cronExpr) return;
-		if (!window.confirm(t('shell.jobs.cronConfirm', {cron: cronExpr}))) return;
-		setBusy(true);
-		try {
-			const r = await window.fastIde.updateScheduledJobCron(job.id, cronExpr, job.timezone ?? undefined);
-			if (!r.ok) setJobsNotice(humanNotice(r.notice ?? t('shell.jobs.updateFailed')));
-			await refresh();
-		} finally {
-			setBusy(false);
-		}
-	}
-
-	async function act(id: string, op: 'pause' | 'resume' | 'cancel' | 'fireNow') {
-		if (op === 'cancel' && !window.confirm(t('shell.jobs.cancelConfirm'))) return;
-		setBusy(true);
-		try {
-			const r =
-				op === 'pause'
-					? await window.fastIde.pauseScheduledJob(id)
-					: op === 'resume'
-						? await window.fastIde.resumeScheduledJob(id)
-						: op === 'fireNow'
-							? await window.fastIde.fireNowScheduledJob(id)
-							: await window.fastIde.cancelScheduledJob(id);
-			if (!r.ok) setJobsNotice(humanNotice(r.notice ?? t('shell.jobs.opFailed')));
-			await refresh();
-		} finally {
-			setBusy(false);
-		}
-	}
 
 	function toggle(key: string) {
 		setExpanded(prev => ({...prev, [key]: !prev[key]}));
@@ -236,13 +135,11 @@ export function ScheduledJobsPane({
 			<header className="flex h-9 shrink-0 items-center justify-between border-b px-3">
 				<div className="flex min-w-0 items-center gap-2">
 					<span className="text-xs font-semibold tracking-tight">{t('shell.jobs.title')}</span>
-					{(livingCount > 0 || jobs.length > 0) && (
+					{livingCount > 0 ? (
 						<span className="truncate font-mono text-[10px] text-muted-foreground">
-							{livingCount > 0 ? t('shell.jobs.runningCount', {count: livingCount}) : null}
-							{livingCount > 0 && jobs.length > 0 ? ' · ' : null}
-							{jobs.length > 0 ? t('shell.jobs.scheduledCount', {count: jobs.length}) : null}
+							{t('shell.jobs.runningCount', {count: livingCount})}
 						</span>
-					)}
+					) : null}
 				</div>
 				<Button
 					type="button"
@@ -258,7 +155,7 @@ export function ScheduledJobsPane({
 			</header>
 
 			<div className="min-h-0 flex-1 overflow-y-auto">
-				<section className="border-b border-border/60 px-2 py-2">
+				<section className="px-2 py-2">
 					<SectionHead
 						icon={<Activity className="size-3" />}
 						title={t('shell.jobs.livingTitle')}
@@ -316,49 +213,6 @@ export function ScheduledJobsPane({
 						</ul>
 					) : null}
 				</section>
-
-				<section className="px-2 py-2">
-					<SectionHead
-						icon={<CalendarClock className="size-3" />}
-						title={t('shell.jobs.scheduleTitle')}
-						count={jobs.length}
-					/>
-					{jobsNotice ? <NoticeBanner text={jobsNotice} onRetry={() => void refresh()} /> : null}
-					{!jobsNotice && jobs.length === 0 ? (
-						<EmptyHint>{t('shell.jobs.scheduleEmpty')}</EmptyHint>
-					) : null}
-					{jobs.length > 0 ? (
-						<ul className="mt-1 space-y-3">
-							{jobsByProject.map(([pid, group]) => (
-								<li key={pid}>
-									<div className="mb-1 px-1.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
-										{group.label}
-									</div>
-									<ul className="space-y-1">
-										{group.rows.map(j => (
-											<JobCard
-												key={j.id}
-												job={j}
-												now={now}
-												busy={busy}
-												runsOpen={Boolean(runsOpen[j.id])}
-												runs={runsByJob[j.id]}
-												onOpen={() => openSession(j.sessionId, j.projectId ?? undefined)}
-												onFire={() => void act(j.id, 'fireNow')}
-												onCron={() => void updateCron(j)}
-												onHistory={() => void toggleRuns(j.id)}
-												onPauseResume={() =>
-													void act(j.id, j.status === 'paused' ? 'resume' : 'pause')
-												}
-												onCancel={() => void act(j.id, 'cancel')}
-											/>
-										))}
-									</ul>
-								</li>
-							))}
-						</ul>
-					) : null}
-				</section>
 			</div>
 		</div>
 	);
@@ -374,10 +228,6 @@ function humanNotice(raw: string): string {
 	}
 	if (/Engine not ready/i.test(s)) return t('shell.jobs.engineNotReady');
 	return s;
-}
-
-function looksUuid(s: string): boolean {
-	return /^[0-9a-f]{8}-[0-9a-f]{4}-/i.test(s) || s.startsWith(t('shell.jobs.projectPrefix'));
 }
 
 function SectionHead({
@@ -422,132 +272,6 @@ function NoticeBanner({text, onRetry}: {text: string; onRetry: () => void}) {
 	);
 }
 
-function StatusPill({status}: {status: string}) {
-	const paused = status.toLowerCase() === 'paused';
-	const armed = status.toLowerCase() === 'armed' || status.toLowerCase() === 'running';
-	return (
-		<span
-			className={cn(
-				'inline-flex items-center rounded-full px-1.5 py-px text-[10px] font-medium',
-				paused && 'bg-muted text-muted-foreground',
-				armed && 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400',
-				!paused && !armed && 'bg-muted text-muted-foreground'
-			)}
-		>
-			{paused ? t('shell.jobs.paused') : status === 'armed' ? t('shell.jobs.armed') : status}
-		</span>
-	);
-}
-
-function JobCard({
-	job,
-	now,
-	busy,
-	runsOpen,
-	runs,
-	onOpen,
-	onFire,
-	onCron,
-	onHistory,
-	onPauseResume,
-	onCancel
-}: {
-	job: ScheduledJobRow;
-	now: number;
-	busy: boolean;
-	runsOpen: boolean;
-	runs?: ScheduledJobRunRow[];
-	onOpen: () => void;
-	onFire: () => void;
-	onCron: () => void;
-	onHistory: () => void;
-	onPauseResume: () => void;
-	onCancel: () => void;
-}) {
-	const title = job.title?.trim() || job.promptText?.trim() || t('shell.jobs.unnamed');
-	const countdown =
-		job.status !== 'paused' ? formatCountdown(job.nextFireAt, now) || null : null;
-	const kind = scheduledJobKindLabel(job.kind);
-
-	return (
-		<li className="group rounded-lg border border-border/50 bg-muted/20 px-2 py-1.5 transition-colors hover:border-border hover:bg-muted/40">
-			<button type="button" className="w-full text-left" onClick={onOpen}>
-				<div className="flex items-start gap-2">
-					<div className="min-w-0 flex-1">
-						<div className="flex items-center gap-1.5">
-							<span className="shrink-0 rounded bg-background/80 px-1 py-px text-[10px] font-medium text-muted-foreground ring-1 ring-border/60">
-								{kind}
-							</span>
-							{job.targetKind ? (
-								<span className="shrink-0 rounded bg-background/80 px-1 py-px text-[10px] font-medium text-muted-foreground ring-1 ring-border/60">
-									→{job.targetKind}
-								</span>
-							) : null}
-							<span className="truncate text-[13px] font-medium leading-snug">{title}</span>
-						</div>
-						<div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-muted-foreground">
-							<StatusPill status={job.status} />
-							{countdown ? (
-								<span className="font-mono tabular-nums text-foreground/80">{countdown}</span>
-							) : job.status === 'paused' ? (
-								<span>{t('shell.jobs.paused')}</span>
-							) : null}
-							{job.cronExpr ? (
-								<span className="font-mono text-[10px] opacity-70" title={job.cronExpr}>
-									{job.cronExpr}
-								</span>
-							) : null}
-						</div>
-					</div>
-				</div>
-			</button>
-			<div className="mt-1.5 flex items-center gap-0.5 opacity-80 transition-opacity group-hover:opacity-100">
-				<IconAction title={t('shell.jobs.fireNow')} disabled={busy} onClick={onFire}>
-					<Zap className="size-3" />
-				</IconAction>
-				<IconAction title={t('shell.jobs.editCron')} disabled={busy} onClick={onCron}>
-					<Clock className="size-3" />
-				</IconAction>
-				<IconAction title={t('shell.jobs.runHistory')} disabled={busy} onClick={onHistory}>
-					<History className="size-3" />
-				</IconAction>
-				<IconAction
-					title={job.status === 'paused' ? t('shell.jobs.resume') : t('shell.jobs.pause')}
-					disabled={busy}
-					onClick={onPauseResume}
-				>
-					{job.status === 'paused' ? <Play className="size-3" /> : <Pause className="size-3" />}
-				</IconAction>
-				<IconAction title={t('shell.jobs.cancel')} disabled={busy} danger onClick={onCancel}>
-					<Trash2 className="size-3" />
-				</IconAction>
-			</div>
-			{runsOpen ? (
-				<ul className="mt-1.5 space-y-0.5 border-t border-border/40 pt-1.5">
-					{(runs ?? []).length === 0 ? (
-						<li className="px-0.5 text-[10px] text-muted-foreground">{t('shell.jobs.noRuns')}</li>
-					) : (
-						(runs ?? []).slice(0, 8).map(run => (
-							<li key={run.id}>
-								<button
-									type="button"
-									className="w-full truncate rounded px-1 py-0.5 text-left font-mono text-[10px] text-muted-foreground hover:bg-muted/60 hover:text-foreground"
-									disabled={!run.runId}
-									onClick={() => void openSessionTurn(run.sessionId || job.sessionId, run.runId)}
-								>
-									{run.status}
-									{run.startedAt ? ` · ${compactTime(run.startedAt)}` : ''}
-									{run.summary ? ` · ${run.summary}` : ''}
-								</button>
-							</li>
-						))
-					)}
-				</ul>
-			) : null}
-		</li>
-	);
-}
-
 function IconAction({
 	title,
 	disabled,
@@ -581,17 +305,6 @@ function IconAction({
 			{children}
 		</Button>
 	);
-}
-
-function compactTime(iso: string): string {
-	const t = Date.parse(iso);
-	if (Number.isNaN(t)) return iso;
-	return new Date(t).toLocaleString(undefined, {
-		month: 'numeric',
-		day: 'numeric',
-		hour: '2-digit',
-		minute: '2-digit'
-	});
 }
 
 function SessionBranch({

@@ -405,6 +405,7 @@ export function createSessionGlue(h: SessionGlueHost): SessionGlue {
 					title: info.title?.trim() || info.id.slice(0, 8),
 					kind: 'task',
 					sessionId: info.id,
+					sessionType: info.sessionType ?? undefined,
 					listOrder,
 					lastModified: info.lastModified,
 					lastEventSeq: 0,

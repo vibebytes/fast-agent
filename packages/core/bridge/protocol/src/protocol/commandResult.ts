@@ -277,7 +277,9 @@ export const commandResultSchema = z.object({
 					title: z.string().nullish(),
 					promptText: z.string().nullish(),
 					targetKind: z.string().nullish(),
-					targetRef: z.string().nullish()
+					targetRef: z.string().nullish(),
+					workspaceName: z.string().nullish(),
+					workspaceRoot: z.string().nullish()
 				})
 			)
 			.optional(),
@@ -293,7 +295,8 @@ export const commandResultSchema = z.object({
 					finishedAt: z.string().nullish(),
 					summary: z.string().nullish(),
 					error: z.string().nullish(),
-					runId: z.string().nullish()
+					runId: z.string().nullish(),
+					sessionTitle: z.string().nullish()
 				})
 			)
 			.optional(),

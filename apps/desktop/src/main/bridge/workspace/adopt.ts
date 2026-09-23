@@ -223,7 +223,8 @@ export function createAdopt(host: AdoptHost): WorkspaceAdopt {
 					id: s.id,
 					title: s.title,
 					status: s.status,
-					lastModified: s.updatedAt ?? undefined
+					lastModified: s.updatedAt ?? undefined,
+					sessionType: s.sessionType ?? undefined
 				}))
 			);
 			handlers.onSessionsChanged?.(project.id);

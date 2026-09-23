@@ -65,8 +65,6 @@ function RightWorkbenchImpl({
 	openFileRequest,
 	onOpenFileRequestHandled,
 	openDiffRequest,
-	openScheduledRequest,
-	onOpenScheduledRequestHandled,
 	focusSessionId,
 	onOpenLivingSession,
 	onOpenTeams,
@@ -92,9 +90,6 @@ function RightWorkbenchImpl({
 	openDiffRequest?: {changeId: string; path: string; nonce: number} | null;
 	/** @deprecated Kept for App wiring; clearing the request races Strict Mode remounts. */
 	onOpenDiffRequestHandled?: () => void;
-	/** When set (e.g. left sidebar Scheduled), focus/create the scheduled rail tab. */
-	openScheduledRequest?: {nonce: number} | null;
-	onOpenScheduledRequestHandled?: () => void;
 	/** Active Task/session for LivingTask expand-follow. */
 	focusSessionId?: string | null;
 	onOpenLivingSession?: (sessionId: string, projectId?: string) => void;
@@ -439,31 +434,6 @@ function RightWorkbenchImpl({
 			cancelled = true;
 		};
 	}, [openFileRequest?.nonce]); // eslint-disable-line react-hooks/exhaustive-deps -- keyed by nonce only
-
-	useEffect(() => {
-		if (!openScheduledRequest) return;
-		let cancelled = false;
-		let focusId: string | undefined;
-		setTabs(prev => {
-			const existing = prev.find(t => t.kind === 'scheduled');
-			if (existing) {
-				focusId = existing.id;
-				return prev;
-			}
-			const tab = createRailTab('scheduled');
-			focusId = tab.id;
-			return [...prev, tab];
-		});
-		// Defer clear so React Strict Mode remount still sees the same request.
-		queueMicrotask(() => {
-			if (cancelled) return;
-			if (focusId) setActiveId(focusId);
-			onOpenScheduledRequestHandled?.();
-		});
-		return () => {
-			cancelled = true;
-		};
-	}, [openScheduledRequest?.nonce]); // eslint-disable-line react-hooks/exhaustive-deps -- keyed by nonce only
 
 	async function closeTab(id: string) {
 		if (id === FILES_TAB_ID) return;

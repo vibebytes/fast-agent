@@ -15,9 +15,9 @@ import {
 
 export type ProjectTasksMap = Record<string, TaskSummary[]>;
 
-/** Platform ScheduledJob sticky Session — open via 调度任务, not the chat Task tree. */
-export function isAutomationTreeTask(task: Pick<TaskSummary, 'title'>): boolean {
-	return task.title.trim() === 'Automation';
+/** Platform run sessions stay out of the chat tree. Membership is sessionType. */
+export function isAutomationTreeTask(task: Pick<TaskSummary, 'sessionType'>): boolean {
+	return task.sessionType === 'automation';
 }
 
 export type TaskRow = {
@@ -185,6 +185,15 @@ export function buildSidebarModel(input: {
 	const pinned: PinnedRow[] = ui.pinnedTasks
 		.filter(pin => {
 			if (isArchived(ui.archivedTasks, pin.projectPath, pin.sessionId)) return false;
+			const fromFolder = projects
+				.flatMap(p => (projectTasks[p.id] ?? []).map(t => ({path: p.path, task: t})))
+				.find(row => row.path === pin.projectPath && row.task.sessionId === pin.sessionId)?.task;
+			const fromDefault =
+				pin.projectPath === defaultProjectPath
+					? defaultTasks.find(t => t.sessionId === pin.sessionId)
+					: undefined;
+			const task = fromFolder ?? fromDefault;
+			if (task && isAutomationTreeTask(task)) return false;
 			return (
 				projects.some(p => p.path === pin.projectPath) ||
 				pin.projectPath === defaultProjectPath

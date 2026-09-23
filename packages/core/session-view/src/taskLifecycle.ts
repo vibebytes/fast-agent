@@ -19,6 +19,7 @@ export type LifecycleTask = {
 	autoTitlePending?: boolean;
 	lastModified?: string | null;
 	engineKind?: EngineKind;
+	sessionType?: string;
 };
 
 /** Delete-only view over Host bookkeeping maps cleaned up alongside a task. */
@@ -38,6 +39,7 @@ export type SessionMetaInfo = {
 	isCurrent?: boolean;
 	runMode?: string;
 	engineKind?: string | null;
+	sessionType?: string | null;
 	modelSettings?: {
 		platform: string;
 		model: string;
@@ -412,6 +414,7 @@ export function createTaskLifecycle<T extends LifecycleTask>(deps: TaskLifecycle
 			const existing = bySessionId.get(info.id);
 			if (existing) {
 				if (named) existing.title = named;
+				if (info.sessionType) existing.sessionType = info.sessionType;
 				if (existing.kind !== 'task') existing.kind = 'task';
 				if (
 					info.lastModified &&

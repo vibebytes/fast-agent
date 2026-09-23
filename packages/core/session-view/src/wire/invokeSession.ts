@@ -39,6 +39,19 @@ export type InvokeSession = {
 			| {ok: true; taskId: string; title: string; kind?: string; sessionId?: string | null}
 			| {ok: false; notice: string};
 	};
+	/** Schedule sidebar: hydrate the run session if needed, then focus it. */
+	'task:openScheduledRun': {
+		args: [
+			sessionId: string,
+			metaProjectId?: string | null,
+			title?: string,
+			sessionType?: string | null,
+			workspaceRoot?: string | null
+		];
+		result:
+			| {ok: true; taskId: string; title: string; kind?: string; sessionId?: string | null}
+			| {ok: false; notice: string};
+	};
 	'task:rename': {args: [taskId: string, title: string]; result: TaskMutationResult};
 	/** Soft-delete Session (`UpdateSessionStatus` deleted) or discard unbound create. */
 	'task:delete': {

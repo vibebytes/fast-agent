@@ -75,6 +75,7 @@ export type AppSidebarProps = {
 	canCreateProjectTask: boolean;
 	onNewTask: () => void;
 	onOpenPalette: () => void;
+	scheduledOpen: boolean;
 	onOpenScheduled: () => void;
 	onOpenTeams: () => void;
 	projects: ProjectSnapshot[];
@@ -99,6 +100,7 @@ function AppSidebar({
 	canCreateProjectTask,
 	onNewTask,
 	onOpenPalette,
+	scheduledOpen,
 	onOpenScheduled,
 	onOpenTeams,
 	projects,
@@ -155,6 +157,17 @@ function AppSidebar({
 							<span>{t('shell.sidebar.newTask')}</span>
 						</SidebarMenuButton>
 					</SidebarMenuItem>
+					<SidebarMenuItem>
+						<SidebarMenuButton
+							isActive={scheduledOpen}
+							tooltip={t('shell.sidebar.scheduled')}
+							className="text-sidebar-foreground"
+							onClick={onOpenScheduled}
+						>
+							<Clock />
+							<span>{t('shell.sidebar.scheduled')}</span>
+						</SidebarMenuButton>
+					</SidebarMenuItem>
 					{SHOW_SIDEBAR_PLUGINS ? (
 						<SidebarMenuItem>
 							<SidebarMenuButton
@@ -179,16 +192,6 @@ function AppSidebar({
 							</SidebarMenuButton>
 						</SidebarMenuItem>
 					) : null}
-					<SidebarMenuItem>
-						<SidebarMenuButton
-							tooltip={t('shell.sidebar.scheduled')}
-							className="text-sidebar-foreground"
-							onClick={onOpenScheduled}
-						>
-							<Clock />
-							<span>{t('shell.sidebar.scheduled')}</span>
-						</SidebarMenuButton>
-					</SidebarMenuItem>
 				</SidebarMenu>
 		</div>
 			</SidebarHeader>

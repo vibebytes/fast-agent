@@ -483,6 +483,19 @@ export class WorkspaceHub {
 		return this.projectOps.openLivingSession(sessionId, metaProjectId);
 	}
 
+	/** Schedule run click: ensure the session is in the open project, then focus it. */
+	openScheduledRun(
+		sessionId: string,
+		metaProjectId: string | null | undefined,
+		title: string,
+		sessionType?: string | null,
+		workspaceRoot?: string | null
+	):
+		| {ok: true; taskId: string; title: string; kind?: string; sessionId: string | null}
+		| {ok: false; notice: string} {
+		return this.projectOps.openScheduledRun(sessionId, metaProjectId, title, sessionType, workspaceRoot);
+	}
+
 	/** Local OpenProject by Meta project id (incl. default-project). */
 	projectByMetaId(metaProjectId: string): OpenProject | null {
 		const id = metaProjectId.trim();

@@ -31,6 +31,7 @@ import type {EdgesList} from '@fast-ide/session-view';
 import {type LayoutPreference, type SettingsSectionId, type SettingsSuite} from './Settings2';
 import {RightWorkbench} from './RightWorkbench';
 import {SessionPane} from './session/SessionPane';
+import {ScheduledPlans} from './sidebar/ScheduledSidebar';
 import type {OpenTeamsRequest} from './TeamsWorkbench';
 import {AppChrome} from './shell/AppChrome';
 import {readStored, readStoredBool} from './shell/layoutPrefs';
@@ -137,8 +138,7 @@ export function App({store}: {store: WorkspaceStore}) {
 		path: string;
 		nonce: number;
 	} | null>(null);
-	const [openScheduledRequest, setOpenScheduledRequest] = useState<{nonce: number} | null>(null);
-	const [centerMode, setCenterMode] = useState<'task' | 'teams'>('task');
+	const [centerMode, setCenterMode] = useState<'task' | 'teams' | 'scheduled'>('task');
 	const [settings2Open, setSettings2Open] = useState(false);
 	const [settings2Section, setSettings2Section] = useState<SettingsSectionId>('general');
 	const [settings2Suite, setSettings2Suite] = useState<SettingsSuite>('fast');
@@ -369,7 +369,6 @@ export function App({store}: {store: WorkspaceStore}) {
 	}, []);
 	const clearOpenFileRequest = useCallback(() => setOpenFileRequest(null), []);
 	const clearOpenDiffRequest = useCallback(() => setOpenDiffRequest(null), []);
-	const clearOpenScheduledRequest = useCallback(() => setOpenScheduledRequest(null), []);
 	const clearPendingMention = useCallback(() => setPendingMentionInsert(null), []);
 	const clearPendingSlash = useCallback(() => setPendingSlashInsert(null), []);
 	const retryEngine = useCallback(() => void window.fastIde.retryEngine(), []);
@@ -423,10 +422,8 @@ export function App({store}: {store: WorkspaceStore}) {
 				canCreateProjectTask,
 				onNewTask: () => void createNewTask(),
 				onOpenPalette: () => setCommandPaletteOpen(true),
-				onOpenScheduled: () => {
-					setRightRailOpen(true);
-					setOpenScheduledRequest({nonce: Date.now()});
-				},
+				scheduledOpen: centerMode === 'scheduled',
+				onOpenScheduled: () => setCenterMode('scheduled'),
 				onOpenTeams: () => {
 					setCenterMode('teams');
 					setOpenTeamsRequest({nonce: Date.now(), tab: 'teams'});
@@ -600,13 +597,14 @@ export function App({store}: {store: WorkspaceStore}) {
 										});
 									});
 								}}
-								onOpenScheduled={() => {
-									setRightRailOpen(true);
-									setOpenScheduledRequest({nonce: Date.now()});
-								}}
+								onOpenScheduled={() => setCenterMode('scheduled')}
 							/>
 							</Suspense>
 							</ErrorBoundary>
+						) : centerMode === 'scheduled' ? (
+						<ErrorBoundary label={t('shell.sidebar.scheduled')}>
+							<ScheduledPlans onOpenTask={openTaskWithTab} />
+						</ErrorBoundary>
 						) : (
 						<ErrorBoundary label={t('shell.boundary.session')}>
 						<SessionPane
@@ -689,8 +687,6 @@ export function App({store}: {store: WorkspaceStore}) {
 											onOpenFileRequestHandled={clearOpenFileRequest}
 											openDiffRequest={openDiffRequest}
 											onOpenDiffRequestHandled={clearOpenDiffRequest}
-											openScheduledRequest={openScheduledRequest}
-											onOpenScheduledRequestHandled={clearOpenScheduledRequest}
 											focusSessionId={focusSessionId}
 											onOpenLivingSession={openLivingSession}
 											onOpenTeams={openTeams}

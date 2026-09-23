@@ -180,6 +180,13 @@ const api = {
 	ensureTasksLive: (taskIds: string[]) => invoke('task:ensureLive', taskIds),
 	openLivingSession: (sessionId: string, metaProjectId?: string | null) =>
 		invoke('task:openLiving', sessionId, metaProjectId),
+	openScheduledRun: (
+		sessionId: string,
+		metaProjectId?: string | null,
+		title?: string,
+		sessionType?: string | null,
+		workspaceRoot?: string | null
+	) => invoke('task:openScheduledRun', sessionId, metaProjectId, title, sessionType, workspaceRoot),
 	renameTask: (taskId: string, title: string) => invoke('task:rename', taskId, title),
 	deleteTask: (taskId: string, sessionId?: string | null) =>
 		invoke('task:delete', taskId, sessionId),

@@ -74,6 +74,50 @@ test('togglePinProject', () => {
 	assert.deepEqual(ui.pinnedProjectPaths, []);
 });
 
+test('buildSidebarModel hides automation sessions from the chat tree', () => {
+	const model = buildSidebarModel({
+		projects: [{id: 'p1', path: '/proj', status: 'ready', active: true}],
+		projectTasks: {
+			p1: [
+				{id: 't1', title: 'Chat', sessionId: 'c1'},
+				{
+					id: 't2',
+					title: '每日新闻摘要 2026-09-22 08:00',
+					sessionId: 'a1',
+					sessionType: 'automation'
+				},
+				{id: 't3', title: 'Automation', sessionId: 'a2'}
+			]
+		},
+		defaultTasks: [
+			{id: 'd1', title: 'Keep', sessionId: 'd'},
+			{id: 'd2', title: 'Run', sessionId: 'da', sessionType: 'automation'}
+		],
+		defaultProjectPath: '__default__',
+		ui: {
+			...emptyUi(),
+			expandedProjectPaths: ['/proj'],
+			pinnedTasks: [
+				{projectPath: '/proj', sessionId: 'a1', title: 'run'},
+				{projectPath: '/proj', sessionId: 'c1', title: 'Chat'}
+			]
+		},
+		activeTaskId: 't1'
+	});
+	assert.deepEqual(
+		model.projects[0]?.tasks.map(row => row.task.id).sort(),
+		['t1', 't3']
+	);
+	assert.deepEqual(
+		model.defaultTasks.map(row => row.task.id),
+		['d1']
+	);
+	assert.deepEqual(
+		model.pinned.map(row => row.pin.sessionId),
+		['c1']
+	);
+});
+
 test('buildSidebarModel filters archived and marks active/pinned', () => {
 	const ui: SidebarUiState = {
 		...emptyUi(),

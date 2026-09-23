@@ -16,6 +16,8 @@ type JobRow = {
 	promptText?: string | null;
 	targetKind?: string | null;
 	targetRef?: string | null;
+	workspaceName?: string | null;
+	workspaceRoot?: string | null;
 };
 
 export type ScheduleLane = HostLane & {
@@ -60,6 +62,7 @@ export type WorkspaceSchedule = {
 				summary?: string | null;
 				error?: string | null;
 				runId?: string | null;
+				sessionTitle?: string | null;
 			}>;
 		} | Notice
 	>;

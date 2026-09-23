@@ -196,7 +196,8 @@ export const hostEventSchemas = [
 			status: z.string(),
 			updatedAt: z.string().nullish(),
 			workspaceId: z.string().nullish(),
-			startupMode: z.string().nullish()
+			startupMode: z.string().nullish(),
+			sessionType: z.string().nullish()
 		})))
 	}),
 	z.object({

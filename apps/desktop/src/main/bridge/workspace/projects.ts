@@ -82,6 +82,15 @@ export type WorkspaceProjects = {
 	) =>
 		| {ok: true; taskId: string; title: string; kind?: string; sessionId: string | null}
 		| {ok: false; notice: string};
+	openScheduledRun: (
+		sessionId: string,
+		metaProjectId: string | null | undefined,
+		title: string,
+		sessionType?: string | null,
+		workspaceRoot?: string | null
+	) =>
+		| {ok: true; taskId: string; title: string; kind?: string; sessionId: string | null}
+		| {ok: false; notice: string};
 };
 
 export function createProjects(h: ProjectsHost): WorkspaceProjects {
@@ -375,6 +384,51 @@ export function createProjects(h: ProjectsHost): WorkspaceProjects {
 				kind: task.kind,
 				sessionId: task.sessionId
 			};
+		},
+		openScheduledRun(sessionId, metaProjectId, title, sessionType, workspaceRoot) {
+			const sid = sessionId.trim();
+			if (!sid) return {ok: false, notice: 'sessionId required'};
+			const meta = metaProjectId?.trim() ?? '';
+			let project = meta ? h.projectByMetaId(meta) : null;
+			if (!project) {
+				const root = workspaceRoot?.trim();
+				const handlers = h.engineHandlers;
+				if (!root || !handlers || h.isRemote()) {
+					return {
+						ok: false,
+						notice: 'Session not in an open Project — open the folder first'
+					};
+				}
+				try {
+					openInternal(root, handlers, false);
+				} catch (e) {
+					return {ok: false, notice: e instanceof Error ? e.message : String(e)};
+				}
+				const resolved = path.resolve(root);
+				project =
+					(meta ? h.projectByMetaId(meta) : null) ??
+					[...h.projects.values()].find(p => path.resolve(p.path) === resolved) ??
+					null;
+				if (project && meta && !project.metaProjectId) project.metaProjectId = meta;
+			}
+			if (!project) {
+				return {
+					ok: false,
+					notice: 'Session not in an open Project — open the folder first'
+				};
+			}
+			const kind = sessionType?.trim();
+			if (!resolveTaskRef(sid, sid)) {
+				project.sessions.hydrateFromMeta([
+					{
+						id: sid,
+						title: title.trim() || sid.slice(0, 8),
+						status: 'active',
+						...(kind ? {sessionType: kind} : {})
+					}
+				]);
+			}
+			return this.openLivingSession(sid, meta || project.metaProjectId);
 		}
 	};
 }
