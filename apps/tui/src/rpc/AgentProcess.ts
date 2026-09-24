@@ -5,8 +5,7 @@ import {fileURLToPath} from 'node:url';
 import {randomUUID} from 'node:crypto';
 import {BridgeHost, isStdioTransport, placedEngineCli, resourcesEngineCli} from '@fastllm/bridge-client';
 import {bridgeEventSchema, type BridgeCommand, type BridgeEvent} from './protocol.js';
-import {parseNdjsonChunk} from './parseNdjson.js';
-import {utf8Stream, reportInvalidEngineLine} from '@fastllm/bridge-protocol';
+import {ndjsonLines, utf8Stream, reportInvalidEngineLine} from '@fastllm/bridge-protocol';
 import {resolveSessionArgs, type SessionLaunchConfig} from './sessionLaunch.js';
 import {
 	emptyUnixBootstrap,
@@ -107,7 +106,6 @@ export type AgentProcessHandlers = {
 export class AgentProcess {
 	private child?: ChildProcessWithoutNullStreams;
 	private host?: BridgeHost;
-	private stdoutBuffer = '';
 	private handlers?: AgentProcessHandlers;
 	private starting = false;
 	private stopped = false;
@@ -236,27 +234,28 @@ export class AgentProcess {
 		const decodeUtf8 = utf8Stream();
 		const decodeStderr = utf8Stream();
 
+		const feed = ndjsonLines(line => {
+			if (!line.startsWith('{')) {
+				return;
+			}
+			try {
+				const parsed = bridgeEventSchema.parse(JSON.parse(line));
+				recordBridge('event', parsed);
+				if (simulateUnixSessionBoot()) {
+					const forwarded = this.onUnixBridgeEvent(parsed, projectCwd);
+					if (forwarded) handlers.onEvent(forwarded);
+				} else {
+					handlers.onEvent(parsed);
+				}
+			} catch {
+				reportInvalidEngineLine(line, {
+					onTerminal: message => handlers.onError(message),
+					onLog: message => handlers.onError(message)
+				});
+			}
+		});
 		child.stdout.on('data', chunk => {
-			this.stdoutBuffer = parseNdjsonChunk(this.stdoutBuffer, decodeUtf8(chunk), line => {
-				if (!line.startsWith('{')) {
-					return;
-				}
-				try {
-					const parsed = bridgeEventSchema.parse(JSON.parse(line));
-					recordBridge('event', parsed);
-					if (simulateUnixSessionBoot()) {
-						const forwarded = this.onUnixBridgeEvent(parsed, projectCwd);
-						if (forwarded) handlers.onEvent(forwarded);
-					} else {
-						handlers.onEvent(parsed);
-					}
-				} catch {
-					reportInvalidEngineLine(line, {
-						onTerminal: message => handlers.onError(message),
-						onLog: message => handlers.onError(message)
-					});
-				}
-			});
+			feed(decodeUtf8(chunk));
 		});
 
 		child.stderr.on('data', chunk => {

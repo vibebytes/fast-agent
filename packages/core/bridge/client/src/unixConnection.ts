@@ -1,5 +1,5 @@
 import net from 'node:net';
-import {parseNdjsonChunk, utf8Stream, bridgeEventSchema, reportInvalidEngineLine, PROTOCOL_MISMATCH_PREFIX, CONSECUTIVE_PARSE_FAIL_NOTICE, type BridgeCommand, type BridgeEvent} from '@fastllm/bridge-protocol';
+import {ndjsonLines, utf8Stream, bridgeEventSchema, reportInvalidEngineLine, PROTOCOL_MISMATCH_PREFIX, CONSECUTIVE_PARSE_FAIL_NOTICE, type BridgeCommand, type BridgeEvent} from '@fastllm/bridge-protocol';
 
 export type UnixConnectionHandlers = {
 	onEvent: (event: BridgeEvent) => void;
@@ -39,7 +39,6 @@ export function connectUnix(
 	return new Promise((resolve, reject) => {
 		const socket = net.createConnection({path: socketPath});
 		const decodeUtf8 = utf8Stream();
-		let buffer = '';
 		let settled = false;
 		let closed = false;
 		const pending: string[] = [];
@@ -141,8 +140,9 @@ export function connectUnix(
 			});
 		});
 
+		const feed = ndjsonLines(queueLine);
 		socket.on('data', chunk => {
-			buffer = parseNdjsonChunk(buffer, decodeUtf8(chunk), queueLine);
+			feed(decodeUtf8(chunk));
 		});
 
 		socket.on('error', err => fail(err instanceof Error ? err : new Error(String(err))));

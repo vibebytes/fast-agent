@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {parseNdjsonChunk, utf8Stream} from './parseNdjson.js';
+import {ndjsonLines, parseNdjsonChunk, utf8Stream} from './parseNdjson.js';
 
 test('parseNdjsonChunk emits complete lines and returns remainder', () => {
 	const lines: string[] = [];
@@ -86,4 +86,24 @@ test('utf8Stream survives every byte-boundary split of a CJK event line', () => 
 		assert.equal(lines[0], expected, `split@${splitAt}`);
 		assert.equal(rem, '', `split@${splitAt}`);
 	}
+});
+
+test('ndjsonLines keeps a trailing CR until the next non-empty chunk', () => {
+	const lines: string[] = [];
+	const feed = ndjsonLines(line => lines.push(line));
+	feed('{"a":1}\r');
+	feed('');
+	assert.deepEqual(lines, []);
+	feed('\n{"b":2}\n');
+	assert.deepEqual(lines, ['{"a":1}', '{"b":2}']);
+});
+
+test('ndjsonLines emits one line when a multi-megabyte payload arrives in small chunks', () => {
+	const payload = `{"text":"${'x'.repeat(2_000_000)}"}`;
+	const lines: string[] = [];
+	const feed = ndjsonLines(line => lines.push(line));
+	const step = 8_192;
+	for (let i = 0; i < payload.length; i += step) feed(payload.slice(i, i + step));
+	feed('\n');
+	assert.deepEqual(lines, [payload]);
 });

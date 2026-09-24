@@ -1,6 +1,6 @@
 export type {BridgeCommand, BridgeEvent} from './protocol.js';
 export {bridgeEventSchema, bridgeCommandSchema, parseBridgeCommand, wireIdList, pickIdList, PERSIST_RIVER_TYPES, isLiveChrome} from './protocol.js';
-export {parseNdjsonChunk, utf8Stream} from './parseNdjson.js';
+export {ndjsonLines, parseNdjsonChunk, utf8Stream} from './parseNdjson.js';
 export {
 	BRIDGE_FIXED_COMMAND_NAMES,
 	isBridgeFixedCommand,

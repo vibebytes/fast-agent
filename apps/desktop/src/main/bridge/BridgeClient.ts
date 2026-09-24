@@ -1,7 +1,7 @@
 import {spawn, type ChildProcessWithoutNullStreams, type SpawnOptionsWithoutStdio} from 'node:child_process';
 import {randomUUID} from 'node:crypto';
 import {BridgeHost, isStdioTransport, type RemoteBridgeConnectionOptions} from '@fastllm/bridge-client';
-import {bridgeEventSchema, parseNdjsonChunk, utf8Stream, reportInvalidEngineLine, type BridgeCommand, type BridgeEvent} from '@fastllm/bridge-protocol';
+import {bridgeEventSchema, ndjsonLines, utf8Stream, reportInvalidEngineLine, type BridgeCommand, type BridgeEvent} from '@fastllm/bridge-protocol';
 import {resolveEngineLaunch, type ResolveEngineLaunchOptions} from './engineLaunch.js';
 
 export type BridgeClientHandlers = {
@@ -49,7 +49,6 @@ function useStdio(options: BridgeClientOptions, env: NodeJS.ProcessEnv): boolean
 export class BridgeClient {
 	private child?: ChildProcessWithoutNullStreams;
 	private host?: BridgeHost;
-	private stdoutBuffer = '';
 	private handlers?: BridgeClientHandlers;
 	private readonly spawnImpl: SpawnFn;
 	private readonly options: BridgeClientOptions;
@@ -198,7 +197,6 @@ export class BridgeClient {
 				: childEnv
 		});
 		this.child = child;
-		this.stdoutBuffer = '';
 		const decodeUtf8 = utf8Stream();
 		const decodeStderr = utf8Stream();
 
@@ -225,9 +223,7 @@ export class BridgeClient {
 			handlers.onEvent(event);
 		};
 
-		child.stdout.on('data', chunk => {
-			if (!isCurrent()) return;
-			this.stdoutBuffer = parseNdjsonChunk(this.stdoutBuffer, decodeUtf8(chunk), line => {
+		const feed = ndjsonLines(line => {
 				if (!line.startsWith('{')) {
 					return;
 				}
@@ -240,6 +236,9 @@ export class BridgeClient {
 					});
 				}
 			});
+		child.stdout.on('data', chunk => {
+			if (!isCurrent()) return;
+			feed(decodeUtf8(chunk));
 		});
 
 		child.stderr.on('data', chunk => {
