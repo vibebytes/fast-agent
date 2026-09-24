@@ -161,6 +161,10 @@ export function createReview(lane: ReviewLane): WorkspaceReview {
 			}
 			const requestId = randomUUID();
 			const waited = lane.waitRequest(requestId, ReviewReadWaitMs);
+			// A later list for this project cancels this waiter during ensureSlot,
+			// before run() reaches await. Attach the handler now so that reject
+			// is not an unhandled rejection.
+			void waited.promise.catch(() => {});
 			const tracked: {
 				promise: Promise<{ok: true; list: ReviewList} | ReviewRefusal>;
 				token: string;
