@@ -11,11 +11,23 @@ export type GeneralDoc = {
 	experimental: boolean;
 };
 
+export type ToolModel = {
+	platform: string;
+	model: string;
+};
+
+/** understand_image when settings omit a tool model. */
+export const imageUnderstandDefault: ToolModel = {
+	platform: 'deepseek',
+	model: 'deepseek-v4-flash'
+};
+
 export type ModelsDoc = {
 	defaultPlatform?: string;
 	defaultModel?: string;
 	defaultEffort?: string;
 	defaultThinking?: boolean;
+	imageUnderstand: ToolModel;
 };
 
 /** Model resolution for child agents — follow session or pin a catalog model. */
@@ -120,9 +132,20 @@ export function generalDoc(payload: unknown): GeneralDoc {
 	};
 }
 
+function toolModel(raw: unknown, fallback: ToolModel): ToolModel {
+	if (!isRecord(raw)) return {...fallback};
+	const platform = typeof raw.platform === 'string' ? raw.platform.trim() : '';
+	const model = typeof raw.model === 'string' ? raw.model.trim() : '';
+	if (!platform || !model) return {...fallback};
+	return {platform, model};
+}
+
 export function modelsDoc(payload: unknown): ModelsDoc {
-	if (!isRecord(payload)) return {};
-	const out: ModelsDoc = {};
+	const tools = isRecord(payload) && isRecord(payload.tools) ? payload.tools : {};
+	const out: ModelsDoc = {
+		imageUnderstand: toolModel(tools.imageUnderstand, imageUnderstandDefault)
+	};
+	if (!isRecord(payload)) return out;
 	if (typeof payload.defaultPlatform === 'string' && payload.defaultPlatform.trim()) {
 		out.defaultPlatform = payload.defaultPlatform.trim();
 	}

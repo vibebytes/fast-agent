@@ -177,7 +177,12 @@
       "supportsImage": "Supports image input",
       "supportsImageDesc": "The model accepts images in addition to text",
       "defaultBadge": "Default",
-      "primaryDefaultBadge": "Primary default"
+      "primaryDefaultBadge": "Primary default",
+      "toolDefaults": "Tool default models",
+      "toolDefaultsDescription": "Tools use these models when a call omits one.",
+      "imageUnderstand": "Image understanding",
+      "imageUnderstandDescription": "Default model for the image-understanding tool.",
+      "chooseImageModelDescription": "Pick an enabled model for image understanding."
     },
     "health": {
       "title": "System health",

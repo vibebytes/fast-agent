@@ -35,19 +35,25 @@ describe('settings payload narrowing', () => {
 	});
 
 	it('modelsDoc keeps only known string/boolean fields', () => {
-		assert.deepEqual(modelsDoc({}), {});
+		assert.deepEqual(modelsDoc({}), {
+			imageUnderstand: {platform: 'deepseek', model: 'deepseek-v4-flash'}
+		});
 		assert.deepEqual(
 			modelsDoc({
 				defaultPlatform: ' openrouter ',
 				defaultModel: 'deepseek',
 				defaultEffort: 'high',
 				defaultThinking: true,
-				extra: 1
+				extra: 1,
+				tools: {
+					imageUnderstand: {platform: ' openrouter ', model: ' google/gemini-3.7-flash '}
+				}
 			}),
 			{
 				defaultPlatform: 'openrouter',
 				defaultModel: 'deepseek',
 				defaultEffort: 'high',
+				imageUnderstand: {platform: 'openrouter', model: 'google/gemini-3.7-flash'},
 				defaultThinking: true
 			}
 		);

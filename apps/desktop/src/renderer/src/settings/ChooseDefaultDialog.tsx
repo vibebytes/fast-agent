@@ -18,6 +18,8 @@ export function ChooseDefaultDialog({
 	providers,
 	currentPlatform,
 	currentModel,
+	title,
+	description,
 	onOpenChange,
 	onPick
 }: {
@@ -25,6 +27,8 @@ export function ChooseDefaultDialog({
 	providers: Provider[];
 	currentPlatform?: string;
 	currentModel?: string;
+	title?: string;
+	description?: string;
 	onOpenChange: (open: boolean) => void;
 	onPick: (provider: Provider, model: SeedModel) => void;
 }) {
@@ -41,8 +45,10 @@ export function ChooseDefaultDialog({
 		<Dialog open={open} onOpenChange={onOpenChange}>
 			<DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-lg" showCloseButton>
 				<DialogHeader>
-					<DialogTitle>{t('settings.models.chooseModel')}</DialogTitle>
-					<DialogDescription>{t('settings.models.chooseModelDescription')}</DialogDescription>
+					<DialogTitle>{title ?? t('settings.models.chooseModel')}</DialogTitle>
+					<DialogDescription>
+						{description ?? t('settings.models.chooseModelDescription')}
+					</DialogDescription>
 				</DialogHeader>
 
 				{options.length === 0 ? (

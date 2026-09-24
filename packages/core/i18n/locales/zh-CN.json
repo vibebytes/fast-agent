@@ -177,7 +177,12 @@
       "supportsImage": "支持图片输入",
       "supportsImageDesc": "模型除文本外还可接收图片输入",
       "defaultBadge": "默认",
-      "primaryDefaultBadge": "默认主力模型"
+      "primaryDefaultBadge": "默认主力模型",
+      "toolDefaults": "工具默认模型",
+      "toolDefaultsDescription": "各工具在未指定模型时使用这里的模型。",
+      "imageUnderstand": "图片理解模型",
+      "imageUnderstandDescription": "图片理解工具默认使用此模型。",
+      "chooseImageModelDescription": "从已启用的模型中选择图片理解默认。"
     },
     "health": {
       "title": "系统健康",

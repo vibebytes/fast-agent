@@ -1,6 +1,6 @@
 import {useEffect, useMemo, useState} from 'react';
 import {useTranslation} from 'react-i18next';
-import {Bot, BrainCircuit, Search, Sparkles, Zap} from 'lucide-react';
+import {Bot, BrainCircuit, Image as ImageIcon, Search, Sparkles, Zap} from 'lucide-react';
 import {Input} from '@fast-ide/ui/components/input';
 import {Badge} from '@fast-ide/ui/components/badge';
 import {cn} from '@fast-ide/ui/lib/utils';
@@ -36,6 +36,7 @@ export function ModelsSettings({engineReady, focusProviderId}: Props) {
 	const [addFor, setAddFor] = useState<string | null>(null);
 	const [searchFor, setSearchFor] = useState<string | null>(null);
 	const [pickDefaultOpen, setPickDefaultOpen] = useState(false);
+	const [pickImageOpen, setPickImageOpen] = useState(false);
 
 	useEffect(() => {
 		if (focusProviderId) setProviderFilter(focusProviderId);
@@ -56,6 +57,18 @@ export function ModelsSettings({engineReady, focusProviderId}: Props) {
 		const row = provider?.models?.find(m => m.modelId === model) ?? null;
 		return row ? {provider, model: row} : null;
 	}, [providers.providers, settings.models.defaultPlatform, settings.models.defaultModel]);
+
+	const imageBinding = settings.models.imageUnderstand;
+	const selectedImage = useMemo(() => {
+		const byPlatform = providers.providers.find(p => p.id === imageBinding.platform);
+		const onPlatform = byPlatform?.models?.find(m => m.modelId === imageBinding.model);
+		if (byPlatform && onPlatform) return {provider: byPlatform, model: onPlatform};
+		for (const provider of providers.providers) {
+			const row = provider.models?.find(m => m.modelId === imageBinding.model);
+			if (row) return {provider, model: row};
+		}
+		return null;
+	}, [providers.providers, imageBinding.platform, imageBinding.model]);
 
 	const filteredProviders = useMemo(() => {
 		const q = query.trim().toLowerCase();
@@ -266,6 +279,47 @@ export function ModelsSettings({engineReady, focusProviderId}: Props) {
 				</div>
 			</div>
 
+			<SettingsSection
+				title={t('settings.models.toolDefaults')}
+				description={t('settings.models.toolDefaultsDescription')}
+			>
+				<div className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
+					<div className="flex min-w-0 items-start gap-3">
+						<div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary/15 text-primary">
+							<ImageIcon className="size-4" />
+						</div>
+						<div className="min-w-0">
+							<div className="flex flex-wrap items-center gap-2">
+								<span className="text-[13px] font-semibold text-foreground">
+									{t('settings.models.imageUnderstand')}
+								</span>
+								<span className="truncate text-[13px] font-medium text-foreground">
+									{selectedImage?.model.displayName ?? imageBinding.model}
+								</span>
+								{selectedImage?.provider ? (
+									<Badge variant="secondary" className="rounded-md px-2 py-0 text-[11px] font-medium">
+										{selectedImage.provider.name}
+									</Badge>
+								) : null}
+							</div>
+							<p className="mt-0.5 text-[12px] text-muted-foreground">
+								{t('settings.models.imageUnderstandDescription')}
+							</p>
+						</div>
+					</div>
+					<SettingsButton
+						variant="default"
+						className="shrink-0 self-end font-medium shadow-2xs sm:self-center"
+						disabled={
+							!providers.providers.some(p => p.enabled && (p.models ?? []).some(m => m.enabled))
+						}
+						onClick={() => setPickImageOpen(true)}
+					>
+						{t('settings.models.changeDefault')}
+					</SettingsButton>
+				</div>
+			</SettingsSection>
+
 			{/* Available Models Catalog Section */}
 			<SettingsSection
 				title={t('settings.models.available')}
@@ -424,6 +478,22 @@ export function ModelsSettings({engineReady, focusProviderId}: Props) {
 				onPick={(provider, model) => {
 					pinDefault(provider, model);
 					setPickDefaultOpen(false);
+				}}
+			/>
+
+			<ChooseDefaultDialog
+				open={pickImageOpen}
+				providers={providers.providers}
+				currentPlatform={imageBinding.platform}
+				currentModel={imageBinding.model}
+				title={t('settings.models.imageUnderstand')}
+				description={t('settings.models.chooseImageModelDescription')}
+				onOpenChange={setPickImageOpen}
+				onPick={(provider, model) => {
+					void settings.patchModels({
+						tools: {imageUnderstand: {platform: provider.id, model: model.modelId}}
+					});
+					setPickImageOpen(false);
 				}}
 			/>
 		</div>
