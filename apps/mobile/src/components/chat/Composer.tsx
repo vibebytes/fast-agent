@@ -3,7 +3,6 @@ import { useTranslation } from 'react-i18next';
 import { Modal, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { GlassHeader } from '@/components/glass-header';
-import { Glyph } from '@/components/glyphs';
 import { VoiceButton } from '@/components/voice-button';
 import { useThemeVars } from '@/theme/theme-context';
 import { bridgeStore } from '@/bridge/store';
@@ -23,21 +22,23 @@ export function RunSheet({
   const vars = useThemeVars();
   const snapshot = useBridgeSnapshot();
   const record = snapshot.records[sessionId];
-  const gate = sessionComposerGate(record);
+  const gate = sessionComposerGate(record, snapshot.connection === 'open');
   const liveProcs = record?.transcript.liveProcs ?? [];
   const [interruptText, setInterruptText] = useState('');
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
 
   return (
-    <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
-      <View className="flex-1 bg-background px-4" style={{ paddingTop: insets.top + 8 }}>
+    <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
+      <View className="flex-1 justify-end">
+      <Pressable className="flex-1 bg-black/40" onPress={onClose} />
+      <View className="max-h-[70%] rounded-t-3xl bg-background px-4 pt-3" style={{ paddingBottom: insets.bottom + 8 }}>
         <GlassHeader
           fallbackClassName="bg-surface-secondary"
           className="flex-row items-center justify-between rounded-2xl px-4 py-3"
         >
           <Text className="text-lg font-semibold text-foreground">{t('mobile.chat.consoleTitle')}</Text>
-          <Pressable onPress={onClose} className="rounded-xl bg-surface px-3 py-1.5 active:opacity-75">
+          <Pressable onPress={onClose} className="min-h-11 justify-center rounded-xl bg-surface px-3 active:opacity-75">
             <Text className="text-xs font-semibold text-foreground">{t('shell.common.close')}</Text>
           </Pressable>
         </GlassHeader>
@@ -71,7 +72,7 @@ export function RunSheet({
               record={record}
               gate={gate}
               label={t('mobile.chat.abortNow')}
-              className="mt-3.5 items-center justify-center rounded-xl bg-destructive py-2.5 active:opacity-80"
+              className="mt-3.5 min-h-11 items-center justify-center rounded-xl bg-destructive py-2.5 active:opacity-80"
               textClassName="text-sm font-semibold text-destructive-foreground"
             />
           ) : null}
@@ -90,7 +91,7 @@ export function RunSheet({
                 </Text>
                 <Pressable
                   onPress={() => bridgeStore.killProc(sessionId, proc.procId)}
-                  className="ml-2 rounded-lg bg-destructive/15 px-2.5 py-1 active:opacity-75"
+                  className="ml-2 min-h-11 justify-center rounded-lg bg-destructive/15 px-2.5 active:opacity-75"
                 >
                   <Text className="text-xs font-semibold text-destructive">{t('mobile.chat.kill')}</Text>
                 </Pressable>
@@ -117,7 +118,7 @@ export function RunSheet({
               onClose();
             }}
             disabled={!interruptText.trim()}
-            className="mt-3 items-center justify-center rounded-xl bg-primary py-2.5 active:opacity-80 disabled:opacity-40"
+            className="mt-3 min-h-11 items-center justify-center rounded-xl bg-primary py-2.5 active:opacity-80 disabled:opacity-40"
           >
             <Text className="text-sm font-semibold text-primary-foreground">{t('mobile.chat.interruptSubmit')}</Text>
           </Pressable>
@@ -130,6 +131,7 @@ export function RunSheet({
           </View>
         </View>
       </View>
+      </View>
     </Modal>
   );
 }
@@ -140,10 +142,9 @@ export function Composer({ sessionId }: { sessionId: string }) {
   const vars = useThemeVars();
   const snapshot = useBridgeSnapshot();
   const record = snapshot.records[sessionId];
-  const gate = sessionComposerGate(record);
+  const gate = sessionComposerGate(record, snapshot.connection === 'open');
   const [text, setText] = useState('');
   const [pendingId, setPendingId] = useState<string | null>(null);
-  const [queued, setQueued] = useState(false);
   const [runSheet, setRunSheet] = useState(false);
 
   const submit = () => {
@@ -157,25 +158,14 @@ export function Composer({ sessionId }: { sessionId: string }) {
     if (result.sent) {
       setPendingId(null);
       setText('');
-      if (gate?.canEnqueue) {
-        setQueued(true);
-        setTimeout(() => setQueued(false), 2000);
-      }
     } else {
       setPendingId(result.clientMessageId);
     }
   };
 
-  const handleVoiceSend = (voiceText: string) => {
+  const handleVoiceResult = (voiceText: string) => {
     if (!voiceText.trim() || gate?.composerLocked) return;
-    const hasUserTurn = (record?.transcript.entries ?? []).some((entry) => entry.role === 'user');
-    const result = bridgeStore.sendUserMessage(sessionId, voiceText.trim(), {
-      generateTitle: !hasUserTurn
-    });
-    if (result.sent && gate?.canEnqueue) {
-      setQueued(true);
-      setTimeout(() => setQueued(false), 2000);
-    }
+    setText((current) => (current.trim() ? `${current.trim()} ${voiceText.trim()}` : voiceText.trim()));
   };
 
   const locked = (gate?.composerLocked ?? false) || snapshot.connection !== 'open';
@@ -208,43 +198,22 @@ export function Composer({ sessionId }: { sessionId: string }) {
         </View>
       ) : null}
 
-      {queued ? (
+      {snapshot.queuedSessionId === sessionId ? (
         <View className="flex-row items-center gap-1.5 bg-primary/10 px-4 py-1.5">
           <Text className="text-xs font-medium text-primary">{t('mobile.chat.queued')}</Text>
         </View>
       ) : null}
 
       {running ? (
-        <View className="mx-3 mt-2 flex-row items-center justify-between rounded-2xl border border-primary/30 bg-primary/10 px-3.5 py-2">
-          <Pressable
-            onPress={() => setRunSheet(true)}
-            className="flex-1 flex-row items-center gap-2"
-          >
-            <View className="h-2 w-2 animate-ping rounded-full bg-primary" />
-            <Text className="text-xs font-semibold text-primary">
-              {gate?.runState === 'stopping' ? t('mobile.chat.agentStopping') : t('mobile.chat.agentRunning')}
-            </Text>
-          </Pressable>
-          <View className="flex-row items-center gap-2">
-            {record ? (
-              <StopControl
-                sessionId={sessionId}
-                record={record}
-                gate={gate}
-                label={t('shell.common.stop')}
-                className="rounded-lg bg-destructive/20 px-2 py-0.5 active:opacity-70"
-                textClassName="text-[11px] font-bold text-destructive"
-              />
-            ) : null}
-            <Pressable
-              onPress={() => setRunSheet(true)}
-              className="flex-row items-center gap-0.5 rounded-lg bg-surface/80 px-2 py-0.5 active:opacity-70"
-            >
-              <Text className="text-[11px] font-medium text-foreground">{t('mobile.chat.console')}</Text>
-              <Glyph name="chevron-right" size={10} color={vars['--foreground']} />
-            </Pressable>
-          </View>
-        </View>
+        <Pressable
+          onPress={() => setRunSheet(true)}
+          className="mx-3 mt-2 min-h-11 flex-row items-center gap-2 rounded-2xl border border-primary/30 bg-primary/10 px-3.5"
+        >
+          <View className="h-2 w-2 animate-ping rounded-full bg-primary" />
+          <Text className="text-xs font-semibold text-primary">
+            {gate?.runState === 'stopping' ? t('mobile.chat.agentStopping') : t('mobile.chat.agentRunning')}
+          </Text>
+        </Pressable>
       ) : null}
 
       {/* Floating Island Style Input Bar */}
@@ -262,43 +231,17 @@ export function Composer({ sessionId }: { sessionId: string }) {
           className="max-h-28 min-h-[44px] flex-1 rounded-2xl border border-border bg-surface px-4 py-2.5 text-sm leading-5 text-foreground shadow-sm"
         />
 
-        <VoiceButton onSend={handleVoiceSend} disabled={locked} />
+        <VoiceButton onResult={handleVoiceResult} disabled={locked} />
 
-        {running && !text.trim() ? (
-          <Pressable
-            onPress={() => setRunSheet(true)}
-            accessibilityRole="button"
-            accessibilityLabel={t('mobile.chat.runA11y')}
-            className={`h-[44px] min-w-[54px] flex-row items-center justify-center gap-1.5 rounded-2xl border px-3.5 shadow-sm active:scale-95 ${
-              gate?.runState === 'stopping'
-                ? 'border-warning/40 bg-warning/10'
-                : 'border-primary/40 bg-primary/10'
-            }`}
-          >
-            <View
-              className={`h-2 w-2 animate-ping rounded-full ${
-                gate?.runState === 'stopping' ? 'bg-warning' : 'bg-primary'
-              }`}
-            />
-            <Text
-              className={`text-xs font-semibold ${
-                gate?.runState === 'stopping' ? 'text-warning' : 'text-primary'
-              }`}
-            >
-              {gate?.runState === 'stopping' ? t('mobile.chat.stopping') : t('mobile.chat.running')}
-            </Text>
-          </Pressable>
-        ) : (
-          <Pressable
-            onPress={submit}
-            disabled={locked || !text.trim()}
-            accessibilityRole="button"
-            accessibilityLabel={t('mobile.chat.sendA11y')}
-            className="h-[44px] min-w-[54px] items-center justify-center rounded-2xl bg-default px-3.5 shadow-sm active:scale-95 active:opacity-80 disabled:opacity-30"
-          >
-            <Text className="text-sm font-semibold text-default-foreground">{t('shell.common.send')}</Text>
-          </Pressable>
-        )}
+        <Pressable
+          onPress={submit}
+          disabled={locked || !text.trim()}
+          accessibilityRole="button"
+          accessibilityLabel={t('mobile.chat.sendA11y')}
+          className="h-[44px] min-w-[54px] items-center justify-center rounded-2xl bg-default px-3.5 shadow-sm active:scale-95 active:opacity-80 disabled:opacity-30"
+        >
+          <Text className="text-sm font-semibold text-default-foreground">{t('shell.common.send')}</Text>
+        </Pressable>
       </View>
     </View>
   );

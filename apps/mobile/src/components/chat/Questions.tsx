@@ -18,10 +18,13 @@ export function ApprovalSlot({ sessionId }: { sessionId: string }) {
   const { t } = useTranslation();
   const snapshot = useBridgeSnapshot();
   const approvals = snapshot.records[sessionId]?.transcript.approvals ?? [];
+  const [cursor, setCursor] = useState(0);
   if (approvals.length === 0) return null;
+  const index = Math.min(cursor, approvals.length - 1);
+  const approval = approvals[index];
+  if (!approval) return null;
   return (
     <View className="gap-2.5 px-3.5 pb-2">
-      {approvals.map((approval, index) => (
         <View
           key={approval.id}
           className="overflow-hidden rounded-2xl border border-warning/50 bg-surface p-4 shadow-md"
@@ -32,9 +35,17 @@ export function ApprovalSlot({ sessionId }: { sessionId: string }) {
               <Text className="text-sm font-semibold text-foreground">{t('mobile.chat.approvalTitle', { tool: approval.tool })}</Text>
             </View>
             {approvals.length > 1 ? (
-              <Text className="text-xs font-mono text-warning">
-                {index + 1}/{approvals.length}
-              </Text>
+              <View className="flex-row items-center gap-2">
+                <Pressable onPress={() => setCursor((index + approvals.length - 1) % approvals.length)} className="min-h-11 justify-center px-2">
+                  <Text className="text-xs font-semibold text-warning">{t('mobile.chat.prevCard')}</Text>
+                </Pressable>
+                <Text className="text-xs font-mono text-warning">
+                  {index + 1}/{approvals.length}
+                </Text>
+                <Pressable onPress={() => setCursor((index + 1) % approvals.length)} className="min-h-11 justify-center px-2">
+                  <Text className="text-xs font-semibold text-warning">{t('mobile.chat.nextCard')}</Text>
+                </Pressable>
+              </View>
             ) : null}
           </View>
           {approval.description ? (
@@ -48,32 +59,47 @@ export function ApprovalSlot({ sessionId }: { sessionId: string }) {
           <View className="mt-3.5 flex-row gap-2.5">
             <Pressable
               onPress={() => bridgeStore.decideApproval(sessionId, approval.id, true)}
-              className="flex-1 items-center justify-center rounded-xl bg-success py-2.5 shadow-sm active:scale-95"
+              className="min-h-11 flex-1 items-center justify-center rounded-xl bg-success py-2.5 shadow-sm active:scale-95"
             >
               <Text className="text-sm font-semibold text-success-foreground">{t('mobile.chat.approve')}</Text>
             </Pressable>
             <Pressable
               onPress={() => bridgeStore.decideApproval(sessionId, approval.id, false)}
-              className="flex-1 items-center justify-center rounded-xl bg-surface-secondary py-2.5 border border-border active:scale-95"
+              className="min-h-11 flex-1 items-center justify-center rounded-xl border border-border bg-surface-secondary py-2.5 active:scale-95"
             >
               <Text className="text-sm font-semibold text-foreground">{t('mobile.chat.deny')}</Text>
             </Pressable>
           </View>
         </View>
-      ))}
     </View>
   );
 }
 
 export function QuestionBatchSlot({ sessionId }: { sessionId: string }) {
+  const { t } = useTranslation();
   const snapshot = useBridgeSnapshot();
   const batches = snapshot.records[sessionId]?.transcript.questionBatches ?? [];
+  const [cursor, setCursor] = useState(0);
   if (batches.length === 0) return null;
+  const index = Math.min(cursor, batches.length - 1);
+  const batch = batches[index];
+  if (!batch) return null;
   return (
     <View className="gap-2.5 px-3.5 pb-2">
-      {batches.map((batch) => (
-        <QuestionBatchPane key={batch.rpcId} sessionId={sessionId} batch={batch} />
-      ))}
+      {batches.length > 1 ? (
+        <View className="flex-row items-center justify-end gap-2">
+          <Pressable onPress={() => setCursor((index + batches.length - 1) % batches.length)} className="min-h-11 justify-center px-2">
+            <Text className="text-xs font-semibold text-primary">{t('mobile.chat.prevCard')}</Text>
+          </Pressable>
+          <Text className="text-xs font-mono text-muted">
+            {index + 1}/{batches.length}
+          </Text>
+          <Pressable onPress={() => setCursor((index + 1) % batches.length)} className="min-h-11 justify-center px-2">
+            <Text className="text-xs font-semibold text-primary">{t('mobile.chat.nextCard')}</Text>
+          </Pressable>
+        </View>
+      ) : null}
+      <QuestionBatchPane key={batch.rpcId} sessionId={sessionId} batch={batch} />
     </View>
   );
 }
@@ -188,7 +214,7 @@ export function QuestionBatchPane({
             <Pressable
               key={`${option.label}-${i}`}
               onPress={() => choose(option.label)}
-              className={`rounded-xl border px-3.5 py-2.5 active:scale-[0.98] ${
+              className={`min-h-11 justify-center rounded-xl border px-3.5 py-2.5 active:scale-[0.98] ${
                 on ? 'border-primary bg-primary/10' : 'border-border bg-surface-secondary'
               }`}
             >
@@ -233,14 +259,14 @@ export function QuestionBatchPane({
         <View className="flex-row gap-2">
           <Pressable
             onPress={skip}
-            className="rounded-xl border border-border bg-surface-secondary px-3 py-2 active:scale-95"
+            className="min-h-11 justify-center rounded-xl border border-border bg-surface-secondary px-3 py-2 active:scale-95"
           >
             <Text className="text-xs font-semibold text-foreground">{t('shell.question.skip')}</Text>
           </Pressable>
           <Pressable
             onPress={goNext}
             disabled={!batchDraftAnswered(draft)}
-            className="rounded-xl bg-default px-3 py-2 active:scale-95 disabled:opacity-30"
+            className="min-h-11 justify-center rounded-xl bg-default px-3 py-2 active:scale-95 disabled:opacity-30"
           >
             <Text className="text-xs font-semibold text-default-foreground">
               {index === last ? t('shell.question.submit') : t('shell.question.next')}
@@ -253,14 +279,33 @@ export function QuestionBatchPane({
 }
 
 export function QuestionSlot({ sessionId }: { sessionId: string }) {
+  const { t } = useTranslation();
   const snapshot = useBridgeSnapshot();
   const questions = snapshot.records[sessionId]?.transcript.questions ?? [];
+  const [cursor, setCursor] = useState(0);
   if (questions.length === 0) return null;
+  const index = Math.min(cursor, questions.length - 1);
+  const question = questions[index];
+  if (!question) return null;
   return (
     <View className="gap-2.5 px-3.5 pb-2">
-      {questions.map((question) => (
-        <QuestionCard key={question.id} sessionId={sessionId} question={question} />
-      ))}
+      {questions.length > 1 ? (
+        <View className="flex-row items-center justify-end gap-2">
+          <Pressable
+            onPress={() => setCursor((index + questions.length - 1) % questions.length)}
+            className="min-h-11 justify-center px-2"
+          >
+            <Text className="text-xs font-semibold text-primary">{t('mobile.chat.prevCard')}</Text>
+          </Pressable>
+          <Text className="text-xs font-mono text-muted">
+            {index + 1}/{questions.length}
+          </Text>
+          <Pressable onPress={() => setCursor((index + 1) % questions.length)} className="min-h-11 justify-center px-2">
+            <Text className="text-xs font-semibold text-primary">{t('mobile.chat.nextCard')}</Text>
+          </Pressable>
+        </View>
+      ) : null}
+      <QuestionCard key={question.id} sessionId={sessionId} question={question} />
     </View>
   );
 }
@@ -282,7 +327,7 @@ export function QuestionCard({ sessionId, question }: { sessionId: string; quest
           <Pressable
             key={option.id}
             onPress={() => bridgeStore.answerQuestion(sessionId, question.id, option.label)}
-            className="rounded-xl border border-border bg-surface-secondary px-3.5 py-2.5 active:scale-[0.98] active:bg-surface"
+            className="min-h-11 justify-center rounded-xl border border-border bg-surface-secondary px-3.5 py-2.5 active:scale-[0.98] active:bg-surface"
           >
             <Text className="text-sm font-medium text-foreground">{option.label}</Text>
             {option.description ? (
@@ -306,7 +351,7 @@ export function QuestionCard({ sessionId, question }: { sessionId: string; quest
               bridgeStore.answerQuestion(sessionId, question.id, custom.trim());
               setCustom('');
             }}
-            className="items-center justify-center rounded-xl bg-default px-4 active:scale-95"
+            className="min-h-11 items-center justify-center rounded-xl bg-default px-4 active:scale-95"
           >
             <Text className="text-sm font-semibold text-default-foreground">{t('shell.common.submit')}</Text>
           </Pressable>

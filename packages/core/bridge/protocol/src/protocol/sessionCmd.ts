@@ -123,7 +123,7 @@ export type SessionCmd =
 			appId?: string;
 			/** Local optimistic Task id; Engine echoes on command_result (not stored in Meta). */
 			taskId?: string;
-		/** Optional engine kind; omit → builtin default (fast). */
+		/** Optional engine kind. Omit stores the host Registry/YAML default, which is `fast` only when that default was not overridden. Mobile always sends `fast`. */
 		engineKind?: string;
 	  }
 	| {type: 'FollowUpRemove'; sessionId: string; itemId: string}

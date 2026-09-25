@@ -38,6 +38,12 @@ export default function SettingsScreen() {
   const [newLabel, setNewLabel] = useState('');
   const [newFingerprint, setNewFingerprint] = useState('');
   const [testing, setTesting] = useState(false);
+  const [palettesOpen, setPalettesOpen] = useState(false);
+  const [finger, setFinger] = useState<{
+    fingerprint: string;
+    onSave: () => void;
+    onReject?: () => void;
+  } | null>(null);
   const shownPendingFp = useRef<string | null>(null);
   const scanLockRef = useRef(false);
 
@@ -74,25 +80,15 @@ export default function SettingsScreen() {
     const key = `${pending.serverId}:${pending.fingerprint}`;
     if (shownPendingFp.current === key) return;
     shownPendingFp.current = key;
-    Alert.alert(
-      alertT('mobile.settings.fingerprintTitle'),
-      alertT('mobile.pairing.confirmFingerprint', { fingerprint: pending.fingerprint }),
-      [
-        {
-          text: alertT('mobile.settings.rejectFingerprint'),
-          style: 'cancel',
-          onPress: () => {
-            void bridgeStore.confirmFingerprint(false);
-          }
-        },
-        {
-          text: alertT('mobile.settings.saveFingerprint'),
-          onPress: () => {
-            void bridgeStore.confirmFingerprint(true).then(refreshServers);
-          }
-        }
-      ]
-    );
+    setFinger({
+      fingerprint: pending.fingerprint,
+      onSave: () => {
+        void bridgeStore.confirmFingerprint(true).then(refreshServers);
+      },
+      onReject: () => {
+        void bridgeStore.confirmFingerprint(false);
+      }
+    });
   }, [snapshot.pendingFingerprint]);
 
   const handleBarCodeScanned = async ({data}: {data: string}) => {
@@ -207,14 +203,12 @@ export default function SettingsScreen() {
   };
 
   const askFingerprint = (fingerprint: string, onSave: () => void) => {
-    Alert.alert(
-      alertT('mobile.settings.fingerprintTitle'),
-      alertT('mobile.pairing.confirmFingerprint', { fingerprint }),
-      [
-        { text: alertT('mobile.settings.rejectFingerprint'), style: 'cancel' },
-        { text: alertT('mobile.settings.saveFingerprint'), onPress: onSave }
-      ]
-    );
+    setFinger({fingerprint, onSave});
+  };
+
+  const closeFinger = (reject: boolean) => {
+    if (reject) finger?.onReject?.();
+    setFinger(null);
   };
 
   const handleTest = async () => {
@@ -592,60 +586,88 @@ export default function SettingsScreen() {
           </View>
         </View>
 
-        <View className="mb-8">
-          <Text className="mb-2 px-1 text-[11px] font-bold uppercase tracking-wider text-muted">
-            {t('mobile.settings.palettes')}
+        <Pressable
+          onPress={() => setPalettesOpen(true)}
+          className="mb-8 min-h-11 flex-row items-center justify-between rounded-3xl border border-border/80 bg-surface px-4 py-3"
+        >
+          <Text className="text-sm font-semibold text-foreground">{t('mobile.settings.palettes')}</Text>
+          <Text className="text-sm text-muted">
+            {PALETTES.find((p) => p.id === paletteId)?.title ?? paletteId}
           </Text>
-          <View className="overflow-hidden rounded-3xl border border-border/80 bg-surface p-3.5 shadow-sm">
-            <View className="flex-row flex-wrap gap-2.5">
-              {PALETTES.map((p) => {
-                const active = paletteId === p.id;
-                const swatches = p.swatches || [
-                  p.light['--default'] || p.light['--focus'],
-                  p.light['--surface-secondary'] || p.light['--accent'],
-                  p.dark['--default'] || p.dark['--focus'],
-                  p.dark['--surface-secondary'] || p.dark['--background']
-                ];
-
-                return (
-                  <Pressable
-                    key={p.id}
-                    onPress={() => {
-                      setPaletteId(p.id);
-                    }}
-                    className={`min-w-[47%] flex-1 flex-col justify-between rounded-2xl border p-3 transition-all ${
-                      active
-                        ? 'border-primary/80 bg-primary/10 shadow-xs'
-                        : 'border-border/60 bg-surface-secondary/40'
-                    } active:scale-95`}
-                  >
-                    <View className="flex-row items-center justify-between mb-2.5">
-                      <Text className="text-xs font-bold text-foreground">{p.title}</Text>
-                      {active ? (
-                        <View className="rounded-full bg-primary/20 p-0.5">
-                          <Glyph name="check" size={12} color={vars['--primary']} />
-                        </View>
-                      ) : null}
-                    </View>
-
-                    <View className="flex-row items-center gap-1.5 rounded-xl bg-surface/60 p-1.5 border border-border/40">
-                      {swatches.map((color, idx) => (
-                        <View
-                          key={idx}
-                          className="h-4 flex-1 rounded-md border border-black/10 shadow-2xs"
-                          style={{ backgroundColor: color }}
-                        />
-                      ))}
-                    </View>
-                  </Pressable>
-                );
-              })}
-            </View>
-          </View>
-        </View>
+        </Pressable>
 
         <View className="h-10" />
       </ScrollView>
+
+      <Modal visible={palettesOpen} transparent animationType="slide" onRequestClose={() => setPalettesOpen(false)}>
+        <Pressable className="flex-1 justify-end bg-black/40" onPress={() => setPalettesOpen(false)}>
+          <Pressable className="max-h-[70%] rounded-t-3xl bg-surface px-4 pb-8 pt-4" onPress={() => {}}>
+            <Text className="mb-3 text-base font-semibold text-foreground">{t('mobile.settings.palettes')}</Text>
+            <ScrollView>
+              <View className="flex-row flex-wrap gap-2.5">
+                {PALETTES.map((p) => {
+                  const active = paletteId === p.id;
+                  const swatches = p.swatches || [
+                    p.light['--default'] || p.light['--focus'],
+                    p.light['--surface-secondary'] || p.light['--accent'],
+                    p.dark['--default'] || p.dark['--focus'],
+                    p.dark['--surface-secondary'] || p.dark['--background']
+                  ];
+                  return (
+                    <Pressable
+                      key={p.id}
+                      onPress={() => setPaletteId(p.id)}
+                      className={`min-w-[47%] flex-1 flex-col justify-between rounded-2xl border p-3 ${
+                        active ? 'border-primary/80 bg-primary/10' : 'border-border/60 bg-surface-secondary/40'
+                      }`}
+                    >
+                      <View className="mb-2.5 flex-row items-center justify-between">
+                        <Text className="text-xs font-bold text-foreground">{p.title}</Text>
+                        {active ? <Glyph name="check" size={12} color={vars['--primary']} /> : null}
+                      </View>
+                      <View className="flex-row items-center gap-1.5 rounded-xl border border-border/40 bg-surface/60 p-1.5">
+                        {swatches.map((color, idx) => (
+                          <View
+                            key={idx}
+                            className="h-4 flex-1 rounded-md border border-black/10"
+                            style={{ backgroundColor: color }}
+                          />
+                        ))}
+                      </View>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            </ScrollView>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      <Modal visible={finger !== null} transparent animationType="slide" onRequestClose={() => closeFinger(true)}>
+        <Pressable className="flex-1 justify-end bg-black/40" onPress={() => closeFinger(true)}>
+          <Pressable className="rounded-t-3xl bg-surface px-4 pb-8 pt-4" onPress={() => {}}>
+            <Text className="text-base font-semibold text-foreground">{t('mobile.settings.fingerprintTitle')}</Text>
+            <Text className="mt-3 font-mono text-sm text-foreground">{finger?.fingerprint}</Text>
+            <View className="mt-4 flex-row gap-2">
+              <Pressable
+                onPress={() => closeFinger(true)}
+                className="min-h-11 flex-1 items-center justify-center rounded-2xl border border-border"
+              >
+                <Text className="text-sm font-semibold text-foreground">{t('mobile.settings.rejectFingerprint')}</Text>
+              </Pressable>
+              <Pressable
+                onPress={() => {
+                  finger?.onSave();
+                  setFinger(null);
+                }}
+                className="min-h-11 flex-1 items-center justify-center rounded-2xl bg-primary"
+              >
+                <Text className="text-sm font-semibold text-primary-foreground">{t('mobile.settings.saveFingerprint')}</Text>
+              </Pressable>
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
 
       <Modal visible={scannerOpen} animationType="slide" onRequestClose={() => setScannerOpen(false)}>
         <View className="flex-1 bg-black">

@@ -1742,7 +1742,8 @@
       "helloOk": "Connecté",
       "helloReject": "Refusé",
       "urlExpired": "Délai dépassé : l'adresse du serveur a peut-être changé (les URL de tunnel rapide changent au redémarrage)",
-      "authFailed": "Authentification refusée : le jeton n'est plus valide — veuillez rescanner"
+      "authFailed": "Authentification refusée : le jeton n'est plus valide — veuillez rescanner",
+      "unauthorized": "Authentification refusée. Appariez à nouveau."
     },
     "settings": {
       "title": "Préférences",
@@ -1804,7 +1805,8 @@
       "emptyOpen": "Pas encore de session. Créez-en une.",
       "emptyClosed": "Connectez-vous à l’app bureau pour commencer à discuter.",
       "newSession": "Nouvelle session",
-      "goSettings": "Ouvrir les réglages"
+      "goSettings": "Ouvrir les réglages",
+      "goHistory": "Choisir dans l'historique"
     },
     "history": {
       "title": "Historique",
@@ -1883,7 +1885,9 @@
       "queueActive": "Suivis en file",
       "resumeQueue": "Reprendre",
       "pauseQueue": "Mettre la file en pause",
-      "edit": "Modifier"
+      "edit": "Modifier",
+      "prevCard": "Précédent",
+      "nextCard": "Suivant"
     },
     "voice": {
       "micDenied": "Permission du microphone refusée. Autorisez-la dans les réglages système.",
@@ -1920,7 +1924,9 @@
       "urlExpired": "L'adresse du serveur a peut-être changé — veuillez rescanner",
       "reconnecting": "Reconnexion…",
       "unreachable": "Impossible de joindre le serveur",
-      "rescanHint": "Rescannez le QR code sur le bureau"
+      "rescanHint": "Rescannez le QR code sur le bureau",
+      "unconfigured": "Aucun serveur enregistré",
+      "retry": "Réessayer"
     }
   }
 }

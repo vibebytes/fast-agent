@@ -1742,7 +1742,8 @@
       "helloOk": "連線成功",
       "helloReject": "被拒絕",
       "urlExpired": "連線逾時：伺服器位址可能已變化（隧道重啟後 URL 會輪換）",
-      "authFailed": "鑑權被拒：Token 已失效，請重新掃碼"
+      "authFailed": "鑑權被拒：Token 已失效，請重新掃碼",
+      "unauthorized": "認證被拒絕，請重新配對"
     },
     "settings": {
       "title": "偏好設定",
@@ -1804,7 +1805,8 @@
       "emptyOpen": "還沒有會話，新建一個吧。",
       "emptyClosed": "連線桌面端後開始對話。",
       "newSession": "新建會話",
-      "goSettings": "去設定"
+      "goSettings": "去設定",
+      "goHistory": "去歷史"
     },
     "history": {
       "title": "會話歷史",
@@ -1883,7 +1885,9 @@
       "queueActive": "追問排隊",
       "resumeQueue": "恢復執行",
       "pauseQueue": "暫停佇列",
-      "edit": "編輯"
+      "edit": "編輯",
+      "prevCard": "上一則",
+      "nextCard": "下一則"
     },
     "voice": {
       "micDenied": "麥克風權限被拒絕，請在系統設定中允許",
@@ -1920,7 +1924,9 @@
       "urlExpired": "伺服器位址可能已變化，請重新掃碼",
       "reconnecting": "正在重新連線…",
       "unreachable": "無法連線伺服器",
-      "rescanHint": "請回桌面端重新掃碼"
+      "rescanHint": "請回桌面端重新掃碼",
+      "unconfigured": "尚未儲存伺服器",
+      "retry": "重試"
     }
   }
 }

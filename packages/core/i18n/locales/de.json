@@ -1742,7 +1742,8 @@
       "helloOk": "Verbunden",
       "helloReject": "Abgelehnt",
       "urlExpired": "Zeitüberschreitung: Die Serveradresse hat sich möglicherweise geändert (Quick-Tunnel-URLs rotieren beim Neustart)",
-      "authFailed": "Authentifizierung abgelehnt: Das Token ist ungültig – bitte neu scannen"
+      "authFailed": "Authentifizierung abgelehnt: Das Token ist ungültig – bitte neu scannen",
+      "unauthorized": "Authentifizierung abgelehnt. Bitte erneut koppeln."
     },
     "settings": {
       "title": "Einstellungen",
@@ -1804,7 +1805,8 @@
       "emptyOpen": "Noch keine Sitzung. Lege eine an.",
       "emptyClosed": "Verbinde dich mit der Desktop-App, um zu chatten.",
       "newSession": "Neue Sitzung",
-      "goSettings": "Einstellungen öffnen"
+      "goSettings": "Einstellungen öffnen",
+      "goHistory": "Aus Verlauf wählen"
     },
     "history": {
       "title": "Verlauf",
@@ -1883,7 +1885,9 @@
       "queueActive": "Follow-ups in der Warteschlange",
       "resumeQueue": "Fortsetzen",
       "pauseQueue": "Warteschlange pausieren",
-      "edit": "Bearbeiten"
+      "edit": "Bearbeiten",
+      "prevCard": "Zurück",
+      "nextCard": "Weiter"
     },
     "voice": {
       "micDenied": "Mikrofonzugriff verweigert. Erlaube ihn in den Systemeinstellungen.",
@@ -1920,7 +1924,9 @@
       "urlExpired": "Serveradresse hat sich möglicherweise geändert – bitte neu scannen",
       "reconnecting": "Erneutes Verbinden…",
       "unreachable": "Server nicht erreichbar",
-      "rescanHint": "Bitte am Desktop neu scannen"
+      "rescanHint": "Bitte am Desktop neu scannen",
+      "unconfigured": "Kein Server gespeichert",
+      "retry": "Erneut versuchen"
     }
   }
 }

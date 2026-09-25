@@ -1742,7 +1742,8 @@
       "helloOk": "연결됨",
       "helloReject": "거부됨",
       "urlExpired": "연결 시간 초과: 서버 주소가 변경되었을 수 있습니다(터널 재시작 시 URL이 변경됨)",
-      "authFailed": "인증 거부: 토큰이 더 이상 유효하지 않습니다. 다시 스캔하세요"
+      "authFailed": "인증 거부: 토큰이 더 이상 유효하지 않습니다. 다시 스캔하세요",
+      "unauthorized": "인증이 거부되었습니다. 다시 페어링하세요"
     },
     "settings": {
       "title": "환경설정",
@@ -1804,7 +1805,8 @@
       "emptyOpen": "아직 세션이 없습니다. 하나 만드세요.",
       "emptyClosed": "데스크톱 앱에 연결한 뒤 채팅을 시작하세요.",
       "newSession": "새 세션",
-      "goSettings": "설정 열기"
+      "goSettings": "설정 열기",
+      "goHistory": "기록에서 고르기"
     },
     "history": {
       "title": "기록",
@@ -1883,7 +1885,9 @@
       "queueActive": "후속 대기 중",
       "resumeQueue": "재개",
       "pauseQueue": "대기열 일시 중지",
-      "edit": "편집"
+      "edit": "편집",
+      "prevCard": "이전",
+      "nextCard": "다음"
     },
     "voice": {
       "micDenied": "마이크 권한이 거부되었습니다. 시스템 설정에서 허용하세요.",
@@ -1920,7 +1924,9 @@
       "urlExpired": "서버 주소가 변경되었을 수 있습니다. 다시 스캔하세요",
       "reconnecting": "재연결 중…",
       "unreachable": "서버에 연결할 수 없습니다",
-      "rescanHint": "데스크톱에서 QR 코드를 다시 스캔하세요"
+      "rescanHint": "데스크톱에서 QR 코드를 다시 스캔하세요",
+      "unconfigured": "저장된 서버가 없습니다",
+      "retry": "다시 시도"
     }
   }
 }

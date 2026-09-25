@@ -8,6 +8,8 @@ export type Copy =
   | { code: 'timeout' }
   | { code: 'helloOk' }
   | { code: 'helloReject'; message?: string }
+  | { code: 'unauthorized'; message?: string }
+  | { code: 'rejectCode'; reject: string; message?: string }
   | { code: 'urlExpired' }
   | { code: 'authFailed' }
   | { code: 'raw'; text: string };
@@ -20,6 +22,10 @@ export function formatCopy(t: Translate, copy: Copy): string {
       return copy.text;
     case 'helloReject':
       return copy.message?.trim() || t('mobile.copy.helloReject');
+    case 'unauthorized':
+      return copy.message?.trim() || t('mobile.copy.unauthorized');
+    case 'rejectCode':
+      return copy.message?.trim() || copy.reject;
     case 'tlsModuleError':
       return t('mobile.copy.tlsModuleError', { message: copy.message });
     case 'confirmFingerprint':

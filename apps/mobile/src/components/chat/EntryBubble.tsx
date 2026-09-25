@@ -41,31 +41,6 @@ export function ReasoningBox({ reasoning, isStreaming }: { reasoning: string; is
   );
 }
 
-export function MessageActionBar({ text }: { text?: string }) {
-  const { t } = useTranslation();
-  const vars = useThemeVars();
-  const [copied, setCopied] = useState(false);
-
-  if (!text) return null;
-
-  const handleCopy = () => {
-    Clipboard.setString(text);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 1800);
-  };
-
-  return (
-    <View className="mt-2 flex-row items-center gap-3 self-start px-1">
-      <Pressable
-        onPress={handleCopy}
-        className="flex-row items-center gap-1 rounded-lg bg-surface-secondary/70 px-2 py-1 active:opacity-75"
-      >
-        <Text className="text-[10px] text-muted">{copied ? t('mobile.chat.copied') : t('mobile.chat.copy')}</Text>
-      </Pressable>
-    </View>
-  );
-}
-
 export function EntryBubble({
   entry,
   sessionId,
@@ -147,7 +122,10 @@ export function EntryBubble({
   }
 
   return (
-    <View
+    <Pressable
+      onLongPress={() => {
+        if (entry.text) Clipboard.setString(entry.text);
+      }}
       className={
         isUser
           ? 'mb-4 max-w-[85%] self-end rounded-2xl rounded-tr-xs bg-default px-4 py-3 shadow-xs active:scale-[0.99]'
@@ -190,10 +168,7 @@ export function EntryBubble({
 
       {/* Agent Tool Calling Pipeline */}
       <AgentToolPipeline tools={tools} />
-
-      {/* Action Bar for Assistant */}
-      {!isUser && entry.text ? <MessageActionBar text={entry.text} /> : null}
-    </View>
+    </Pressable>
   );
 }
 

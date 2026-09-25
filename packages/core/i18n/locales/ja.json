@@ -1742,7 +1742,8 @@
       "helloOk": "接続しました",
       "helloReject": "拒否されました",
       "urlExpired": "接続タイムアウト：サーバーアドレスが変わった可能性があります（トンネル再起動でURLは変わります）",
-      "authFailed": "認証に失敗しました：トークンが無効です。再スキャンしてください"
+      "authFailed": "認証に失敗しました：トークンが無効です。再スキャンしてください",
+      "unauthorized": "認証が拒否されました。再度ペアリングしてください"
     },
     "settings": {
       "title": "設定",
@@ -1804,7 +1805,8 @@
       "emptyOpen": "セッションがありません。作成してください。",
       "emptyClosed": "デスクトップアプリに接続してチャットを開始してください。",
       "newSession": "新しいセッション",
-      "goSettings": "設定を開く"
+      "goSettings": "設定を開く",
+      "goHistory": "履歴から選ぶ"
     },
     "history": {
       "title": "履歴",
@@ -1883,7 +1885,9 @@
       "queueActive": "フォローアップ待機中",
       "resumeQueue": "再開",
       "pauseQueue": "キューを一時停止",
-      "edit": "編集"
+      "edit": "編集",
+      "prevCard": "前へ",
+      "nextCard": "次へ"
     },
     "voice": {
       "micDenied": "マイクの権限が拒否されました。システム設定で許可してください。",
@@ -1920,7 +1924,9 @@
       "urlExpired": "サーバーアドレスが変わった可能性があります。再スキャンしてください",
       "reconnecting": "再接続中…",
       "unreachable": "サーバーに接続できません",
-      "rescanHint": "デスクトップでQRコードを再スキャンしてください"
+      "rescanHint": "デスクトップでQRコードを再スキャンしてください",
+      "unconfigured": "サーバーが未保存です",
+      "retry": "再試行"
     }
   }
 }

@@ -143,13 +143,14 @@ export type ClientConfig = {
   trust: BridgeTrust;
 };
 
-export function toClientConfig(config: BridgeConfig): ClientConfig {
+export function toClientConfig(config: BridgeConfig): ClientConfig | null {
   const server = activeServer(config);
+  if (!server) return null;
   return {
-    serverUrl: server?.serverUrl ?? DEFAULT_SERVER_URL,
-    token: server?.token ?? '',
+    serverUrl: server.serverUrl,
+    token: server.token,
     clientId: config.clientId,
-    fingerprint: server?.fingerprint ?? null,
-    trust: server?.trust ?? 'pinned'
+    fingerprint: server.fingerprint ?? null,
+    trust: server.trust
   };
 }

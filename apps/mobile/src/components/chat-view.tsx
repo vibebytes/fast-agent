@@ -1,16 +1,8 @@
 import { FlashList } from '@shopify/flash-list';
 import { type TranscriptEntry } from '@fast-ide/session-view';
-import { useCallback, useMemo, useRef } from 'react';
+import { useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import {
-  KeyboardAvoidingView,
-  Platform,
-  Pressable,
-  Text,
-  View,
-  type NativeScrollEvent,
-  type NativeSyntheticEvent
-} from 'react-native';
+import { KeyboardAvoidingView, Platform, Pressable, Text, View } from 'react-native';
 
 import { bridgeStore } from '@/bridge/store';
 import { useBridgeSnapshot } from '@/bridge/useBridge';
@@ -19,7 +11,6 @@ import { MemoEntryBubble } from '@/components/chat/EntryBubble';
 import { sessionComposerGate } from '@/components/chat/gate';
 import {
   ApprovalSlot,
-  FollowUpsBar,
   QuestionBatchSlot,
   QuestionSlot
 } from '@/components/chat/Questions';
@@ -49,9 +40,8 @@ export function ChatView({ sessionId }: { sessionId: string }) {
   const record = snapshot.records[sessionId];
   const entries = record?.transcript.entries ?? EMPTY_ENTRIES;
   const hasMoreOlder = record?.transcript.hasMoreOlder ?? false;
-  const lastResyncRef = useRef(0);
   const staleIds = useMemo(() => staleErrorEntryIds(entries), [entries]);
-  const gate = sessionComposerGate(record);
+  const gate = sessionComposerGate(record, snapshot.connection === 'open');
   const busy = gate?.runState === 'running' || gate?.runState === 'stopping';
   const renderItem = useCallback(
     ({ item }: { item: TranscriptEntry }) => (
@@ -61,19 +51,9 @@ export function ChatView({ sessionId }: { sessionId: string }) {
   );
   const keyExtractor = useCallback((entry: TranscriptEntry) => entry.id, []);
 
-  const maybeResync = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
-    const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent;
-    const distanceFromBottom = contentSize.height - (contentOffset.y + layoutMeasurement.height);
-    if (distanceFromBottom > 150) return;
-    const now = Date.now();
-    if (now - lastResyncRef.current < 3000) return;
-    lastResyncRef.current = now;
-    bridgeStore.resyncSession(sessionId);
-  };
-
   return (
     <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       keyboardVerticalOffset={Platform.OS === 'ios' ? 88 : 0}
       className="flex-1 bg-background"
     >
@@ -82,8 +62,6 @@ export function ChatView({ sessionId }: { sessionId: string }) {
         keyExtractor={keyExtractor}
         maintainVisibleContentPosition={{ startRenderingFromBottom: true, autoscrollToBottomThreshold: 100 }}
         contentContainerStyle={{ paddingHorizontal: 14, paddingVertical: 12 }}
-        onScrollEndDrag={maybeResync}
-        onMomentumScrollEnd={maybeResync}
         renderItem={renderItem}
         ListEmptyComponent={
           !record ? (
@@ -107,10 +85,13 @@ export function ChatView({ sessionId }: { sessionId: string }) {
           ) : null
         }
       />
-      <ApprovalSlot sessionId={sessionId} />
-      <QuestionBatchSlot sessionId={sessionId} />
-      <QuestionSlot sessionId={sessionId} />
-      <FollowUpsBar sessionId={sessionId} />
+      {(record?.transcript.approvals.length ?? 0) > 0 ? (
+        <ApprovalSlot sessionId={sessionId} />
+      ) : (record?.transcript.questionBatches.length ?? 0) > 0 ? (
+        <QuestionBatchSlot sessionId={sessionId} />
+      ) : (
+        <QuestionSlot sessionId={sessionId} />
+      )}
       <Composer sessionId={sessionId} />
     </KeyboardAvoidingView>
   );

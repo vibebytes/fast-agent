@@ -73,7 +73,7 @@ export function overlayGoalGate(base: ComposerGate, card?: GoalCardView | null):
     return {
       ...base,
       runState: 'running',
-      canSubmitNow: true,
+      canSubmitNow: base.canSubmitNow,
       canEnqueue: false,
       canCancel: false
     };

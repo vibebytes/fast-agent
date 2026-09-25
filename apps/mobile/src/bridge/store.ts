@@ -9,6 +9,7 @@ import {
   createLeaseWatch,
   createTranscriptState,
   emptySessionSeq,
+  eventSeqOf,
   hasLocalRun,
   offer,
   seqTerminal,
@@ -18,7 +19,11 @@ import {
 } from '@fast-ide/session-view';
 import {isSessionStreamEvent, PROTOCOL_MISMATCH_PREFIX, type BridgeCommand, type BridgeEvent} from '@fastllm/bridge-protocol';
 
+import {attachOne, detachOne} from './attach-count';
 import {BridgeClient, type ConnectionState, type ParseStats} from './client';
+import {CLIENT_KIND, CLIENT_VERSION, PROTOCOL_VERSION} from './identity';
+import {createNotify} from './notify';
+import {applyProjectSessions, isRegisteredWorkspaceHash, type SessionRow} from './session-list';
 import type {BridgeTrust} from './pairing';
 import {
   foldUserEchoes,
@@ -38,20 +43,14 @@ import {
 import {applyCodeChangeEvent, createCodeChangesState, type CodeChangesState} from './codeChanges';
 import type { Copy } from './copy';
 import { rawError } from './copy';
+import { helloRejectDetail } from './hello';
 import {bridgeUrlIssue, normalizeBridgeUrl} from './pairing';
 import {openPinnedSocket} from './pinned-socket';
 import {upsertServer} from './saved-server';
 import {probeTlsFingerprint} from './tls-pinning';
 import {wsFrameText} from './wsFrame';
 
-export type SessionSummary = {
-  id: string;
-  title: string;
-  summary: string | null;
-  lastModified: string;
-  messageCount: number;
-  runMode: string | null;
-};
+export type SessionSummary = SessionRow;
 
 export type ProjectSummary = {
   id: string;
@@ -73,6 +72,8 @@ export type SessionRecord = {
   transcript: TranscriptState;
   codeChanges: CodeChangesState;
   lastEventSeq: number;
+  /** True after `Attached` that followed `session_restored` for this attach. */
+  ready: boolean;
   /** Mobile-local Goal card from `goal_updated` (not in shared transcript projection). */
   goalCard?: GoalCardView;
 };
@@ -83,7 +84,8 @@ export type BridgeConnUiState =
   | 'reconnecting'
   | 'authFailed'
   | 'urlExpired'
-  | 'unreachable';
+  | 'unreachable'
+  | 'unconfigured';
 
 export type StoreSnapshot = {
   connection: ConnectionState;
@@ -102,16 +104,10 @@ export type StoreSnapshot = {
   leaseNotice: string | null;
   /** Host-level diagnostic from `host_error` (not session-scoped). */
   hostNotice: string | null;
+  /** Session whose latest Submit was accepted onto the follow-up queue. */
+  queuedSessionId: string | null;
   parseStats: ParseStats;
 };
-
-function mergeSessions(current: SessionSummary[], incoming: SessionSummary[]): SessionSummary[] {
-  const byId = new Map(incoming.map((s) => [s.id, s]));
-  for (const s of current) {
-    if (!byId.has(s.id)) byId.set(s.id, s);
-  }
-  return [...byId.values()];
-}
 
 function sessionIdFromEvent(event: BridgeEvent): string | undefined {
   if ('sessionId' in event && typeof event.sessionId === 'string') return event.sessionId;
@@ -142,10 +138,17 @@ class BridgeStore {
   private client: BridgeClient | null = null;
   private config: BridgeConfig | null = null;
   private listeners = new Set<() => void>();
-  private emitScheduled = false;
   private records = new Map<string, SessionRecord>();
   private seqBySession = new Map<string, SessionSeq>();
   private attached = new Set<string>();
+  private attachCounts: Record<string, number> = {};
+  private dropTimers = new Map<string, ReturnType<typeof setTimeout>>();
+  private sawRestored = new Set<string>();
+  private replayMax = new Map<string, number>();
+  private listFlight: {gen: number; projectId: string; known: boolean} | null = null;
+  private listPending = false;
+  private listGen = 0;
+  private listedProjects = new Set<string>();
   private loadingOlder = new Set<string>();
   /** Run-lease + cancel-settle watchdogs live in @fast-ide/session-view; mobile only supplies the task/busy/attach semantics. */
   private leaseWatch = createLeaseWatch<{id: string; transcript: TranscriptState}>({
@@ -184,8 +187,12 @@ class BridgeStore {
     pendingFingerprint: null,
     leaseNotice: null,
     hostNotice: null,
+    queuedSessionId: null,
     parseStats: {parseFailures: 0, deadLetters: []}
   };
+
+  private notify = createNotify();
+  private queuedTimer: ReturnType<typeof setTimeout> | null = null;
 
   private boot: Promise<void> | null = null;
 
@@ -200,7 +207,9 @@ class BridgeStore {
 
   private uiState(connection: ConnectionState, detail: Copy | null): BridgeConnUiState {
     if (connection === 'open') return 'connected';
-    if (detail?.code === 'helloReject') return 'authFailed';
+    if (detail?.code === 'unauthorized' || detail?.code === 'authFailed' || detail?.code === 'helloReject') {
+      return 'authFailed';
+    }
     if (this.activeTrust() === 'public' && (detail?.code === 'timeout' || detail?.code === 'cannotConnect')) {
       return 'urlExpired';
     }
@@ -231,7 +240,13 @@ class BridgeStore {
       ...this.snapshot,
       lastSessionId: await this.loadLastSessionId()
     };
-    this.client = new BridgeClient(toClientConfig(this.config), {
+    const clientConfig = toClientConfig(this.config);
+    if (!clientConfig) {
+      this.snapshot = {...this.snapshot, connection: 'idle', connectionDetail: null, connUi: 'unconfigured'};
+      this.emit();
+      return;
+    }
+    this.client = new BridgeClient(clientConfig, {
       onState: (connection, detail) => {
         const prevUi = this.snapshot.connUi;
         const connUi = this.uiState(connection, detail ?? null);
@@ -249,9 +264,8 @@ class BridgeStore {
       onTerminalParseFailure: message => {
         if (message.startsWith(PROTOCOL_MISMATCH_PREFIX)) {
           this.snapshot = {...this.snapshot, hostNotice: message};
+          this.emit();
         }
-        for (const sessionId of this.attached) this.sendAttach(sessionId);
-        this.emit();
       },
       onDeadLetter: () => {
         const stats = this.client?.stats();
@@ -281,10 +295,37 @@ class BridgeStore {
       };
       await saveBridgeConfig(this.config);
       this.emit();
-      this.client?.updateConfig(toClientConfig(this.config));
+      this.applyClient();
       return;
     }
     this.emit();
+  }
+
+  retry() {
+    const next = this.config ? toClientConfig(this.config) : null;
+    if (!next) return;
+    if (!this.client) {
+      void this.bootClient();
+      return;
+    }
+    this.client.retry();
+  }
+
+  private applyClient() {
+    if (!this.config) return;
+    const next = toClientConfig(this.config);
+    if (!next) {
+      this.client?.close();
+      this.client = null;
+      this.snapshot = {...this.snapshot, connection: 'idle', connectionDetail: null, connUi: 'unconfigured'};
+      this.emit();
+      return;
+    }
+    if (!this.client) {
+      void this.bootClient();
+      return;
+    }
+    this.client.updateConfig(next);
   }
 
   async saveServer(input: Omit<SavedServer, 'id'> & {id?: string}): Promise<string> {
@@ -298,17 +339,18 @@ class BridgeStore {
       activeServerId: id
     };
     await saveBridgeConfig(this.config);
-    this.reconnectIfActive(id);
+    this.applyClient();
     return id;
   }
 
   async deleteServer(id: string): Promise<void> {
     if (!this.config) return;
+    const wasActive = this.config.activeServerId === id;
     const servers = this.config.servers.filter((s) => s.id !== id);
-    const activeServerId = this.config.activeServerId === id ? (servers[0]?.id ?? null) : this.config.activeServerId;
+    const activeServerId = wasActive ? (servers[0]?.id ?? null) : this.config.activeServerId;
     this.config = {...this.config, servers, activeServerId};
     await saveBridgeConfig(this.config);
-    this.reconnectIfActive(id);
+    if (wasActive) this.applyClient();
   }
 
   async setActiveServer(id: string): Promise<void> {
@@ -316,13 +358,7 @@ class BridgeStore {
     if (!this.config.servers.some((s) => s.id === id)) return;
     this.config = {...this.config, activeServerId: id};
     await saveBridgeConfig(this.config);
-    this.reconnectIfActive(id);
-  }
-
-  private reconnectIfActive(id: string) {
-    if (this.config?.activeServerId === id) {
-      this.client?.updateConfig(toClientConfig(this.config));
-    }
+    this.applyClient();
   }
 
   async testConnection(server: {
@@ -335,31 +371,28 @@ class BridgeStore {
     const serverUrl = normalizeBridgeUrl(server.serverUrl);
     const issue = bridgeUrlIssue(serverUrl);
     if (issue) return {ok: false, detail: issue};
-    const live = this.client;
-    live?.close();
-    try {
-      if (server.trust === 'public') return await this.testPublic(serverUrl, server.token);
-      if (serverUrl.startsWith('wss://')) {
-        const probe = await probeTlsFingerprint(serverUrl, server.fingerprint ?? null);
-        if (!probe.ok) return {ok: false, detail: probe.detail};
-        if (!server.fingerprint) {
-          return {ok: false, detail: { code: 'confirmFingerprint', fingerprint: probe.fingerprint }, fingerprint: probe.fingerprint};
-        }
-        return await this.testPinned(serverUrl, server.token, server.fingerprint);
+    if (server.trust === 'public') return await this.testPublic(serverUrl, server.token);
+    if (serverUrl.startsWith('wss://')) {
+      const probe = await probeTlsFingerprint(serverUrl, server.fingerprint ?? null);
+      if (!probe.ok) return {ok: false, detail: probe.detail};
+      if (!server.fingerprint) {
+        return {ok: false, detail: { code: 'confirmFingerprint', fingerprint: probe.fingerprint }, fingerprint: probe.fingerprint};
       }
-      return await this.testPlain(serverUrl, server.token);
-    } finally {
-      if (live && this.config) live.updateConfig(toClientConfig(this.config));
+      if (this.client?.holdsNative()) {
+        return {ok: true, detail: { code: 'helloOk' }, fingerprint: probe.fingerprint};
+      }
+      return await this.testPinned(serverUrl, server.token, server.fingerprint);
     }
+    return await this.testPlain(serverUrl, server.token);
   }
 
   private helloLine(token: string): string {
     return JSON.stringify({
       type: 'Hello',
-      protocolVersion: 1,
+      protocolVersion: PROTOCOL_VERSION,
       clientId: `probe-${Date.now().toString(36)}`,
-      clientKind: 'fast-mobile',
-      clientVersion: '0.1.0',
+      clientKind: CLIENT_KIND,
+      clientVersion: CLIENT_VERSION,
       authToken: token || undefined
     });
   }
@@ -369,11 +402,9 @@ class BridgeStore {
     finish: (ok: boolean, detail: Copy) => void
   ): void {
     try {
-      const event = JSON.parse(data) as {type?: string; message?: string};
+      const event = JSON.parse(data) as {type?: string; code?: string; message?: string};
       if (event.type === 'HelloOk') finish(true, { code: 'helloOk' });
-      else if (event.type === 'HelloReject') {
-        finish(false, event.message ? { code: 'raw', text: event.message } : { code: 'helloReject' });
-      }
+      else if (event.type === 'HelloReject') finish(false, helloRejectDetail(event));
     } catch {
       // ignore
     }
@@ -494,22 +525,38 @@ class BridgeStore {
   getSnapshot = (): StoreSnapshot => this.snapshot;
 
   attach(sessionId: string) {
+    const pending = this.dropTimers.get(sessionId);
+    if (pending) {
+      clearTimeout(pending);
+      this.dropTimers.delete(sessionId);
+    }
+    this.attachCounts = attachOne(this.attachCounts, sessionId);
     this.attached.add(sessionId);
     const record = this.ensureRecord(sessionId);
     this.leaseWatch.forgetTask(sessionId);
     if (this.leaseBusy(record)) this.leaseWatch.ensureLeaseScan();
     this.leaseWatch.syncCancelSettle({id: sessionId, transcript: record.transcript});
+    this.sawRestored.delete(sessionId);
+    this.replayMax.delete(sessionId);
     this.sendAttach(sessionId);
-    if (this.snapshot.lastSessionId !== sessionId) {
-      this.snapshot = {...this.snapshot, lastSessionId: sessionId};
-      void this.saveLastSessionId(sessionId);
-    }
   }
 
   detach(sessionId: string) {
+    const step = detachOne(this.attachCounts, sessionId);
+    this.attachCounts = step.counts;
+    if (!step.release) return;
     this.attached.delete(sessionId);
     this.leaseWatch.forgetTask(sessionId);
     this.syncLeaseScan();
+    this.send({type: 'DetachSession', sessionId, clientId: this.config?.clientId ?? ''});
+    const timer = setTimeout(() => {
+      this.dropTimers.delete(sessionId);
+      if (this.attachCounts[sessionId]) return;
+      this.records.delete(sessionId);
+      this.seqBySession.delete(sessionId);
+      this.publishRecords();
+    }, 5 * 60 * 1000);
+    this.dropTimers.set(sessionId, timer);
   }
 
   resyncSession(sessionId: string) {
@@ -526,6 +573,7 @@ class BridgeStore {
       type: 'CreateSession',
       projectId,
       taskId,
+      engineKind: 'fast',
       ...(title?.trim() ? {title: title.trim()} : {}),
       ...(project?.workspaceId ? {workspaceId: project.workspaceId} : {})
     });
@@ -544,6 +592,7 @@ class BridgeStore {
     const sessions = this.snapshot.sessionsByProject[projectId] ?? [];
     this.snapshot = {...this.snapshot, projectId, sessions};
     this.emit();
+    this.requestSessions();
   }
 
   private settleCreate(event: Extract<BridgeEvent, {type: 'command_result'}>) {
@@ -565,7 +614,8 @@ class BridgeStore {
       summary: null,
       lastModified: new Date().toISOString(),
       messageCount: 0,
-      runMode: null
+      runMode: null,
+      engineKind: 'fast'
     });
     this.attach(sessionId);
     waiter.resolve(sessionId);
@@ -588,7 +638,7 @@ class BridgeStore {
   composerRunState(sessionId: string): string {
     const record = this.records.get(sessionId);
     if (!record) return 'idle';
-    return composerGate(record.transcript, false).runState;
+    return composerGate(record.transcript, this.snapshot.connection === 'open' && record.ready).runState;
   }
 
   sendUserMessage(
@@ -606,6 +656,7 @@ class BridgeStore {
     });
     if (sent) {
       this.rememberUserEcho(sessionId, clientMessageId, text);
+      this.rememberLastSession(sessionId);
       if (this.snapshot.leaseNotice || this.snapshot.hostNotice) {
         this.snapshot = {...this.snapshot, leaseNotice: null, hostNotice: null};
       }
@@ -737,7 +788,8 @@ class BridgeStore {
 
   private async loadLastSessionId(): Promise<string | null> {
     const {storageGet} = await import('./safe-storage');
-    return storageGet('fast.lastSessionId');
+    const raw = await storageGet('fast.lastSessionId');
+    return raw?.trim() ? raw : null;
   }
 
   private async saveLastSessionId(sessionId: string): Promise<void> {
@@ -748,6 +800,34 @@ class BridgeStore {
   private onOpen() {
     this.send({type: 'GetWorkspaceMeta'});
     for (const sessionId of this.attached) this.sendAttach(sessionId);
+    this.requestSessions();
+  }
+
+  private requestSessions() {
+    this.sendSessions();
+  }
+
+  private sendSessions() {
+    if (this.listFlight) {
+      this.listPending = true;
+      return;
+    }
+    const projectId = this.snapshot.projectId;
+    if (!projectId || this.snapshot.connection !== 'open') return;
+    const project = this.snapshot.projects.find((p) => p.id === projectId);
+    const hash = project?.workspaceId?.replace(/^workspace:/, '').trim() ?? '';
+    if (!hash) return;
+    const known = isRegisteredWorkspaceHash(hash);
+    this.listGen += 1;
+    this.listFlight = {gen: this.listGen, projectId, known};
+    this.listPending = false;
+    this.send({type: 'command', name: 'sessions', args: hash});
+  }
+
+  private rememberLastSession(sessionId: string) {
+    if (this.snapshot.lastSessionId === sessionId) return;
+    this.snapshot = {...this.snapshot, lastSessionId: sessionId};
+    void this.saveLastSessionId(sessionId);
   }
 
   private sendAttach(sessionId: string) {
@@ -771,7 +851,8 @@ class BridgeStore {
         sessionId,
         transcript: createTranscriptState(),
         codeChanges: createCodeChangesState(),
-        lastEventSeq: 0
+        lastEventSeq: 0,
+        ready: false
       };
       this.records.set(sessionId, record);
     }
@@ -799,50 +880,67 @@ class BridgeStore {
           isDefault: p.isDefault
         });
       }
-      const sessionsByProject: Record<string, SessionSummary[]> = {};
+      const sessionsByProject: Record<string, SessionSummary[]> = {...this.snapshot.sessionsByProject};
       for (const project of projects) {
+        if (this.listedProjects.has(project.id) && sessionsByProject[project.id]) continue;
         sessionsByProject[project.id] = Object.values(event.sessionsByProjectId[project.id] ?? {}).map((s) => ({
           id: s.id,
           title: s.title ?? '',
           summary: null,
           lastModified: s.updatedAt ?? '',
           messageCount: 0,
-          runMode: null
+          runMode: null,
+          engineKind: null
         }));
       }
       const projectId =
-        this.snapshot.projectId ??
-        projects.find((p) => p.isDefault)?.id ??
-        projects[0]?.id ??
-        null;
-      const incoming = projectId ? (sessionsByProject[projectId] ?? []) : [];
+        this.snapshot.projectId && projects.some((p) => p.id === this.snapshot.projectId)
+          ? this.snapshot.projectId
+          : projects.find((p) => p.isDefault)?.id ?? projects[0]?.id ?? null;
       this.snapshot = {
         ...this.snapshot,
         projects,
         sessionsByProject,
         sessionsLoaded: true,
         projectId,
-        sessions: mergeSessions(this.snapshot.projectId === projectId ? this.snapshot.sessions : [], incoming)
+        sessions: projectId ? (sessionsByProject[projectId] ?? []) : []
       };
       this.emit();
+      this.requestSessions();
       return;
     }
     if (event.type === 'sessions_list') {
-      const incoming = event.sessions.map((s) => ({
-        id: s.id,
-        title: s.title?.trim() || s.summary?.trim() || '',
-        summary: s.summary?.trim() || null,
-        lastModified: s.lastModified,
-        messageCount: s.messageCount,
-        runMode: s.runMode ?? null
-      }));
-      this.snapshot = {
-        ...this.snapshot,
-        sessionsLoaded: true,
-        sessions: mergeSessions(this.snapshot.sessions, incoming)
-      };
-      this.emit();
+      const flight = this.listFlight;
+      const pending = this.listPending;
+      this.listFlight = null;
+      this.listPending = false;
+      if (flight && flight.projectId === this.snapshot.projectId) {
+        const incoming = event.sessions.map((s) => ({
+          id: s.id,
+          title: s.title?.trim() || s.summary?.trim() || '',
+          summary: s.summary?.trim() || null,
+          lastModified: s.lastModified,
+          messageCount: s.messageCount,
+          runMode: s.runMode ?? null,
+          engineKind: s.engineKind ?? null
+        }));
+        const current = this.snapshot.sessionsByProject[flight.projectId] ?? [];
+        const next = applyProjectSessions(current, incoming, flight.known);
+        if (incoming.length > 0 || flight.known) this.listedProjects.add(flight.projectId);
+        const sessionsByProject = {...this.snapshot.sessionsByProject, [flight.projectId]: next};
+        this.snapshot = {
+          ...this.snapshot,
+          sessionsLoaded: true,
+          sessionsByProject,
+          sessions: this.snapshot.projectId === flight.projectId ? next : this.snapshot.sessions
+        };
+        this.emit();
+      }
+      if (pending || (flight != null && flight.projectId !== this.snapshot.projectId)) this.sendSessions();
       return;
+    }
+    if (event.type === 'command_result' && event.status === 'queued' && event.sessionId) {
+      this.noteQueued(event.sessionId);
     }
     if (event.type === 'command_result' && (event.name === 'CreateSession' || event.name === 'NewSession')) {
       this.settleCreate(event);
@@ -853,7 +951,14 @@ class BridgeStore {
       return;
     }
     if (event.type === 'session_restored') {
+      const restoredId = sessionIdFromEvent(event);
+      if (restoredId) this.sawRestored.add(restoredId);
       this.send({type: 'GetWorkspaceMeta'});
+      this.requestSessions();
+    }
+    if (event.type === 'Attached') {
+      this.finishAttach(event.sessionId);
+      return;
     }
     const sessionId = sessionIdFromEvent(event);
     if (!sessionId) return;
@@ -871,6 +976,8 @@ class BridgeStore {
       ...emptySessionSeq(),
       lastApplied: record.lastEventSeq
     };
+    const seq = eventSeqOf(event);
+    if (seq !== undefined) this.replayMax.set(sessionId, Math.max(this.replayMax.get(sessionId) ?? 0, seq));
     const result = offer(before, event, {terminal: seqTerminal(record.transcript)});
     this.seqBySession.set(sessionId, result.state);
     if (result.state.lastApplied !== before.lastApplied) {
@@ -894,7 +1001,8 @@ class BridgeStore {
           followUps: {
             ...this.snapshot.followUps,
             [sessionId]: {paused: ev.paused, items: parseFollowUps(ev.itemsJson)}
-          }
+          },
+          queuedSessionId: this.snapshot.queuedSessionId === sessionId ? null : this.snapshot.queuedSessionId
         };
       }
     }
@@ -983,14 +1091,45 @@ class BridgeStore {
     else this.leaseWatch.stopLeaseScan();
   }
 
-  /** Coalesce a burst of bridge events into one listener notification per frame. */
+  private noteQueued(sessionId: string) {
+    if (this.queuedTimer) clearTimeout(this.queuedTimer);
+    this.snapshot = {...this.snapshot, queuedSessionId: sessionId};
+    this.queuedTimer = setTimeout(() => {
+      this.queuedTimer = null;
+      if (this.snapshot.queuedSessionId !== sessionId) return;
+      this.snapshot = {...this.snapshot, queuedSessionId: null};
+      this.emit();
+    }, 4000);
+    this.emit();
+  }
+
+  private finishAttach(sessionId: string) {
+    const record = this.records.get(sessionId);
+    if (!this.sawRestored.has(sessionId)) {
+      if (record) record.ready = false;
+      if (this.snapshot.lastSessionId === sessionId) {
+        this.snapshot = {...this.snapshot, lastSessionId: null};
+        void this.saveLastSessionId('');
+      }
+      this.publishRecords();
+      return;
+    }
+    if (record) {
+      const max = this.replayMax.get(sessionId) ?? 0;
+      if (max > 0 && record.lastEventSeq > max) {
+        record.lastEventSeq = max;
+        const seq = this.seqBySession.get(sessionId);
+        if (seq) this.seqBySession.set(sessionId, {...seq, lastApplied: max});
+      }
+      record.ready = true;
+    }
+    this.rememberLastSession(sessionId);
+    this.publishRecords();
+  }
+
+  /** Notify subscribers on this stack. A nested write flushes once more at the end. */
   private emit() {
-    if (this.emitScheduled) return;
-    this.emitScheduled = true;
-    setTimeout(() => {
-      this.emitScheduled = false;
-      for (const listener of this.listeners) listener();
-    }, 16);
+    this.notify(this.listeners);
   }
 }
 

@@ -49,7 +49,6 @@ export default function AppTabs() {
       <Tabs.Screen name="index" options={{ title: t('mobile.tabs.chat'), tabBarIcon: tabIcon('chat') }} />
       <Tabs.Screen name="history" options={{ title: t('mobile.tabs.history'), tabBarIcon: tabIcon('history') }} />
       <Tabs.Screen name="settings" options={{ title: t('mobile.tabs.settings'), tabBarIcon: tabIcon('settings') }} />
-      <Tabs.Screen name="session/[id]" options={{ href: null, headerShown: true, title: t('mobile.tabs.session') }} />
     </Tabs>
   );
 }

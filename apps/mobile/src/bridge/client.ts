@@ -6,9 +6,11 @@ import {
   CONSECUTIVE_PARSE_FAIL_NOTICE
 } from '@fastllm/bridge-protocol';
 
+import { CLIENT_KIND, CLIENT_VERSION, PROTOCOL_VERSION } from './identity';
 import type {ClientConfig} from './config';
 import type { Copy } from './copy';
 import { rawError } from './copy';
+import { helloRejectDetail } from './hello';
 import {bridgeUrlIssue, normalizeBridgeUrl} from './pairing';
 import {openPinnedSocket, openPublicSocket, type PinnedWire} from './pinned-socket';
 import {probeTlsFingerprint} from './tls-pinning';
@@ -57,8 +59,27 @@ export class BridgeClient {
     this.handlers = handlers;
   }
 
+  holdsNative(): boolean {
+    return this.wire !== null && this.config.serverUrl.startsWith('wss://');
+  }
+
+  /** Re-open after a terminal reject without requiring a config edit. */
+  retry() {
+    this.disposed = false;
+    this.opening = false;
+    this.connect();
+  }
+
   updateConfig(config: ClientConfig) {
+    const prev = this.config;
+    const same =
+      prev.serverUrl === config.serverUrl &&
+      prev.token === config.token &&
+      prev.fingerprint === config.fingerprint &&
+      prev.trust === config.trust &&
+      prev.clientId === config.clientId;
     this.config = config;
+    if (same && this.wire) return;
     this.close();
     this.disposed = false;
     this.connect();
@@ -128,14 +149,18 @@ export class BridgeClient {
     this.wire = wire;
     this.armConnectWatchdog(wire);
     this.setState('hello');
-    this.send({
-      type: 'Hello',
-      protocolVersion: 1,
+    this.send(this.helloCommand());
+  }
+
+  private helloCommand() {
+    return {
+      type: 'Hello' as const,
+      protocolVersion: PROTOCOL_VERSION,
       clientId: this.config.clientId,
-      clientKind: 'fast-mobile',
-      clientVersion: '0.1.0',
+      clientKind: CLIENT_KIND,
+      clientVersion: CLIENT_VERSION,
       authToken: this.config.token || undefined
-    });
+    };
   }
 
   private async openPinned(serverUrl: string, fingerprint: string) {
@@ -171,14 +196,7 @@ export class BridgeClient {
     this.armConnectWatchdog(socket);
     socket.onopen = () => {
       this.setState('hello');
-      this.send({
-        type: 'Hello',
-        protocolVersion: 1,
-        clientId: this.config.clientId,
-        clientKind: 'fast-mobile',
-        clientVersion: '0.1.0',
-        authToken: this.config.token || undefined
-      });
+      this.send(this.helloCommand());
     };
     socket.onmessage = (raw) => {
       const text = wsFrameText(raw.data);
@@ -227,14 +245,7 @@ export class BridgeClient {
       return;
     }
     if (event.type === 'HelloReject') {
-      this.setState(
-        'rejected',
-        event.message
-          ? { code: 'raw', text: event.message }
-          : event.code
-            ? { code: 'raw', text: event.code }
-            : { code: 'helloReject' }
-      );
+      this.setState('rejected', helloRejectDetail(event));
       this.close();
       return;
     }

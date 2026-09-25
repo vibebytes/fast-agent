@@ -1742,7 +1742,8 @@
       "helloOk": "Conectado",
       "helloReject": "Rechazado",
       "urlExpired": "Tiempo de conexión agotado: la dirección puede haber cambiado (las URL de túnel rápido rotan al reiniciar)",
-      "authFailed": "Autenticación rechazada: el token ya no es válido; vuelve a escanear"
+      "authFailed": "Autenticación rechazada: el token ya no es válido; vuelve a escanear",
+      "unauthorized": "Autenticación rechazada. Vuelve a emparejar."
     },
     "settings": {
       "title": "Preferencias",
@@ -1804,7 +1805,8 @@
       "emptyOpen": "Aún no hay sesión. Crea una.",
       "emptyClosed": "Conéctate a la app de escritorio para empezar a chatear.",
       "newSession": "Nueva sesión",
-      "goSettings": "Abrir ajustes"
+      "goSettings": "Abrir ajustes",
+      "goHistory": "Ir al historial"
     },
     "history": {
       "title": "Historial",
@@ -1883,7 +1885,9 @@
       "queueActive": "Seguimientos en cola",
       "resumeQueue": "Reanudar",
       "pauseQueue": "Pausar cola",
-      "edit": "Editar"
+      "edit": "Editar",
+      "prevCard": "Anterior",
+      "nextCard": "Siguiente"
     },
     "voice": {
       "micDenied": "Permiso del micrófono denegado. Actívalo en los ajustes del sistema.",
@@ -1920,7 +1924,9 @@
       "urlExpired": "La dirección del servidor puede haber cambiado: vuelve a escanear",
       "reconnecting": "Reconectando…",
       "unreachable": "No se puede conectar con el servidor",
-      "rescanHint": "Vuelve a escanear el QR en el escritorio"
+      "rescanHint": "Vuelve a escanear el QR en el escritorio",
+      "unconfigured": "No hay servidor guardado",
+      "retry": "Reintentar"
     }
   }
 }

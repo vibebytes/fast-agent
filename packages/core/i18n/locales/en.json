@@ -1747,7 +1747,8 @@
       "helloOk": "Connected",
       "helloReject": "Rejected",
       "urlExpired": "Connection timed out: the server address may have changed (quick tunnel URLs rotate on restart)",
-      "authFailed": "Authentication rejected: the token is no longer valid — please re-scan"
+      "authFailed": "Authentication rejected: the token is no longer valid — please re-scan",
+      "unauthorized": "Authentication rejected. Pair again."
     },
     "settings": {
       "title": "Preferences",
@@ -1809,7 +1810,8 @@
       "emptyOpen": "No session yet. Create one.",
       "emptyClosed": "Connect to the desktop app to start chatting.",
       "newSession": "New session",
-      "goSettings": "Open settings"
+      "goSettings": "Open settings",
+      "goHistory": "Pick from history"
     },
     "history": {
       "title": "History",
@@ -1888,7 +1890,9 @@
       "queueActive": "Follow-ups queued",
       "resumeQueue": "Resume",
       "pauseQueue": "Pause queue",
-      "edit": "Edit"
+      "edit": "Edit",
+      "prevCard": "Previous",
+      "nextCard": "Next"
     },
     "voice": {
       "micDenied": "Microphone permission denied. Allow it in system settings.",
@@ -1925,7 +1929,9 @@
       "urlExpired": "Server address may have changed — please re-scan",
       "reconnecting": "Reconnecting…",
       "unreachable": "Cannot reach the server",
-      "rescanHint": "Re-scan the QR code on the desktop"
+      "rescanHint": "Re-scan the QR code on the desktop",
+      "unconfigured": "No server saved",
+      "retry": "Retry"
     }
   }
 }

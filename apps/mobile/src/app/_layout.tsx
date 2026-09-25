@@ -1,10 +1,10 @@
 import * as SplashScreen from 'expo-splash-screen';
+import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { HeroUINativeProvider } from 'heroui-native/provider';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 import '../global.css';
-import AppTabs from '@/components/app-tabs';
 import { useBridgeStart } from '@/bridge/useBridge';
 import { LocaleProvider } from '@/i18n/locale-context';
 import { ensureVoiceEngine } from '@/lib/voice-engine';
@@ -22,7 +22,10 @@ export default function TabLayout() {
           <LocaleProvider>
             <FastThemeScope>
               <AppStatusBar />
-              <AppTabs />
+              <Stack screenOptions={{ headerShown: false }}>
+                <Stack.Screen name="(tabs)" />
+                <Stack.Screen name="session/[id]" options={{ headerShown: true }} />
+              </Stack>
             </FastThemeScope>
           </LocaleProvider>
         </ThemeModeProvider>

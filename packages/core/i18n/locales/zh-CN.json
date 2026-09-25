@@ -1747,7 +1747,8 @@
       "helloOk": "连接成功",
       "helloReject": "被拒绝",
       "urlExpired": "连接超时：服务器地址可能已变化（隧道重启后 URL 会轮换）",
-      "authFailed": "鉴权被拒：Token 已失效，请重新扫码"
+      "authFailed": "鉴权被拒：Token 已失效，请重新扫码",
+      "unauthorized": "认证被拒绝，请重新配对"
     },
     "settings": {
       "title": "偏好设置",
@@ -1809,7 +1810,8 @@
       "emptyOpen": "还没有会话，新建一个吧。",
       "emptyClosed": "连接桌面端后开始对话。",
       "newSession": "新建会话",
-      "goSettings": "去设置"
+      "goSettings": "去设置",
+      "goHistory": "去历史"
     },
     "history": {
       "title": "会话历史",
@@ -1888,7 +1890,9 @@
       "queueActive": "追问排队",
       "resumeQueue": "恢复执行",
       "pauseQueue": "暂停队列",
-      "edit": "编辑"
+      "edit": "编辑",
+      "prevCard": "上一条",
+      "nextCard": "下一条"
     },
     "voice": {
       "micDenied": "麦克风权限被拒绝，请在系统设置中允许",
@@ -1925,7 +1929,9 @@
       "urlExpired": "服务器地址可能已变化，请重新扫码",
       "reconnecting": "正在重新连接…",
       "unreachable": "无法连接服务器",
-      "rescanHint": "请回桌面端重新扫码"
+      "rescanHint": "请回桌面端重新扫码",
+      "unconfigured": "还没有保存服务器",
+      "retry": "重试"
     }
   }
 }

@@ -3,9 +3,9 @@ import { Pressable, Text } from 'react-native';
 import { overlayGoalGate, STOPPABLE_GOAL_PHASES } from '@/bridge/mobile-transcript';
 import { bridgeStore, type SessionRecord } from '@/bridge/store';
 
-export function sessionComposerGate(record: SessionRecord | undefined) {
+export function sessionComposerGate(record: SessionRecord | undefined, connected: boolean) {
   if (!record) return null;
-  return overlayGoalGate(composerGate(record.transcript, true), record.goalCard);
+  return overlayGoalGate(composerGate(record.transcript, connected && record.ready), record.goalCard);
 }
 
 export function hasActionablePrompt(record: SessionRecord | undefined): boolean {

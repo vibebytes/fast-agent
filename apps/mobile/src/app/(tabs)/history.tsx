@@ -1,5 +1,4 @@
 import { FlashList } from '@shopify/flash-list';
-import { composerGate } from '@fast-ide/session-view';
 import { useRouter } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -33,7 +32,10 @@ function bucketOf(lastModified: string): Bucket {
 function formatTime(lastModified: string): string {
   const d = new Date(lastModified);
   if (isNaN(d.getTime())) return '';
-  return `${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`;
+  const now = new Date();
+  const sameDay = d.toDateString() === now.toDateString();
+  if (sameDay) return `${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`;
+  return `${d.getMonth() + 1}/${d.getDate()}`;
 }
 
 export default function HistoryScreen() {
@@ -41,15 +43,28 @@ export default function HistoryScreen() {
   const vars = useThemeVars();
   const router = useRouter();
   const snapshot = useBridgeSnapshot();
-  const [selectedProject, setSelectedProject] = useState<string>('all');
+  const [browsingAll, setBrowsingAll] = useState(true);
 
   const projects = snapshot.projects ?? [];
-  const sessions = snapshot.sessions ?? [];
+
+  const allRows = useMemo(() => {
+    const seen = new Set<string>();
+    const rows: SessionSummary[] = [];
+    for (const group of Object.values(snapshot.sessionsByProject)) {
+      for (const session of group) {
+        if (seen.has(session.id)) continue;
+        seen.add(session.id);
+        rows.push(session);
+      }
+    }
+    return rows;
+  }, [snapshot.sessionsByProject]);
 
   const list = useMemo(() => {
-    if (selectedProject === 'all') return sessions;
-    return snapshot.sessionsByProject[selectedProject] ?? [];
-  }, [sessions, selectedProject, snapshot.sessionsByProject]);
+    if (browsingAll) return allRows;
+    const projectId = snapshot.projectId;
+    return projectId ? (snapshot.sessionsByProject[projectId] ?? []) : [];
+  }, [allRows, browsingAll, snapshot.projectId, snapshot.sessionsByProject]);
 
   const buckets = useMemo(() => {
     const map: Record<Bucket, SessionSummary[]> = {
@@ -65,14 +80,6 @@ export default function HistoryScreen() {
   }, [list]);
 
   const activeSessionId = snapshot.lastSessionId;
-  const runningIds = useMemo(() => {
-    const set = new Set<string>();
-    for (const [id, rec] of Object.entries(snapshot.records)) {
-      const state = composerGate(rec.transcript, true).runState;
-      if (state === 'running' || state === 'stopping') set.add(id);
-    }
-    return set;
-  }, [snapshot.records]);
 
   const rows = useMemo(() => {
     const out: Row[] = [];
@@ -99,14 +106,13 @@ export default function HistoryScreen() {
           <SessionCard
             session={item.session}
             isActive={item.session.id === activeSessionId}
-            running={runningIds.has(item.session.id)}
             onOpen={() => {
               router.push(`/session/${item.session.id}`);
             }}
           />
         </View>
       ),
-    [t, activeSessionId, runningIds, router]
+    [t, activeSessionId, router]
   );
 
   const keyExtractor = useCallback(
@@ -122,7 +128,7 @@ export default function HistoryScreen() {
       >
         <View>
           <Text className="text-xl font-bold tracking-tight text-foreground">{t('mobile.history.title')}</Text>
-          <Text className="text-[11px] font-medium text-muted">{t('mobile.history.count', { count: sessions.length })}</Text>
+          <Text className="text-[11px] font-medium text-muted">{t('mobile.history.count', { count: list.length })}</Text>
         </View>
         <Pressable
           accessibilityRole="button"
@@ -146,33 +152,26 @@ export default function HistoryScreen() {
           <ScrollView horizontal showsHorizontalScrollIndicator={false} className="px-4">
             <View className="flex-row items-center gap-2 pr-8">
               <Pressable
-                onPress={() => {
-                  setSelectedProject('all');
-                }}
-                className={`rounded-full px-3.5 py-1.5 transition-all ${
-                  selectedProject === 'all'
-                    ? 'bg-primary shadow-sm'
-                    : 'border border-border/80 bg-surface'
+                onPress={() => setBrowsingAll(true)}
+                className={`min-h-11 justify-center rounded-full px-3.5 ${
+                  browsingAll ? 'bg-primary shadow-sm' : 'border border-border/80 bg-surface'
                 } active:scale-95`}
               >
-                <Text
-                  className={`text-xs font-semibold ${
-                    selectedProject === 'all' ? 'text-primary-foreground' : 'text-muted'
-                  }`}
-                >
-                  {t('mobile.history.allCount', { count: sessions.length })}
+                <Text className={`text-xs font-semibold ${browsingAll ? 'text-primary-foreground' : 'text-muted'}`}>
+                  {t('mobile.history.allCount', { count: allRows.length })}
                 </Text>
               </Pressable>
               {projects.map((p) => {
                 const count = snapshot.sessionsByProject[p.id]?.length ?? 0;
-                const active = selectedProject === p.id;
+                const active = !browsingAll && snapshot.projectId === p.id;
                 return (
                   <Pressable
                     key={p.id}
                     onPress={() => {
-                      setSelectedProject(p.id);
+                      setBrowsingAll(false);
+                      bridgeStore.setProject(p.id);
                     }}
-                    className={`rounded-full px-3.5 py-1.5 transition-all ${
+                    className={`min-h-11 justify-center rounded-full px-3.5 ${
                       active ? 'bg-primary shadow-sm' : 'border border-border/80 bg-surface'
                     } active:scale-95`}
                   >
@@ -224,12 +223,10 @@ export default function HistoryScreen() {
 function SessionCard({
   session,
   isActive,
-  running,
   onOpen
 }: {
   session: SessionSummary;
   isActive: boolean;
-  running: boolean;
   onOpen: () => void;
 }) {
   const { t } = useTranslation();
@@ -237,46 +234,21 @@ function SessionCard({
     <Pressable
       accessibilityRole="button"
       onPress={onOpen}
-      className={`overflow-hidden rounded-2xl border p-4 shadow-sm transition-all ${
-        isActive
-          ? 'border-primary/80 bg-primary/10 shadow-primary/10'
-          : 'border-border/70 bg-surface active:bg-surface-secondary/60'
-      } active:scale-[0.985]`}
+      className={`min-h-11 flex-row items-center justify-between gap-3 border-b border-border/50 px-1 py-3 ${
+        isActive ? 'bg-primary/10' : 'active:bg-surface-secondary/60'
+      }`}
     >
-      <View className="flex-row items-start justify-between gap-3">
-        <View className="flex-1">
-          <View className="flex-row items-center gap-2">
-            {running ? (
-              <View className="flex-row items-center gap-1 rounded-full bg-success/15 px-2 py-0.5">
-                <View className="h-1.5 w-1.5 animate-ping rounded-full bg-success" />
-                <Text className="text-[10px] font-bold text-success">{t('mobile.history.running')}</Text>
-              </View>
-            ) : null}
-            <Text numberOfLines={1} className="flex-1 text-[15px] font-semibold text-foreground tracking-tight">
-              {session.title || t('shell.common.unnamed')}
-            </Text>
-          </View>
-          {session.summary ? (
-            <Text numberOfLines={2} className="mt-1.5 text-xs leading-relaxed text-muted">
-              {session.summary}
-            </Text>
-          ) : null}
-        </View>
-      </View>
-
-      <View className="mt-3 flex-row items-center justify-between border-t border-border/40 pt-2.5">
-        <View className="flex-row items-center gap-2">
-          {session.runMode ? (
-            <View className="rounded-md border border-border/60 bg-surface-secondary/80 px-2 py-0.5">
-              <Text className="text-[10px] font-medium text-foreground">{session.runMode}</Text>
-            </View>
-          ) : null}
-          <Text className="text-[11px] font-medium text-muted">
-            {session.messageCount ? t('mobile.history.messageCount', { count: session.messageCount }) : t('mobile.history.noMessages')}
+      <View className="min-w-0 flex-1">
+        <Text numberOfLines={1} className="text-[15px] font-semibold text-foreground">
+          {session.title || t('shell.common.unnamed')}
+        </Text>
+        {[session.summary, session.runMode, session.engineKind].filter(Boolean).length > 0 ? (
+          <Text numberOfLines={1} className="mt-0.5 text-xs text-muted">
+            {[session.summary, session.runMode, session.engineKind].filter(Boolean).join(' · ')}
           </Text>
-        </View>
-        <Text className="text-[11px] font-mono text-muted">{formatTime(session.lastModified)}</Text>
+        ) : null}
       </View>
+      <Text className="text-[11px] font-mono text-muted">{formatTime(session.lastModified)}</Text>
     </Pressable>
   );
 }

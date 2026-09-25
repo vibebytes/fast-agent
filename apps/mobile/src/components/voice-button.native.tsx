@@ -29,7 +29,7 @@ import { ensureVoiceEngine, transcribeFile } from '@/lib/voice-engine';
 import { FastThemeScope, useThemeMode, useThemeVars } from '@/theme/theme-context';
 
 interface VoiceInputProps {
-  onSend: (text: string) => void;
+  onResult: (text: string) => void;
   disabled?: boolean;
 }
 
@@ -141,7 +141,7 @@ function WaveformVisualizer({ metering, active, color }: { metering: number; act
   );
 }
 
-export function VoiceButton({ onSend, disabled }: VoiceInputProps) {
+export function VoiceButton({ onResult, disabled }: VoiceInputProps) {
   const { t } = useTranslation();
   const { scheme } = useThemeMode();
   const vars = useThemeVars();
@@ -288,7 +288,7 @@ export function VoiceButton({ onSend, disabled }: VoiceInputProps) {
     const text = transcript.trim();
     if (!text) return;
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
-    onSend(text);
+    onResult(text);
     closePanel();
   };
 

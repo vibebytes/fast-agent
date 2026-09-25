@@ -1,3 +1,3 @@
-export function VoiceButton(_props: { onSend: (text: string) => void; disabled?: boolean }) {
+export function VoiceButton(_props: { onResult: (text: string) => void; disabled?: boolean }) {
   return null;
 }

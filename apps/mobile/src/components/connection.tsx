@@ -1,11 +1,15 @@
+import { router } from 'expo-router';
 import { useTranslation } from 'react-i18next';
-import { Text, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 
 import type { ConnectionState } from '@/bridge/client';
 import { formatCopy, type Translate } from '@/bridge/copy';
+import type { BridgeConnUiState } from '@/bridge/store';
+import { bridgeStore } from '@/bridge/store';
 import { useBridgeSnapshot } from '@/bridge/useBridge';
 
-export function connectionLabel(t: Translate, state: ConnectionState): string {
+export function connectionLabel(t: Translate, state: ConnectionState, ui?: BridgeConnUiState): string {
+  if (ui === 'unconfigured') return t('mobile.conn.unconfigured');
   return state === 'rejected'
     ? t('mobile.connection.rejectedAuth')
     : t(`mobile.connection.${state}`, { defaultValue: state });
@@ -28,11 +32,13 @@ export function ConnectionBanner() {
       </View>
     );
   }
-  const label = connectionLabel(t, snapshot.connection);
+  const label = connectionLabel(t, snapshot.connection, snapshot.connUi);
   const detail = snapshot.connectionDetail ? formatCopy(t, snapshot.connectionDetail) : '';
   const ui = snapshot.connUi;
   const uiLabel =
-    ui === 'authFailed'
+    ui === 'unconfigured'
+      ? t('mobile.conn.unconfigured')
+      : ui === 'authFailed'
       ? t('mobile.conn.authFailed')
       : ui === 'urlExpired'
         ? t('mobile.conn.urlExpired')
@@ -44,10 +50,17 @@ export function ConnectionBanner() {
   const rescanHint = ui === 'authFailed' || ui === 'urlExpired' ? t('mobile.conn.rescanHint') : '';
   return (
     <View className="bg-warning/15 px-3 py-1.5">
-      <Text className="text-center text-[11px] text-warning">
-        {uiLabel}
-        {rescanHint ? ` · ${rescanHint}` : detail ? ` · ${detail}` : ''}
-      </Text>
+      <Pressable onPress={() => router.push('/settings')} className="min-h-11 justify-center">
+        <Text className="text-center text-[11px] text-warning">
+          {uiLabel}
+          {rescanHint ? ` · ${rescanHint}` : detail ? ` · ${detail}` : ''}
+        </Text>
+      </Pressable>
+      {snapshot.connection === 'rejected' ? (
+        <Pressable onPress={() => bridgeStore.retry()} className="min-h-11 items-center justify-center">
+          <Text className="text-xs font-semibold text-warning">{t('mobile.conn.retry')}</Text>
+        </Pressable>
+      ) : null}
     </View>
   );
 }

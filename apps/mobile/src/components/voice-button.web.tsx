@@ -7,11 +7,11 @@ import { Glyph } from '@/components/glyphs';
 import { useThemeVars } from '@/theme/theme-context';
 
 interface VoiceInputProps {
-  onSend: (text: string) => void;
+  onResult: (text: string) => void;
   disabled?: boolean;
 }
 
-export function VoiceButton({ onSend, disabled }: VoiceInputProps) {
+export function VoiceButton({ onResult, disabled }: VoiceInputProps) {
   const { t } = useTranslation();
   const vars = useThemeVars();
   const [listening, setListening] = useState(false);
@@ -41,7 +41,7 @@ export function VoiceButton({ onSend, disabled }: VoiceInputProps) {
       recognition.onresult = (event: any) => {
         const text = event.results?.[0]?.[0]?.transcript;
         if (text?.trim()) {
-          onSend(text.trim());
+          onResult(text.trim());
         }
       };
 
@@ -58,7 +58,7 @@ export function VoiceButton({ onSend, disabled }: VoiceInputProps) {
     } catch {
       setListening(false);
     }
-  }, [disabled, onSend, t]);
+  }, [disabled, onResult, t]);
 
   const stopListening = useCallback(() => {
     if (recognitionRef.current) {
