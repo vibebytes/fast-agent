@@ -91,6 +91,7 @@ export type AppSidebarProps = {
 	localePref: LocalePref;
 	onLocaleChange: (pref: LocalePref) => void;
 	onOpenSettings2: () => void;
+	onOpenAdmin: () => void;
 	paletteId: string;
 	onPaletteChange: (id: string) => void;
 };
@@ -116,6 +117,7 @@ function AppSidebar({
 	localePref,
 	onLocaleChange,
 	onOpenSettings2,
+	onOpenAdmin,
 	paletteId,
 	onPaletteChange
 }: AppSidebarProps) {
@@ -219,6 +221,7 @@ function AppSidebar({
 					localePref={localePref}
 					onLocaleChange={onLocaleChange}
 					onOpenSettings2={onOpenSettings2}
+					onOpenAdmin={onOpenAdmin}
 					themeContent={
 						<ThemePicker
 							variant="sidebar"

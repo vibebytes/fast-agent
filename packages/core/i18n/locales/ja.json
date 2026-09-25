@@ -1061,6 +1061,7 @@
       "hidePet": "ペットを非表示",
       "showPet": "ペットを表示",
       "settings": "設定",
+      "admin": "trace",
       "theme": "テーマ",
       "language": "言語",
       "about": "Fast IDE について",

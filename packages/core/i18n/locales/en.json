@@ -1105,6 +1105,7 @@
       "hidePet": "Hide pet",
       "showPet": "Show pet",
       "settings": "Settings",
+      "admin": "trace",
       "theme": "Theme",
       "language": "Language",
       "about": "About Fast IDE",

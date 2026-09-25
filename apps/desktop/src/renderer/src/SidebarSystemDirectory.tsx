@@ -23,6 +23,7 @@ import {
 	HardDrive,
 	Info,
 	Languages,
+	LayoutDashboard,
 	LogOut,
 	Palette,
 	Settings
@@ -47,6 +48,7 @@ export type SidebarSystemDirectoryProps = {
 	localePref?: LocalePref;
 	onLocaleChange?: (pref: LocalePref) => void;
 	onOpenSettings2?: () => void;
+	onOpenAdmin?: () => void;
 	edges?: EdgesList | null;
 	className?: string;
 };
@@ -60,6 +62,7 @@ export function SidebarSystemDirectory({
 	localePref,
 	onLocaleChange,
 	onOpenSettings2,
+	onOpenAdmin,
 	edges,
 	className
 }: SidebarSystemDirectoryProps) {
@@ -236,6 +239,10 @@ export function SidebarSystemDirectory({
 								</DropdownMenuSubContent>
 							</DropdownMenuSub>
 						) : null}
+						<DropdownMenuItem className="gap-2" onSelect={() => onOpenAdmin?.()}>
+							<LayoutDashboard className="size-4" />
+							<span className="flex-1">{t('shell.sidebar.admin')}</span>
+						</DropdownMenuItem>
 						<DropdownMenuItem
 							className="gap-2"
 							onSelect={() => {

@@ -138,7 +138,7 @@ export function App({store}: {store: WorkspaceStore}) {
 		path: string;
 		nonce: number;
 	} | null>(null);
-	const [centerMode, setCenterMode] = useState<'task' | 'teams' | 'scheduled'>('task');
+	const [centerMode, setCenterMode] = useState<'task' | 'teams' | 'scheduled' | 'admin'>('task');
 	const [settings2Open, setSettings2Open] = useState(false);
 	const [settings2Section, setSettings2Section] = useState<SettingsSectionId>('general');
 	const [settings2Suite, setSettings2Suite] = useState<SettingsSuite>('fast');
@@ -442,6 +442,7 @@ export function App({store}: {store: WorkspaceStore}) {
 				localePref,
 				onLocaleChange: setLocalePref,
 				onOpenSettings2: () => setSettings2Open(true),
+				onOpenAdmin: () => setCenterMode('admin'),
 				paletteId,
 				onPaletteChange: setPaletteId
 			}}
@@ -604,6 +605,14 @@ export function App({store}: {store: WorkspaceStore}) {
 						) : centerMode === 'scheduled' ? (
 						<ErrorBoundary label={t('shell.sidebar.scheduled')}>
 							<ScheduledPlans onOpenTask={openTaskWithTab} />
+						</ErrorBoundary>
+						) : centerMode === 'admin' ? (
+						<ErrorBoundary label={t('shell.sidebar.admin')}>
+							<iframe
+								title={t('shell.sidebar.admin')}
+								src="http://127.0.0.1:8888/admin"
+								className="h-full w-full border-0 bg-background"
+							/>
 						</ErrorBoundary>
 						) : (
 						<ErrorBoundary label={t('shell.boundary.session')}>

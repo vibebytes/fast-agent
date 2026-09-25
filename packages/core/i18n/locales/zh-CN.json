@@ -1101,6 +1101,7 @@
       "hidePet": "隐藏宠物",
       "showPet": "显示宠物",
       "settings": "设置",
+      "admin": "trace",
       "theme": "主题",
       "language": "语言",
       "about": "关于 Fast IDE",
