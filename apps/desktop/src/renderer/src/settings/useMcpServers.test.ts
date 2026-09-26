@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import {beforeEach, test} from 'node:test';
+import {beforeEach, mock, test} from 'node:test';
 import type {McpControlResult, McpServerOp, McpServerRow} from '@fastllm/bridge-client';
 import {mcpStore, mcpNoticeKind, parseImportPayload} from './useMcpServers.js';
 import {rowState} from './McpServerCard.js';
@@ -272,6 +272,34 @@ test('save ok updates rows', async () => {
 	const done = await mcpStore.save('fresh', {command: 'uvx'});
 	assert.equal(done, true);
 	assert.deepEqual(mcpStore.getSnapshot().servers.map(s => s.name), ['fresh']);
+});
+
+test('save of a starting server polls until it leaves starting', async () => {
+	mcpStore.setEngineReady(true);
+	await new Promise(resolve => setImmediate(resolve));
+	let lists = 0;
+	mcpStore.bindApi(
+		api({
+			put: async () => ({ok: true, mcpServers: [server('fresh', {state: 'starting'})]}),
+			list: async () => {
+				lists += 1;
+				return {ok: true, mcpServers: [server('fresh', {state: 'running', pid: 3})]};
+			}
+		})
+	);
+	mock.timers.enable({apis: ['setTimeout']});
+	try {
+		const done = await mcpStore.save('fresh', {command: 'uvx'});
+		assert.equal(done, true);
+		assert.equal(mcpStore.getSnapshot().servers[0]?.state, 'starting');
+		assert.equal(lists, 0);
+		mock.timers.tick(1500);
+		await new Promise(resolve => setImmediate(resolve));
+		assert.equal(lists, 1);
+		assert.equal(mcpStore.getSnapshot().servers[0]?.state, 'running');
+	} finally {
+		mock.timers.reset();
+	}
 });
 
 test('toggle optimistic update then confirmed rows with restart notice', async () => {

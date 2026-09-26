@@ -281,6 +281,7 @@ class McpStore {
 		this.setView(
 			viewOf('ready', sorted(rows ?? this.view.servers), this.view.search, notice, this.view.busy, this.view.engineReady)
 		);
+		this.scheduleStartingRefresh();
 	}
 
 	/** Write cmds may ack without rows (legacy WriteResult in `mcp`). Re-list instead of wiping. */

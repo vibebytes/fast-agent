@@ -76,7 +76,7 @@ export function McpServerCard({
 					<p className="mt-1.5 truncate font-mono text-[12px] text-muted-foreground/90">
 						{summaryOf(row)}
 					</p>
-					{row.lastError ? (
+					{row.lastError && state.key !== 'starting' ? (
 						<p className="mt-1.5 text-[12px] text-destructive">{row.lastError}</p>
 					) : null}
 				</div>
