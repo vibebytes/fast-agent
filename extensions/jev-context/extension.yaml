@@ -1,0 +1,6 @@
+id: jev-context
+apiVersion: "1"
+hotUnload: true
+uses:
+  context:
+    - context.select

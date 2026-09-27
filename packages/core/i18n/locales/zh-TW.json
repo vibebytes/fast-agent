@@ -39,8 +39,8 @@
     "experimental": {
       "useJev": "使用 Jev 進行上下文管理",
       "useJevDescription": "在一輪開始時選擇留下的工具、技能和歷史",
-      "eachTurn": "每一圈呼叫模型前向 Jev 發送歷史題",
-      "eachTurnDescription": "同一次運行裡，每次呼叫模型之前再向 Jev 發一次請求。這次發給 Jev 的請求裡只有歷史題，用來判斷更早的工具往返是否留下",
+      "eachTurn": "每次呼叫前篩選工具紀錄",
+      "eachTurnDescription": "同一輪中，每次呼叫模型前決定更早的工具呼叫是否保留。最近一次工具呼叫始終保留，已選的工具和技能不變。",
       "key": "Jev 金鑰",
       "saved": "已保存，後四位 {{last4}}",
       "clear": "清除金鑰",

@@ -163,10 +163,13 @@ export function createCatalog(lane: HostLane): WorkspaceCatalog {
 			return {ok: true, setting};
 		},
 		async saveExperimental(input) {
-			const r = await hostRequest(lane, ['SaveExperimental'], {
-				type: 'SaveExperimental',
-				jevContext: input.jevContext,
-				eachTurn: input.eachTurn === true,
+			const r = await hostRequest(lane, ['PutDocument'], {
+				type: 'PutDocument',
+				namespace: 'jev-context',
+				payloadJson: JSON.stringify({
+					jevContext: input.jevContext,
+					eachTurn: input.eachTurn === true
+				}),
 				...(input.secret ? {secret: input.secret} : {}),
 				...(input.clearSecret ? {clearSecret: true} : {})
 			});
@@ -175,7 +178,7 @@ export function createCatalog(lane: HostLane): WorkspaceCatalog {
 			const setting = Array.isArray(r.event.settings)
 				? (r.event.settings[0] as SettingsDoc | undefined)
 				: undefined;
-			if (!setting) return {ok: false, notice: 'SaveExperimental returned no document'};
+			if (!setting) return {ok: false, notice: 'PutDocument returned no document'};
 			return {ok: true, setting};
 		},
 		async getBridgePairing() {

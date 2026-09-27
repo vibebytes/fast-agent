@@ -21,10 +21,10 @@ export type CatalogCommand =
 			appId?: string;
 	  }
 	| {
-			/** Experimental switch. A nonempty secret rotates the stored key; clearSecret drops it. */
-			type: 'SaveExperimental';
-			jevContext: boolean;
-			eachTurn?: boolean;
+			/** Replace one settings document. A nonempty secret rotates the stored key; clearSecret drops it. */
+			type: 'PutDocument';
+			namespace: string;
+			payloadJson: string;
 			secret?: string;
 			clearSecret?: boolean;
 			tenantId?: string;
@@ -151,9 +151,9 @@ export const catalogCommandSchemas = [
 		appId: z.string().optional()
 	}),
 	z.object({
-		type: z.literal('SaveExperimental'),
-		jevContext: z.boolean(),
-		eachTurn: z.boolean().optional(),
+		type: z.literal('PutDocument'),
+		namespace: z.string(),
+		payloadJson: z.string(),
 		secret: z.string().optional(),
 		clearSecret: z.boolean().optional(),
 		tenantId: z.string().optional(),

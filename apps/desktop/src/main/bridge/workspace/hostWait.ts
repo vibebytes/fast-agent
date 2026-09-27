@@ -35,7 +35,7 @@ export const HostWaitCommands = new Set([
 	'GetBridgePairing',
 	'SetLanPairing',
 	'PatchSettings',
-	'SaveExperimental',
+	'PutDocument',
 	'ListProviders',
 	'UpsertProvider',
 	'DeleteProvider',
