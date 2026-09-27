@@ -55,6 +55,8 @@ const api = {
 		invoke('settings:get', scope, scopeId),
 	patchSettings: (scope: 'global' | 'project', namespace: string, patch: unknown, scopeId?: string) =>
 		invoke('settings:patch', scope, namespace, patch, scopeId),
+	saveExperimental: (input: {jevContext: boolean; secret?: string; clearSecret?: boolean}) =>
+		invoke('settings:experimental', input),
 	listProviders: () => invoke('providers:list'),
 	upsertProvider: input => invoke('providers:upsert', input),
 	deleteProvider: (id: string) => invoke('providers:delete', id),

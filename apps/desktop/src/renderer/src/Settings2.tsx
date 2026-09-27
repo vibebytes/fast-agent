@@ -37,6 +37,7 @@ import {
 } from './settings/SettingsPrimitives';
 import {settingsMockStore} from './settings/mock/settingsMockStore';
 import {AgentsSettings} from './settings/AgentsSettings';
+import {ExperimentalSettings} from './settings/ExperimentalSettings';
 import {PermissionsSettings, ProjectsSettings} from './settings/MockSettingsPages';
 import {ServersSettings} from './settings/ServersSettings';
 import {AboutSettings, TasksHistorySettings, TracingSettings, UsageSettings} from './settings/MockObservabilityPages';
@@ -167,6 +168,8 @@ export function Settings2(props: Props) {
 				<ProjectsSettings />
 			) : section === 'plugins' ? (
 				<PluginsSettings engineReady={props.engineReady} />
+			) : section === 'experimental' ? (
+				<ExperimentalSettings engineReady={props.engineReady} />
 			) : section === 'engines' ? (
 				<EnginesSettings engineReady={props.engineReady} engineStatus={props.engineStatus} />
 			) : section === 'providers' ? (

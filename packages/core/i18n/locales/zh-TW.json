@@ -31,8 +31,19 @@
       "healthDescription": "連線與設定檢查",
       "tracing": "追蹤",
       "tracingDescription": "診斷與請求追蹤",
+      "experimental": "實驗性功能",
+      "experimentalDescription": "尚未穩定的功能",
       "about": "關於",
       "aboutDescription": "版本與產品資訊"
+    },
+    "experimental": {
+      "useJev": "使用 Jev 進行上下文管理",
+      "useJevDescription": "在一輪開始時選擇留下的工具、技能和歷史",
+      "key": "Jev 金鑰",
+      "saved": "已保存，後四位 {{last4}}",
+      "clear": "清除金鑰",
+      "save": "保存",
+      "needKey": "打開開關需要填寫金鑰"
     },
     "common": {
       "all": "全部",

@@ -118,6 +118,10 @@ export type InvokeHost = {
 		args: [scope: 'global' | 'project', namespace: string, patch: unknown, scopeId?: string];
 		result: {ok: true; setting: SettingsDoc} | {ok: false; notice: string};
 	};
+	'settings:experimental': {
+		args: [input: {jevContext: boolean; secret?: string; clearSecret?: boolean}];
+		result: {ok: true; setting: SettingsDoc} | {ok: false; notice: string};
+	};
 	/** Settings-center model providers (Engine Meta via Bridge). */
 	'providers:list': {
 		args: [];

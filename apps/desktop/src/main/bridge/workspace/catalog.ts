@@ -82,6 +82,11 @@ export type WorkspaceCatalog = {
 		patch: unknown,
 		scopeId?: string
 	) => Promise<{ok: true; setting: SettingsDoc} | Notice>;
+	saveExperimental: (input: {
+		jevContext: boolean;
+		secret?: string;
+		clearSecret?: boolean;
+	}) => Promise<{ok: true; setting: SettingsDoc} | Notice>;
 	getBridgePairing: () => Promise<MobilePairingInfo>;
 	setLanPairing: (enabled: boolean) => Promise<MobilePairingInfo>;
 	listProviders: () => Promise<{ok: true; providers: ProviderRow[]} | Notice>;
@@ -154,6 +159,21 @@ export function createCatalog(lane: HostLane): WorkspaceCatalog {
 				? (r.event.settings[0] as SettingsDoc | undefined)
 				: undefined;
 			if (!setting) return {ok: false, notice: 'PatchSettings returned no document'};
+			return {ok: true, setting};
+		},
+		async saveExperimental(input) {
+			const r = await hostRequest(lane, ['SaveExperimental'], {
+				type: 'SaveExperimental',
+				jevContext: input.jevContext,
+				...(input.secret ? {secret: input.secret} : {}),
+				...(input.clearSecret ? {clearSecret: true} : {})
+			});
+			if (!r.ok) return r;
+			if (r.event.status === 'error') return {ok: false, notice: r.event.message};
+			const setting = Array.isArray(r.event.settings)
+				? (r.event.settings[0] as SettingsDoc | undefined)
+				: undefined;
+			if (!setting) return {ok: false, notice: 'SaveExperimental returned no document'};
 			return {ok: true, setting};
 		},
 		async getBridgePairing() {

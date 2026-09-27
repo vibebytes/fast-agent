@@ -33,6 +33,10 @@ extensions:
         #   cwd: /workspace
         #   env: { LOG_LEVEL: info }
 
+  jev-context:
+    enabled: true
+    apiVersion: "1"
+
 services:
   embedder: none
   memory.store: lance

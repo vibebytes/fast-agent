@@ -229,6 +229,7 @@ export function createDesktopHost(deps: DesktopHostDeps): ProductInvokeMap {
 		'settings:get': (scope, scopeId) => hub.getSettings(scope, scopeId),
 		'settings:patch': (scope, namespace, patch, scopeId) =>
 			hub.patchSettings(scope, namespace, patch, scopeId),
+		'settings:experimental': input => hub.saveExperimental(input),
 
 		'providers:list': () => hub.listProviders(),
 		'providers:upsert': input => hub.upsertProvider(input),

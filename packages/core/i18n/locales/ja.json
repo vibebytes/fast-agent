@@ -31,8 +31,19 @@
       "healthDescription": "接続と設定のチェック",
       "tracing": "トレース",
       "tracingDescription": "診断とリクエストトレース",
+      "experimental": "実験的機能",
+      "experimentalDescription": "まだ安定していない機能",
       "about": "概要",
       "aboutDescription": "バージョンと製品情報"
+    },
+    "experimental": {
+      "useJev": "Use Jev for context management",
+      "useJevDescription": "Choose which tools, skills, and history to keep at the start of a turn",
+      "key": "Jev key",
+      "saved": "Saved, last four {{last4}}",
+      "clear": "Clear key",
+      "save": "Save",
+      "needKey": "A key is required to turn this on"
     },
     "common": {
       "all": "すべて",

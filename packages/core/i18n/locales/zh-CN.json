@@ -31,8 +31,19 @@
       "healthDescription": "连接和配置检查",
       "tracing": "跟踪",
       "tracingDescription": "诊断和请求跟踪",
+      "experimental": "实验性功能",
+      "experimentalDescription": "尚未稳定的功能",
       "about": "关于",
       "aboutDescription": "版本和产品信息"
+    },
+    "experimental": {
+      "useJev": "使用 Jev 进行上下文管理",
+      "useJevDescription": "在一轮开始时选择留下的工具、技能和历史",
+      "key": "Jev 密钥",
+      "saved": "已保存，后四位 {{last4}}",
+      "clear": "清除密钥",
+      "save": "保存",
+      "needKey": "打开开关需要填写密钥"
     },
     "common": {
       "all": "全部",

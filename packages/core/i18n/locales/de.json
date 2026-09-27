@@ -31,8 +31,19 @@
       "healthDescription": "Verbindungs- und Konfigurationsprüfungen",
       "tracing": "Tracing",
       "tracingDescription": "Diagnose- und Anfrageprotokolle",
+      "experimental": "Experimentell",
+      "experimentalDescription": "Funktionen, die noch nicht stabil sind",
       "about": "Über",
       "aboutDescription": "Versions- und Produktinformationen"
+    },
+    "experimental": {
+      "useJev": "Use Jev for context management",
+      "useJevDescription": "Choose which tools, skills, and history to keep at the start of a turn",
+      "key": "Jev key",
+      "saved": "Saved, last four {{last4}}",
+      "clear": "Clear key",
+      "save": "Save",
+      "needKey": "A key is required to turn this on"
     },
     "common": {
       "all": "Alle",

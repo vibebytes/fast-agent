@@ -31,8 +31,19 @@
       "healthDescription": "연결 및 구성 검사",
       "tracing": "추적",
       "tracingDescription": "진단 및 요청 추적",
+      "experimental": "실험적 기능",
+      "experimentalDescription": "아직 안정되지 않은 기능",
       "about": "정보",
       "aboutDescription": "버전 및 제품 정보"
+    },
+    "experimental": {
+      "useJev": "Use Jev for context management",
+      "useJevDescription": "Choose which tools, skills, and history to keep at the start of a turn",
+      "key": "Jev key",
+      "saved": "Saved, last four {{last4}}",
+      "clear": "Clear key",
+      "save": "Save",
+      "needKey": "A key is required to turn this on"
     },
     "common": {
       "all": "전체",

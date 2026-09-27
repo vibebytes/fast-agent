@@ -10,6 +10,7 @@ import {
 	// Gauge,
 	Globe,
 	HardDrive,
+	FlaskConical,
 	Info,
 	// Layers3,
 	LockKeyhole,
@@ -23,7 +24,7 @@ import {cn} from '@fast-ide/ui/lib/utils';
 import {settingsMockStore} from './mock/settingsMockStore';
 import type {SettingsIcon} from './SettingsPrimitives';
 
-export type SettingsSection = 'general' | 'providers' | 'models' | 'agents' | 'plugins' | 'engines' | 'projects' | 'servers' | 'security' | 'tasks' | 'usage' | 'health' | 'tracing' | 'about';
+export type SettingsSection = 'general' | 'providers' | 'models' | 'agents' | 'plugins' | 'experimental' | 'engines' | 'projects' | 'servers' | 'security' | 'tasks' | 'usage' | 'health' | 'tracing' | 'about';
 type SectionCopy = {label: string; description: string};
 export type SettingsSectionMeta = {id: SettingsSection; icon: SettingsIcon; copy: SectionCopy};
 export type SettingsNavItem<Id extends string = SettingsSection> = {
@@ -39,6 +40,7 @@ export const settingsSections: SettingsNavItem[] = [
 	{id: 'models', icon: Bot, copyKey: 'models'},
 	{id: 'agents', icon: UsersRound, copyKey: 'agents'},
 	{id: 'plugins', icon: Boxes, copyKey: 'plugins'},
+	{id: 'experimental', icon: FlaskConical, copyKey: 'experimental'},
 	{id: 'engines', icon: Cpu, copyKey: 'engines'},
 	{id: 'servers', icon: HardDrive, copyKey: 'servers'},
 	// Temporarily hidden — restore when these pages are ready for settings nav.

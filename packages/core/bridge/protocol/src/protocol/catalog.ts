@@ -21,6 +21,15 @@ export type CatalogCommand =
 			appId?: string;
 	  }
 	| {
+			/** Experimental switch. A nonempty secret rotates the stored key; clearSecret drops it. */
+			type: 'SaveExperimental';
+			jevContext: boolean;
+			secret?: string;
+			clearSecret?: boolean;
+			tenantId?: string;
+			appId?: string;
+	  }
+	| {
 			/** Settings-center model providers. */
 			type: 'ListProviders';
 			tenantId?: string;
@@ -137,6 +146,14 @@ export const catalogCommandSchemas = [
 		patchJson: z.string(),
 		scopeId: z.string().optional(),
 		schemaVersion: z.number().optional(),
+		tenantId: z.string().optional(),
+		appId: z.string().optional()
+	}),
+	z.object({
+		type: z.literal('SaveExperimental'),
+		jevContext: z.boolean(),
+		secret: z.string().optional(),
+		clearSecret: z.boolean().optional(),
 		tenantId: z.string().optional(),
 		appId: z.string().optional()
 	}),

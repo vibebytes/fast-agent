@@ -691,6 +691,9 @@ export class WorkspaceHub {
 	async patchSettings(scope: 'global' | 'project', namespace: string, patch: unknown, scopeId?: string) {
 		return this.catalog.patchSettings(scope, namespace, patch, scopeId);
 	}
+	async saveExperimental(input: {jevContext: boolean; secret?: string; clearSecret?: boolean}) {
+		return this.catalog.saveExperimental(input);
+	}
 	async refreshComposerCatalog() {
 		return this.composerHeal.refreshComposerCatalog();
 	}

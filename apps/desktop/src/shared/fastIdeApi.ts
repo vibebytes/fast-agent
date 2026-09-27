@@ -126,6 +126,11 @@ export type FastIdeApi = {
 		patch: unknown,
 		scopeId?: string
 	) => Promise<{ok: true; setting: SettingsDoc} | {ok: false; notice: string}>;
+	saveExperimental: (input: {
+		jevContext: boolean;
+		secret?: string;
+		clearSecret?: boolean;
+	}) => Promise<{ok: true; setting: SettingsDoc} | {ok: false; notice: string}>;
 	/** Settings-center model providers (Engine Meta; never returns ciphertext). */
 	listProviders: () => Promise<{ok: true; providers: ProviderRow[]} | {ok: false; notice: string}>;
 	upsertProvider: (
