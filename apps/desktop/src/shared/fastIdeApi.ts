@@ -128,6 +128,7 @@ export type FastIdeApi = {
 	) => Promise<{ok: true; setting: SettingsDoc} | {ok: false; notice: string}>;
 	saveExperimental: (input: {
 		jevContext: boolean;
+		eachTurn?: boolean;
 		secret?: string;
 		clearSecret?: boolean;
 	}) => Promise<{ok: true; setting: SettingsDoc} | {ok: false; notice: string}>;

@@ -84,6 +84,7 @@ export type WorkspaceCatalog = {
 	) => Promise<{ok: true; setting: SettingsDoc} | Notice>;
 	saveExperimental: (input: {
 		jevContext: boolean;
+		eachTurn?: boolean;
 		secret?: string;
 		clearSecret?: boolean;
 	}) => Promise<{ok: true; setting: SettingsDoc} | Notice>;
@@ -165,6 +166,7 @@ export function createCatalog(lane: HostLane): WorkspaceCatalog {
 			const r = await hostRequest(lane, ['SaveExperimental'], {
 				type: 'SaveExperimental',
 				jevContext: input.jevContext,
+				eachTurn: input.eachTurn === true,
 				...(input.secret ? {secret: input.secret} : {}),
 				...(input.clearSecret ? {clearSecret: true} : {})
 			});

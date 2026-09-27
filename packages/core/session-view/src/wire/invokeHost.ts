@@ -119,7 +119,7 @@ export type InvokeHost = {
 		result: {ok: true; setting: SettingsDoc} | {ok: false; notice: string};
 	};
 	'settings:experimental': {
-		args: [input: {jevContext: boolean; secret?: string; clearSecret?: boolean}];
+		args: [input: {jevContext: boolean; eachTurn?: boolean; secret?: string; clearSecret?: boolean}];
 		result: {ok: true; setting: SettingsDoc} | {ok: false; notice: string};
 	};
 	/** Settings-center model providers (Engine Meta via Bridge). */

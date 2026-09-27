@@ -21,6 +21,7 @@ function docOf(docs: SettingsDoc[]): ExperimentalDoc | null {
 	if (!row || !isRecord(row.payload)) return null;
 	return {
 		jevContext: row.payload.jevContext === true,
+		eachTurn: row.payload.eachTurn === true,
 		secretId: typeof row.payload.secretId === 'string' ? row.payload.secretId : null,
 		last4: typeof row.payload.last4 === 'string' ? row.payload.last4 : null
 	};
@@ -32,16 +33,18 @@ export function ExperimentalSettings({engineReady}: {engineReady: boolean}) {
 	const exts = useExtensions(engineReady);
 	const doc = docOf(settings.docs);
 	const active = exts.extensions.some(row => row.id === 'jev-context' && row.phase === 'Active');
-	const signature = doc ? `${doc.jevContext}:${doc.secretId ?? ''}:${doc.last4 ?? ''}` : 'missing';
+	const signature = doc ? `${doc.jevContext}:${doc.eachTurn}:${doc.secretId ?? ''}:${doc.last4 ?? ''}` : 'missing';
 	const [draftOn, setDraftOn] = useState(false);
+	const [draftEachTurn, setDraftEachTurn] = useState(false);
 	const [secret, setSecret] = useState('');
 	const [busy, setBusy] = useState(false);
 	const [notice, setNotice] = useState<string | null>(null);
 
 	useEffect(() => {
 		setDraftOn(doc?.jevContext === true);
+		setDraftEachTurn(doc?.eachTurn === true);
 		setSecret('');
-	}, [signature, doc?.jevContext]);
+	}, [signature, doc?.jevContext, doc?.eachTurn]);
 
 	if (!engineReady || settings.status === 'disabled') {
 		return (
@@ -70,6 +73,7 @@ export function ExperimentalSettings({engineReady}: {engineReady: boolean}) {
 		phaseActive: active,
 		doc,
 		draftOn,
+		draftEachTurn,
 		draftSecret: secret,
 		clear: false
 	});
@@ -97,6 +101,15 @@ export function ExperimentalSettings({engineReady}: {engineReady: boolean}) {
 					checked={draftOn}
 					disabled={busy}
 					onCheckedChange={setDraftOn}
+				/>
+			) : null}
+			{view.showEachTurn ? (
+				<SettingsSwitchRow
+					title={t('settings.experimental.eachTurn')}
+					description={t('settings.experimental.eachTurnDescription')}
+					checked={draftEachTurn}
+					disabled={busy}
+					onCheckedChange={setDraftEachTurn}
 				/>
 			) : null}
 			{view.showKey ? (
@@ -129,6 +142,7 @@ export function ExperimentalSettings({engineReady}: {engineReady: boolean}) {
 									phaseActive: active,
 									doc,
 									draftOn,
+									draftEachTurn,
 									draftSecret: secret,
 									clear: true
 								});

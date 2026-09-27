@@ -24,6 +24,7 @@ export type CatalogCommand =
 			/** Experimental switch. A nonempty secret rotates the stored key; clearSecret drops it. */
 			type: 'SaveExperimental';
 			jevContext: boolean;
+			eachTurn?: boolean;
 			secret?: string;
 			clearSecret?: boolean;
 			tenantId?: string;
@@ -152,6 +153,7 @@ export const catalogCommandSchemas = [
 	z.object({
 		type: z.literal('SaveExperimental'),
 		jevContext: z.boolean(),
+		eachTurn: z.boolean().optional(),
 		secret: z.string().optional(),
 		clearSecret: z.boolean().optional(),
 		tenantId: z.string().optional(),

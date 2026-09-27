@@ -39,6 +39,8 @@
     "experimental": {
       "useJev": "Use Jev for context management",
       "useJevDescription": "Choose which tools, skills, and history to keep at the start of a turn",
+      "eachTurn": "Send history questions to Jev before each model call",
+      "eachTurnDescription": "Before each model call in the same run, send Jev one more request. That request contains history questions only, and asks which earlier tool rounds to keep",
       "key": "Jev key",
       "saved": "Saved, last four {{last4}}",
       "clear": "Clear key",
