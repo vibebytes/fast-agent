@@ -511,9 +511,24 @@
       "actionFailed": "Acción del complemento fallida",
       "tab": {
         "skills": "Skills",
+        "tools": "Herramientas",
         "mcp": "MCP",
         "cli": "Herramientas CLI",
         "extensions": "Extensions"
+      },
+      "tools": {
+        "deepseek": {"title": "Búsqueda DeepSeek", "summary": "Buscar en la web con DeepSeek."},
+        "perplexity": {"title": "Búsqueda Perplexity", "summary": "Buscar en la web con Perplexity."},
+        "field": {"apiKey": "Clave API"},
+        "configure": "Configurar",
+        "save": "Guardar",
+        "cancel": "Cancelar",
+        "emptyTitle": "No hay herramientas configurables",
+        "loadFailed": "No se pudieron cargar las herramientas",
+        "loadFailedDescription": "No se pudo leer la lista de herramientas.",
+        "secretKeep": "Déjalo vacío para conservar la clave que termina en {{last4}}",
+        "secretClear": "Borrar clave",
+        "secretRequired": "Hace falta una clave API para activar esta herramienta."
       },
       "searchSkills": "Buscar skills…",
       "createSkill": "Nuevo skill",

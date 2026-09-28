@@ -511,9 +511,24 @@
       "actionFailed": "Действие плагина не выполнено",
       "tab": {
         "skills": "Навыки",
+        "tools": "Инструменты",
         "mcp": "MCP",
         "cli": "CLI-инструменты",
         "extensions": "Extensions"
+      },
+      "tools": {
+        "deepseek": {"title": "Поиск DeepSeek", "summary": "Искать в сети через DeepSeek."},
+        "perplexity": {"title": "Поиск Perplexity", "summary": "Искать в сети через Perplexity."},
+        "field": {"apiKey": "Ключ API"},
+        "configure": "Настроить",
+        "save": "Сохранить",
+        "cancel": "Отмена",
+        "emptyTitle": "Нет настраиваемых инструментов",
+        "loadFailed": "Не удалось загрузить инструменты",
+        "loadFailedDescription": "Не удалось прочитать список инструментов.",
+        "secretKeep": "Оставьте пустым, чтобы сохранить ключ с окончанием {{last4}}",
+        "secretClear": "Удалить ключ",
+        "secretRequired": "Для включения нужен ключ API."
       },
       "searchSkills": "Поиск навыков…",
       "createSkill": "Новый навык",

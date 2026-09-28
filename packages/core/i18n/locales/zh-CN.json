@@ -516,9 +516,24 @@
       "actionFailed": "插件操作失败",
       "tab": {
         "skills": "技能",
+        "tools": "工具",
         "mcp": "MCP",
         "cli": "命令行工具",
         "extensions": "功能扩展"
+      },
+      "tools": {
+        "deepseek": {"title": "DeepSeek 搜索", "summary": "用 DeepSeek 搜索网页。"},
+        "perplexity": {"title": "Perplexity 搜索", "summary": "用 Perplexity 搜索网页。"},
+        "field": {"apiKey": "API 密钥"},
+        "configure": "配置",
+        "save": "保存",
+        "cancel": "取消",
+        "emptyTitle": "没有可配置工具",
+        "loadFailed": "加载工具失败",
+        "loadFailedDescription": "无法从引擎读取工具列表。",
+        "secretKeep": "留空则保留尾号 {{last4}} 的密钥",
+        "secretClear": "清除密钥",
+        "secretRequired": "启用前需要填写 API 密钥。"
       },
       "ext": {
         "engineUnavailable": "引擎未就绪",

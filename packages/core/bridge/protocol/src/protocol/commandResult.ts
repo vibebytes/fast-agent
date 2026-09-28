@@ -149,6 +149,33 @@ export const commandResultSchema = z.object({
 				})
 			)
 			.optional(),
+		/** Configurable tools (ListConfigurableTools / PutConfigurableTool). Secrets are present + last4 only. */
+		configurableTools: z
+			.array(
+				z.object({
+					name: z.string(),
+					titleKey: z.string(),
+					summaryKey: z.string(),
+					status: z.string(),
+					fields: z.array(
+						z.object({
+							key: z.string(),
+							type: z.enum(['secret', 'text', 'number', 'toggle', 'choice']),
+							required: z.boolean(),
+							options: z.array(z.string()).optional()
+						})
+					),
+					values: z.record(z.string(), z.unknown()),
+					secrets: z.record(
+						z.string(),
+						z.object({
+							present: z.boolean(),
+							last4: z.string().nullish()
+						})
+					)
+				})
+			)
+			.optional(),
 		/** Extension admin rows (ListExtensions / ExtensionStatus). */
 		extensions: z
 			.array(

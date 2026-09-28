@@ -385,6 +385,37 @@ export type SkillRow = {
 	dirName?: string | null;
 };
 
+/** Settings-center configurable tool (ListConfigurableTools / PutConfigurableTool). */
+export type ConfigurableToolField = {
+	key: string;
+	type: 'secret' | 'text' | 'number' | 'toggle' | 'choice';
+	required: boolean;
+	options?: string[];
+};
+
+export type ConfigurableToolSecret = {
+	present: boolean;
+	last4?: string | null;
+};
+
+export type ConfigurableTool = {
+	name: string;
+	titleKey: string;
+	summaryKey: string;
+	status: string;
+	fields: ConfigurableToolField[];
+	values: Record<string, unknown>;
+	secrets: Record<string, ConfigurableToolSecret>;
+};
+
+export type PutConfigurableToolInput = {
+	name: string;
+	enabled: boolean;
+	values?: Record<string, unknown>;
+	secrets?: Record<string, string>;
+	clearSecrets?: string[];
+};
+
 /** Skills.sh market search row (SearchSkillMarket). */
 export type MarketSkillRow = {
 	id: string;

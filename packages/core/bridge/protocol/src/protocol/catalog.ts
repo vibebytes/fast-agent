@@ -89,6 +89,22 @@ export type CatalogCommand =
 			appId?: string;
 	  }
 	| {
+			/** Settings-center configurable tools. */
+			type: 'ListConfigurableTools';
+			tenantId?: string;
+			appId?: string;
+	  }
+	| {
+			type: 'PutConfigurableTool';
+			name: string;
+			enabled: boolean;
+			values?: Record<string, unknown>;
+			secrets?: Record<string, string>;
+			clearSecrets?: string[];
+			tenantId?: string;
+			appId?: string;
+	  }
+	| {
 			type: 'CreateSkill';
 			name: string;
 			scope: string;
@@ -212,6 +228,21 @@ export const catalogCommandSchemas = [
 	}),
 	z.object({
 		type: z.literal('ListSkills'),
+		tenantId: z.string().optional(),
+		appId: z.string().optional()
+	}),
+	z.object({
+		type: z.literal('ListConfigurableTools'),
+		tenantId: z.string().optional(),
+		appId: z.string().optional()
+	}),
+	z.object({
+		type: z.literal('PutConfigurableTool'),
+		name: z.string(),
+		enabled: z.boolean(),
+		values: z.record(z.string(), z.unknown()).optional(),
+		secrets: z.record(z.string(), z.string()).optional(),
+		clearSecrets: z.array(z.string()).optional(),
 		tenantId: z.string().optional(),
 		appId: z.string().optional()
 	}),

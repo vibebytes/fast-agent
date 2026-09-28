@@ -6,6 +6,7 @@ import type {
 	AgentRow,
 	AmbientRule,
 	CreateSkillInput,
+	PutConfigurableToolInput,
 	EngineHostStatus,
 	GetWorkspaceFileResult,
 	GitStatus,
@@ -726,6 +727,12 @@ export class WorkspaceHub {
 	}
 	async listSkills() {
 		return this.catalog.listSkills();
+	}
+	async listConfigurableTools() {
+		return this.catalog.listConfigurableTools();
+	}
+	async putConfigurableTool(input: PutConfigurableToolInput) {
+		return this.catalog.putConfigurableTool(input);
 	}
 	async listExtensions() {
 		return this.plugins.listExtensions();

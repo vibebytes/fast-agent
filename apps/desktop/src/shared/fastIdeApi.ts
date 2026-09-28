@@ -21,6 +21,8 @@ import type {
 	BridgeEventEnvelope,
 	CloudflareTunnelStatus,
 	CreateSkillInput,
+	ConfigurableTool,
+	PutConfigurableToolInput,
 	GitStatus,
 	GetWorkspaceFileResult,
 	ListWorkspaceDirResult,
@@ -155,6 +157,10 @@ export type FastIdeApi = {
 	) => Promise<{ok: true; searchModels: SearchModelRow[]} | {ok: false; notice: string}>;
 	/** Settings-center skills (disk SoT + Skills.sh market). */
 	listSkills: () => Promise<{ok: true; skills: SkillRow[]} | {ok: false; notice: string}>;
+	listConfigurableTools: () => Promise<{ok: true; tools: ConfigurableTool[]} | {ok: false; notice: string}>;
+	putConfigurableTool: (
+		input: PutConfigurableToolInput
+	) => Promise<{ok: true; tool: ConfigurableTool} | {ok: false; notice: string}>;
 	createSkill: (
 		input: CreateSkillInput
 	) => Promise<{ok: true; skill: SkillRow} | {ok: false; notice: string}>;

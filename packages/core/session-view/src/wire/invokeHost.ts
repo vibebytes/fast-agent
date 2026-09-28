@@ -5,6 +5,8 @@ import type {
 	AmbientRule,
 	CloudflareTunnelStatus,
 	CreateSkillInput,
+	ConfigurableTool,
+	PutConfigurableToolInput,
 	EdgeDeleteResult,
 	EdgeDetail,
 	EdgeSelectResult,
@@ -155,6 +157,14 @@ export type InvokeHost = {
 	'skills:list': {
 		args: [];
 		result: {ok: true; skills: SkillRow[]} | {ok: false; notice: string};
+	};
+	'tools:list': {
+		args: [];
+		result: {ok: true; tools: ConfigurableTool[]} | {ok: false; notice: string};
+	};
+	'tools:put': {
+		args: [input: PutConfigurableToolInput];
+		result: {ok: true; tool: ConfigurableTool} | {ok: false; notice: string};
 	};
 	'skills:create': {
 		args: [input: CreateSkillInput];

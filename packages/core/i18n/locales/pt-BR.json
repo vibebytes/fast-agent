@@ -511,9 +511,24 @@
       "actionFailed": "Ação do plugin falhou",
       "tab": {
         "skills": "Skills",
+        "tools": "Ferramentas",
         "mcp": "MCP",
         "cli": "Ferramentas CLI",
         "extensions": "Extensions"
+      },
+      "tools": {
+        "deepseek": {"title": "Busca DeepSeek", "summary": "Pesquisar na web com o DeepSeek."},
+        "perplexity": {"title": "Busca Perplexity", "summary": "Pesquisar na web com o Perplexity."},
+        "field": {"apiKey": "Chave de API"},
+        "configure": "Configurar",
+        "save": "Salvar",
+        "cancel": "Cancelar",
+        "emptyTitle": "Nenhuma ferramenta configurável",
+        "loadFailed": "Falha ao carregar ferramentas",
+        "loadFailedDescription": "Não foi possível ler a lista de ferramentas.",
+        "secretKeep": "Deixe em branco para manter a chave terminada em {{last4}}",
+        "secretClear": "Limpar chave",
+        "secretRequired": "Uma chave de API é necessária para ativar esta ferramenta."
       },
       "searchSkills": "Pesquisar skills…",
       "createSkill": "Nova skill",

@@ -240,6 +240,8 @@ export function createDesktopHost(deps: DesktopHostDeps): ProductInvokeMap {
 		'providers:searchModels': (id: string, query: string) => hub.searchProviderModels(id, query),
 
 		'skills:list': () => hub.listSkills(),
+		'tools:list': () => hub.listConfigurableTools(),
+		'tools:put': input => hub.putConfigurableTool(input),
 		'skills:create': input => hub.createSkill(input),
 		'skills:delete': (name: string, scope: string) => hub.deleteSkill(name, scope),
 		'skills:setEnabled': (name: string, scope: string, enabled: boolean) =>

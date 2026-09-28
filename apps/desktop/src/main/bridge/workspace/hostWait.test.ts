@@ -1,8 +1,13 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import {createHostWait} from './hostWait.js';
+import {createHostWait, HostWaitCommands} from './hostWait.js';
 
 const sleep = (ms: number) => new Promise<void>(r => setTimeout(r, ms));
+
+test('configurable tool commands are answered on the host lane', () => {
+	assert.equal(HostWaitCommands.has('ListConfigurableTools'), true);
+	assert.equal(HostWaitCommands.has('PutConfigurableTool'), true);
+});
 
 test('host_error fails pending host command waits with the engine message', async () => {
 	const hostWait = createHostWait({requestWaitMs: 100});

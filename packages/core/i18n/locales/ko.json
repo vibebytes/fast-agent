@@ -511,9 +511,24 @@
       "actionFailed": "플러그인 작업 실패",
       "tab": {
         "skills": "스킬",
+        "tools": "도구",
         "mcp": "MCP",
         "cli": "CLI 도구",
         "extensions": "Extensions"
+      },
+      "tools": {
+        "deepseek": {"title": "DeepSeek 검색", "summary": "DeepSeek로 웹을 검색합니다."},
+        "perplexity": {"title": "Perplexity 검색", "summary": "Perplexity로 웹을 검색합니다."},
+        "field": {"apiKey": "API 키"},
+        "configure": "구성",
+        "save": "저장",
+        "cancel": "취소",
+        "emptyTitle": "구성할 수 있는 도구가 없습니다",
+        "loadFailed": "도구를 불러오지 못했습니다",
+        "loadFailedDescription": "엔진에서 도구 목록을 읽지 못했습니다.",
+        "secretKeep": "비워 두면 끝이 {{last4}}인 키를 유지합니다",
+        "secretClear": "키 지우기",
+        "secretRequired": "사용하려면 API 키가 필요합니다."
       },
       "searchSkills": "스킬 검색…",
       "createSkill": "스킬 만들기",

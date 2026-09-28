@@ -32,6 +32,9 @@ import {
 	settingsControlClass
 } from './SettingsPrimitives';
 import {useSkills, type MarketSkill, type Skill} from './useSkills';
+import {useConfigurableTools} from './useConfigurableTools';
+import {pluginTabOrder, type PluginTabId} from './pluginTabs';
+import {ToolsPane} from './ToolsPane';
 import {ExtensionsTab, extNoticeCopy} from './PluginExtensions';
 import {useExtensions} from './useExtensions';
 import {McpPane, mcpNoticeCopy} from './McpPane';
@@ -42,13 +45,14 @@ type Props = {
 	engineReady: boolean;
 };
 
-type TabId = 'skills' | 'mcp' | 'cli' | 'extensions';
+type TabId = PluginTabId;
 type TemplateId = 'blank' | 'commit' | 'review';
 type ScopeId = 'project' | 'global';
 
 export function PluginsSettings({engineReady}: Props) {
 	const {t} = useTranslation();
 	const skills = useSkills(engineReady);
+	const toolTab = useConfigurableTools(engineReady);
 	const ext = useExtensions(engineReady);
 	const mcp = useMcpServers(engineReady);
 	const [tab, setTab] = useState<TabId>('skills');
@@ -86,23 +90,26 @@ export function PluginsSettings({engineReady}: Props) {
 					{mcpNoticeCopy(mcp.notice, t)}
 				</div>
 			) : null}
+			{tab === 'tools' && toolTab.notice ? (
+				<div className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-2 text-xs text-destructive">
+					{t('settings.plugins.actionFailed')}: {toolTab.notice}
+				</div>
+			) : null}
 
 			{/* Top Segment Tabs */}
 			<div className="inline-flex h-9 items-center rounded-xl border border-border/70 bg-muted/60 p-1">
-				{(
-					[
-						{id: 'skills' as const, label: t('settings.plugins.tab.skills'), count: totalCount, icon: Terminal},
-						{id: 'mcp' as const, label: t('settings.plugins.tab.mcp'), count: mcpCount, icon: Boxes},
-						{id: 'cli' as const, label: t('settings.plugins.tab.cli'), icon: Code2, hidden: true},
-						{
-							id: 'extensions' as const,
-							label: t('settings.plugins.tab.extensions'),
-							count: extCount,
-							icon: Puzzle
-						}
-					] as const
-				)
-					.filter(item => !('hidden' in item && item.hidden))
+				{pluginTabOrder
+					.map(tab => {
+						const meta = {
+							skills: {label: t('settings.plugins.tab.skills'), count: totalCount, icon: Terminal},
+							tools: {label: t('settings.plugins.tab.tools'), count: toolTab.tools.length, icon: Wrench},
+							mcp: {label: t('settings.plugins.tab.mcp'), count: mcpCount, icon: Boxes},
+							cli: {label: t('settings.plugins.tab.cli'), icon: Code2},
+							extensions: {label: t('settings.plugins.tab.extensions'), count: extCount, icon: Puzzle}
+						}[tab.id];
+						return {id: tab.id, hidden: tab.hidden, ...meta};
+					})
+					.filter(item => !item.hidden)
 					.map(item => {
 						const Icon = item.icon;
 						const active = tab === item.id;
@@ -145,6 +152,8 @@ export function PluginsSettings({engineReady}: Props) {
 					onCreate={() => setCreateOpen(true)}
 					onOpenMarket={() => setMarketOpen(true)}
 				/>
+			) : tab === 'tools' ? (
+				<ToolsPane tools={toolTab} />
 			) : tab === 'mcp' ? (
 				<McpPane mcp={mcp} />
 			) : tab === 'cli' ? (

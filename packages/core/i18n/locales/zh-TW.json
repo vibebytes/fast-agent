@@ -511,9 +511,24 @@
       "actionFailed": "外掛操作失敗",
       "tab": {
         "skills": "技能",
+        "tools": "工具",
         "mcp": "MCP",
         "cli": "命令列工具",
         "extensions": "功能擴充"
+      },
+      "tools": {
+        "deepseek": {"title": "DeepSeek 搜尋", "summary": "用 DeepSeek 搜尋網頁。"},
+        "perplexity": {"title": "Perplexity 搜尋", "summary": "用 Perplexity 搜尋網頁。"},
+        "field": {"apiKey": "API 金鑰"},
+        "configure": "設定",
+        "save": "儲存",
+        "cancel": "取消",
+        "emptyTitle": "沒有可設定工具",
+        "loadFailed": "載入工具失敗",
+        "loadFailedDescription": "無法從引擎讀取工具列表。",
+        "secretKeep": "留空則保留尾碼 {{last4}} 的金鑰",
+        "secretClear": "清除金鑰",
+        "secretRequired": "啟用前需要填寫 API 金鑰。"
       },
       "searchSkills": "搜尋技能…",
       "createSkill": "新建技能",

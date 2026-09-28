@@ -511,9 +511,24 @@
       "actionFailed": "プラグイン操作に失敗しました",
       "tab": {
         "skills": "スキル",
+        "tools": "ツール",
         "mcp": "MCP",
         "cli": "CLI ツール",
         "extensions": "Extensions"
+      },
+      "tools": {
+        "deepseek": {"title": "DeepSeek 検索", "summary": "DeepSeek でウェブを検索します。"},
+        "perplexity": {"title": "Perplexity 検索", "summary": "Perplexity でウェブを検索します。"},
+        "field": {"apiKey": "API キー"},
+        "configure": "設定",
+        "save": "保存",
+        "cancel": "キャンセル",
+        "emptyTitle": "設定できるツールはありません",
+        "loadFailed": "ツールを読み込めませんでした",
+        "loadFailedDescription": "エンジンからツール一覧を取得できません。",
+        "secretKeep": "空のままにすると末尾 {{last4}} のキーを使います",
+        "secretClear": "キーを消去",
+        "secretRequired": "有効にするには API キーが必要です。"
       },
       "searchSkills": "スキルを検索…",
       "createSkill": "スキルを作成",

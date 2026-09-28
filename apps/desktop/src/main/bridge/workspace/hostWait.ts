@@ -44,6 +44,8 @@ export const HostWaitCommands = new Set([
 	'PatchProviderModels',
 	'SearchProviderModels',
 	'ListSkills',
+	'ListConfigurableTools',
+	'PutConfigurableTool',
 	'CreateSkill',
 	'DeleteSkill',
 	'SetSkillEnabled',

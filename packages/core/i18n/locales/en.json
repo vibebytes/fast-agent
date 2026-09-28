@@ -516,9 +516,24 @@
       "actionFailed": "Plugin action failed",
       "tab": {
         "skills": "Skills",
+        "tools": "Tools",
         "mcp": "MCP",
         "cli": "CLI tools",
         "extensions": "Extensions"
+      },
+      "tools": {
+        "deepseek": {"title": "DeepSeek Search", "summary": "Search the web with DeepSeek."},
+        "perplexity": {"title": "Perplexity Search", "summary": "Search the web with Perplexity."},
+        "field": {"apiKey": "API key"},
+        "configure": "Configure",
+        "save": "Save",
+        "cancel": "Cancel",
+        "emptyTitle": "No configurable tools",
+        "loadFailed": "Could not load tools",
+        "loadFailedDescription": "The engine did not return the tool list.",
+        "secretKeep": "Leave blank to keep the key ending in {{last4}}",
+        "secretClear": "Clear key",
+        "secretRequired": "An API key is required to enable this tool."
       },
       "ext": {
         "engineUnavailable": "Engine is not ready",

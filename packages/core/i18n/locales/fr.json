@@ -511,9 +511,24 @@
       "actionFailed": "Action d’extension échouée",
       "tab": {
         "skills": "Skills",
+        "tools": "Outils",
         "mcp": "MCP",
         "cli": "Outils CLI",
         "extensions": "Extensions"
+      },
+      "tools": {
+        "deepseek": {"title": "Recherche DeepSeek", "summary": "Rechercher sur le web avec DeepSeek."},
+        "perplexity": {"title": "Recherche Perplexity", "summary": "Rechercher sur le web avec Perplexity."},
+        "field": {"apiKey": "Clé API"},
+        "configure": "Configurer",
+        "save": "Enregistrer",
+        "cancel": "Annuler",
+        "emptyTitle": "Aucun outil configurable",
+        "loadFailed": "Échec du chargement des outils",
+        "loadFailedDescription": "Impossible de lire la liste des outils.",
+        "secretKeep": "Laisser vide pour conserver la clé se terminant par {{last4}}",
+        "secretClear": "Effacer la clé",
+        "secretRequired": "Une clé API est requise pour activer cet outil."
       },
       "searchSkills": "Rechercher des skills…",
       "createSkill": "Nouveau skill",

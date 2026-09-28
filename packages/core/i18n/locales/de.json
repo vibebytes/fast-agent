@@ -511,9 +511,24 @@
       "actionFailed": "Plugin-Aktion fehlgeschlagen",
       "tab": {
         "skills": "Skills",
+        "tools": "Werkzeuge",
         "mcp": "MCP",
         "cli": "CLI-Tools",
         "extensions": "Extensions"
+      },
+      "tools": {
+        "deepseek": {"title": "DeepSeek-Suche", "summary": "Das Web mit DeepSeek durchsuchen."},
+        "perplexity": {"title": "Perplexity-Suche", "summary": "Das Web mit Perplexity durchsuchen."},
+        "field": {"apiKey": "API-Schlüssel"},
+        "configure": "Konfigurieren",
+        "save": "Speichern",
+        "cancel": "Abbrechen",
+        "emptyTitle": "Keine konfigurierbaren Werkzeuge",
+        "loadFailed": "Werkzeuge konnten nicht geladen werden",
+        "loadFailedDescription": "Die Liste konnte nicht gelesen werden.",
+        "secretKeep": "Leer lassen, um den Schlüssel mit der Endung {{last4}} zu behalten",
+        "secretClear": "Schlüssel löschen",
+        "secretRequired": "Zum Aktivieren wird ein API-Schlüssel benötigt."
       },
       "searchSkills": "Skills suchen…",
       "createSkill": "Skill erstellen",

@@ -8,6 +8,8 @@ import type {
 	SettingsDoc,
 	SettingsScope,
 	SkillRow,
+	ConfigurableTool,
+	PutConfigurableToolInput,
 	UpsertProviderInput
 } from '@fast-ide/session-view';
 import {hostRequest, type CommandResult, type HostLane} from './hostWait.js';
@@ -66,6 +68,11 @@ export function skillsFromEvent(event: CommandResult): SkillRow[] {
 	return Array.isArray(raw) ? raw : [];
 }
 
+export function configurableToolsFromEvent(event: CommandResult): ConfigurableTool[] {
+	const raw = (event as {configurableTools?: ConfigurableTool[]}).configurableTools;
+	return Array.isArray(raw) ? raw : [];
+}
+
 export function marketSkillsFromEvent(event: CommandResult): MarketSkillRow[] {
 	const raw = (event as {marketSkills?: MarketSkillRow[]}).marketSkills;
 	return Array.isArray(raw) ? raw : [];
@@ -104,6 +111,10 @@ export type WorkspaceCatalog = {
 		query: string
 	) => Promise<{ok: true; searchModels: SearchModelRow[]} | Notice>;
 	listSkills: () => Promise<{ok: true; skills: SkillRow[]} | Notice>;
+	listConfigurableTools: () => Promise<{ok: true; tools: ConfigurableTool[]} | Notice>;
+	putConfigurableTool: (
+		input: PutConfigurableToolInput
+	) => Promise<{ok: true; tool: ConfigurableTool} | Notice>;
 	createSkill: (input: CreateSkillInput) => Promise<{ok: true; skill: SkillRow} | Notice>;
 	deleteSkill: (name: string, scope: string) => Promise<{ok: true} | Notice>;
 	setSkillEnabled: (
@@ -288,6 +299,29 @@ export function createCatalog(lane: HostLane): WorkspaceCatalog {
 			if (!r.ok) return r;
 			if (r.event.status === 'error') return {ok: false, notice: r.event.message};
 			return {ok: true, skills: skillsFromEvent(r.event)};
+		},
+		async listConfigurableTools() {
+			const r = await hostRequest(lane, ['ListConfigurableTools'], {type: 'ListConfigurableTools'});
+			if (!r.ok) return r;
+			if (r.event.status === 'error') return {ok: false, notice: r.event.message};
+			return {ok: true, tools: configurableToolsFromEvent(r.event)};
+		},
+		async putConfigurableTool(input) {
+			const name = String(input.name ?? '').trim();
+			if (!name) return {ok: false, notice: 'name required'};
+			const r = await hostRequest(lane, ['PutConfigurableTool'], {
+				type: 'PutConfigurableTool',
+				name,
+				enabled: input.enabled,
+				values: input.values ?? {},
+				secrets: input.secrets ?? {},
+				clearSecrets: input.clearSecrets ?? []
+			});
+			if (!r.ok) return r;
+			if (r.event.status === 'error') return {ok: false, notice: r.event.message};
+			const tool = configurableToolsFromEvent(r.event)[0];
+			if (!tool) return {ok: false, notice: 'PutConfigurableTool returned no tool'};
+			return {ok: true, tool};
 		},
 		async createSkill(input) {
 			const name = String(input.name ?? '').trim();
