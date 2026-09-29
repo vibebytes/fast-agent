@@ -1,18 +1,22 @@
+import { useRef, type ReactNode } from 'react';
 import {
-  BottomSheetBackdrop,
-  BottomSheetModal,
-  BottomSheetScrollView,
-  type BottomSheetBackdropProps
-} from '@gorhom/bottom-sheet';
-import { useCallback, useEffect, useRef, type ReactNode } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+  KeyboardAvoidingView,
+  Modal,
+  PanResponder,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { useThemeVars } from '@/theme/theme-context';
+import { Glyph } from '@/components/glyphs';
+import { lightImpact } from '@/lib/haptics';
+import { FastThemeScope, useThemeVars } from '@/theme/theme-context';
 
-const SNAPS = ['50%', '90%'];
-
-/** Half-height sheet: drag down to close, timeline stays visible behind it. */
+/** Half-height sheet: native modal with backdrop, pull handle, and scrollable content. */
 export function Sheet({
   visible,
   onClose,
@@ -24,46 +28,102 @@ export function Sheet({
   title: string;
   children: ReactNode;
 }) {
-  const ref = useRef<BottomSheetModal>(null);
   const vars = useThemeVars();
   const insets = useSafeAreaInsets();
 
-  useEffect(() => {
-    if (visible) ref.current?.present();
-    else ref.current?.dismiss();
-  }, [visible]);
+  const handleClose = () => {
+    lightImpact();
+    onClose();
+  };
 
-  const backdrop = useCallback(
-    (props: BottomSheetBackdropProps) => (
-      <BottomSheetBackdrop {...props} appearsOnIndex={0} disappearsOnIndex={-1} opacity={0.32} />
-    ),
-    []
-  );
+  const panResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponder: (_, gesture) => gesture.dy > 5,
+      onPanResponderRelease: (_, gesture) => {
+        if (gesture.dy > 45 || gesture.vy > 0.5) {
+          handleClose();
+        }
+      }
+    })
+  ).current;
 
   return (
-    <BottomSheetModal
-      ref={ref}
-      snapPoints={SNAPS}
-      enableDynamicSizing={false}
-      onDismiss={onClose}
-      backdropComponent={backdrop}
-      backgroundStyle={{ backgroundColor: vars['--overlay'], borderRadius: 24 }}
-      handleIndicatorStyle={{ backgroundColor: vars['--border'], width: 36 }}
+    <Modal
+      visible={visible}
+      transparent
+      animationType="slide"
+      onRequestClose={onClose}
+      statusBarTranslucent
     >
-      <BottomSheetScrollView contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: insets.bottom + 16 }}>
-        <Text className="pb-3 pt-1 text-[17px] font-semibold text-overlay-foreground">{title}</Text>
-        {children}
-      </BottomSheetScrollView>
-    </BottomSheetModal>
+      <FastThemeScope>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          className="flex-1 justify-end"
+        >
+          {/* Dimmed Backdrop */}
+          <Pressable
+            style={StyleSheet.absoluteFill}
+            onPress={handleClose}
+            className="bg-black/50"
+            accessibilityRole="button"
+            accessibilityLabel="Close sheet"
+          />
+
+          {/* Elevated Bottom Sheet Surface */}
+          <View
+            style={{
+              maxHeight: '85%',
+              backgroundColor: vars['--overlay'] || vars['--surface'],
+              borderTopLeftRadius: 24,
+              borderTopRightRadius: 24,
+              borderWidth: StyleSheet.hairlineWidth,
+              borderColor: vars['--border']
+            }}
+            className="shadow-2xl"
+          >
+            {/* Grab Handle & Header (Swipe down to dismiss) */}
+            <View {...panResponder.panHandlers}>
+              <View className="items-center pt-2.5 pb-1">
+                <View className="h-1 w-9 rounded-full bg-foreground/20" />
+              </View>
+
+              <View className="flex-row items-center justify-between px-5 pb-3 pt-1">
+                <Text numberOfLines={1} className="flex-1 text-[17px] font-semibold text-foreground">
+                  {title}
+                </Text>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Close"
+                  onPress={handleClose}
+                  hitSlop={8}
+                  className="h-8 w-8 items-center justify-center rounded-full bg-surface-secondary active:opacity-60"
+                >
+                  <Glyph name="cross" size={13} color={vars['--muted']} />
+                </Pressable>
+              </View>
+            </View>
+
+            <View style={{ height: StyleSheet.hairlineWidth }} className="bg-separator" />
+
+            {/* Scrollable Content */}
+            <ScrollView
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+              keyboardDismissMode="on-drag"
+              contentContainerStyle={{
+                paddingHorizontal: 16,
+                paddingTop: 12,
+                paddingBottom: Math.max(insets.bottom, 16) + 16
+              }}
+            >
+              {children}
+            </ScrollView>
+          </View>
+        </KeyboardAvoidingView>
+      </FastThemeScope>
+    </Modal>
   );
 }
 
-/** Section label inside a sheet or grouped list. */
-export function SectionLabel({ children }: { children: ReactNode }) {
-  return <Text className="pb-1.5 pt-5 text-[13px] text-muted">{children}</Text>;
-}
-
-/** Hairline between rows, indented to the text edge. */
-export function Hairline() {
-  return <View style={{ height: StyleSheet.hairlineWidth }} className="bg-separator" />;
-}
+export { Hairline, SectionLabel } from './sheet-parts';

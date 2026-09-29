@@ -37,7 +37,13 @@ export function ErrorEntry({
   const hasDetails = Boolean(kind || remedy || (raw && raw !== reason) || (entry.fault?.attempts ?? 0) > 1);
 
   return (
-    <View className="max-w-[88%] self-start rounded-[20px] bg-surface-secondary px-4 py-2.5">
+    <View
+      className={`max-w-[88%] self-start rounded-[20px] bg-surface-secondary px-4 py-2.5 border ${
+        stale
+          ? 'border-black/[0.04] dark:border-white/8'
+          : 'border-danger/25 dark:border-danger/35 dark:border-t-danger/50'
+      }`}
+    >
       <View className="flex-row gap-2">
         <View className="pt-0.5">
           <Glyph name="alert" size={16} color={stale ? vars['--muted'] : vars['--danger']} />

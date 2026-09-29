@@ -22,9 +22,11 @@ import { useThemeVars } from '@/theme/theme-context';
 
 type T = ReturnType<typeof useTranslation>['t'];
 
-const CARD = 'rounded-2xl bg-surface p-4 shadow-md';
-const PRIMARY_BTN = 'min-h-11 flex-1 items-center justify-center rounded-xl bg-default active:opacity-80 disabled:opacity-30';
-const SECONDARY_BTN = 'min-h-11 flex-1 items-center justify-center rounded-xl bg-surface-secondary active:opacity-70';
+const CARD = 'rounded-2xl border border-black/[0.04] bg-surface p-4 shadow-md dark:border-white/10 dark:border-t-white/20';
+const PRIMARY_BTN =
+  'min-h-11 flex-1 items-center justify-center rounded-xl border border-transparent bg-default active:opacity-80 disabled:opacity-30 dark:border-t-white/25';
+const SECONDARY_BTN =
+  'min-h-11 flex-1 items-center justify-center rounded-xl border border-black/[0.04] bg-surface-secondary active:opacity-70 dark:border-white/10';
 const SWIPE = 48;
 
 function approvalTitle(t: T, title: ApprovalTitle): string {
@@ -178,7 +180,7 @@ function Option({
     <Pressable
       onPress={onPress}
       className={`min-h-11 justify-center rounded-xl border-2 bg-surface-secondary px-3.5 py-2.5 active:opacity-70 ${
-        on ? 'border-focus' : 'border-transparent'
+        on ? 'border-focus' : 'border-black/[0.04] dark:border-white/10'
       }`}
     >
       <View className="flex-row items-start gap-2.5">

@@ -12,7 +12,8 @@ type Mode = 'system' | 'light' | 'dark';
 
 export function AppearanceGroup() {
   const { t } = useTranslation();
-  const { mode, setMode, paletteId } = useThemeMode();
+  const { mode, setMode, paletteId, scheme } = useThemeMode();
+  const isDark = scheme === 'dark';
   const [palettesOpen, setPalettesOpen] = useState(false);
   const modes: { id: Mode; label: string }[] = [
     { id: 'system', label: t('settings.common.system') },
@@ -23,26 +24,53 @@ export function AppearanceGroup() {
   return (
     <>
       <Group title={t('settings.general.appearance')}>
-        <View className="flex-row gap-1 p-1.5">
-          {modes.map((item) => {
-            const active = mode === item.id;
-            return (
-              <Pressable
-                key={item.id}
-                accessibilityRole="button"
-                accessibilityState={{ selected: active }}
-                onPress={() => setMode(item.id)}
-                className={`min-h-11 flex-1 items-center justify-center rounded-xl ${active ? 'bg-surface' : ''}`}
-              >
-                <Text className={`text-[15px] ${active ? 'font-semibold text-surface-foreground' : 'text-muted'}`}>
-                  {item.label}
-                </Text>
-              </Pressable>
-            );
-          })}
+        {/* iOS-styled refined segmented control */}
+        <View className="p-2.5">
+          <View className="flex-row rounded-xl bg-surface-secondary/70 p-1">
+            {modes.map((item) => {
+              const active = mode === item.id;
+              return (
+                <Pressable
+                  key={item.id}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: active }}
+                  onPress={() => setMode(item.id)}
+                  style={
+                    active
+                      ? {
+                          shadowColor: '#000',
+                          shadowOffset: { width: 0, height: 1 },
+                          shadowOpacity: isDark ? 0.35 : 0.08,
+                          shadowRadius: 3,
+                          elevation: 2
+                        }
+                      : undefined
+                  }
+                  className={`min-h-[36px] flex-1 items-center justify-center rounded-lg ${
+                    active
+                      ? isDark
+                        ? 'border border-white/15 bg-[#25282c]'
+                        : 'border border-border/80 bg-surface'
+                      : ''
+                  }`}
+                >
+                  <Text
+                    className={`text-[15px] ${
+                      active ? 'font-semibold text-foreground' : 'font-normal text-muted'
+                    }`}
+                  >
+                    {item.label}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
         </View>
+
         <Row
           label={t('mobile.settings.palettes')}
+          icon="palette"
+          badge="amber"
           value={PALETTES.find((p) => p.id === paletteId)?.title ?? paletteId}
           chevron
           onPress={() => setPalettesOpen(true)}
@@ -59,7 +87,7 @@ function PaletteSheet({ visible, onClose }: { visible: boolean; onClose: () => v
   const { paletteId, setPaletteId } = useThemeMode();
   return (
     <Sheet visible={visible} onClose={onClose} title={t('mobile.settings.palettes')}>
-      <View className="flex-row flex-wrap gap-2.5">
+      <View className="flex-row flex-wrap gap-2.5 pt-1">
         {PALETTES.map((p) => {
           const active = paletteId === p.id;
           const swatches = p.swatches || [
@@ -71,6 +99,9 @@ function PaletteSheet({ visible, onClose }: { visible: boolean; onClose: () => v
           return (
             <Pressable
               key={p.id}
+              accessibilityRole="button"
+              accessibilityLabel={p.title}
+              accessibilityState={{ selected: active }}
               onPress={() => setPaletteId(p.id)}
               className={`min-w-[47%] flex-1 rounded-2xl border-2 bg-surface-secondary p-3 active:opacity-80 ${
                 active ? 'border-focus' : 'border-transparent'

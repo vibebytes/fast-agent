@@ -1,8 +1,17 @@
-import { FlashList } from '@shopify/flash-list';
+import { FlashList, type FlashListRef } from '@shopify/flash-list';
 import { type TranscriptEntry } from '@fast-ide/session-view';
-import { useCallback, useMemo, type ReactElement } from 'react';
+import { useCallback, useMemo, useRef, useState, type ReactElement } from 'react';
 import { useTranslation } from 'react-i18next';
-import { KeyboardAvoidingView, Platform, Pressable, Text, View } from 'react-native';
+import {
+  KeyboardAvoidingView,
+  type NativeScrollEvent,
+  type NativeSyntheticEvent,
+  Platform,
+  Pressable,
+  Text,
+  View
+} from 'react-native';
+import Animated, { FadeIn, FadeInDown, FadeOut, FadeOutUp } from 'react-native-reanimated';
 
 import type { Display } from '@/bridge/display';
 import { bridgeStore } from '@/bridge/store';
@@ -11,7 +20,10 @@ import { Composer } from '@/components/chat/Composer';
 import { MemoEntryBubble } from '@/components/chat/EntryBubble';
 import { sessionComposerGate } from '@/components/chat/gate';
 import { ApprovalSlot, QuestionBatchSlot, QuestionSlot } from '@/components/chat/Questions';
+import { Glyph } from '@/components/glyphs';
 import { Avatar } from '@/components/shell/avatar';
+import { lightImpact } from '@/lib/haptics';
+import { useThemeVars } from '@/theme/theme-context';
 
 const EMPTY_ENTRIES: TranscriptEntry[] = [];
 /** Native stack header height the keyboard offset has to clear on a pushed session page. */
@@ -59,6 +71,7 @@ export function ChatView({
   empty?: ReactElement;
 }) {
   const { t } = useTranslation();
+  const vars = useThemeVars();
   const snapshot = useBridgeSnapshot();
   const record = snapshot.records[sessionId];
   const entries = record?.transcript.entries ?? EMPTY_ENTRIES;
@@ -66,6 +79,31 @@ export function ChatView({
   const staleIds = useMemo(() => staleErrorEntryIds(entries), [entries]);
   const gate = sessionComposerGate(record, snapshot.connection === 'open');
   const busy = gate?.runState === 'running' || gate?.runState === 'stopping';
+
+  const listRef = useRef<FlashListRef<TranscriptEntry> | null>(null);
+  const [showScrollBottom, setShowScrollBottom] = useState(false);
+  const [toast, setToast] = useState<string | null>(null);
+  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const showToast = useCallback((msg: string) => {
+    if (toastTimer.current) clearTimeout(toastTimer.current);
+    setToast(msg);
+    toastTimer.current = setTimeout(() => {
+      setToast(null);
+    }, 1800);
+  }, []);
+
+  const onScroll = useCallback((e: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const { contentOffset, contentSize, layoutMeasurement } = e.nativeEvent;
+    const distanceFromBottom = contentSize.height - (contentOffset.y + layoutMeasurement.height);
+    setShowScrollBottom(distanceFromBottom > 260);
+  }, []);
+
+  const scrollToBottom = useCallback(() => {
+    listRef.current?.scrollToEnd({ animated: true });
+    lightImpact();
+  }, []);
+
   const renderItem = useCallback(
     ({ item, index }: { item: TranscriptEntry; index: number }) => (
       <View style={{ marginTop: gapBefore(entries, index) }}>
@@ -75,10 +113,11 @@ export function ChatView({
           busy={busy}
           stale={staleIds.has(item.id)}
           display={display}
+          onCopy={showToast}
         />
       </View>
     ),
-    [entries, sessionId, busy, staleIds, display]
+    [entries, sessionId, busy, staleIds, display, showToast]
   );
   const keyExtractor = useCallback((entry: TranscriptEntry) => entry.id, []);
 
@@ -88,10 +127,28 @@ export function ChatView({
       keyboardVerticalOffset={Platform.OS === 'ios' && !inTab ? STACK_HEADER : 0}
       className="flex-1 bg-background"
     >
+      {toast ? (
+        <Animated.View
+          entering={FadeInDown.springify().damping(16)}
+          exiting={FadeOutUp.duration(150)}
+          style={{ position: 'absolute', top: 12, alignSelf: 'center', zIndex: 100 }}
+          pointerEvents="none"
+          className="flex-row items-center gap-2 rounded-full border border-black/[0.04] bg-surface px-4 py-2 shadow-lg dark:border-white/10 dark:border-t-white/25"
+        >
+          <Glyph name="check" size={14} color="#17c964" />
+          <Text className="text-[13px] font-semibold text-foreground">{toast}</Text>
+        </Animated.View>
+      ) : null}
+
       <FlashList
+        ref={listRef}
         data={entries}
         keyExtractor={keyExtractor}
         extraData={display}
+        onScroll={onScroll}
+        scrollEventThrottle={32}
+        keyboardDismissMode="on-drag"
+        keyboardShouldPersistTaps="handled"
         maintainVisibleContentPosition={{ startRenderingFromBottom: true, autoscrollToBottomThreshold: 100 }}
         contentContainerStyle={{ paddingHorizontal: 16, paddingVertical: 16 }}
         renderItem={renderItem}
@@ -119,6 +176,31 @@ export function ChatView({
           ) : null
         }
       />
+
+      {showScrollBottom ? (
+        <Animated.View
+          entering={FadeIn.duration(180)}
+          exiting={FadeOut.duration(140)}
+          style={{ position: 'absolute', right: 16, bottom: bottomSpace + 74, zIndex: 50 }}
+        >
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={t('mobile.chat.scrollToBottom')}
+            onPress={scrollToBottom}
+            style={{
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: 3 },
+              shadowOpacity: 0.18,
+              shadowRadius: 8,
+              elevation: 4
+            }}
+            className="h-10 w-10 items-center justify-center rounded-full border border-black/[0.06] bg-surface active:opacity-75 dark:border-white/15 dark:border-t-white/30"
+          >
+            <Glyph name="arrow-down" size={18} color={vars['--foreground']} />
+          </Pressable>
+        </Animated.View>
+      ) : null}
+
       {(record?.transcript.approvals.length ?? 0) > 0 ? (
         <ApprovalSlot sessionId={sessionId} />
       ) : (record?.transcript.questionBatches.length ?? 0) > 0 ? (

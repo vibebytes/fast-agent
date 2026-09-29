@@ -1871,7 +1871,15 @@
       "noMessages": "No messages",
       "messageCount": "{{count}} messages",
       "mainGroup": "Main chat",
-      "tempGroup": "Temporary chats"
+      "tempGroup": "Temporary chats",
+      "searchPlaceholder": "Search conversations…",
+      "searchNoResult": "No matching conversations",
+      "clearSearch": "Clear search",
+      "copyId": "Copy session ID",
+      "copyTitle": "Copy title",
+      "sessionActions": "Session actions",
+      "sessionDetails": "Session details",
+      "lastActive": "Last active"
     },
     "session": {
       "missing": "Session not found."
@@ -1893,6 +1901,7 @@
       "thinkingDone": "Thinking",
       "copy": "Copy",
       "copied": "Copied",
+      "scrollToBottom": "Scroll to bottom",
       "preparing": "Agent is preparing a response…",
       "generating": "Generating…",
       "consoleTitle": "Run console",

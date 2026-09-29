@@ -595,6 +595,10 @@ class BridgeStore {
     this.requestSessions();
   }
 
+  refreshSessions() {
+    this.requestSessions();
+  }
+
   private settleCreate(event: Extract<BridgeEvent, {type: 'command_result'}>) {
     const taskId = event.taskId;
     if (!taskId) return;

@@ -33,13 +33,15 @@ export function ConnectionBanner() {
       </Notice>
     );
   }
+  // 未配置服务器或正常未连初态不以黄色告警横幅打扰用户，将引导权交给页面空态与设置页
+  if (snapshot.connUi === 'unconfigured' || snapshot.connection === 'idle') {
+    return null;
+  }
   const label = connectionLabel(t, snapshot.connection, snapshot.connUi);
   const detail = snapshot.connectionDetail ? formatCopy(t, snapshot.connectionDetail) : '';
   const ui = snapshot.connUi;
   const uiLabel =
-    ui === 'unconfigured'
-      ? t('mobile.conn.unconfigured')
-      : ui === 'authFailed'
+    ui === 'authFailed'
       ? t('mobile.conn.authFailed')
       : ui === 'urlExpired'
         ? t('mobile.conn.urlExpired')
@@ -50,7 +52,7 @@ export function ConnectionBanner() {
             : label;
   const rescanHint = ui === 'authFailed' || ui === 'urlExpired' ? t('mobile.conn.rescanHint') : '';
   return (
-    <View className="flex-row items-center">
+    <View className="flex-row items-center border-b border-warning/20 bg-warning/10">
       <Pressable onPress={() => router.push('/settings')} className="flex-1 active:opacity-60">
         <Notice>
           {uiLabel}
@@ -58,21 +60,21 @@ export function ConnectionBanner() {
         </Notice>
       </Pressable>
       {snapshot.connection === 'rejected' ? (
-        <Pressable onPress={() => bridgeStore.retry()} className="min-h-11 justify-center px-4 active:opacity-60">
-          <Text className="text-[13px] font-semibold text-link">{t('mobile.conn.retry')}</Text>
+        <Pressable onPress={() => bridgeStore.retry()} className="min-h-9 justify-center px-3 active:opacity-60">
+          <Text className="text-[12px] font-semibold text-link">{t('mobile.conn.retry')}</Text>
         </Pressable>
       ) : null}
     </View>
   );
 }
 
-/** Connection trouble: a warning mark and one muted line, no colour band. */
+/** Connection trouble: a warning mark and one muted line with delicate warning tint. */
 function Notice({ children }: { children: ReactNode }) {
   const vars = useThemeVars();
   return (
-    <View className="min-h-11 flex-row items-center gap-1.5 px-4 py-1.5">
-      <Glyph name="alert" size={14} color={vars['--warning']} />
-      <Text numberOfLines={2} className="flex-1 text-[13px] text-muted">
+    <View className="min-h-9 flex-row items-center gap-1.5 px-3.5 py-1">
+      <Glyph name="alert" size={13} color={vars['--warning']} />
+      <Text numberOfLines={1} className="flex-1 text-[12px] font-medium text-warning-foreground">
         {children}
       </Text>
     </View>

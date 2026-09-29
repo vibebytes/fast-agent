@@ -34,15 +34,23 @@ export type CloudflareTunnelManagerDeps = {
 };
 
 /** Packaged app ships the cloudflared binary in Resources/bin; the bundled default path no longer works. */
+const binName = process.platform === 'win32' ? 'cloudflared.exe' : 'cloudflared';
+
 function packagedCloudflaredBin(): string | null {
 	const resources = process.resourcesPath;
 	if (!resources) return null;
-	const bin = join(resources, 'bin', process.platform === 'win32' ? 'cloudflared.exe' : 'cloudflared');
+	const bin = join(resources, 'bin', binName);
+	return existsSync(bin) ? bin : null;
+}
+
+/** Dev: cloudflared is bundled into out/main, so its default path (out/bin) is wrong; use the npm-installed binary. */
+function devCloudflaredBin(): string | null {
+	const bin = join(__dirname, '../../node_modules/cloudflared/bin', binName);
 	return existsSync(bin) ? bin : null;
 }
 
 const defaultCreateTunnel = (originUrl: string): CloudflareTunnelHandle => {
-	const bin = packagedCloudflaredBin();
+	const bin = packagedCloudflaredBin() ?? devCloudflaredBin();
 	if (bin) use(bin);
 	return Tunnel.quick(originUrl);
 };

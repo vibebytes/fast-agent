@@ -1871,7 +1871,15 @@
       "noMessages": "暂无消息",
       "messageCount": "{{count}} 条消息",
       "mainGroup": "主会话",
-      "tempGroup": "临时会话"
+      "tempGroup": "临时会话",
+      "searchPlaceholder": "搜索会话标题或内容…",
+      "searchNoResult": "未找到匹配的会话",
+      "clearSearch": "清除搜索",
+      "copyId": "复制会话 ID",
+      "copyTitle": "复制标题",
+      "sessionActions": "会话操作",
+      "sessionDetails": "会话详情",
+      "lastActive": "最后活跃"
     },
     "session": {
       "missing": "会话不存在。"
@@ -1893,6 +1901,7 @@
       "thinkingDone": "深度思考过程",
       "copy": "复制",
       "copied": "已复制",
+      "scrollToBottom": "回到底部",
       "preparing": "Agent 正在准备响应…",
       "generating": "正在生成…",
       "consoleTitle": "运行控制台",

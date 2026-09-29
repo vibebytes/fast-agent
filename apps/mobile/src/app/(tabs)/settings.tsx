@@ -16,13 +16,13 @@ export default function SettingsScreen() {
   const bottomSpace = useTabBarSpace();
   return (
     <View className="flex-1 bg-background">
-      <ScreenHeader banner={<ConnectionBanner />} className="min-h-11 justify-center px-4">
+      <ScreenHeader className="min-h-11 justify-center px-4">
         <Text className="text-[17px] font-semibold text-foreground">{t('mobile.tabs.settings')}</Text>
       </ScreenHeader>
       <View style={{ height: StyleSheet.hairlineWidth }} className="bg-separator" />
       <ScrollView
         className="flex-1 bg-background"
-        contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 20, paddingBottom: bottomSpace + 24 }}
+        contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 16, paddingBottom: bottomSpace + 24 }}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"
@@ -33,7 +33,12 @@ export default function SettingsScreen() {
         <AppearanceGroup />
         <LanguageGroup />
         <Group title={t('mobile.settings.about')}>
-          <Row label={t('mobile.settings.version')} value={Constants.expoConfig?.version ?? '—'} />
+          <Row
+            label={t('mobile.settings.version')}
+            icon="info"
+            badge="gray"
+            value={Constants.expoConfig?.version ?? '—'}
+          />
         </Group>
       </ScrollView>
     </View>

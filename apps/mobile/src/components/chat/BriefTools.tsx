@@ -5,14 +5,24 @@ import { Pressable, Text, View } from 'react-native';
 
 import { Glyph } from '@/components/glyphs';
 import { Hairline, Sheet } from '@/components/shell/sheet';
+import { lightImpact } from '@/lib/haptics';
 import { useThemeVars } from '@/theme/theme-context';
-import { AgentToolPipeline, diffTextOf, DiffLineRow, getToolCategory, toolHint, type ToolLike } from './ToolPipeline';
+import {
+  diffTextOf,
+  DiffLineRow,
+  getToolCategory,
+  toolHint,
+  ToolDetailSheet,
+  ToolPipelineSheet,
+  type ToolLike
+} from './ToolPipeline';
 
-/** One quiet line for a turn's tools; tap to unfold the full pipeline in place. */
+/** One quiet line for a turn's tools; tap to unfold the full pipeline in a bottom sheet. */
 export function BriefTools({ tools }: { tools: ToolLike[] }) {
   const { t } = useTranslation();
   const vars = useThemeVars();
-  const [open, setOpen] = useState(false);
+  const [sheetOpen, setSheetOpen] = useState(false);
+  const [detail, setDetail] = useState<ToolLike | null>(null);
   if (tools.length === 0) return null;
 
   const running = [...tools].reverse().find((x) => x.status === 'running');
@@ -27,7 +37,10 @@ export function BriefTools({ tools }: { tools: ToolLike[] }) {
     <View className="mt-1.5">
       <Pressable
         accessibilityRole="button"
-        onPress={() => setOpen((v) => !v)}
+        onPress={() => {
+          lightImpact();
+          setSheetOpen(true);
+        }}
         className="min-h-11 flex-row items-center gap-1.5 self-start pr-2 active:opacity-60"
       >
         <Glyph
@@ -39,9 +52,15 @@ export function BriefTools({ tools }: { tools: ToolLike[] }) {
         {failed > 0 && !running ? (
           <Text className="text-[13px] text-danger">{t('mobile.brief.failed', { count: failed })}</Text>
         ) : null}
-        <Glyph name={open ? 'chevron-down' : 'chevron-right'} size={13} color={vars['--muted']} />
+        <Glyph name="chevron-right" size={13} color={vars['--muted']} />
       </Pressable>
-      {open ? <AgentToolPipeline tools={tools} initiallyOpen /> : null}
+      <ToolPipelineSheet
+        visible={sheetOpen}
+        onClose={() => setSheetOpen(false)}
+        tools={tools}
+        onSelectTool={(tool) => setDetail(tool)}
+      />
+      <ToolDetailSheet tool={detail} onClose={() => setDetail(null)} />
       <BriefChanges tools={tools} />
     </View>
   );

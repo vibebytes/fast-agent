@@ -41,8 +41,8 @@ export function ScreenHeader({
   const insets = useSafeAreaInsets();
   return (
     <View className="bg-background" style={{ paddingTop: insets.top }}>
-      {banner}
       <GlassHeader className={className}>{children}</GlassHeader>
+      {banner}
     </View>
   );
 }

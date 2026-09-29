@@ -17,7 +17,15 @@ export type GlyphName =
   | 'arrow-up'
   | 'alert'
   | 'brief'
-  | 'full';
+  | 'full'
+  | 'globe'
+  | 'user'
+  | 'qr'
+  | 'link'
+  | 'copy'
+  | 'arrow-down'
+  | 'search'
+  | 'info';
 
 export function Glyph({
   name,
@@ -35,36 +43,55 @@ export function Glyph({
     <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
       {name === 'chat' ? (
         <Path
-          d="M5.5 16.2 4 20l4.2-1.4A8.2 8.2 0 1 0 5.5 16.2Z"
+          d="M12 3c5.25 0 9.5 3.9 9.5 8.7 0 4.8-4.25 8.7-9.5 8.7a10.4 10.4 0 0 1-3.6-.64L4 21l1.32-3.8A8.4 8.4 0 0 1 2.5 11.7C2.5 6.9 6.75 3 12 3Z"
           stroke={color}
-          strokeWidth={stroke}
+          strokeWidth={filled ? 0 : 1.8}
           strokeLinecap="round"
           strokeLinejoin="round"
           fill={filled ? color : 'none'}
-          fillOpacity={filled ? 0.16 : 0}
         />
       ) : null}
       {name === 'history' ? (
-        <>
-          <Circle cx="12" cy="12.5" r="7.2" stroke={color} strokeWidth={stroke} />
-          <Path
-            d="M12 9.4v3.3l2.3 1.5"
-            stroke={color}
-            strokeWidth={stroke}
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-        </>
+        filled ? (
+          <>
+            <Circle cx="12" cy="12" r="9" fill={color} />
+            <Path
+              d="M12 7.2v4.8l3 2"
+              stroke="#ffffff"
+              strokeWidth={2}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </>
+        ) : (
+          <>
+            <Circle cx="12" cy="12.5" r="7.5" stroke={color} strokeWidth={1.8} />
+            <Path
+              d="M12 9.2v3.3l2.3 1.5"
+              stroke={color}
+              strokeWidth={1.8}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </>
+        )
       ) : null}
       {name === 'settings' ? (
-        <Path
-          d="M12 8.4a3.6 3.6 0 1 0 0 7.2 3.6 3.6 0 0 0 0-7.2Zm7.2 3.1c0-.3-.2-.7-.4-1l1.3-1.5-1.6-2.8-2 .5c-.3-.2-.7-.4-1.1-.5l-.4-2H9l-.4 2c-.4.1-.8.3-1.1.5l-2-.5-1.6 2.8 1.3 1.5c-.2.3-.4.7-.4 1s.2.7.4 1L4 15.7l1.6 2.8 2-.5c.3.2.7.4 1.1.5l.4 2h4.2l.4-2c.4-.1.8-.3 1.1-.5l2 .5 1.6-2.8-1.3-1.5c.2-.3.4-.7.4-1Z"
-          stroke={color}
-          strokeWidth={stroke}
-          strokeLinejoin="round"
-          fill={filled ? color : 'none'}
-          fillOpacity={filled ? 0.16 : 0}
-        />
+        filled ? (
+          <Path
+            fillRule="evenodd"
+            clipRule="evenodd"
+            d="M12 8.2a3.8 3.8 0 1 0 0 7.6 3.8 3.8 0 0 0 0-7.6Zm7.4 3c.06.52.06 1.08 0 1.6l1.7 1.3a.6.6 0 0 1 .15.77l-1.6 2.8a.6.6 0 0 1-.74.26l-2-.8a7.8 7.8 0 0 1-1.4.8l-.3 2.1a.6.6 0 0 1-.6.5h-3.2a.6.6 0 0 1-.6-.5l-.3-2.1a7.8 7.8 0 0 1-1.4-.8l-2 .8a.6.6 0 0 1-.74-.26L4.75 14.87a.6.6 0 0 1 .15-.77l1.7-1.3a8.2 8.2 0 0 1 0-1.6l-1.7-1.3a.6.6 0 0 1-.15-.77l1.6-2.8a.6.6 0 0 1 .74-.26l2 .8c.44-.33.9-.6 1.4-.8l.3-2.1a.6.6 0 0 1 .6-.5h3.2a.6.6 0 0 1 .6.5l.3 2.1c.5.2.96.47 1.4.8l2-.8a.6.6 0 0 1 .74.26l1.6 2.8a.6.6 0 0 1-.15.77l-1.7 1.3Z"
+            fill={color}
+          />
+        ) : (
+          <Path
+            d="M12 8.4a3.6 3.6 0 1 0 0 7.2 3.6 3.6 0 0 0 0-7.2Zm7.2 3.1c0-.3-.2-.7-.4-1l1.3-1.5-1.6-2.8-2 .5c-.3-.2-.7-.4-1.1-.5l-.4-2H9l-.4 2c-.4.1-.8.3-1.1.5l-2-.5-1.6 2.8 1.3 1.5c-.2.3-.4.7-.4 1s.2.7.4 1L4 15.7l1.6 2.8 2-.5c.3.2.7.4 1.1.5l.4 2h4.2l.4-2c.4-.1.8-.3 1.1-.5l2 .5 1.6-2.8-1.3-1.5c.2-.3.4-.7.4-1Z"
+            stroke={color}
+            strokeWidth={1.8}
+            strokeLinejoin="round"
+          />
+        )
       ) : null}
       {name === 'plus' ? (
         <Path
@@ -132,7 +159,7 @@ export function Glyph({
       ) : null}
       {name === 'bolt' ? (
         <Path
-          d="M13.2 2.5 5 13.4h6l-1 8.1 8.2-10.9h-6l1-7.6Z"
+          d="M13.5 2.5 4.8 12.8c-.4.5-.1 1.2.6 1.2h5.8l-1.6 7.5c-.3.7.6 1.2 1.1.6l8.7-10.3c.4-.5.1-1.2-.6-1.2h-5.8l1.6-7.5c.3-.7-.6-1.2-1.1-.6Z"
           stroke={color}
           strokeWidth={stroke}
           strokeLinecap="round"
@@ -200,6 +227,100 @@ export function Glyph({
           strokeLinecap="round"
           strokeLinejoin="round"
         />
+      ) : null}
+      {name === 'globe' ? (
+        <>
+          <Circle cx="12" cy="12" r="9" stroke={color} strokeWidth={stroke} />
+          <Path
+            d="M3 12h18M12 3a14.5 14.5 0 0 1 0 18M12 3a14.5 14.5 0 0 0 0 18"
+            stroke={color}
+            strokeWidth={stroke}
+            strokeLinecap="round"
+          />
+        </>
+      ) : null}
+      {name === 'user' ? (
+        <>
+          <Circle cx="12" cy="8" r="4" stroke={color} strokeWidth={stroke} />
+          <Path
+            d="M5 20a7 7 0 0 1 14 0"
+            stroke={color}
+            strokeWidth={stroke}
+            strokeLinecap="round"
+          />
+        </>
+      ) : null}
+      {name === 'qr' ? (
+        <>
+          <Path
+            d="M3.2 3.2h6.6v6.6H3.2zM14.2 3.2h6.6v6.6h-6.6zM3.2 14.2h6.6v6.6H3.2z"
+            stroke={color}
+            strokeWidth={1.8}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+          <Path
+            d="M5.6 5.6h1.8v1.8H5.6zM16.6 5.6h1.8v1.8h-1.8zM5.6 16.6h1.8v1.8H5.6z"
+            fill={color}
+          />
+          <Path
+            d="M14.2 14.2h3v3h-3zM18.2 18.2h2.6v2.6h-2.6zM18.2 14.2h2.6v1.8h-2.6zM14.2 18.2h1.8v2.6h-1.8z"
+            fill={color}
+          />
+        </>
+      ) : null}
+      {name === 'link' ? (
+        <Path
+          d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"
+          stroke={color}
+          strokeWidth={stroke}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      ) : null}
+      {name === 'copy' ? (
+        <>
+          <Path
+            d="M9 15h6a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2H9a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2Z"
+            stroke={color}
+            strokeWidth={1.8}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+          <Path
+            d="M5 9v10a2 2 0 0 0 2 2h10"
+            stroke={color}
+            strokeWidth={1.8}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </>
+      ) : null}
+      {name === 'arrow-down' ? (
+        <Path
+          d="M12 5v14M19 12l-7 7-7-7"
+          stroke={color}
+          strokeWidth={2}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      ) : null}
+      {name === 'search' ? (
+        <>
+          <Circle cx="11" cy="11" r="7" stroke={color} strokeWidth={1.8} />
+          <Path d="m20 20-3.5-3.5" stroke={color} strokeWidth={1.8} strokeLinecap="round" />
+        </>
+      ) : null}
+      {name === 'info' ? (
+        <>
+          <Circle cx="12" cy="12" r="9" stroke={color} strokeWidth={stroke} />
+          <Path
+            d="M12 16v-4M12 8h.01"
+            stroke={color}
+            strokeWidth={stroke + 0.3}
+            strokeLinecap="round"
+          />
+        </>
       ) : null}
     </Svg>
   );
