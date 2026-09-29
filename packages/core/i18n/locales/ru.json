@@ -1827,7 +1827,18 @@
       "lastConnectedNow": "Только что подключено",
       "lastConnectedMinutes": "Подключено {{count}} мин назад",
       "lastConnectedHours": "Подключено {{count}} ч назад",
-      "lastConnectedDays": "Подключено {{count}} дн назад"
+      "lastConnectedDays": "Подключено {{count}} дн назад",
+      "assistant": "Ассистент",
+      "assistantHint": "Хранится только на этом телефоне.",
+      "assistantName": "Имя",
+      "assistantMark": "Аватар",
+      "assistantMarkPlaceholder": "Эмодзи или пусто для значка по умолчанию",
+      "fieldLabel": "Метка",
+      "fieldUrl": "Адрес",
+      "fieldFingerprint": "Отпечаток",
+      "test": "Проверить",
+      "about": "О приложении",
+      "version": "Версия"
     },
     "index": {
       "new": "Новая",
@@ -1850,10 +1861,12 @@
       "loadingList": "Загрузка сессий…",
       "connectingDesktop": "Подключение к рабочему столу…",
       "emptyTitle": "Сессий пока нет",
-      "emptyBody": "Нажмите «Новая сессия», чтобы начать чат",
+      "emptyBody": "Нажми + справа вверху, чтобы начать временный чат",
       "running": "Выполняется",
       "noMessages": "Нет сообщений",
-      "messageCount": "{{count}} сообщений"
+      "messageCount": "{{count}} сообщений",
+      "mainGroup": "Главный",
+      "tempGroup": "Временные чаты"
     },
     "session": {
       "missing": "Сессия не найдена."
@@ -1916,7 +1929,11 @@
       "pauseQueue": "Приостановить очередь",
       "edit": "Изменить",
       "prevCard": "Назад",
-      "nextCard": "Далее"
+      "nextCard": "Далее",
+      "approvalLabel": "Нужно твоё разрешение",
+      "questionLabel": "Есть вопрос",
+      "details": "Подробнее",
+      "hideDetails": "Скрыть"
     },
     "voice": {
       "micDenied": "Доступ к микрофону запрещён. Разрешите его в системных настройках.",
@@ -1956,6 +1973,45 @@
       "rescanHint": "Отсканируйте QR-код на компьютере заново",
       "unconfigured": "Сервер не сохранён",
       "retry": "Повторить"
+    },
+    "home": {
+      "title": "Главный чат",
+      "greeting": "Что поручить {{name}}?",
+      "example1": "Кратко опиши, что сегодня изменилось в проекте",
+      "example2": "Запусти тесты и скажи, что падает",
+      "example3": "Найди TODO, оставленные на прошлой неделе",
+      "creating": "Готовим главный чат…",
+      "failed": "Не удалось создать главный чат."
+    },
+    "avatar": {
+      "a11y": "{{name}}, показать статус"
+    },
+    "status": {
+      "title": "Статус",
+      "empty": "Ничего не выполняется",
+      "needs": "Нужен ты",
+      "working": "В работе",
+      "running": "Выполняется",
+      "scope": "Учитываются только чаты, открытые на этом телефоне."
+    },
+    "brief": {
+      "running": "{{what}}…",
+      "done": "Готово за {{count}} шагов",
+      "doneFailed": "Шагов: {{count}} ·",
+      "failed": "с ошибкой: {{count}}",
+      "changed": "Изменено файлов: {{count}}",
+      "verb": {
+        "shell": "Выполняю команду",
+        "file": "Правлю файлы",
+        "search": "Читаю код",
+        "git": "Работаю с git",
+        "agent": "Делегирую",
+        "system": "Использую инструмент"
+      }
+    },
+    "display": {
+      "toBrief": "Кратко",
+      "toFull": "Подробно"
     }
   }
 }

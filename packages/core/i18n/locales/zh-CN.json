@@ -1832,7 +1832,18 @@
       "lastConnectedNow": "刚刚连接",
       "lastConnectedMinutes": "{{count}} 分钟前连接",
       "lastConnectedHours": "{{count}} 小时前连接",
-      "lastConnectedDays": "{{count}} 天前连接"
+      "lastConnectedDays": "{{count}} 天前连接",
+      "assistant": "助手",
+      "assistantHint": "只保存在这台手机上。",
+      "assistantName": "名字",
+      "assistantMark": "头像",
+      "assistantMarkPlaceholder": "一个 emoji，留空用默认标志",
+      "fieldLabel": "备注",
+      "fieldUrl": "地址",
+      "fieldFingerprint": "指纹",
+      "test": "测试",
+      "about": "关于",
+      "version": "版本"
     },
     "index": {
       "new": "新建",
@@ -1855,10 +1866,12 @@
       "loadingList": "正在加载会话列表…",
       "connectingDesktop": "正在连接桌面端…",
       "emptyTitle": "暂无历史会话",
-      "emptyBody": "点击右上角「新会话」开启对话体验",
+      "emptyBody": "点右上角 + 开一个临时会话",
       "running": "进行中",
       "noMessages": "暂无消息",
-      "messageCount": "{{count}} 条消息"
+      "messageCount": "{{count}} 条消息",
+      "mainGroup": "主会话",
+      "tempGroup": "临时会话"
     },
     "session": {
       "missing": "会话不存在。"
@@ -1921,7 +1934,11 @@
       "pauseQueue": "暂停队列",
       "edit": "编辑",
       "prevCard": "上一条",
-      "nextCard": "下一条"
+      "nextCard": "下一条",
+      "approvalLabel": "需要你批准",
+      "questionLabel": "有个问题",
+      "details": "详情",
+      "hideDetails": "收起详情"
     },
     "voice": {
       "micDenied": "麦克风权限被拒绝，请在系统设置中允许",
@@ -1961,6 +1978,45 @@
       "rescanHint": "请回桌面端重新扫码",
       "unconfigured": "还没有保存服务器",
       "retry": "重试"
+    },
+    "home": {
+      "title": "主对话",
+      "greeting": "想让 {{name}} 做什么？",
+      "example1": "总结一下这个项目今天改了什么",
+      "example2": "跑一下测试，告诉我哪里失败了",
+      "example3": "找出我上周留下的 TODO",
+      "creating": "正在准备主对话…",
+      "failed": "主对话没建起来。"
+    },
+    "avatar": {
+      "a11y": "{{name}}，查看状态"
+    },
+    "status": {
+      "title": "状态",
+      "empty": "没有进行中的事",
+      "needs": "需要你",
+      "working": "正在做",
+      "running": "运行中",
+      "scope": "只统计这台手机打开过的会话。"
+    },
+    "brief": {
+      "running": "正在{{what}}…",
+      "done": "完成了 {{count}} 步",
+      "doneFailed": "{{count}} 步 ·",
+      "failed": "{{count}} 步失败",
+      "changed": "改了 {{count}} 个文件",
+      "verb": {
+        "shell": "运行命令",
+        "file": "修改文件",
+        "search": "查看代码",
+        "git": "处理版本",
+        "agent": "协作",
+        "system": "调用工具"
+      }
+    },
+    "display": {
+      "toBrief": "简洁显示",
+      "toFull": "完整显示"
     }
   }
 }

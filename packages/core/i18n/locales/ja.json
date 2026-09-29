@@ -1827,7 +1827,18 @@
       "lastConnectedNow": "接続済み",
       "lastConnectedMinutes": "{{count}}分前に接続",
       "lastConnectedHours": "{{count}}時間前に接続",
-      "lastConnectedDays": "{{count}}日前に接続"
+      "lastConnectedDays": "{{count}}日前に接続",
+      "assistant": "アシスタント",
+      "assistantHint": "この端末にのみ保存されます。",
+      "assistantName": "名前",
+      "assistantMark": "アバター",
+      "assistantMarkPlaceholder": "絵文字 1 つ（空欄ならデフォルト）",
+      "fieldLabel": "ラベル",
+      "fieldUrl": "アドレス",
+      "fieldFingerprint": "指紋",
+      "test": "テスト",
+      "about": "このアプリについて",
+      "version": "バージョン"
     },
     "index": {
       "new": "新規",
@@ -1850,10 +1861,12 @@
       "loadingList": "セッションを読み込み中…",
       "connectingDesktop": "デスクトップに接続中…",
       "emptyTitle": "セッションはまだありません",
-      "emptyBody": "「新しいセッション」をタップしてチャットを開始",
+      "emptyBody": "右上の + で一時チャットを開始",
       "running": "実行中",
       "noMessages": "メッセージなし",
-      "messageCount": "{{count}} 件のメッセージ"
+      "messageCount": "{{count}} 件のメッセージ",
+      "mainGroup": "メイン",
+      "tempGroup": "一時チャット"
     },
     "session": {
       "missing": "セッションが見つかりません。"
@@ -1916,7 +1929,11 @@
       "pauseQueue": "キューを一時停止",
       "edit": "編集",
       "prevCard": "前へ",
-      "nextCard": "次へ"
+      "nextCard": "次へ",
+      "approvalLabel": "承認が必要です",
+      "questionLabel": "質問があります",
+      "details": "詳細",
+      "hideDetails": "詳細を閉じる"
     },
     "voice": {
       "micDenied": "マイクの権限が拒否されました。システム設定で許可してください。",
@@ -1956,6 +1973,45 @@
       "rescanHint": "デスクトップでQRコードを再スキャンしてください",
       "unconfigured": "サーバーが未保存です",
       "retry": "再試行"
+    },
+    "home": {
+      "title": "メインチャット",
+      "greeting": "{{name}} に何を頼みますか？",
+      "example1": "このプロジェクトで今日変わったことをまとめて",
+      "example2": "テストを実行して失敗箇所を教えて",
+      "example3": "先週残した TODO を探して",
+      "creating": "メインチャットを準備中…",
+      "failed": "メインチャットを作成できませんでした。"
+    },
+    "avatar": {
+      "a11y": "{{name}}、状態を表示"
+    },
+    "status": {
+      "title": "ステータス",
+      "empty": "進行中のことはありません",
+      "needs": "あなたの対応が必要",
+      "working": "作業中",
+      "running": "実行中",
+      "scope": "この端末で開いた会話のみ集計します。"
+    },
+    "brief": {
+      "running": "{{what}}中…",
+      "done": "{{count}} ステップで完了",
+      "doneFailed": "{{count}} ステップ ·",
+      "failed": "{{count}} 件失敗",
+      "changed": "{{count}} ファイルを変更",
+      "verb": {
+        "shell": "コマンド実行",
+        "file": "ファイル編集",
+        "search": "コード確認",
+        "git": "Git 操作",
+        "agent": "委任",
+        "system": "ツール使用"
+      }
+    },
+    "display": {
+      "toBrief": "簡潔表示",
+      "toFull": "詳細表示"
     }
   }
 }

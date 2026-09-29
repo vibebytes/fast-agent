@@ -1,3 +1,4 @@
+import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
 import * as SplashScreen from 'expo-splash-screen';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
@@ -21,11 +22,13 @@ export default function TabLayout() {
         <ThemeModeProvider>
           <LocaleProvider>
             <FastThemeScope>
-              <AppStatusBar />
-              <Stack screenOptions={{ headerShown: false }}>
-                <Stack.Screen name="(tabs)" />
-                <Stack.Screen name="session/[id]" options={{ headerShown: true }} />
-              </Stack>
+              <BottomSheetModalProvider>
+                <AppStatusBar />
+                <Stack screenOptions={{ headerShown: false }}>
+                  <Stack.Screen name="(tabs)" />
+                  <Stack.Screen name="session/[id]" options={{ headerShown: true }} />
+                </Stack>
+              </BottomSheetModalProvider>
             </FastThemeScope>
           </LocaleProvider>
         </ThemeModeProvider>

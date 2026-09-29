@@ -1,7 +1,12 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Pressable, Text, TextInput, View } from 'react-native';
-import type { PendingQuestion, PendingQuestionBatch } from '@fast-ide/session-view';
+import {
+  buildApprovalViewModel,
+  type ApprovalTitle,
+  type PendingQuestion,
+  type PendingQuestionBatch
+} from '@fast-ide/session-view';
 import {
   batchAnswersOf,
   batchDraftAnswered,
@@ -12,66 +17,128 @@ import {
 } from '@/bridge/mobile-transcript';
 import { bridgeStore, type FollowUpItem } from '@/bridge/store';
 import { useBridgeSnapshot } from '@/bridge/useBridge';
+import { Glyph } from '@/components/glyphs';
 import { useThemeVars } from '@/theme/theme-context';
+
+type T = ReturnType<typeof useTranslation>['t'];
+
+const CARD = 'rounded-2xl bg-surface p-4 shadow-md';
+const PRIMARY_BTN = 'min-h-11 flex-1 items-center justify-center rounded-xl bg-default active:opacity-80 disabled:opacity-30';
+const SECONDARY_BTN = 'min-h-11 flex-1 items-center justify-center rounded-xl bg-surface-secondary active:opacity-70';
+const SWIPE = 48;
+
+function approvalTitle(t: T, title: ApprovalTitle): string {
+  if (title.kind === 'subagent' && title.name) return t('session.approval.title.subagentNamed', { name: title.name });
+  if (title.kind === 'mcp_tool' && title.server && title.tool) {
+    return t('session.approval.title.mcp_toolQualified', { server: title.server, tool: title.tool });
+  }
+  if (title.kind === 'mcp_tool' && title.tool) return t('session.approval.title.mcp_toolNamed', { tool: title.tool });
+  if (title.kind === 'tool') return t('session.approval.title.tool', { tool: title.tool });
+  return t(`session.approval.title.${title.kind}`);
+}
+
+/** Cycles through several cards: swipe sideways, or tap the counter. */
+function Pager({
+  index,
+  count,
+  onMove,
+  label,
+  children
+}: {
+  index: number;
+  count: number;
+  onMove: (next: number) => void;
+  label: string;
+  children: ReactNode;
+}) {
+  const startX = useRef<number | null>(null);
+  const move = (step: number) => onMove((index + step + count) % count);
+  return (
+    <View
+      className="px-4 pb-2"
+      onTouchStart={(e) => {
+        startX.current = e.nativeEvent.pageX;
+      }}
+      onTouchEnd={(e) => {
+        if (startX.current == null || count < 2) return;
+        const dx = e.nativeEvent.pageX - startX.current;
+        startX.current = null;
+        if (Math.abs(dx) > SWIPE) move(dx < 0 ? 1 : -1);
+      }}
+    >
+      <View className={CARD}>
+        <View className="flex-row items-center justify-between">
+          <Text className="text-[13px] text-muted">{label}</Text>
+          {count > 1 ? (
+            <Pressable onPress={() => move(1)} hitSlop={12} className="min-h-6 justify-center active:opacity-60">
+              <Text className="font-mono text-[13px] text-muted">
+                {index + 1}/{count}
+              </Text>
+            </Pressable>
+          ) : null}
+        </View>
+        {children}
+      </View>
+    </View>
+  );
+}
 
 export function ApprovalSlot({ sessionId }: { sessionId: string }) {
   const { t } = useTranslation();
   const snapshot = useBridgeSnapshot();
   const approvals = snapshot.records[sessionId]?.transcript.approvals ?? [];
   const [cursor, setCursor] = useState(0);
+  const [expanded, setExpanded] = useState(false);
   if (approvals.length === 0) return null;
   const index = Math.min(cursor, approvals.length - 1);
   const approval = approvals[index];
   if (!approval) return null;
+  const view = buildApprovalViewModel(approval);
+  const dangerous = view.riskBadge === 'destructive' || view.riskBadge === 'unsandboxed';
+  const subject = view.subject.trim();
+
   return (
-    <View className="gap-2.5 px-3.5 pb-2">
-        <View
-          key={approval.id}
-          className="overflow-hidden rounded-2xl border border-warning/50 bg-surface p-4 shadow-md"
+    <Pager
+      index={index}
+      count={approvals.length}
+      onMove={(next) => {
+        setCursor(next);
+        setExpanded(false);
+      }}
+      label={t('mobile.chat.approvalLabel')}
+    >
+      <Text className="mt-1 text-[15px] font-semibold leading-6 text-surface-foreground">
+        {approvalTitle(t, view.title)}
+      </Text>
+      {subject ? (
+        <Pressable onPress={() => setExpanded((v) => !v)} className="mt-1.5 active:opacity-70">
+          <Text numberOfLines={expanded ? undefined : 3} className="font-mono text-[13px] leading-5 text-surface-foreground" selectable={expanded}>
+            {subject}
+          </Text>
+        </Pressable>
+      ) : null}
+      {view.secondary ? (
+        <Text numberOfLines={expanded ? undefined : 2} className="mt-1 font-mono text-[13px] leading-5 text-muted">
+          {view.secondary}
+        </Text>
+      ) : null}
+      <View className="mt-4 flex-row gap-2.5">
+        <Pressable
+          onPress={() => bridgeStore.decideApproval(sessionId, approval.id, false)}
+          className={SECONDARY_BTN}
         >
-          <View className="flex-row items-center justify-between">
-            <View className="flex-row items-center gap-2">
-              <View className="h-2.5 w-2.5 rounded-full bg-warning" />
-              <Text className="text-sm font-semibold text-foreground">{t('mobile.chat.approvalTitle', { tool: approval.tool })}</Text>
-            </View>
-            {approvals.length > 1 ? (
-              <View className="flex-row items-center gap-2">
-                <Pressable onPress={() => setCursor((index + approvals.length - 1) % approvals.length)} className="min-h-11 justify-center px-2">
-                  <Text className="text-xs font-semibold text-warning">{t('mobile.chat.prevCard')}</Text>
-                </Pressable>
-                <Text className="text-xs font-mono text-warning">
-                  {index + 1}/{approvals.length}
-                </Text>
-                <Pressable onPress={() => setCursor((index + 1) % approvals.length)} className="min-h-11 justify-center px-2">
-                  <Text className="text-xs font-semibold text-warning">{t('mobile.chat.nextCard')}</Text>
-                </Pressable>
-              </View>
-            ) : null}
-          </View>
-          {approval.description ? (
-            <Text className="mt-2 text-xs leading-5 text-muted" numberOfLines={6}>
-              {approval.description}
-            </Text>
-          ) : null}
-          {approval.risk ? (
-            <Text className="mt-2 text-xs font-medium text-warning">{t('mobile.chat.approvalRisk', { risk: approval.risk })}</Text>
-          ) : null}
-          <View className="mt-3.5 flex-row gap-2.5">
-            <Pressable
-              onPress={() => bridgeStore.decideApproval(sessionId, approval.id, true)}
-              className="min-h-11 flex-1 items-center justify-center rounded-xl bg-success py-2.5 shadow-sm active:scale-95"
-            >
-              <Text className="text-sm font-semibold text-success-foreground">{t('mobile.chat.approve')}</Text>
-            </Pressable>
-            <Pressable
-              onPress={() => bridgeStore.decideApproval(sessionId, approval.id, false)}
-              className="min-h-11 flex-1 items-center justify-center rounded-xl border border-border bg-surface-secondary py-2.5 active:scale-95"
-            >
-              <Text className="text-sm font-semibold text-foreground">{t('mobile.chat.deny')}</Text>
-            </Pressable>
-          </View>
-        </View>
-    </View>
+          <Text className="text-[15px] font-semibold text-surface-secondary-foreground">{t('mobile.chat.deny')}</Text>
+        </Pressable>
+        <Pressable
+          onPress={() => bridgeStore.decideApproval(sessionId, approval.id, true)}
+          className={dangerous ? PRIMARY_BTN.replace('bg-default', 'bg-danger') : PRIMARY_BTN}
+        >
+          <Text className={`text-[15px] font-semibold ${dangerous ? 'text-danger-foreground' : 'text-default-foreground'}`}>
+            {t('mobile.chat.approve')}
+          </Text>
+        </Pressable>
+      </View>
+    </Pager>
   );
 }
 
@@ -85,32 +152,50 @@ export function QuestionBatchSlot({ sessionId }: { sessionId: string }) {
   const batch = batches[index];
   if (!batch) return null;
   return (
-    <View className="gap-2.5 px-3.5 pb-2">
-      {batches.length > 1 ? (
-        <View className="flex-row items-center justify-end gap-2">
-          <Pressable onPress={() => setCursor((index + batches.length - 1) % batches.length)} className="min-h-11 justify-center px-2">
-            <Text className="text-xs font-semibold text-primary">{t('mobile.chat.prevCard')}</Text>
-          </Pressable>
-          <Text className="text-xs font-mono text-muted">
-            {index + 1}/{batches.length}
-          </Text>
-          <Pressable onPress={() => setCursor((index + 1) % batches.length)} className="min-h-11 justify-center px-2">
-            <Text className="text-xs font-semibold text-primary">{t('mobile.chat.nextCard')}</Text>
-          </Pressable>
-        </View>
-      ) : null}
+    <Pager index={index} count={batches.length} onMove={setCursor} label={t('mobile.chat.questionLabel')}>
       <QuestionBatchPane key={batch.rpcId} sessionId={sessionId} batch={batch} />
-    </View>
+    </Pager>
   );
 }
 
-export function QuestionBatchPane({
-  sessionId,
-  batch
+function Option({
+  on,
+  mark,
+  label,
+  recommended,
+  description,
+  onPress
 }: {
-  sessionId: string;
-  batch: PendingQuestionBatch;
+  on: boolean;
+  mark: ReactNode;
+  label: string;
+  recommended?: boolean;
+  description?: string;
+  onPress: () => void;
 }) {
+  const { t } = useTranslation();
+  return (
+    <Pressable
+      onPress={onPress}
+      className={`min-h-11 justify-center rounded-xl border-2 bg-surface-secondary px-3.5 py-2.5 active:opacity-70 ${
+        on ? 'border-focus' : 'border-transparent'
+      }`}
+    >
+      <View className="flex-row items-start gap-2.5">
+        <View className="w-4 pt-1">{mark}</View>
+        <View className="min-w-0 flex-1">
+          <Text className="text-[15px] text-surface-secondary-foreground">{label}</Text>
+          {recommended ? (
+            <Text className="mt-0.5 text-[11px] font-semibold text-link">{t('shell.question.recommended')}</Text>
+          ) : null}
+          {description ? <Text className="mt-0.5 text-[13px] leading-5 text-muted">{description}</Text> : null}
+        </View>
+      </View>
+    </Pressable>
+  );
+}
+
+export function QuestionBatchPane({ sessionId, batch }: { sessionId: string; batch: PendingQuestionBatch }) {
   const { t } = useTranslation();
   const vars = useThemeVars();
   const [index, setIndex] = useState(0);
@@ -187,92 +272,65 @@ export function QuestionBatchPane({
   };
 
   return (
-    <View className="overflow-hidden rounded-2xl border border-primary/40 bg-surface p-4 shadow-md">
-      <View className="flex-row items-start justify-between gap-2">
+    <View>
+      <View className="mt-1 flex-row items-start justify-between gap-2">
         <View className="min-w-0 flex-1">
-          {question.header ? (
-            <Text className="text-[11px] leading-4 text-muted">{question.header}</Text>
-          ) : null}
-          <Text className="text-base font-semibold text-foreground">{question.question}</Text>
+          {question.header ? <Text className="text-[11px] leading-4 text-muted">{question.header}</Text> : null}
+          <Text className="text-[15px] font-semibold leading-6 text-surface-foreground">{question.question}</Text>
         </View>
         <Pressable
           onPress={() => bridgeStore.answerQuestionBatch(sessionId, batch.rpcId, { cancelled: true })}
-          className="rounded-lg px-2 py-1 active:opacity-70"
+          className="min-h-11 justify-center px-1 active:opacity-60"
         >
-          <Text className="text-xs font-semibold text-muted">{t('shell.question.dismissAll')}</Text>
+          <Text className="text-[13px] font-semibold text-muted">{t('shell.question.dismissAll')}</Text>
         </Pressable>
       </View>
-      {question.detail ? (
-        <Text className="mt-1.5 text-xs leading-5 text-muted">{question.detail}</Text>
-      ) : null}
+      {question.detail ? <Text className="mt-1 text-[13px] leading-5 text-muted">{question.detail}</Text> : null}
       <View className="mt-3 gap-2">
         {options.map((option, i) => {
           const on = draft.selected.includes(option.label);
           const display = parseRecommendedLabel(option.label);
-          const recommended = display.recommended || approve === option.label;
           return (
-            <Pressable
+            <Option
               key={`${option.label}-${i}`}
+              on={on}
+              mark={
+                multi ? (
+                  on ? (
+                    <Glyph name="check" size={14} color={vars['--focus']} />
+                  ) : null
+                ) : (
+                  <Text className="font-mono text-[13px] text-muted">{i + 1}</Text>
+                )
+              }
+              label={display.label}
+              recommended={display.recommended || approve === option.label}
+              description={option.description}
               onPress={() => choose(option.label)}
-              className={`min-h-11 justify-center rounded-xl border px-3.5 py-2.5 active:scale-[0.98] ${
-                on ? 'border-primary bg-primary/10' : 'border-border bg-surface-secondary'
-              }`}
-            >
-              <View className="flex-row items-start gap-2">
-                <Text className="mt-0.5 text-xs font-mono text-muted">{multi ? (on ? '☑' : '☐') : `${i + 1}`}</Text>
-                <View className="min-w-0 flex-1">
-                  <Text className="text-sm font-medium text-foreground">{display.label}</Text>
-                  {recommended ? (
-                    <Text className="mt-0.5 text-[10px] font-semibold text-primary">
-                      {t('shell.question.recommended')}
-                    </Text>
-                  ) : null}
-                  {option.description ? (
-                    <Text className="mt-0.5 text-xs leading-4 text-muted">{option.description}</Text>
-                  ) : null}
-                </View>
-              </View>
-            </Pressable>
+            />
           );
         })}
       </View>
-      <View className="mt-3 flex-row gap-2">
-        <TextInput
-          value={draft.custom}
-          onChangeText={(custom) =>
-            update({
-              selected: multi ? draft.selected : [],
-              custom,
-              skipped: false
-            })
-          }
-          placeholder={t('shell.question.typeYourAnswer')}
-          placeholderTextColor={vars['--muted']}
-          className="flex-1 rounded-xl border border-border bg-surface-secondary px-3.5 py-2 text-sm text-foreground"
-        />
-      </View>
-      {error ? <Text className="mt-2 text-xs text-destructive">{error}</Text> : null}
-      <View className="mt-3.5 flex-row items-center justify-between">
-        <Text className="text-xs text-muted">
+      <TextInput
+        value={draft.custom}
+        onChangeText={(custom) => update({ selected: multi ? draft.selected : [], custom, skipped: false })}
+        placeholder={t('shell.question.typeYourAnswer')}
+        placeholderTextColor={vars['--muted']}
+        className="mt-3 min-h-11 rounded-xl bg-surface-secondary px-3.5 py-2.5 text-[15px] text-surface-secondary-foreground"
+      />
+      {error ? <Text className="mt-2 text-[13px] text-danger">{error}</Text> : null}
+      <View className="mt-4 flex-row items-center gap-2.5">
+        <Text className="text-[13px] text-muted">
           {index + 1} / {batch.questions.length}
         </Text>
-        <View className="flex-row gap-2">
-          <Pressable
-            onPress={skip}
-            className="min-h-11 justify-center rounded-xl border border-border bg-surface-secondary px-3 py-2 active:scale-95"
-          >
-            <Text className="text-xs font-semibold text-foreground">{t('shell.question.skip')}</Text>
-          </Pressable>
-          <Pressable
-            onPress={goNext}
-            disabled={!batchDraftAnswered(draft)}
-            className="min-h-11 justify-center rounded-xl bg-default px-3 py-2 active:scale-95 disabled:opacity-30"
-          >
-            <Text className="text-xs font-semibold text-default-foreground">
-              {index === last ? t('shell.question.submit') : t('shell.question.next')}
-            </Text>
-          </Pressable>
-        </View>
+        <Pressable onPress={skip} className={SECONDARY_BTN}>
+          <Text className="text-[15px] font-semibold text-surface-secondary-foreground">{t('shell.question.skip')}</Text>
+        </Pressable>
+        <Pressable onPress={goNext} disabled={!batchDraftAnswered(draft)} className={PRIMARY_BTN}>
+          <Text className="text-[15px] font-semibold text-default-foreground">
+            {index === last ? t('shell.question.submit') : t('shell.question.next')}
+          </Text>
+        </Pressable>
       </View>
     </View>
   );
@@ -288,25 +346,9 @@ export function QuestionSlot({ sessionId }: { sessionId: string }) {
   const question = questions[index];
   if (!question) return null;
   return (
-    <View className="gap-2.5 px-3.5 pb-2">
-      {questions.length > 1 ? (
-        <View className="flex-row items-center justify-end gap-2">
-          <Pressable
-            onPress={() => setCursor((index + questions.length - 1) % questions.length)}
-            className="min-h-11 justify-center px-2"
-          >
-            <Text className="text-xs font-semibold text-primary">{t('mobile.chat.prevCard')}</Text>
-          </Pressable>
-          <Text className="text-xs font-mono text-muted">
-            {index + 1}/{questions.length}
-          </Text>
-          <Pressable onPress={() => setCursor((index + 1) % questions.length)} className="min-h-11 justify-center px-2">
-            <Text className="text-xs font-semibold text-primary">{t('mobile.chat.nextCard')}</Text>
-          </Pressable>
-        </View>
-      ) : null}
+    <Pager index={index} count={questions.length} onMove={setCursor} label={t('mobile.chat.questionLabel')}>
       <QuestionCard key={question.id} sessionId={sessionId} question={question} />
-    </View>
+    </Pager>
   );
 }
 
@@ -315,25 +357,21 @@ export function QuestionCard({ sessionId, question }: { sessionId: string; quest
   const vars = useThemeVars();
   const [custom, setCustom] = useState('');
   return (
-    <View
-      className="overflow-hidden rounded-2xl border border-primary/40 bg-surface p-4 shadow-md"
-    >
+    <View>
       {question.title ? (
-        <Text className="text-base font-semibold text-foreground">{question.title}</Text>
+        <Text className="mt-1 text-[15px] font-semibold leading-6 text-surface-foreground">{question.title}</Text>
       ) : null}
-      <Text className="mt-1.5 text-sm leading-5 text-foreground">{question.question}</Text>
+      <Text className="mt-1 text-[15px] leading-6 text-surface-foreground">{question.question}</Text>
       <View className="mt-3 gap-2">
-        {question.options.map((option) => (
-          <Pressable
+        {question.options.map((option, i) => (
+          <Option
             key={option.id}
+            on={false}
+            mark={<Text className="font-mono text-[13px] text-muted">{i + 1}</Text>}
+            label={option.label}
+            description={option.description}
             onPress={() => bridgeStore.answerQuestion(sessionId, question.id, option.label)}
-            className="min-h-11 justify-center rounded-xl border border-border bg-surface-secondary px-3.5 py-2.5 active:scale-[0.98] active:bg-surface"
-          >
-            <Text className="text-sm font-medium text-foreground">{option.label}</Text>
-            {option.description ? (
-              <Text className="mt-0.5 text-xs text-muted leading-4">{option.description}</Text>
-            ) : null}
-          </Pressable>
+          />
         ))}
       </View>
       {question.allowCustom ? (
@@ -343,7 +381,7 @@ export function QuestionCard({ sessionId, question }: { sessionId: string; quest
             onChangeText={setCustom}
             placeholder={t('mobile.chat.customOption')}
             placeholderTextColor={vars['--muted']}
-            className="flex-1 rounded-xl border border-border bg-surface-secondary px-3.5 py-2 text-sm text-foreground"
+            className="min-h-11 flex-1 rounded-xl bg-surface-secondary px-3.5 py-2.5 text-[15px] text-surface-secondary-foreground"
           />
           <Pressable
             onPress={() => {
@@ -351,9 +389,9 @@ export function QuestionCard({ sessionId, question }: { sessionId: string; quest
               bridgeStore.answerQuestion(sessionId, question.id, custom.trim());
               setCustom('');
             }}
-            className="min-h-11 items-center justify-center rounded-xl bg-default px-4 active:scale-95"
+            className="min-h-11 items-center justify-center rounded-xl bg-default px-4 active:opacity-80"
           >
-            <Text className="text-sm font-semibold text-default-foreground">{t('shell.common.submit')}</Text>
+            <Text className="text-[15px] font-semibold text-default-foreground">{t('shell.common.submit')}</Text>
           </Pressable>
         </View>
       ) : null}
@@ -363,54 +401,58 @@ export function QuestionCard({ sessionId, question }: { sessionId: string; quest
 
 export function FollowUpsBar({ sessionId }: { sessionId: string }) {
   const { t } = useTranslation();
+  const vars = useThemeVars();
   const snapshot = useBridgeSnapshot();
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editText, setEditText] = useState('');
   const followUps = snapshot.followUps[sessionId];
   if (!followUps || followUps.items.length === 0) return null;
   return (
-    <View className="border-t border-border bg-surface/50 px-3.5 py-2.5">
-      <View className="flex-row items-center justify-between">
-        <Text className="text-xs font-semibold text-muted">
+    <View>
+      <View className="flex-row items-center justify-between pt-5">
+        <Text className="text-[13px] text-muted">
           {followUps.paused ? t('mobile.chat.queuePaused') : t('mobile.chat.queueActive')}
         </Text>
-        <Pressable onPress={() => bridgeStore.followUpPause(sessionId, !followUps.paused)}>
-          <Text className="text-xs font-semibold text-primary">{followUps.paused ? t('mobile.chat.resumeQueue') : t('mobile.chat.pauseQueue')}</Text>
+        <Pressable
+          onPress={() => bridgeStore.followUpPause(sessionId, !followUps.paused)}
+          className="min-h-11 justify-center pl-3 active:opacity-60"
+        >
+          <Text className="text-[13px] font-semibold text-link">
+            {followUps.paused ? t('mobile.chat.resumeQueue') : t('mobile.chat.pauseQueue')}
+          </Text>
         </Pressable>
       </View>
       {followUps.items.map((item: FollowUpItem, index: number) => (
-        <View
-          key={item.id}
-          className="mt-2 flex-row items-center rounded-xl border border-border bg-surface px-3 py-2"
-        >
+        <View key={item.id} className="min-h-11 flex-row items-center">
           {editingId === item.id ? (
             <View className="flex-1 flex-row items-center gap-2">
               <TextInput
                 value={editText}
                 onChangeText={setEditText}
                 autoFocus
-                className="flex-1 rounded-lg bg-surface-secondary px-2.5 py-1 text-xs text-foreground"
+                className="min-h-10 flex-1 rounded-xl bg-surface-secondary px-3 text-[15px] text-surface-secondary-foreground"
               />
               <Pressable
                 onPress={() => {
                   if (editText.trim()) bridgeStore.followUpUpdate(sessionId, item.id, editText.trim());
                   setEditingId(null);
                 }}
+                className="min-h-11 justify-center px-2 active:opacity-60"
               >
-                <Text className="text-xs font-bold text-primary">{t('shell.common.save')}</Text>
+                <Text className="text-[15px] font-semibold text-link">{t('shell.common.save')}</Text>
               </Pressable>
             </View>
           ) : (
             <>
               <Pressable
-                className="flex-1"
+                className="min-h-11 flex-1 justify-center"
                 onPress={() => bridgeStore.followUpReorder(sessionId, index, 0)}
                 onLongPress={() => {
                   setEditText(item.text);
                   setEditingId(item.id);
                 }}
               >
-                <Text numberOfLines={1} className="text-xs font-medium text-foreground">
+                <Text numberOfLines={1} className="text-[15px] text-overlay-foreground">
                   {index + 1}. {item.text}
                 </Text>
               </Pressable>
@@ -419,12 +461,16 @@ export function FollowUpsBar({ sessionId }: { sessionId: string }) {
                   setEditText(item.text);
                   setEditingId(item.id);
                 }}
-                className="ml-2 px-1.5 py-0.5"
+                className="min-h-11 justify-center px-2 active:opacity-60"
               >
-                <Text className="text-xs text-muted">{t('mobile.chat.edit')}</Text>
+                <Text className="text-[13px] text-muted">{t('mobile.chat.edit')}</Text>
               </Pressable>
-              <Pressable onPress={() => bridgeStore.followUpRemove(sessionId, item.id)} className="ml-1 px-1.5 py-0.5">
-                <Text className="text-xs text-muted">✕</Text>
+              <Pressable
+                onPress={() => bridgeStore.followUpRemove(sessionId, item.id)}
+                accessibilityLabel={t('shell.common.delete')}
+                className="min-h-11 justify-center px-2 active:opacity-60"
+              >
+                <Glyph name="cross" size={14} color={vars['--muted']} />
               </Pressable>
             </>
           )}
@@ -433,4 +479,3 @@ export function FollowUpsBar({ sessionId }: { sessionId: string }) {
     </View>
   );
 }
-

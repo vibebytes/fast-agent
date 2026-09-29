@@ -1827,7 +1827,18 @@
       "lastConnectedNow": "剛剛連線",
       "lastConnectedMinutes": "{{count}} 分鐘前連線",
       "lastConnectedHours": "{{count}} 小時前連線",
-      "lastConnectedDays": "{{count}} 天前連線"
+      "lastConnectedDays": "{{count}} 天前連線",
+      "assistant": "助手",
+      "assistantHint": "只儲存在這台手機上。",
+      "assistantName": "名字",
+      "assistantMark": "頭像",
+      "assistantMarkPlaceholder": "一個 emoji，留空用預設標誌",
+      "fieldLabel": "備註",
+      "fieldUrl": "位址",
+      "fieldFingerprint": "指紋",
+      "test": "測試",
+      "about": "關於",
+      "version": "版本"
     },
     "index": {
       "new": "新建",
@@ -1850,10 +1861,12 @@
       "loadingList": "正在載入會話列表…",
       "connectingDesktop": "正在連線桌面端…",
       "emptyTitle": "暫無歷史會話",
-      "emptyBody": "點擊右上角「新會話」開啟對話體驗",
+      "emptyBody": "點右上角 + 開一個臨時會話",
       "running": "進行中",
       "noMessages": "暫無訊息",
-      "messageCount": "{{count}} 則訊息"
+      "messageCount": "{{count}} 則訊息",
+      "mainGroup": "主會話",
+      "tempGroup": "臨時會話"
     },
     "session": {
       "missing": "會話不存在。"
@@ -1916,7 +1929,11 @@
       "pauseQueue": "暫停佇列",
       "edit": "編輯",
       "prevCard": "上一則",
-      "nextCard": "下一則"
+      "nextCard": "下一則",
+      "approvalLabel": "需要你批准",
+      "questionLabel": "有個問題",
+      "details": "詳情",
+      "hideDetails": "收起詳情"
     },
     "voice": {
       "micDenied": "麥克風權限被拒絕，請在系統設定中允許",
@@ -1956,6 +1973,45 @@
       "rescanHint": "請回桌面端重新掃碼",
       "unconfigured": "尚未儲存伺服器",
       "retry": "重試"
+    },
+    "home": {
+      "title": "主對話",
+      "greeting": "想讓 {{name}} 做什麼？",
+      "example1": "總結一下這個專案今天改了什麼",
+      "example2": "跑一下測試，告訴我哪裡失敗了",
+      "example3": "找出我上週留下的 TODO",
+      "creating": "正在準備主對話…",
+      "failed": "主對話沒建起來。"
+    },
+    "avatar": {
+      "a11y": "{{name}}，查看狀態"
+    },
+    "status": {
+      "title": "狀態",
+      "empty": "沒有進行中的事",
+      "needs": "需要你",
+      "working": "正在做",
+      "running": "執行中",
+      "scope": "只統計這台手機開啟過的會話。"
+    },
+    "brief": {
+      "running": "正在{{what}}…",
+      "done": "完成了 {{count}} 步",
+      "doneFailed": "{{count}} 步 ·",
+      "failed": "{{count}} 步失敗",
+      "changed": "改了 {{count}} 個檔案",
+      "verb": {
+        "shell": "執行命令",
+        "file": "修改檔案",
+        "search": "查看程式碼",
+        "git": "處理版本",
+        "agent": "協作",
+        "system": "呼叫工具"
+      }
+    },
+    "display": {
+      "toBrief": "簡潔顯示",
+      "toFull": "完整顯示"
     }
   }
 }

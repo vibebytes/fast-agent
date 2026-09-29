@@ -11,8 +11,13 @@ export type GlyphName =
   | 'chevron-down'
   | 'chevron-right'
   | 'sparkles'
+  | 'bolt'
   | 'server'
-  | 'palette';
+  | 'palette'
+  | 'arrow-up'
+  | 'alert'
+  | 'brief'
+  | 'full';
 
 export function Glyph({
   name,
@@ -125,6 +130,16 @@ export function Glyph({
           strokeLinejoin="round"
         />
       ) : null}
+      {name === 'bolt' ? (
+        <Path
+          d="M13.2 2.5 5 13.4h6l-1 8.1 8.2-10.9h-6l1-7.6Z"
+          stroke={color}
+          strokeWidth={stroke}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          fill={filled ? color : 'none'}
+        />
+      ) : null}
       {name === 'sparkles' ? (
         <Path
           d="m12 3-1.9 5.6a2 2 0 0 1-1.3 1.3L3.2 12l5.6 1.9a2 2 0 0 1 1.3 1.3L12 20.8l1.9-5.6a2 2 0 0 1 1.3-1.3L20.8 12l-5.6-1.9a2 2 0 0 1-1.3-1.3L12 3Z"
@@ -145,6 +160,37 @@ export function Glyph({
           />
           <Path d="M6 6.5h.01M6 17.5h.01" stroke={color} strokeWidth={stroke + 1} strokeLinecap="round" />
         </>
+      ) : null}
+      {name === 'arrow-up' ? (
+        <Path
+          d="M12 19V5M5.5 11.5 12 5l6.5 6.5"
+          stroke={color}
+          strokeWidth={stroke + 0.4}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      ) : null}
+      {name === 'alert' ? (
+        <>
+          <Circle cx="12" cy="12" r="8.5" stroke={color} strokeWidth={stroke} />
+          <Path d="M12 7.8v5M12 16.2h.01" stroke={color} strokeWidth={stroke + 0.4} strokeLinecap="round" />
+        </>
+      ) : null}
+      {name === 'brief' ? (
+        <Path
+          d="M6 8.5h12M6 12h8M6 15.5h10"
+          stroke={color}
+          strokeWidth={stroke}
+          strokeLinecap="round"
+        />
+      ) : null}
+      {name === 'full' ? (
+        <Path
+          d="M5 6h14M5 9.5h14M5 13h14M5 16.5h14M5 20h9"
+          stroke={color}
+          strokeWidth={stroke}
+          strokeLinecap="round"
+        />
       ) : null}
       {name === 'palette' ? (
         <Path

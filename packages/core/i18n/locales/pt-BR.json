@@ -1827,7 +1827,18 @@
       "lastConnectedNow": "Conectado agora",
       "lastConnectedMinutes": "Conectado há {{count}} min",
       "lastConnectedHours": "Conectado há {{count}} h",
-      "lastConnectedDays": "Conectado há {{count}} d"
+      "lastConnectedDays": "Conectado há {{count}} d",
+      "assistant": "Assistente",
+      "assistantHint": "Salvo apenas neste celular.",
+      "assistantName": "Nome",
+      "assistantMark": "Avatar",
+      "assistantMarkPlaceholder": "Um emoji, ou vazio para a marca padrão",
+      "fieldLabel": "Rótulo",
+      "fieldUrl": "Endereço",
+      "fieldFingerprint": "Impressão",
+      "test": "Testar",
+      "about": "Sobre",
+      "version": "Versão"
     },
     "index": {
       "new": "Novo",
@@ -1850,10 +1861,12 @@
       "loadingList": "Carregando sessões…",
       "connectingDesktop": "Conectando ao desktop…",
       "emptyTitle": "Ainda não há sessões",
-      "emptyBody": "Toque em Nova sessão para começar a conversar",
+      "emptyBody": "Toque em + no canto superior direito para abrir uma conversa temporária",
       "running": "Em execução",
       "noMessages": "Sem mensagens",
-      "messageCount": "{{count}} mensagens"
+      "messageCount": "{{count}} mensagens",
+      "mainGroup": "Principal",
+      "tempGroup": "Conversas temporárias"
     },
     "session": {
       "missing": "Sessão não encontrada."
@@ -1916,7 +1929,11 @@
       "pauseQueue": "Pausar fila",
       "edit": "Editar",
       "prevCard": "Anterior",
-      "nextCard": "Próximo"
+      "nextCard": "Próximo",
+      "approvalLabel": "Precisa da sua aprovação",
+      "questionLabel": "Uma pergunta para você",
+      "details": "Detalhes",
+      "hideDetails": "Ocultar detalhes"
     },
     "voice": {
       "micDenied": "Permissão do microfone negada. Permita nas configurações do sistema.",
@@ -1956,6 +1973,45 @@
       "rescanHint": "Escaneie o QR code no desktop novamente",
       "unconfigured": "Nenhum servidor salvo",
       "retry": "Tentar de novo"
+    },
+    "home": {
+      "title": "Conversa principal",
+      "greeting": "O que {{name}} deve fazer?",
+      "example1": "Resuma o que mudou hoje neste projeto",
+      "example2": "Rode os testes e me diga o que falha",
+      "example3": "Encontre os TODOs que deixei na semana passada",
+      "creating": "Preparando a conversa principal…",
+      "failed": "Não foi possível criar a conversa principal."
+    },
+    "avatar": {
+      "a11y": "{{name}}, ver status"
+    },
+    "status": {
+      "title": "Status",
+      "empty": "Nada em andamento",
+      "needs": "Precisa de você",
+      "working": "Em andamento",
+      "running": "Em execução",
+      "scope": "Conta apenas conversas abertas neste celular."
+    },
+    "brief": {
+      "running": "{{what}}…",
+      "done": "Concluído em {{count}} etapas",
+      "doneFailed": "{{count}} etapas ·",
+      "failed": "{{count}} falharam",
+      "changed": "{{count}} arquivos alterados",
+      "verb": {
+        "shell": "Executando um comando",
+        "file": "Editando arquivos",
+        "search": "Lendo código",
+        "git": "Trabalhando com git",
+        "agent": "Delegando",
+        "system": "Usando uma ferramenta"
+      }
+    },
+    "display": {
+      "toBrief": "Visão resumida",
+      "toFull": "Visão completa"
     }
   }
 }

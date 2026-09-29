@@ -66,7 +66,23 @@ function hexWithAlpha(hex, alpha) {
   return `${hex}${a}`;
 }
 
-function buildTokens(vars) {
+/** Status hues shared by every palette (same values as heroui-native defaults), so JS can read them for SVG. */
+const STATUS = {
+  light: {
+    '--warning': 'oklch(0.7819 0.1585 72.33)',
+    '--warning-foreground': 'oklch(0.2103 0.0059 285.89)',
+    '--success': 'oklch(0.7329 0.1935 150.81)',
+    '--success-foreground': 'oklch(0.2103 0.0059 285.89)'
+  },
+  dark: {
+    '--warning': 'oklch(0.8203 0.1388 76.34)',
+    '--warning-foreground': 'oklch(0.2103 0.0059 285.89)',
+    '--success': 'oklch(0.7329 0.1935 150.81)',
+    '--success-foreground': 'oklch(0.2103 0.0059 285.89)'
+  }
+};
+
+function buildTokens(vars, scheme) {
   const out = {};
   for (const [from, to] of Object.entries(MAP)) {
     if (vars[from] != null) out[to] = oklchToHex(vars[from]);
@@ -76,6 +92,7 @@ function buildTokens(vars) {
   out['--link'] = out['--focus'];
   out['--danger-foreground'] = out['--default-foreground'];
   out['--card-glass'] = hexWithAlpha(out['--surface'], 0.72);
+  for (const [name, value] of Object.entries(STATUS[scheme])) out[name] = oklchToHex(value);
   return out;
 }
 
@@ -92,8 +109,8 @@ const palettes = files.map((file) => {
     title: palette.title,
     category: CATEGORY[palette.name] || 'clean',
     swatches: swatchVars.map((k) => oklchToHex(lightVars[k])),
-    light: buildTokens(palette.cssVars.light),
-    dark: buildTokens(palette.cssVars.dark)
+    light: buildTokens(palette.cssVars.light, 'light'),
+    dark: buildTokens(palette.cssVars.dark, 'dark')
   };
 }).filter((p) => p.category !== 'countries');
 

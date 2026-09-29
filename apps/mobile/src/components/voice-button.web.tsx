@@ -9,9 +9,10 @@ import { useThemeVars } from '@/theme/theme-context';
 interface VoiceInputProps {
   onResult: (text: string) => void;
   disabled?: boolean;
+  inline?: boolean;
 }
 
-export function VoiceButton({ onResult, disabled }: VoiceInputProps) {
+export function VoiceButton({ onResult, disabled, inline = false }: VoiceInputProps) {
   const { t } = useTranslation();
   const vars = useThemeVars();
   const [listening, setListening] = useState(false);
@@ -77,13 +78,13 @@ export function VoiceButton({ onResult, disabled }: VoiceInputProps) {
       disabled={disabled}
       accessibilityRole="button"
       accessibilityLabel={t('mobile.voice.a11y')}
-      className={`h-[44px] w-[44px] items-center justify-center rounded-2xl ${
-        listening ? 'bg-primary' : 'bg-surface-secondary'
-      } active:scale-95 active:opacity-75 disabled:opacity-40`}
+      className={`h-[44px] w-[44px] items-center justify-center ${inline ? 'rounded-full' : 'rounded-2xl'} ${
+        listening ? 'bg-default' : inline ? '' : 'bg-surface-secondary'
+      } active:opacity-60 disabled:opacity-40`}
     >
       <Glyph
         name="mic"
-        color={listening ? vars['--primary-foreground'] || '#ffffff' : vars['--foreground']}
+        color={listening ? vars['--default-foreground'] : inline ? vars['--muted'] : vars['--foreground']}
         size={20}
         filled={listening}
       />

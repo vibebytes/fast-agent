@@ -1827,7 +1827,18 @@
       "lastConnectedNow": "Connecté à l'instant",
       "lastConnectedMinutes": "Connecté il y a {{count}} min",
       "lastConnectedHours": "Connecté il y a {{count}} h",
-      "lastConnectedDays": "Connecté il y a {{count}} j"
+      "lastConnectedDays": "Connecté il y a {{count}} j",
+      "assistant": "Assistant",
+      "assistantHint": "Enregistré uniquement sur ce téléphone.",
+      "assistantName": "Nom",
+      "assistantMark": "Avatar",
+      "assistantMarkPlaceholder": "Un emoji, ou vide pour la marque par défaut",
+      "fieldLabel": "Libellé",
+      "fieldUrl": "Adresse",
+      "fieldFingerprint": "Empreinte",
+      "test": "Tester",
+      "about": "À propos",
+      "version": "Version"
     },
     "index": {
       "new": "Nouveau",
@@ -1850,10 +1861,12 @@
       "loadingList": "Chargement des sessions…",
       "connectingDesktop": "Connexion au bureau…",
       "emptyTitle": "Pas encore de sessions",
-      "emptyBody": "Appuyez sur Nouvelle session pour discuter",
+      "emptyBody": "Touche + en haut à droite pour lancer une conversation temporaire",
       "running": "En cours",
       "noMessages": "Aucun message",
-      "messageCount": "{{count}} messages"
+      "messageCount": "{{count}} messages",
+      "mainGroup": "Principale",
+      "tempGroup": "Conversations temporaires"
     },
     "session": {
       "missing": "Session introuvable."
@@ -1916,7 +1929,11 @@
       "pauseQueue": "Mettre la file en pause",
       "edit": "Modifier",
       "prevCard": "Précédent",
-      "nextCard": "Suivant"
+      "nextCard": "Suivant",
+      "approvalLabel": "Attend ton approbation",
+      "questionLabel": "Une question pour toi",
+      "details": "Détails",
+      "hideDetails": "Masquer les détails"
     },
     "voice": {
       "micDenied": "Permission du microphone refusée. Autorisez-la dans les réglages système.",
@@ -1956,6 +1973,45 @@
       "rescanHint": "Rescannez le QR code sur le bureau",
       "unconfigured": "Aucun serveur enregistré",
       "retry": "Réessayer"
+    },
+    "home": {
+      "title": "Conversation principale",
+      "greeting": "Que doit faire {{name}} ?",
+      "example1": "Résume ce qui a changé aujourd'hui dans ce projet",
+      "example2": "Lance les tests et dis-moi ce qui échoue",
+      "example3": "Trouve les TODO que j'ai laissés la semaine dernière",
+      "creating": "Préparation de la conversation principale…",
+      "failed": "Impossible de créer la conversation principale."
+    },
+    "avatar": {
+      "a11y": "{{name}}, afficher l’état"
+    },
+    "status": {
+      "title": "État",
+      "empty": "Rien en cours",
+      "needs": "Attend ta réponse",
+      "working": "En cours",
+      "running": "En cours d’exécution",
+      "scope": "Ne compte que les conversations ouvertes sur ce téléphone."
+    },
+    "brief": {
+      "running": "{{what}}…",
+      "done": "Terminé en {{count}} étapes",
+      "doneFailed": "{{count}} étapes ·",
+      "failed": "{{count}} en échec",
+      "changed": "{{count}} fichiers modifiés",
+      "verb": {
+        "shell": "Exécution d’une commande",
+        "file": "Modification de fichiers",
+        "search": "Lecture du code",
+        "git": "Travail avec git",
+        "agent": "Délégation",
+        "system": "Utilisation d’un outil"
+      }
+    },
+    "display": {
+      "toBrief": "Vue compacte",
+      "toFull": "Vue complète"
     }
   }
 }

@@ -1827,7 +1827,18 @@
       "lastConnectedNow": "Gerade verbunden",
       "lastConnectedMinutes": "Vor {{count}} Min. verbunden",
       "lastConnectedHours": "Vor {{count}} Std. verbunden",
-      "lastConnectedDays": "Vor {{count}} Tagen verbunden"
+      "lastConnectedDays": "Vor {{count}} Tagen verbunden",
+      "assistant": "Assistent",
+      "assistantHint": "Nur auf diesem Telefon gespeichert.",
+      "assistantName": "Name",
+      "assistantMark": "Avatar",
+      "assistantMarkPlaceholder": "Ein Emoji oder leer für das Standardzeichen",
+      "fieldLabel": "Name",
+      "fieldUrl": "Adresse",
+      "fieldFingerprint": "Fingerabdruck",
+      "test": "Testen",
+      "about": "Über",
+      "version": "Version"
     },
     "index": {
       "new": "Neu",
@@ -1850,10 +1861,12 @@
       "loadingList": "Sitzungen werden geladen…",
       "connectingDesktop": "Verbindung zum Desktop…",
       "emptyTitle": "Noch keine Sitzungen",
-      "emptyBody": "Tippe auf Neue Sitzung, um zu chatten",
+      "emptyBody": "Tippe oben rechts auf +, um einen temporären Chat zu starten",
       "running": "Läuft",
       "noMessages": "Keine Nachrichten",
-      "messageCount": "{{count}} Nachrichten"
+      "messageCount": "{{count}} Nachrichten",
+      "mainGroup": "Hauptchat",
+      "tempGroup": "Temporäre Chats"
     },
     "session": {
       "missing": "Sitzung nicht gefunden."
@@ -1916,7 +1929,11 @@
       "pauseQueue": "Warteschlange pausieren",
       "edit": "Bearbeiten",
       "prevCard": "Zurück",
-      "nextCard": "Weiter"
+      "nextCard": "Weiter",
+      "approvalLabel": "Braucht deine Freigabe",
+      "questionLabel": "Eine Frage an dich",
+      "details": "Details",
+      "hideDetails": "Details ausblenden"
     },
     "voice": {
       "micDenied": "Mikrofonzugriff verweigert. Erlaube ihn in den Systemeinstellungen.",
@@ -1956,6 +1973,45 @@
       "rescanHint": "Bitte am Desktop neu scannen",
       "unconfigured": "Kein Server gespeichert",
       "retry": "Erneut versuchen"
+    },
+    "home": {
+      "title": "Hauptchat",
+      "greeting": "Was soll {{name}} tun?",
+      "example1": "Fasse zusammen, was sich heute im Projekt geändert hat",
+      "example2": "Führe die Tests aus und sag mir, was fehlschlägt",
+      "example3": "Finde die TODOs, die ich letzte Woche hinterlassen habe",
+      "creating": "Hauptchat wird vorbereitet…",
+      "failed": "Der Hauptchat konnte nicht erstellt werden."
+    },
+    "avatar": {
+      "a11y": "{{name}}, Status anzeigen"
+    },
+    "status": {
+      "title": "Status",
+      "empty": "Nichts in Arbeit",
+      "needs": "Braucht dich",
+      "working": "In Arbeit",
+      "running": "Läuft",
+      "scope": "Zählt nur Unterhaltungen, die auf diesem Telefon geöffnet wurden."
+    },
+    "brief": {
+      "running": "{{what}}…",
+      "done": "Fertig in {{count}} Schritten",
+      "doneFailed": "{{count}} Schritte ·",
+      "failed": "{{count}} fehlgeschlagen",
+      "changed": "{{count}} Dateien geändert",
+      "verb": {
+        "shell": "Befehl läuft",
+        "file": "Dateien werden bearbeitet",
+        "search": "Code wird gelesen",
+        "git": "Git-Arbeit",
+        "agent": "Wird delegiert",
+        "system": "Werkzeug wird genutzt"
+      }
+    },
+    "display": {
+      "toBrief": "Kompakt anzeigen",
+      "toFull": "Vollständig anzeigen"
     }
   }
 }

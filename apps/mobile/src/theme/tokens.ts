@@ -23,7 +23,11 @@ export const fastLight = {
   "--segment": "#f1f2f3",
   "--link": "#0072da",
   "--danger-foreground": "#fcfcfc",
-  "--card-glass": "#ffffffb8"
+  "--card-glass": "#ffffffb8",
+  "--warning": "#f5a524",
+  "--warning-foreground": "#18181b",
+  "--success": "#17c964",
+  "--success-foreground": "#18181b"
 };
 
 export const fastDark = {
@@ -49,5 +53,9 @@ export const fastDark = {
   "--segment": "#1b1d20",
   "--link": "#2389e2",
   "--danger-foreground": "#08090b",
-  "--card-glass": "#141618b8"
+  "--card-glass": "#141618b8",
+  "--warning": "#f7b750",
+  "--warning-foreground": "#18181b",
+  "--success": "#17c964",
+  "--success-foreground": "#18181b"
 };

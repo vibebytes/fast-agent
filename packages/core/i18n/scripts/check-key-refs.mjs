@@ -14,6 +14,7 @@ const DYNAMIC_PREFIX = /`((?:mobile|settings|shell)\.[A-Za-z0-9.]*)\$\{/g;
 const DYNAMIC = {
   'mobile.connection.': ['idle', 'connecting', 'hello', 'open', 'closed'],
   'mobile.history.': ['today', 'yesterday', 'week', 'older'],
+  'mobile.brief.verb.': ['shell', 'file', 'search', 'git', 'agent', 'system'],
   'mobile.copy.': ['urlScheme', 'urlInvalid', 'tlsModuleMissing', 'cannotConnect', 'timeout', 'helloOk']
 };
 

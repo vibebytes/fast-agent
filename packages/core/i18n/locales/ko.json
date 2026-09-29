@@ -1827,7 +1827,18 @@
       "lastConnectedNow": "방금 연결됨",
       "lastConnectedMinutes": "{{count}}분 전에 연결됨",
       "lastConnectedHours": "{{count}}시간 전에 연결됨",
-      "lastConnectedDays": "{{count}}일 전에 연결됨"
+      "lastConnectedDays": "{{count}}일 전에 연결됨",
+      "assistant": "어시스턴트",
+      "assistantHint": "이 휴대폰에만 저장됩니다.",
+      "assistantName": "이름",
+      "assistantMark": "아바타",
+      "assistantMarkPlaceholder": "이모지 하나, 비우면 기본 마크",
+      "fieldLabel": "이름",
+      "fieldUrl": "주소",
+      "fieldFingerprint": "지문",
+      "test": "테스트",
+      "about": "정보",
+      "version": "버전"
     },
     "index": {
       "new": "새로 만들기",
@@ -1850,10 +1861,12 @@
       "loadingList": "세션을 불러오는 중…",
       "connectingDesktop": "데스크톱에 연결 중…",
       "emptyTitle": "아직 세션이 없습니다",
-      "emptyBody": "새 세션을 눌러 채팅을 시작하세요",
+      "emptyBody": "오른쪽 위 + 를 눌러 임시 대화를 시작하세요",
       "running": "실행 중",
       "noMessages": "메시지 없음",
-      "messageCount": "메시지 {{count}}개"
+      "messageCount": "메시지 {{count}}개",
+      "mainGroup": "메인 대화",
+      "tempGroup": "임시 대화"
     },
     "session": {
       "missing": "세션을 찾을 수 없습니다."
@@ -1916,7 +1929,11 @@
       "pauseQueue": "대기열 일시 중지",
       "edit": "편집",
       "prevCard": "이전",
-      "nextCard": "다음"
+      "nextCard": "다음",
+      "approvalLabel": "승인이 필요해요",
+      "questionLabel": "질문이 있어요",
+      "details": "자세히",
+      "hideDetails": "접기"
     },
     "voice": {
       "micDenied": "마이크 권한이 거부되었습니다. 시스템 설정에서 허용하세요.",
@@ -1956,6 +1973,45 @@
       "rescanHint": "데스크톱에서 QR 코드를 다시 스캔하세요",
       "unconfigured": "저장된 서버가 없습니다",
       "retry": "다시 시도"
+    },
+    "home": {
+      "title": "메인 대화",
+      "greeting": "{{name}}에게 무엇을 맡길까요?",
+      "example1": "오늘 이 프로젝트에서 바뀐 내용을 요약해 줘",
+      "example2": "테스트를 돌리고 실패한 곳을 알려 줘",
+      "example3": "지난주에 남긴 TODO를 찾아 줘",
+      "creating": "메인 대화를 준비하는 중…",
+      "failed": "메인 대화를 만들지 못했습니다."
+    },
+    "avatar": {
+      "a11y": "{{name}}, 상태 보기"
+    },
+    "status": {
+      "title": "상태",
+      "empty": "진행 중인 일이 없습니다",
+      "needs": "확인이 필요해요",
+      "working": "작업 중",
+      "running": "실행 중",
+      "scope": "이 휴대폰에서 연 대화만 집계합니다."
+    },
+    "brief": {
+      "running": "{{what}} 중…",
+      "done": "{{count}}단계 완료",
+      "doneFailed": "{{count}}단계 ·",
+      "failed": "{{count}}개 실패",
+      "changed": "파일 {{count}}개 변경",
+      "verb": {
+        "shell": "명령 실행",
+        "file": "파일 수정",
+        "search": "코드 확인",
+        "git": "Git 작업",
+        "agent": "위임",
+        "system": "도구 사용"
+      }
+    },
+    "display": {
+      "toBrief": "간단히 보기",
+      "toFull": "전체 보기"
     }
   }
 }

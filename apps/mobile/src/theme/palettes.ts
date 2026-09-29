@@ -43,7 +43,11 @@ export const PALETTES: PaletteDef[] = [
       "--segment": "#f1f2f3",
       "--link": "#005dbd",
       "--danger-foreground": "#fcfcfc",
-      "--card-glass": "#ffffffb8"
+      "--card-glass": "#ffffffb8",
+      "--warning": "#f5a524",
+      "--warning-foreground": "#18181b",
+      "--success": "#17c964",
+      "--success-foreground": "#18181b"
     },
     "dark": {
       "--background": "#000000",
@@ -68,7 +72,11 @@ export const PALETTES: PaletteDef[] = [
       "--segment": "#0b0e0f",
       "--link": "#2389e2",
       "--danger-foreground": "#000000",
-      "--card-glass": "#020304b8"
+      "--card-glass": "#020304b8",
+      "--warning": "#f7b750",
+      "--warning-foreground": "#18181b",
+      "--success": "#17c964",
+      "--success-foreground": "#18181b"
     }
   },
   {
@@ -104,7 +112,11 @@ export const PALETTES: PaletteDef[] = [
       "--segment": "#e3eee8",
       "--link": "#009d4c",
       "--danger-foreground": "#f6f9f7",
-      "--card-glass": "#fafdfbb8"
+      "--card-glass": "#fafdfbb8",
+      "--warning": "#f5a524",
+      "--warning-foreground": "#18181b",
+      "--success": "#17c964",
+      "--success-foreground": "#18181b"
     },
     "dark": {
       "--background": "#000503",
@@ -129,7 +141,11 @@ export const PALETTES: PaletteDef[] = [
       "--segment": "#0d1915",
       "--link": "#42cb80",
       "--danger-foreground": "#000503",
-      "--card-glass": "#020c08b8"
+      "--card-glass": "#020c08b8",
+      "--warning": "#f7b750",
+      "--warning-foreground": "#18181b",
+      "--success": "#17c964",
+      "--success-foreground": "#18181b"
     }
   },
   {
@@ -165,7 +181,11 @@ export const PALETTES: PaletteDef[] = [
       "--segment": "#f3e0d6",
       "--link": "#a12f2f",
       "--danger-foreground": "#faf4f0",
-      "--card-glass": "#fcf7f5b8"
+      "--card-glass": "#fcf7f5b8",
+      "--warning": "#f5a524",
+      "--warning-foreground": "#18181b",
+      "--success": "#17c964",
+      "--success-foreground": "#18181b"
     },
     "dark": {
       "--background": "#0e0707",
@@ -190,7 +210,11 @@ export const PALETTES: PaletteDef[] = [
       "--segment": "#281c1a",
       "--link": "#d76963",
       "--danger-foreground": "#0e0707",
-      "--card-glass": "#180f0eb8"
+      "--card-glass": "#180f0eb8",
+      "--warning": "#f7b750",
+      "--warning-foreground": "#18181b",
+      "--success": "#17c964",
+      "--success-foreground": "#18181b"
     }
   },
   {
@@ -226,7 +250,11 @@ export const PALETTES: PaletteDef[] = [
       "--segment": "#f0e2d3",
       "--link": "#007982",
       "--danger-foreground": "#f7f5f2",
-      "--card-glass": "#fcf8f3b8"
+      "--card-glass": "#fcf8f3b8",
+      "--warning": "#f5a524",
+      "--warning-foreground": "#18181b",
+      "--success": "#17c964",
+      "--success-foreground": "#18181b"
     },
     "dark": {
       "--background": "#0a0503",
@@ -251,7 +279,11 @@ export const PALETTES: PaletteDef[] = [
       "--segment": "#221812",
       "--link": "#00a7b1",
       "--danger-foreground": "#0a0503",
-      "--card-glass": "#140b07b8"
+      "--card-glass": "#140b07b8",
+      "--warning": "#f7b750",
+      "--warning-foreground": "#18181b",
+      "--success": "#17c964",
+      "--success-foreground": "#18181b"
     }
   },
   {
@@ -287,7 +319,11 @@ export const PALETTES: PaletteDef[] = [
       "--segment": "#fbdef0",
       "--link": "#ce35a8",
       "--danger-foreground": "#fdf6fb",
-      "--card-glass": "#fffeffb8"
+      "--card-glass": "#fffeffb8",
+      "--warning": "#f5a524",
+      "--warning-foreground": "#18181b",
+      "--success": "#17c964",
+      "--success-foreground": "#18181b"
     },
     "dark": {
       "--background": "#130912",
@@ -312,7 +348,11 @@ export const PALETTES: PaletteDef[] = [
       "--segment": "#2f1d2d",
       "--link": "#ec71c8",
       "--danger-foreground": "#130912",
-      "--card-glass": "#1e111cb8"
+      "--card-glass": "#1e111cb8",
+      "--warning": "#f7b750",
+      "--warning-foreground": "#18181b",
+      "--success": "#17c964",
+      "--success-foreground": "#18181b"
     }
   },
   {
@@ -348,7 +388,11 @@ export const PALETTES: PaletteDef[] = [
       "--segment": "#f4f1f2",
       "--link": "#c90000",
       "--danger-foreground": "#fdfbfc",
-      "--card-glass": "#ffffffb8"
+      "--card-glass": "#ffffffb8",
+      "--warning": "#f5a524",
+      "--warning-foreground": "#18181b",
+      "--success": "#17c964",
+      "--success-foreground": "#18181b"
     },
     "dark": {
       "--background": "#030101",
@@ -373,7 +417,11 @@ export const PALETTES: PaletteDef[] = [
       "--segment": "#151010",
       "--link": "#e62b34",
       "--danger-foreground": "#030101",
-      "--card-glass": "#090505b8"
+      "--card-glass": "#090505b8",
+      "--warning": "#f7b750",
+      "--warning-foreground": "#18181b",
+      "--success": "#17c964",
+      "--success-foreground": "#18181b"
     }
   },
   {
@@ -409,7 +457,11 @@ export const PALETTES: PaletteDef[] = [
       "--segment": "#f1f2f3",
       "--link": "#0072da",
       "--danger-foreground": "#fcfcfc",
-      "--card-glass": "#ffffffb8"
+      "--card-glass": "#ffffffb8",
+      "--warning": "#f5a524",
+      "--warning-foreground": "#18181b",
+      "--success": "#17c964",
+      "--success-foreground": "#18181b"
     },
     "dark": {
       "--background": "#08090b",
@@ -434,7 +486,11 @@ export const PALETTES: PaletteDef[] = [
       "--segment": "#191b1d",
       "--link": "#2389e2",
       "--danger-foreground": "#08090b",
-      "--card-glass": "#101214b8"
+      "--card-glass": "#101214b8",
+      "--warning": "#f7b750",
+      "--warning-foreground": "#18181b",
+      "--success": "#17c964",
+      "--success-foreground": "#18181b"
     }
   },
   {
@@ -470,7 +526,11 @@ export const PALETTES: PaletteDef[] = [
       "--segment": "#eeeeee",
       "--link": "#000000",
       "--danger-foreground": "#ffffff",
-      "--card-glass": "#ffffffb8"
+      "--card-glass": "#ffffffb8",
+      "--warning": "#f5a524",
+      "--warning-foreground": "#18181b",
+      "--success": "#17c964",
+      "--success-foreground": "#18181b"
     },
     "dark": {
       "--background": "#000000",
@@ -495,7 +555,11 @@ export const PALETTES: PaletteDef[] = [
       "--segment": "#0b0b0b",
       "--link": "#ffffff",
       "--danger-foreground": "#000000",
-      "--card-glass": "#020202b8"
+      "--card-glass": "#020202b8",
+      "--warning": "#f7b750",
+      "--warning-foreground": "#18181b",
+      "--success": "#17c964",
+      "--success-foreground": "#18181b"
     }
   },
   {
@@ -531,7 +595,11 @@ export const PALETTES: PaletteDef[] = [
       "--segment": "#efebe4",
       "--link": "#c5953b",
       "--danger-foreground": "#e6b55d",
-      "--card-glass": "#fdfbf9b8"
+      "--card-glass": "#fdfbf9b8",
+      "--warning": "#f5a524",
+      "--warning-foreground": "#18181b",
+      "--success": "#17c964",
+      "--success-foreground": "#18181b"
     },
     "dark": {
       "--background": "#020201",
@@ -556,7 +624,11 @@ export const PALETTES: PaletteDef[] = [
       "--segment": "#15110d",
       "--link": "#e6b55d",
       "--danger-foreground": "#020201",
-      "--card-glass": "#080504b8"
+      "--card-glass": "#080504b8",
+      "--warning": "#f7b750",
+      "--warning-foreground": "#18181b",
+      "--success": "#17c964",
+      "--success-foreground": "#18181b"
     }
   },
   {
@@ -592,7 +664,11 @@ export const PALETTES: PaletteDef[] = [
       "--segment": "#f0e6da",
       "--link": "#8a3819",
       "--danger-foreground": "#f9f4ee",
-      "--card-glass": "#fefbf8b8"
+      "--card-glass": "#fefbf8b8",
+      "--warning": "#f5a524",
+      "--warning-foreground": "#18181b",
+      "--success": "#17c964",
+      "--success-foreground": "#18181b"
     },
     "dark": {
       "--background": "#100906",
@@ -617,7 +693,11 @@ export const PALETTES: PaletteDef[] = [
       "--segment": "#2c1e17",
       "--link": "#dd8364",
       "--danger-foreground": "#100906",
-      "--card-glass": "#1b110cb8"
+      "--card-glass": "#1b110cb8",
+      "--warning": "#f7b750",
+      "--warning-foreground": "#18181b",
+      "--success": "#17c964",
+      "--success-foreground": "#18181b"
     }
   },
   {
@@ -653,7 +733,11 @@ export const PALETTES: PaletteDef[] = [
       "--segment": "#e4edee",
       "--link": "#009095",
       "--danger-foreground": "#f5f9fa",
-      "--card-glass": "#fafcfcb8"
+      "--card-glass": "#fafcfcb8",
+      "--warning": "#f5a524",
+      "--warning-foreground": "#18181b",
+      "--success": "#17c964",
+      "--success-foreground": "#18181b"
     },
     "dark": {
       "--background": "#010406",
@@ -678,7 +762,11 @@ export const PALETTES: PaletteDef[] = [
       "--segment": "#0b181c",
       "--link": "#23dbc1",
       "--danger-foreground": "#010406",
-      "--card-glass": "#040b0db8"
+      "--card-glass": "#040b0db8",
+      "--warning": "#f7b750",
+      "--warning-foreground": "#18181b",
+      "--success": "#17c964",
+      "--success-foreground": "#18181b"
     }
   },
   {
@@ -714,7 +802,11 @@ export const PALETTES: PaletteDef[] = [
       "--segment": "#e1efe5",
       "--link": "#008d4d",
       "--danger-foreground": "#f5faf7",
-      "--card-glass": "#fafdfbb8"
+      "--card-glass": "#fafdfbb8",
+      "--warning": "#f5a524",
+      "--warning-foreground": "#18181b",
+      "--success": "#17c964",
+      "--success-foreground": "#18181b"
     },
     "dark": {
       "--background": "#010804",
@@ -739,7 +831,11 @@ export const PALETTES: PaletteDef[] = [
       "--segment": "#101e17",
       "--link": "#3fbf86",
       "--danger-foreground": "#010804",
-      "--card-glass": "#05100ab8"
+      "--card-glass": "#05100ab8",
+      "--warning": "#f7b750",
+      "--warning-foreground": "#18181b",
+      "--success": "#17c964",
+      "--success-foreground": "#18181b"
     }
   },
   {
@@ -775,7 +871,11 @@ export const PALETTES: PaletteDef[] = [
       "--segment": "#f1f2f3",
       "--link": "#0072da",
       "--danger-foreground": "#fcfcfc",
-      "--card-glass": "#ffffffb8"
+      "--card-glass": "#ffffffb8",
+      "--warning": "#f5a524",
+      "--warning-foreground": "#18181b",
+      "--success": "#17c964",
+      "--success-foreground": "#18181b"
     },
     "dark": {
       "--background": "#08090b",
@@ -800,7 +900,11 @@ export const PALETTES: PaletteDef[] = [
       "--segment": "#1b1d20",
       "--link": "#2389e2",
       "--danger-foreground": "#08090b",
-      "--card-glass": "#141618b8"
+      "--card-glass": "#141618b8",
+      "--warning": "#f7b750",
+      "--warning-foreground": "#18181b",
+      "--success": "#17c964",
+      "--success-foreground": "#18181b"
     }
   },
   {
@@ -836,7 +940,11 @@ export const PALETTES: PaletteDef[] = [
       "--segment": "#e6ecef",
       "--link": "#008cba",
       "--danger-foreground": "#f4f9fb",
-      "--card-glass": "#f9fcfeb8"
+      "--card-glass": "#f9fcfeb8",
+      "--warning": "#f5a524",
+      "--warning-foreground": "#18181b",
+      "--success": "#17c964",
+      "--success-foreground": "#18181b"
     },
     "dark": {
       "--background": "#030609",
@@ -861,7 +969,11 @@ export const PALETTES: PaletteDef[] = [
       "--segment": "#131c20",
       "--link": "#5bb0d7",
       "--danger-foreground": "#030609",
-      "--card-glass": "#070e12b8"
+      "--card-glass": "#070e12b8",
+      "--warning": "#f7b750",
+      "--warning-foreground": "#18181b",
+      "--success": "#17c964",
+      "--success-foreground": "#18181b"
     }
   },
   {
@@ -897,7 +1009,11 @@ export const PALETTES: PaletteDef[] = [
       "--segment": "#e5e8ec",
       "--link": "#b32035",
       "--danger-foreground": "#f3f5f8",
-      "--card-glass": "#f7f9fab8"
+      "--card-glass": "#f7f9fab8",
+      "--warning": "#f5a524",
+      "--warning-foreground": "#18181b",
+      "--success": "#17c964",
+      "--success-foreground": "#18181b"
     },
     "dark": {
       "--background": "#020305",
@@ -922,7 +1038,11 @@ export const PALETTES: PaletteDef[] = [
       "--segment": "#13161a",
       "--link": "#c53443",
       "--danger-foreground": "#020305",
-      "--card-glass": "#07090cb8"
+      "--card-glass": "#07090cb8",
+      "--warning": "#f7b750",
+      "--warning-foreground": "#18181b",
+      "--success": "#17c964",
+      "--success-foreground": "#18181b"
     }
   },
   {
@@ -958,7 +1078,11 @@ export const PALETTES: PaletteDef[] = [
       "--segment": "#f4c947",
       "--link": "#0053b3",
       "--danger-foreground": "#fbfcfd",
-      "--card-glass": "#ffffffb8"
+      "--card-glass": "#ffffffb8",
+      "--warning": "#f5a524",
+      "--warning-foreground": "#18181b",
+      "--success": "#17c964",
+      "--success-foreground": "#18181b"
     },
     "dark": {
       "--background": "#02060c",
@@ -983,7 +1107,11 @@ export const PALETTES: PaletteDef[] = [
       "--segment": "#c7a01e",
       "--link": "#1a83db",
       "--danger-foreground": "#02060c",
-      "--card-glass": "#070e16b8"
+      "--card-glass": "#070e16b8",
+      "--warning": "#f7b750",
+      "--warning-foreground": "#18181b",
+      "--success": "#17c964",
+      "--success-foreground": "#18181b"
     }
   },
   {
@@ -1019,7 +1147,11 @@ export const PALETTES: PaletteDef[] = [
       "--segment": "#ebeaf3",
       "--link": "#7a6cbc",
       "--danger-foreground": "#f8f8fc",
-      "--card-glass": "#fcfbffb8"
+      "--card-glass": "#fcfbffb8",
+      "--warning": "#f5a524",
+      "--warning-foreground": "#18181b",
+      "--success": "#17c964",
+      "--success-foreground": "#18181b"
     },
     "dark": {
       "--background": "#06070d",
@@ -1044,7 +1176,11 @@ export const PALETTES: PaletteDef[] = [
       "--segment": "#1b1c26",
       "--link": "#a39adf",
       "--danger-foreground": "#06070d",
-      "--card-glass": "#0e0f17b8"
+      "--card-glass": "#0e0f17b8",
+      "--warning": "#f7b750",
+      "--warning-foreground": "#18181b",
+      "--success": "#17c964",
+      "--success-foreground": "#18181b"
     }
   },
   {
@@ -1080,7 +1216,11 @@ export const PALETTES: PaletteDef[] = [
       "--segment": "#f0f1f7",
       "--link": "#6445df",
       "--danger-foreground": "#fbfcfd",
-      "--card-glass": "#ffffffb8"
+      "--card-glass": "#ffffffb8",
+      "--warning": "#f5a524",
+      "--warning-foreground": "#18181b",
+      "--success": "#17c964",
+      "--success-foreground": "#18181b"
     },
     "dark": {
       "--background": "#040409",
@@ -1105,7 +1245,11 @@ export const PALETTES: PaletteDef[] = [
       "--segment": "#191a24",
       "--link": "#8776ff",
       "--danger-foreground": "#040409",
-      "--card-glass": "#0a0a13b8"
+      "--card-glass": "#0a0a13b8",
+      "--warning": "#f7b750",
+      "--warning-foreground": "#18181b",
+      "--success": "#17c964",
+      "--success-foreground": "#18181b"
     }
   },
   {
@@ -1141,7 +1285,11 @@ export const PALETTES: PaletteDef[] = [
       "--segment": "#e9e4de",
       "--link": "#68625e",
       "--danger-foreground": "#f7f5f2",
-      "--card-glass": "#fbf8f5b8"
+      "--card-glass": "#fbf8f5b8",
+      "--warning": "#f5a524",
+      "--warning-foreground": "#18181b",
+      "--success": "#17c964",
+      "--success-foreground": "#18181b"
     },
     "dark": {
       "--background": "#0c0806",
@@ -1166,7 +1314,11 @@ export const PALETTES: PaletteDef[] = [
       "--segment": "#231e1b",
       "--link": "#bbb7b2",
       "--danger-foreground": "#0c0806",
-      "--card-glass": "#15100db8"
+      "--card-glass": "#15100db8",
+      "--warning": "#f7b750",
+      "--warning-foreground": "#18181b",
+      "--success": "#17c964",
+      "--success-foreground": "#18181b"
     }
   },
   {
@@ -1202,7 +1354,11 @@ export const PALETTES: PaletteDef[] = [
       "--segment": "#f1e0dc",
       "--link": "#b33736",
       "--danger-foreground": "#f9f4f2",
-      "--card-glass": "#fcf7f6b8"
+      "--card-glass": "#fcf7f6b8",
+      "--warning": "#f5a524",
+      "--warning-foreground": "#18181b",
+      "--success": "#17c964",
+      "--success-foreground": "#18181b"
     },
     "dark": {
       "--background": "#0a0404",
@@ -1227,7 +1383,11 @@ export const PALETTES: PaletteDef[] = [
       "--segment": "#231716",
       "--link": "#dc655f",
       "--danger-foreground": "#0a0404",
-      "--card-glass": "#140a09b8"
+      "--card-glass": "#140a09b8",
+      "--warning": "#f7b750",
+      "--warning-foreground": "#18181b",
+      "--success": "#17c964",
+      "--success-foreground": "#18181b"
     }
   },
   {
@@ -1263,7 +1423,11 @@ export const PALETTES: PaletteDef[] = [
       "--segment": "#f1c955",
       "--link": "#d40924",
       "--danger-foreground": "#faf8f5",
-      "--card-glass": "#fdfcf8b8"
+      "--card-glass": "#fdfcf8b8",
+      "--warning": "#f5a524",
+      "--warning-foreground": "#18181b",
+      "--success": "#17c964",
+      "--success-foreground": "#18181b"
     },
     "dark": {
       "--background": "#090504",
@@ -1288,7 +1452,11 @@ export const PALETTES: PaletteDef[] = [
       "--segment": "#c09910",
       "--link": "#f14d4c",
       "--danger-foreground": "#090504",
-      "--card-glass": "#120c09b8"
+      "--card-glass": "#120c09b8",
+      "--warning": "#f7b750",
+      "--warning-foreground": "#18181b",
+      "--success": "#17c964",
+      "--success-foreground": "#18181b"
     }
   },
   {
@@ -1324,7 +1492,11 @@ export const PALETTES: PaletteDef[] = [
       "--segment": "#e8ebf2",
       "--link": "#3245b7",
       "--danger-foreground": "#f7f8fc",
-      "--card-glass": "#ffffffb8"
+      "--card-glass": "#ffffffb8",
+      "--warning": "#f5a524",
+      "--warning-foreground": "#18181b",
+      "--success": "#17c964",
+      "--success-foreground": "#18181b"
     },
     "dark": {
       "--background": "#05070f",
@@ -1349,7 +1521,11 @@ export const PALETTES: PaletteDef[] = [
       "--segment": "#151a29",
       "--link": "#7a97fb",
       "--danger-foreground": "#05070f",
-      "--card-glass": "#0b0f1ab8"
+      "--card-glass": "#0b0f1ab8",
+      "--warning": "#f7b750",
+      "--warning-foreground": "#18181b",
+      "--success": "#17c964",
+      "--success-foreground": "#18181b"
     }
   },
   {
@@ -1385,7 +1561,11 @@ export const PALETTES: PaletteDef[] = [
       "--segment": "#f0f0f0",
       "--link": "#060606",
       "--danger-foreground": "#fcfcfc",
-      "--card-glass": "#ffffffb8"
+      "--card-glass": "#ffffffb8",
+      "--warning": "#f5a524",
+      "--warning-foreground": "#18181b",
+      "--success": "#17c964",
+      "--success-foreground": "#18181b"
     },
     "dark": {
       "--background": "#030303",
@@ -1410,7 +1590,11 @@ export const PALETTES: PaletteDef[] = [
       "--segment": "#161616",
       "--link": "#e8e8e8",
       "--danger-foreground": "#030303",
-      "--card-glass": "#090909b8"
+      "--card-glass": "#090909b8",
+      "--warning": "#f7b750",
+      "--warning-foreground": "#18181b",
+      "--success": "#17c964",
+      "--success-foreground": "#18181b"
     }
   },
   {
@@ -1446,7 +1630,11 @@ export const PALETTES: PaletteDef[] = [
       "--segment": "#eae5f4",
       "--link": "#773ac1",
       "--danger-foreground": "#f9f8fb",
-      "--card-glass": "#fcfbffb8"
+      "--card-glass": "#fcfbffb8",
+      "--warning": "#f5a524",
+      "--warning-foreground": "#18181b",
+      "--success": "#17c964",
+      "--success-foreground": "#18181b"
     },
     "dark": {
       "--background": "#03020a",
@@ -1471,7 +1659,11 @@ export const PALETTES: PaletteDef[] = [
       "--segment": "#161423",
       "--link": "#b180fc",
       "--danger-foreground": "#03020a",
-      "--card-glass": "#090715b8"
+      "--card-glass": "#090715b8",
+      "--warning": "#f7b750",
+      "--warning-foreground": "#18181b",
+      "--success": "#17c964",
+      "--success-foreground": "#18181b"
     }
   },
   {
@@ -1507,7 +1699,11 @@ export const PALETTES: PaletteDef[] = [
       "--segment": "#f4c947",
       "--link": "#0b0b0b",
       "--danger-foreground": "#faf8f1",
-      "--card-glass": "#faf8f1b8"
+      "--card-glass": "#faf8f1b8",
+      "--warning": "#f5a524",
+      "--warning-foreground": "#18181b",
+      "--success": "#17c964",
+      "--success-foreground": "#18181b"
     },
     "dark": {
       "--background": "#0b0b0b",
@@ -1532,7 +1728,11 @@ export const PALETTES: PaletteDef[] = [
       "--segment": "#252117",
       "--link": "#f4c947",
       "--danger-foreground": "#0b0b0b",
-      "--card-glass": "#0b0b0bb8"
+      "--card-glass": "#0b0b0bb8",
+      "--warning": "#f7b750",
+      "--warning-foreground": "#18181b",
+      "--success": "#17c964",
+      "--success-foreground": "#18181b"
     }
   },
   {
@@ -1568,7 +1768,11 @@ export const PALETTES: PaletteDef[] = [
       "--segment": "#f3f1f2",
       "--link": "#d00007",
       "--danger-foreground": "#fcfbfc",
-      "--card-glass": "#ffffffb8"
+      "--card-glass": "#ffffffb8",
+      "--warning": "#f5a524",
+      "--warning-foreground": "#18181b",
+      "--success": "#17c964",
+      "--success-foreground": "#18181b"
     },
     "dark": {
       "--background": "#010000",
@@ -1593,7 +1797,11 @@ export const PALETTES: PaletteDef[] = [
       "--segment": "#0e0d0d",
       "--link": "#e60023",
       "--danger-foreground": "#010000",
-      "--card-glass": "#040303b8"
+      "--card-glass": "#040303b8",
+      "--warning": "#f7b750",
+      "--warning-foreground": "#18181b",
+      "--success": "#17c964",
+      "--success-foreground": "#18181b"
     }
   },
   {
@@ -1629,7 +1837,11 @@ export const PALETTES: PaletteDef[] = [
       "--segment": "#eceff1",
       "--link": "#003884",
       "--danger-foreground": "#fbfcfd",
-      "--card-glass": "#ffffffb8"
+      "--card-glass": "#ffffffb8",
+      "--warning": "#f5a524",
+      "--warning-foreground": "#18181b",
+      "--success": "#17c964",
+      "--success-foreground": "#18181b"
     },
     "dark": {
       "--background": "#02060d",
@@ -1654,7 +1866,11 @@ export const PALETTES: PaletteDef[] = [
       "--segment": "#141b24",
       "--link": "#3284d0",
       "--danger-foreground": "#02060d",
-      "--card-glass": "#060e16b8"
+      "--card-glass": "#060e16b8",
+      "--warning": "#f7b750",
+      "--warning-foreground": "#18181b",
+      "--success": "#17c964",
+      "--success-foreground": "#18181b"
     }
   },
   {
@@ -1690,7 +1906,11 @@ export const PALETTES: PaletteDef[] = [
       "--segment": "#f1eeea",
       "--link": "#76706c",
       "--danger-foreground": "#faf8f5",
-      "--card-glass": "#fdfbf9b8"
+      "--card-glass": "#fdfbf9b8",
+      "--warning": "#f5a524",
+      "--warning-foreground": "#18181b",
+      "--success": "#17c964",
+      "--success-foreground": "#18181b"
     },
     "dark": {
       "--background": "#0e0a08",
@@ -1715,7 +1935,11 @@ export const PALETTES: PaletteDef[] = [
       "--segment": "#231e1b",
       "--link": "#847f7b",
       "--danger-foreground": "#0e0a08",
-      "--card-glass": "#17130fb8"
+      "--card-glass": "#17130fb8",
+      "--warning": "#f7b750",
+      "--warning-foreground": "#18181b",
+      "--success": "#17c964",
+      "--success-foreground": "#18181b"
     }
   },
   {
@@ -1751,7 +1975,11 @@ export const PALETTES: PaletteDef[] = [
       "--segment": "#e4edec",
       "--link": "#008a7c",
       "--danger-foreground": "#f6f9f9",
-      "--card-glass": "#feffffb8"
+      "--card-glass": "#feffffb8",
+      "--warning": "#f5a524",
+      "--warning-foreground": "#18181b",
+      "--success": "#17c964",
+      "--success-foreground": "#18181b"
     },
     "dark": {
       "--background": "#010708",
@@ -1776,7 +2004,11 @@ export const PALETTES: PaletteDef[] = [
       "--segment": "#0b1e1f",
       "--link": "#17b6a8",
       "--danger-foreground": "#010708",
-      "--card-glass": "#031011b8"
+      "--card-glass": "#031011b8",
+      "--warning": "#f7b750",
+      "--warning-foreground": "#18181b",
+      "--success": "#17c964",
+      "--success-foreground": "#18181b"
     }
   },
   {
@@ -1812,7 +2044,11 @@ export const PALETTES: PaletteDef[] = [
       "--segment": "#f7e8e0",
       "--link": "#ab3415",
       "--danger-foreground": "#fbf7f5",
-      "--card-glass": "#fefbfab8"
+      "--card-glass": "#fefbfab8",
+      "--warning": "#f5a524",
+      "--warning-foreground": "#18181b",
+      "--success": "#17c964",
+      "--success-foreground": "#18181b"
     },
     "dark": {
       "--background": "#0b0605",
@@ -1837,7 +2073,11 @@ export const PALETTES: PaletteDef[] = [
       "--segment": "#251a16",
       "--link": "#e57255",
       "--danger-foreground": "#0b0605",
-      "--card-glass": "#150d0ab8"
+      "--card-glass": "#150d0ab8",
+      "--warning": "#f7b750",
+      "--warning-foreground": "#18181b",
+      "--success": "#17c964",
+      "--success-foreground": "#18181b"
     }
   },
   {
@@ -1873,7 +2113,11 @@ export const PALETTES: PaletteDef[] = [
       "--segment": "#e6ecf2",
       "--link": "#006fea",
       "--danger-foreground": "#f6f9fc",
-      "--card-glass": "#fafcfeb8"
+      "--card-glass": "#fafcfeb8",
+      "--warning": "#f5a524",
+      "--warning-foreground": "#18181b",
+      "--success": "#17c964",
+      "--success-foreground": "#18181b"
     },
     "dark": {
       "--background": "#010202",
@@ -1898,7 +2142,11 @@ export const PALETTES: PaletteDef[] = [
       "--segment": "#0e1216",
       "--link": "#0090ff",
       "--danger-foreground": "#010202",
-      "--card-glass": "#040608b8"
+      "--card-glass": "#040608b8",
+      "--warning": "#f7b750",
+      "--warning-foreground": "#18181b",
+      "--success": "#17c964",
+      "--success-foreground": "#18181b"
     }
   },
   {
@@ -1934,7 +2182,11 @@ export const PALETTES: PaletteDef[] = [
       "--segment": "#ece3d6",
       "--link": "#6f3f22",
       "--danger-foreground": "#f6f1e9",
-      "--card-glass": "#f9f4ecb8"
+      "--card-glass": "#f9f4ecb8",
+      "--warning": "#f5a524",
+      "--warning-foreground": "#18181b",
+      "--success": "#17c964",
+      "--success-foreground": "#18181b"
     },
     "dark": {
       "--background": "#110c08",
@@ -1959,7 +2211,11 @@ export const PALETTES: PaletteDef[] = [
       "--segment": "#2a221d",
       "--link": "#bf9f6a",
       "--danger-foreground": "#110c08",
-      "--card-glass": "#1b150fb8"
+      "--card-glass": "#1b150fb8",
+      "--warning": "#f7b750",
+      "--warning-foreground": "#18181b",
+      "--success": "#17c964",
+      "--success-foreground": "#18181b"
     }
   },
   {
@@ -1995,7 +2251,11 @@ export const PALETTES: PaletteDef[] = [
       "--segment": "#e4eae2",
       "--link": "#095c34",
       "--danger-foreground": "#f3f6f3",
-      "--card-glass": "#f7f9f6b8"
+      "--card-glass": "#f7f9f6b8",
+      "--warning": "#f5a524",
+      "--warning-foreground": "#18181b",
+      "--success": "#17c964",
+      "--success-foreground": "#18181b"
     },
     "dark": {
       "--background": "#040905",
@@ -2020,7 +2280,11 @@ export const PALETTES: PaletteDef[] = [
       "--segment": "#181f18",
       "--link": "#50986b",
       "--danger-foreground": "#040905",
-      "--card-glass": "#0a120bb8"
+      "--card-glass": "#0a120bb8",
+      "--warning": "#f7b750",
+      "--warning-foreground": "#18181b",
+      "--success": "#17c964",
+      "--success-foreground": "#18181b"
     }
   },
   {
@@ -2056,7 +2320,11 @@ export const PALETTES: PaletteDef[] = [
       "--segment": "#e3eeed",
       "--link": "#009993",
       "--danger-foreground": "#f5faf9",
-      "--card-glass": "#f9fdfcb8"
+      "--card-glass": "#f9fdfcb8",
+      "--warning": "#f5a524",
+      "--warning-foreground": "#18181b",
+      "--success": "#17c964",
+      "--success-foreground": "#18181b"
     },
     "dark": {
       "--background": "#010707",
@@ -2081,7 +2349,11 @@ export const PALETTES: PaletteDef[] = [
       "--segment": "#0e1e1e",
       "--link": "#1dbcb5",
       "--danger-foreground": "#010707",
-      "--card-glass": "#031010b8"
+      "--card-glass": "#031010b8",
+      "--warning": "#f7b750",
+      "--warning-foreground": "#18181b",
+      "--success": "#17c964",
+      "--success-foreground": "#18181b"
     }
   },
   {
@@ -2117,7 +2389,11 @@ export const PALETTES: PaletteDef[] = [
       "--segment": "#f4e7ec",
       "--link": "#ab4a7d",
       "--danger-foreground": "#fcf7f9",
-      "--card-glass": "#fefbfcb8"
+      "--card-glass": "#fefbfcb8",
+      "--warning": "#f5a524",
+      "--warning-foreground": "#18181b",
+      "--success": "#17c964",
+      "--success-foreground": "#18181b"
     },
     "dark": {
       "--background": "#0d070b",
@@ -2142,7 +2418,11 @@ export const PALETTES: PaletteDef[] = [
       "--segment": "#261c22",
       "--link": "#dd84af",
       "--danger-foreground": "#0d070b",
-      "--card-glass": "#170e14b8"
+      "--card-glass": "#170e14b8",
+      "--warning": "#f7b750",
+      "--warning-foreground": "#18181b",
+      "--success": "#17c964",
+      "--success-foreground": "#18181b"
     }
   },
   {
@@ -2178,7 +2458,11 @@ export const PALETTES: PaletteDef[] = [
       "--segment": "#e9f0f5",
       "--link": "#0075dc",
       "--danger-foreground": "#fbfcfd",
-      "--card-glass": "#ffffffb8"
+      "--card-glass": "#ffffffb8",
+      "--warning": "#f5a524",
+      "--warning-foreground": "#18181b",
+      "--success": "#17c964",
+      "--success-foreground": "#18181b"
     },
     "dark": {
       "--background": "#040a0f",
@@ -2203,7 +2487,11 @@ export const PALETTES: PaletteDef[] = [
       "--segment": "#14212a",
       "--link": "#0096f4",
       "--danger-foreground": "#040a0f",
-      "--card-glass": "#09131ab8"
+      "--card-glass": "#09131ab8",
+      "--warning": "#f7b750",
+      "--warning-foreground": "#18181b",
+      "--success": "#17c964",
+      "--success-foreground": "#18181b"
     }
   },
   {
@@ -2239,7 +2527,11 @@ export const PALETTES: PaletteDef[] = [
       "--segment": "#f4e7ec",
       "--link": "#cf78a3",
       "--danger-foreground": "#fbf7f9",
-      "--card-glass": "#fffafcb8"
+      "--card-glass": "#fffafcb8",
+      "--warning": "#f5a524",
+      "--warning-foreground": "#18181b",
+      "--success": "#17c964",
+      "--success-foreground": "#18181b"
     },
     "dark": {
       "--background": "#0e070a",
@@ -2264,7 +2556,11 @@ export const PALETTES: PaletteDef[] = [
       "--segment": "#261c21",
       "--link": "#de94b7",
       "--danger-foreground": "#0e070a",
-      "--card-glass": "#170e13b8"
+      "--card-glass": "#170e13b8",
+      "--warning": "#f7b750",
+      "--warning-foreground": "#18181b",
+      "--success": "#17c964",
+      "--success-foreground": "#18181b"
     }
   },
   {
@@ -2300,7 +2596,11 @@ export const PALETTES: PaletteDef[] = [
       "--segment": "#ebe4d6",
       "--link": "#503315",
       "--danger-foreground": "#f6f1e7",
-      "--card-glass": "#fbf8f1b8"
+      "--card-glass": "#fbf8f1b8",
+      "--warning": "#f5a524",
+      "--warning-foreground": "#18181b",
+      "--success": "#17c964",
+      "--success-foreground": "#18181b"
     },
     "dark": {
       "--background": "#0e0a07",
@@ -2325,7 +2625,11 @@ export const PALETTES: PaletteDef[] = [
       "--segment": "#241e18",
       "--link": "#c9b58c",
       "--danger-foreground": "#0e0a07",
-      "--card-glass": "#18130eb8"
+      "--card-glass": "#18130eb8",
+      "--warning": "#f7b750",
+      "--warning-foreground": "#18181b",
+      "--success": "#17c964",
+      "--success-foreground": "#18181b"
     }
   },
   {
@@ -2361,7 +2665,11 @@ export const PALETTES: PaletteDef[] = [
       "--segment": "#f2f4f5",
       "--link": "#636a71",
       "--danger-foreground": "#f7f9fa",
-      "--card-glass": "#ffffffb8"
+      "--card-glass": "#ffffffb8",
+      "--warning": "#f5a524",
+      "--warning-foreground": "#18181b",
+      "--success": "#17c964",
+      "--success-foreground": "#18181b"
     },
     "dark": {
       "--background": "#020509",
@@ -2386,7 +2694,11 @@ export const PALETTES: PaletteDef[] = [
       "--segment": "#111921",
       "--link": "#7a8189",
       "--danger-foreground": "#020509",
-      "--card-glass": "#070c11b8"
+      "--card-glass": "#070c11b8",
+      "--warning": "#f7b750",
+      "--warning-foreground": "#18181b",
+      "--success": "#17c964",
+      "--success-foreground": "#18181b"
     }
   },
   {
@@ -2422,7 +2734,11 @@ export const PALETTES: PaletteDef[] = [
       "--segment": "#e7ede8",
       "--link": "#00af44",
       "--danger-foreground": "#080c09",
-      "--card-glass": "#fafcfbb8"
+      "--card-glass": "#fafcfbb8",
+      "--warning": "#f5a524",
+      "--warning-foreground": "#18181b",
+      "--success": "#17c964",
+      "--success-foreground": "#18181b"
     },
     "dark": {
       "--background": "#010201",
@@ -2447,7 +2763,11 @@ export const PALETTES: PaletteDef[] = [
       "--segment": "#0e130f",
       "--link": "#00bf54",
       "--danger-foreground": "#010201",
-      "--card-glass": "#040704b8"
+      "--card-glass": "#040704b8",
+      "--warning": "#f7b750",
+      "--warning-foreground": "#18181b",
+      "--success": "#17c964",
+      "--success-foreground": "#18181b"
     }
   },
   {
@@ -2483,7 +2803,11 @@ export const PALETTES: PaletteDef[] = [
       "--segment": "#deedda",
       "--link": "#bf5da2",
       "--danger-foreground": "#fbf7f9",
-      "--card-glass": "#fafdf9b8"
+      "--card-glass": "#fafdf9b8",
+      "--warning": "#f5a524",
+      "--warning-foreground": "#18181b",
+      "--success": "#17c964",
+      "--success-foreground": "#18181b"
     },
     "dark": {
       "--background": "#040905",
@@ -2508,7 +2832,11 @@ export const PALETTES: PaletteDef[] = [
       "--segment": "#162018",
       "--link": "#da83be",
       "--danger-foreground": "#040905",
-      "--card-glass": "#0a120bb8"
+      "--card-glass": "#0a120bb8",
+      "--warning": "#f7b750",
+      "--warning-foreground": "#18181b",
+      "--success": "#17c964",
+      "--success-foreground": "#18181b"
     }
   },
   {
@@ -2544,7 +2872,11 @@ export const PALETTES: PaletteDef[] = [
       "--segment": "#f3e3ea",
       "--link": "#d72f92",
       "--danger-foreground": "#fbf7f9",
-      "--card-glass": "#fefbfcb8"
+      "--card-glass": "#fefbfcb8",
+      "--warning": "#f5a524",
+      "--warning-foreground": "#18181b",
+      "--success": "#17c964",
+      "--success-foreground": "#18181b"
     },
     "dark": {
       "--background": "#050204",
@@ -2569,7 +2901,11 @@ export const PALETTES: PaletteDef[] = [
       "--segment": "#1b1318",
       "--link": "#ed58a9",
       "--danger-foreground": "#050204",
-      "--card-glass": "#0e070ab8"
+      "--card-glass": "#0e070ab8",
+      "--warning": "#f7b750",
+      "--warning-foreground": "#18181b",
+      "--success": "#17c964",
+      "--success-foreground": "#18181b"
     }
   },
   {
@@ -2605,7 +2941,11 @@ export const PALETTES: PaletteDef[] = [
       "--segment": "#ede7dd",
       "--link": "#006836",
       "--danger-foreground": "#faf8f5",
-      "--card-glass": "#faf8f5b8"
+      "--card-glass": "#faf8f5b8",
+      "--warning": "#f5a524",
+      "--warning-foreground": "#18181b",
+      "--success": "#17c964",
+      "--success-foreground": "#18181b"
     },
     "dark": {
       "--background": "#050805",
@@ -2630,7 +2970,11 @@ export const PALETTES: PaletteDef[] = [
       "--segment": "#191f19",
       "--link": "#3f9b65",
       "--danger-foreground": "#050805",
-      "--card-glass": "#0b110bb8"
+      "--card-glass": "#0b110bb8",
+      "--warning": "#f7b750",
+      "--warning-foreground": "#18181b",
+      "--success": "#17c964",
+      "--success-foreground": "#18181b"
     }
   },
   {
@@ -2666,7 +3010,11 @@ export const PALETTES: PaletteDef[] = [
       "--segment": "#f3f1ee",
       "--link": "#736d69",
       "--danger-foreground": "#f9f8f6",
-      "--card-glass": "#fffffeb8"
+      "--card-glass": "#fffffeb8",
+      "--warning": "#f5a524",
+      "--warning-foreground": "#18181b",
+      "--success": "#17c964",
+      "--success-foreground": "#18181b"
     },
     "dark": {
       "--background": "#0a0705",
@@ -2691,7 +3039,11 @@ export const PALETTES: PaletteDef[] = [
       "--segment": "#211c18",
       "--link": "#857f7a",
       "--danger-foreground": "#0a0705",
-      "--card-glass": "#120f0cb8"
+      "--card-glass": "#120f0cb8",
+      "--warning": "#f7b750",
+      "--warning-foreground": "#18181b",
+      "--success": "#17c964",
+      "--success-foreground": "#18181b"
     }
   },
   {
@@ -2727,7 +3079,11 @@ export const PALETTES: PaletteDef[] = [
       "--segment": "#f2e4e4",
       "--link": "#db0017",
       "--danger-foreground": "#fcf7f7",
-      "--card-glass": "#fcf7f7b8"
+      "--card-glass": "#fcf7f7b8",
+      "--warning": "#f5a524",
+      "--warning-foreground": "#18181b",
+      "--success": "#17c964",
+      "--success-foreground": "#18181b"
     },
     "dark": {
       "--background": "#010001",
@@ -2752,7 +3108,11 @@ export const PALETTES: PaletteDef[] = [
       "--segment": "#120b0c",
       "--link": "#f51d31",
       "--danger-foreground": "#010001",
-      "--card-glass": "#050303b8"
+      "--card-glass": "#050303b8",
+      "--warning": "#f7b750",
+      "--warning-foreground": "#18181b",
+      "--success": "#17c964",
+      "--success-foreground": "#18181b"
     }
   },
   {
@@ -2788,7 +3148,11 @@ export const PALETTES: PaletteDef[] = [
       "--segment": "#eff2f6",
       "--link": "#244ecc",
       "--danger-foreground": "#fbfcfd",
-      "--card-glass": "#ffffffb8"
+      "--card-glass": "#ffffffb8",
+      "--warning": "#f5a524",
+      "--warning-foreground": "#18181b",
+      "--success": "#17c964",
+      "--success-foreground": "#18181b"
     },
     "dark": {
       "--background": "#03060b",
@@ -2813,7 +3177,11 @@ export const PALETTES: PaletteDef[] = [
       "--segment": "#151b24",
       "--link": "#507ef1",
       "--danger-foreground": "#03060b",
-      "--card-glass": "#090d15b8"
+      "--card-glass": "#090d15b8",
+      "--warning": "#f7b750",
+      "--warning-foreground": "#18181b",
+      "--success": "#17c964",
+      "--success-foreground": "#18181b"
     }
   },
   {
@@ -2849,7 +3217,11 @@ export const PALETTES: PaletteDef[] = [
       "--segment": "#f3e6d2",
       "--link": "#df6900",
       "--danger-foreground": "#fbf8f5",
-      "--card-glass": "#fefbf7b8"
+      "--card-glass": "#fefbf7b8",
+      "--warning": "#f5a524",
+      "--warning-foreground": "#18181b",
+      "--success": "#17c964",
+      "--success-foreground": "#18181b"
     },
     "dark": {
       "--background": "#0e0705",
@@ -2874,7 +3246,11 @@ export const PALETTES: PaletteDef[] = [
       "--segment": "#281c17",
       "--link": "#ef852e",
       "--danger-foreground": "#0e0705",
-      "--card-glass": "#180f0bb8"
+      "--card-glass": "#180f0bb8",
+      "--warning": "#f7b750",
+      "--warning-foreground": "#18181b",
+      "--success": "#17c964",
+      "--success-foreground": "#18181b"
     }
   },
   {
@@ -2910,7 +3286,11 @@ export const PALETTES: PaletteDef[] = [
       "--segment": "#f6e8df",
       "--link": "#e5481e",
       "--danger-foreground": "#fdf7f3",
-      "--card-glass": "#fffbf9b8"
+      "--card-glass": "#fffbf9b8",
+      "--warning": "#f5a524",
+      "--warning-foreground": "#18181b",
+      "--success": "#17c964",
+      "--success-foreground": "#18181b"
     },
     "dark": {
       "--background": "#0c0604",
@@ -2935,7 +3315,11 @@ export const PALETTES: PaletteDef[] = [
       "--segment": "#251a17",
       "--link": "#f87b5c",
       "--danger-foreground": "#0c0604",
-      "--card-glass": "#160d0ab8"
+      "--card-glass": "#160d0ab8",
+      "--warning": "#f7b750",
+      "--warning-foreground": "#18181b",
+      "--success": "#17c964",
+      "--success-foreground": "#18181b"
     }
   },
   {
@@ -2971,7 +3355,11 @@ export const PALETTES: PaletteDef[] = [
       "--segment": "#ebdff4",
       "--link": "#cb27c5",
       "--danger-foreground": "#f9f7fb",
-      "--card-glass": "#faf7fdb8"
+      "--card-glass": "#faf7fdb8",
+      "--warning": "#f5a524",
+      "--warning-foreground": "#18181b",
+      "--success": "#17c964",
+      "--success-foreground": "#18181b"
     },
     "dark": {
       "--background": "#03020c",
@@ -2996,7 +3384,11 @@ export const PALETTES: PaletteDef[] = [
       "--segment": "#161423",
       "--link": "#ed66e5",
       "--danger-foreground": "#03020c",
-      "--card-glass": "#090616b8"
+      "--card-glass": "#090616b8",
+      "--warning": "#f7b750",
+      "--warning-foreground": "#18181b",
+      "--success": "#17c964",
+      "--success-foreground": "#18181b"
     }
   },
   {
@@ -3032,7 +3424,11 @@ export const PALETTES: PaletteDef[] = [
       "--segment": "#e9e6f1",
       "--link": "#5f279e",
       "--danger-foreground": "#f9f8fb",
-      "--card-glass": "#fcfbfeb8"
+      "--card-glass": "#fcfbfeb8",
+      "--warning": "#f5a524",
+      "--warning-foreground": "#18181b",
+      "--success": "#17c964",
+      "--success-foreground": "#18181b"
     },
     "dark": {
       "--background": "#030308",
@@ -3057,7 +3453,11 @@ export const PALETTES: PaletteDef[] = [
       "--segment": "#161421",
       "--link": "#8c5ad3",
       "--danger-foreground": "#030308",
-      "--card-glass": "#090713b8"
+      "--card-glass": "#090713b8",
+      "--warning": "#f7b750",
+      "--warning-foreground": "#18181b",
+      "--success": "#17c964",
+      "--success-foreground": "#18181b"
     }
   },
   {
@@ -3093,7 +3493,11 @@ export const PALETTES: PaletteDef[] = [
       "--segment": "#e7ede7",
       "--link": "#00791b",
       "--danger-foreground": "#f7f9f7",
-      "--card-glass": "#fafcfab8"
+      "--card-glass": "#fafcfab8",
+      "--warning": "#f5a524",
+      "--warning-foreground": "#18181b",
+      "--success": "#17c964",
+      "--success-foreground": "#18181b"
     },
     "dark": {
       "--background": "#010201",
@@ -3118,7 +3522,11 @@ export const PALETTES: PaletteDef[] = [
       "--segment": "#090f09",
       "--link": "#65c86b",
       "--danger-foreground": "#010201",
-      "--card-glass": "#030703b8"
+      "--card-glass": "#030703b8",
+      "--warning": "#f7b750",
+      "--warning-foreground": "#18181b",
+      "--success": "#17c964",
+      "--success-foreground": "#18181b"
     }
   },
   {
@@ -3154,7 +3562,11 @@ export const PALETTES: PaletteDef[] = [
       "--segment": "#ebe4d6",
       "--link": "#a74639",
       "--danger-foreground": "#f9f4ef",
-      "--card-glass": "#fbf8f5b8"
+      "--card-glass": "#fbf8f5b8",
+      "--warning": "#f5a524",
+      "--warning-foreground": "#18181b",
+      "--success": "#17c964",
+      "--success-foreground": "#18181b"
     },
     "dark": {
       "--background": "#0d0806",
@@ -3179,7 +3591,11 @@ export const PALETTES: PaletteDef[] = [
       "--segment": "#281c17",
       "--link": "#d87a6b",
       "--danger-foreground": "#0d0806",
-      "--card-glass": "#17100cb8"
+      "--card-glass": "#17100cb8",
+      "--warning": "#f7b750",
+      "--warning-foreground": "#18181b",
+      "--success": "#17c964",
+      "--success-foreground": "#18181b"
     }
   },
   {
@@ -3215,7 +3631,11 @@ export const PALETTES: PaletteDef[] = [
       "--segment": "#f2f1f2",
       "--link": "#d40924",
       "--danger-foreground": "#fcfbfc",
-      "--card-glass": "#ffffffb8"
+      "--card-glass": "#ffffffb8",
+      "--warning": "#f5a524",
+      "--warning-foreground": "#18181b",
+      "--success": "#17c964",
+      "--success-foreground": "#18181b"
     },
     "dark": {
       "--background": "#010101",
@@ -3240,7 +3660,11 @@ export const PALETTES: PaletteDef[] = [
       "--segment": "#0d0d0d",
       "--link": "#df202e",
       "--danger-foreground": "#010101",
-      "--card-glass": "#030303b8"
+      "--card-glass": "#030303b8",
+      "--warning": "#f7b750",
+      "--warning-foreground": "#18181b",
+      "--success": "#17c964",
+      "--success-foreground": "#18181b"
     }
   },
   {
@@ -3276,7 +3700,11 @@ export const PALETTES: PaletteDef[] = [
       "--segment": "#e7e7ed",
       "--link": "#71699d",
       "--danger-foreground": "#f5f5f8",
-      "--card-glass": "#f8f8fab8"
+      "--card-glass": "#f8f8fab8",
+      "--warning": "#f5a524",
+      "--warning-foreground": "#18181b",
+      "--success": "#17c964",
+      "--success-foreground": "#18181b"
     },
     "dark": {
       "--background": "#010203",
@@ -3301,7 +3729,11 @@ export const PALETTES: PaletteDef[] = [
       "--segment": "#111116",
       "--link": "#474266",
       "--danger-foreground": "#010203",
-      "--card-glass": "#050509b8"
+      "--card-glass": "#050509b8",
+      "--warning": "#f7b750",
+      "--warning-foreground": "#18181b",
+      "--success": "#17c964",
+      "--success-foreground": "#18181b"
     }
   },
   {
@@ -3337,7 +3769,11 @@ export const PALETTES: PaletteDef[] = [
       "--segment": "#ebeff2",
       "--link": "#3179a6",
       "--danger-foreground": "#f5f9fb",
-      "--card-glass": "#fafcfdb8"
+      "--card-glass": "#fafcfdb8",
+      "--warning": "#f5a524",
+      "--warning-foreground": "#18181b",
+      "--success": "#17c964",
+      "--success-foreground": "#18181b"
     },
     "dark": {
       "--background": "#020405",
@@ -3362,7 +3798,11 @@ export const PALETTES: PaletteDef[] = [
       "--segment": "#11171b",
       "--link": "#75acd2",
       "--danger-foreground": "#020405",
-      "--card-glass": "#050a0eb8"
+      "--card-glass": "#050a0eb8",
+      "--warning": "#f7b750",
+      "--warning-foreground": "#18181b",
+      "--success": "#17c964",
+      "--success-foreground": "#18181b"
     }
   },
   {
@@ -3398,7 +3838,11 @@ export const PALETTES: PaletteDef[] = [
       "--segment": "#f4f4f5",
       "--link": "#717177",
       "--danger-foreground": "#fafafb",
-      "--card-glass": "#ffffffb8"
+      "--card-glass": "#ffffffb8",
+      "--warning": "#f5a524",
+      "--warning-foreground": "#18181b",
+      "--success": "#17c964",
+      "--success-foreground": "#18181b"
     },
     "dark": {
       "--background": "#060607",
@@ -3423,7 +3867,11 @@ export const PALETTES: PaletteDef[] = [
       "--segment": "#1a1a1d",
       "--link": "#85858c",
       "--danger-foreground": "#060607",
-      "--card-glass": "#0d0d0fb8"
+      "--card-glass": "#0d0d0fb8",
+      "--warning": "#f7b750",
+      "--warning-foreground": "#18181b",
+      "--success": "#17c964",
+      "--success-foreground": "#18181b"
     }
   }
 ];

@@ -31,6 +31,8 @@ import { FastThemeScope, useThemeMode, useThemeVars } from '@/theme/theme-contex
 interface VoiceInputProps {
   onResult: (text: string) => void;
   disabled?: boolean;
+  /** Sits inside the composer pill: no own background, round hit area. */
+  inline?: boolean;
 }
 
 interface VoiceError {
@@ -141,7 +143,7 @@ function WaveformVisualizer({ metering, active, color }: { metering: number; act
   );
 }
 
-export function VoiceButton({ onResult, disabled }: VoiceInputProps) {
+export function VoiceButton({ onResult, disabled, inline = false }: VoiceInputProps) {
   const { t } = useTranslation();
   const { scheme } = useThemeMode();
   const vars = useThemeVars();
@@ -328,7 +330,7 @@ export function VoiceButton({ onResult, disabled }: VoiceInputProps) {
               opacity: ringAnim,
               transform: [{ scale: ringAnim.interpolate({ inputRange: [0, 1], outputRange: [0.9, 1.4] }) }]
             }}
-            className="h-[44px] w-[44px] rounded-2xl border-2 border-primary"
+            className={`h-[44px] w-[44px] border-2 border-focus ${inline ? 'rounded-full' : 'rounded-2xl'}`}
           />
         </View>
         <Pressable
@@ -343,15 +345,19 @@ export function VoiceButton({ onResult, disabled }: VoiceInputProps) {
           disabled={disabled}
           accessibilityRole="button"
           accessibilityLabel={t('mobile.voice.holdA11y')}
-          className="h-[44px] w-[44px] items-center justify-center rounded-2xl bg-surface-secondary active:opacity-75 disabled:opacity-40"
+          className={
+            inline
+              ? 'h-[44px] w-[44px] items-center justify-center rounded-full active:opacity-60 disabled:opacity-40'
+              : 'h-[44px] w-[44px] items-center justify-center rounded-2xl bg-surface-secondary active:opacity-75 disabled:opacity-40'
+          }
         >
-          <Glyph name="mic" color={vars['--foreground']} size={20} />
+          <Glyph name="mic" color={inline ? vars['--muted'] : vars['--foreground']} size={20} />
         </Pressable>
 
         {hint ? (
           <View pointerEvents="none" className="absolute bottom-full left-0 mb-2">
-            <View className="rounded-xl bg-foreground px-3 py-1.5 shadow-lg">
-              <Text numberOfLines={1} className="text-xs font-medium text-background">
+            <View className="rounded-xl bg-foreground px-3 py-1.5">
+              <Text numberOfLines={1} className="text-[13px] font-medium text-background">
                 {t('mobile.voice.holdHint')}
               </Text>
             </View>
@@ -363,13 +369,13 @@ export function VoiceButton({ onResult, disabled }: VoiceInputProps) {
         <FastThemeScope>
           <KeyboardAvoidingView
             behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-            className="flex-1 justify-end bg-black/60"
+            className="flex-1 justify-end bg-backdrop"
           >
             <Pressable className="flex-1" onPress={closePanel} accessibilityLabel={t('mobile.voice.closeInputA11y')} />
             <BlurView
               intensity={Platform.OS === 'ios' ? 95 : 100}
               tint={scheme === 'dark' ? 'dark' : 'light'}
-              className="overflow-hidden rounded-t-[32px] border-t border-border bg-surface px-5 pt-3 shadow-2xl"
+              className="overflow-hidden rounded-t-3xl bg-overlay px-5 pt-3 shadow-lg"
               style={{ paddingBottom: Math.max(32, insets.bottom + 12) }}
             >
               <View className="items-center pb-3">
@@ -381,13 +387,13 @@ export function VoiceButton({ onResult, disabled }: VoiceInputProps) {
                   <View
                     className={`h-2.5 w-2.5 rounded-full ${
                       phase === 'listening'
-                        ? 'bg-primary animate-pulse'
+                        ? 'bg-danger'
                         : phase === 'transcribing' || phase === 'loading'
                           ? 'bg-focus'
                           : 'bg-muted'
                     }`}
                   />
-                  <Text className="text-xs font-semibold text-muted">{statusText}</Text>
+                  <Text className="text-[13px] font-semibold text-muted">{statusText}</Text>
                 </View>
                 <Pressable
                   onPress={closePanel}
@@ -405,23 +411,23 @@ export function VoiceButton({ onResult, disabled }: VoiceInputProps) {
               />
 
               {error ? (
-                <View className="mb-2.5 flex-row items-center justify-between rounded-2xl bg-destructive/10 px-3.5 py-2.5">
-                  <Text numberOfLines={2} className="flex-1 text-xs leading-4 text-destructive">
+                <View className="mb-2.5 flex-row items-center justify-between gap-1.5">
+                  <Text numberOfLines={2} className="flex-1 text-[13px] leading-5 text-danger">
                     {voiceErrorCopy(t, error)}
                   </Text>
                   {error.code === 'not-allowed' ? (
                     <Pressable
                       onPress={() => void Linking.openSettings()}
-                      className="ml-2.5 rounded-full bg-destructive/15 px-3 py-1.5 active:opacity-70"
+                      className="min-h-11 justify-center px-2 active:opacity-60"
                     >
-                      <Text className="text-xs font-semibold text-destructive">{t('mobile.voice.goSettings')}</Text>
+                      <Text className="text-[13px] font-semibold text-link">{t('mobile.voice.goSettings')}</Text>
                     </Pressable>
                   ) : (
                     <Pressable
                       onPress={() => void startListening()}
-                      className="ml-2.5 rounded-full bg-destructive/15 px-3 py-1.5 active:opacity-70"
+                      className="min-h-11 justify-center px-2 active:opacity-60"
                     >
-                      <Text className="text-xs font-semibold text-destructive">{t('shell.common.retry')}</Text>
+                      <Text className="text-[13px] font-semibold text-link">{t('shell.common.retry')}</Text>
                     </Pressable>
                   )}
                 </View>
@@ -437,7 +443,7 @@ export function VoiceButton({ onResult, disabled }: VoiceInputProps) {
                 placeholderTextColor={vars['--muted']}
                 multiline
                 textAlignVertical="top"
-                className="min-h-[132px] rounded-2xl border border-border/60 bg-surface-secondary px-4 py-3.5 text-base leading-6 text-foreground"
+                className="min-h-[132px] rounded-2xl bg-surface-secondary px-4 py-3.5 text-[15px] leading-6 text-surface-secondary-foreground"
               />
 
               <View className="mt-3.5 flex-row items-center justify-between">
@@ -449,7 +455,7 @@ export function VoiceButton({ onResult, disabled }: VoiceInputProps) {
                       className="h-9 flex-row items-center gap-2 rounded-full bg-default px-4 active:opacity-80"
                     >
                       <View className="h-2.5 w-2.5 rounded-[2px] bg-default-foreground" />
-                      <Text className="text-xs font-semibold text-default-foreground">{t('shell.common.stop')}</Text>
+                      <Text className="text-[13px] font-semibold text-default-foreground">{t('shell.common.stop')}</Text>
                     </Pressable>
                   ) : (
                     <>
@@ -460,7 +466,7 @@ export function VoiceButton({ onResult, disabled }: VoiceInputProps) {
                         className="h-9 flex-row items-center gap-1.5 rounded-full bg-surface-secondary px-4 active:opacity-70 disabled:opacity-40"
                       >
                         <Glyph name="mic" size={13} color={vars['--foreground']} />
-                        <Text className="text-xs font-semibold text-foreground">
+                        <Text className="text-[13px] font-semibold text-foreground">
                           {transcript.trim() ? t('mobile.voice.continueSpeak') : t('mobile.voice.speak')}
                         </Text>
                       </Pressable>
@@ -470,7 +476,7 @@ export function VoiceButton({ onResult, disabled }: VoiceInputProps) {
                           accessibilityLabel={t('mobile.voice.clearA11y')}
                           className="h-9 items-center justify-center rounded-full px-3 active:opacity-60"
                         >
-                          <Text className="text-xs font-medium text-muted">{t('mobile.voice.clear')}</Text>
+                          <Text className="text-[13px] font-medium text-muted">{t('mobile.voice.clear')}</Text>
                         </Pressable>
                       ) : null}
                     </>
@@ -479,9 +485,9 @@ export function VoiceButton({ onResult, disabled }: VoiceInputProps) {
                 <Pressable
                   onPress={handleSend}
                   disabled={!transcript.trim() || phase === 'listening' || phase === 'transcribing'}
-                  className="h-11 min-w-[96px] items-center justify-center rounded-2xl bg-default px-5 shadow-sm active:scale-95 active:opacity-80 disabled:opacity-30"
+                  className="h-11 min-w-[96px] items-center justify-center rounded-2xl bg-default px-5 active:scale-95 active:opacity-80 disabled:opacity-30"
                 >
-                  <Text className="text-sm font-semibold text-default-foreground">{t('shell.common.send')}</Text>
+                  <Text className="text-[15px] font-semibold text-default-foreground">{t('shell.common.send')}</Text>
                 </Pressable>
               </View>
             </BlurView>

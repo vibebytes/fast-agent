@@ -1,4 +1,5 @@
 import { router } from 'expo-router';
+import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Pressable, Text, View } from 'react-native';
 
@@ -7,6 +8,8 @@ import { formatCopy, type Translate } from '@/bridge/copy';
 import type { BridgeConnUiState } from '@/bridge/store';
 import { bridgeStore } from '@/bridge/store';
 import { useBridgeSnapshot } from '@/bridge/useBridge';
+import { Glyph } from '@/components/glyphs';
+import { useThemeVars } from '@/theme/theme-context';
 
 export function connectionLabel(t: Translate, state: ConnectionState, ui?: BridgeConnUiState): string {
   if (ui === 'unconfigured') return t('mobile.conn.unconfigured');
@@ -24,12 +27,10 @@ export function ConnectionBanner() {
     if (!host && parseFailures === 0) return null;
     const text = host ?? t('errors.protocol.mismatch', {defaultValue: `Parse failures: ${parseFailures}`});
     return (
-      <View className="bg-warning/15 px-3 py-1.5">
-        <Text className="text-center text-[11px] text-warning">
-          {text}
-          {!host && parseFailures > 0 ? ` (${parseFailures})` : ''}
-        </Text>
-      </View>
+      <Notice>
+        {text}
+        {!host && parseFailures > 0 ? ` (${parseFailures})` : ''}
+      </Notice>
     );
   }
   const label = connectionLabel(t, snapshot.connection, snapshot.connUi);
@@ -49,18 +50,31 @@ export function ConnectionBanner() {
             : label;
   const rescanHint = ui === 'authFailed' || ui === 'urlExpired' ? t('mobile.conn.rescanHint') : '';
   return (
-    <View className="bg-warning/15 px-3 py-1.5">
-      <Pressable onPress={() => router.push('/settings')} className="min-h-11 justify-center">
-        <Text className="text-center text-[11px] text-warning">
+    <View className="flex-row items-center">
+      <Pressable onPress={() => router.push('/settings')} className="flex-1 active:opacity-60">
+        <Notice>
           {uiLabel}
           {rescanHint ? ` · ${rescanHint}` : detail ? ` · ${detail}` : ''}
-        </Text>
+        </Notice>
       </Pressable>
       {snapshot.connection === 'rejected' ? (
-        <Pressable onPress={() => bridgeStore.retry()} className="min-h-11 items-center justify-center">
-          <Text className="text-xs font-semibold text-warning">{t('mobile.conn.retry')}</Text>
+        <Pressable onPress={() => bridgeStore.retry()} className="min-h-11 justify-center px-4 active:opacity-60">
+          <Text className="text-[13px] font-semibold text-link">{t('mobile.conn.retry')}</Text>
         </Pressable>
       ) : null}
+    </View>
+  );
+}
+
+/** Connection trouble: a warning mark and one muted line, no colour band. */
+function Notice({ children }: { children: ReactNode }) {
+  const vars = useThemeVars();
+  return (
+    <View className="min-h-11 flex-row items-center gap-1.5 px-4 py-1.5">
+      <Glyph name="alert" size={14} color={vars['--warning']} />
+      <Text numberOfLines={2} className="flex-1 text-[13px] text-muted">
+        {children}
+      </Text>
     </View>
   );
 }
@@ -71,7 +85,7 @@ export function ConnectionDot() {
     snapshot.connection === 'open'
       ? 'bg-success'
       : snapshot.connection === 'rejected'
-        ? 'bg-destructive'
+        ? 'bg-danger'
         : 'bg-warning';
   return <View className={`h-2 w-2 rounded-full ${color}`} />;
 }

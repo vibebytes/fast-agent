@@ -5,13 +5,13 @@ import {
 } from '@fast-ide/session-view';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Modal, Pressable, ScrollView, Text, View } from 'react-native';
+import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { GlassHeader } from '@/components/glass-header';
 import { Glyph } from '@/components/glyphs';
 import { useThemeVars } from '@/theme/theme-context';
 
-type ToolLike = {
+export type ToolLike = {
   id: string;
   tool: string;
   args?: Record<string, string>;
@@ -62,15 +62,8 @@ export function diffTextOf(tool: ToolLike): string | undefined {
 
 export function DiffLineRow({ line }: { line: DiffLine }) {
   const style =
-    line.type === 'add'
-      ? 'bg-success/15'
-      : line.type === 'del'
-        ? 'bg-destructive/15'
-        : line.type === 'hunk'
-          ? 'bg-surface-secondary/80'
-          : '';
-  const color =
-    line.type === 'add' ? 'text-success' : line.type === 'del' ? 'text-destructive' : 'text-foreground';
+    line.type === 'add' ? 'bg-success/15' : line.type === 'del' ? 'bg-danger/15' : line.type === 'hunk' ? 'bg-surface-tertiary' : '';
+  const color = line.type === 'add' ? 'text-success' : line.type === 'del' ? 'text-danger' : 'text-foreground';
   return (
     <Text className={`px-2 py-0.5 font-mono text-[11px] leading-4 ${style} ${color}`} selectable>
       {line.type === 'add' ? `+ ${line.content}` : line.type === 'del' ? `- ${line.content}` : line.content}
@@ -96,27 +89,22 @@ export function FullSheet({
   return (
     <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
       <View className="flex-1 bg-background" style={{ paddingTop: insets.top }}>
-        <GlassHeader
-          fallbackClassName="bg-surface-secondary"
-          className="flex-row items-center justify-between border-b border-border/80 px-4 pb-3"
-        >
+        <GlassHeader className="flex-row items-center justify-between px-4 pb-3 pt-2">
           <View className="flex-1 pr-2">
-            <Text numberOfLines={1} className="text-base font-semibold text-foreground">
+            <Text numberOfLines={1} className="text-[17px] font-semibold text-foreground">
               {title}
             </Text>
             {subtitle ? (
-              <Text numberOfLines={1} className="font-mono text-xs text-muted">
+              <Text numberOfLines={1} className="font-mono text-[13px] text-muted">
                 {subtitle}
               </Text>
             ) : null}
           </View>
-          <Pressable
-            onPress={onClose}
-            className="rounded-xl bg-surface-secondary px-3.5 py-1.5 active:opacity-75"
-          >
-            <Text className="text-xs font-semibold text-foreground">{t('mobile.chat.done')}</Text>
+          <Pressable onPress={onClose} className="min-h-11 justify-center px-2 active:opacity-60">
+            <Text className="text-[15px] font-semibold text-link">{t('mobile.chat.done')}</Text>
           </Pressable>
         </GlassHeader>
+        <View style={{ height: StyleSheet.hairlineWidth }} className="bg-separator" />
         <ScrollView horizontal className="flex-1">
           <ScrollView className="min-w-full p-4">{children}</ScrollView>
         </ScrollView>
@@ -127,16 +115,7 @@ export function FullSheet({
 
 export function toolHint(tool: ToolLike): string {
   const args = tool.args ?? {};
-  return (
-    tool.statusNote ||
-    args.path ||
-    args.command ||
-    args.query ||
-    args.pattern ||
-    args.file ||
-    args.name ||
-    ''
-  );
+  return tool.statusNote || args.path || args.command || args.query || args.pattern || args.file || args.name || '';
 }
 
 export function ToolDetailSheet({ tool, onClose }: { tool: ToolLike | null; onClose: () => void }) {
@@ -148,30 +127,25 @@ export function ToolDetailSheet({ tool, onClose }: { tool: ToolLike | null; onCl
   const { icon, cat } = getToolCategory(tool.tool);
   const label = t(TOOL_COPY[cat]);
   return (
-    <FullSheet
-      visible
-      title={`${icon} ${tool.tool}`}
-      subtitle={toolHint(tool) || label}
-      onClose={onClose}
-    >
+    <FullSheet visible title={`${icon} ${tool.tool}`} subtitle={toolHint(tool) || label} onClose={onClose}>
       {diffText ? (
-        <View className="overflow-hidden rounded-xl border border-border bg-surface">
-          <View className="flex-row items-center justify-between border-b border-border bg-surface-secondary px-3 py-2">
-            <Text className="text-xs font-semibold text-muted">{t('mobile.chat.diffTitle')}</Text>
+        <View className="overflow-hidden rounded-2xl bg-surface-secondary">
+          <View className="flex-row items-center justify-between px-3 py-2">
+            <Text className="text-[13px] font-semibold text-muted">{t('mobile.chat.diffTitle')}</Text>
             <View className="flex-row gap-2">
-              <Text className="text-xs font-mono font-bold text-success">+{stats.add}</Text>
-              <Text className="text-xs font-mono font-bold text-destructive">-{stats.del}</Text>
+              <Text className="font-mono text-[13px] font-bold text-success">+{stats.add}</Text>
+              <Text className="font-mono text-[13px] font-bold text-danger">−{stats.del}</Text>
             </View>
           </View>
-          <View className="p-2">
+          <View className="pb-2">
             {lines.map((line: DiffLine, i: number) => (
               <DiffLineRow key={i} line={line} />
             ))}
           </View>
         </View>
       ) : (
-        <View className="rounded-xl border border-border bg-surface p-3.5">
-          <Text className="font-mono text-xs leading-5 text-foreground" selectable>
+        <View className="rounded-2xl bg-surface-secondary p-3.5">
+          <Text className="font-mono text-[13px] leading-5 text-foreground" selectable>
             {tool.output || toolHint(tool) || t('mobile.chat.stepEmpty')}
           </Text>
         </View>
@@ -180,13 +154,20 @@ export function ToolDetailSheet({ tool, onClose }: { tool: ToolLike | null; onCl
   );
 }
 
-export function AgentToolPipeline({ tools }: { tools: ToolLike[] }) {
+function StepMark({ status }: { status: string }) {
+  const vars = useThemeVars();
+  if (status === 'running') return <View className="h-2 w-2 rounded-full bg-focus" />;
+  if (status === 'error' || status === 'cancelled') return <Glyph name="cross" size={13} color={vars['--danger']} />;
+  return <Glyph name="check" size={13} color={vars['--muted']} />;
+}
+
+export function AgentToolPipeline({ tools, initiallyOpen = false }: { tools: ToolLike[]; initiallyOpen?: boolean }) {
   const { t } = useTranslation();
   const vars = useThemeVars();
-  const anyRunning = tools.some((t) => t.status === 'running');
-  const [open, setOpen] = useState(anyRunning);
+  const anyRunning = tools.some((x) => x.status === 'running');
+  const [open, setOpen] = useState(initiallyOpen || anyRunning);
   const [detail, setDetail] = useState<ToolLike | null>(null);
-  const touched = useRef(false);
+  const touched = useRef(initiallyOpen);
 
   useEffect(() => {
     if (touched.current) return;
@@ -195,111 +176,64 @@ export function AgentToolPipeline({ tools }: { tools: ToolLike[] }) {
 
   if (tools.length === 0) return null;
 
-  const runningCount = tools.filter((t) => t.status === 'running').length;
-  const errorCount = tools.filter((t) => t.status === 'error' || t.status === 'cancelled').length;
-  const successCount = tools.filter((t) => t.status === 'success').length;
+  const errorCount = tools.filter((x) => x.status === 'error' || x.status === 'cancelled').length;
+  const successCount = tools.filter((x) => x.status === 'success').length;
 
   return (
-    <View className="mt-2.5 overflow-hidden rounded-2xl border border-border/80 bg-surface shadow-xs">
-      {/* Pipeline Header Summary */}
-      <Pressable
-        accessibilityRole="button"
-        onPress={() => {
-          touched.current = true;
-          setOpen((v) => !v);
-        }}
-        className="min-h-[44px] flex-row items-center justify-between px-3.5 py-2.5 active:bg-surface-secondary/60"
-      >
-        <View className="flex-1 flex-row items-center gap-2">
-          {anyRunning ? (
-            <View className="h-2.5 w-2.5 animate-pulse rounded-full bg-primary" />
-          ) : errorCount > 0 ? (
-            <View className="h-2 w-2 rounded-full bg-destructive" />
-          ) : (
-            <View className="h-2 w-2 rounded-full bg-success" />
-          )}
-          <Text numberOfLines={1} className="text-xs font-semibold text-foreground">
-            {anyRunning
-              ? t('mobile.chat.pipelineRunning', { current: successCount + 1, total: tools.length })
-              : t('mobile.chat.pipelineDone', { count: tools.length })}
-          </Text>
-        </View>
+    <View className="mt-2 overflow-hidden rounded-2xl bg-surface-secondary">
+      {initiallyOpen ? null : (
+        <Pressable
+          accessibilityRole="button"
+          onPress={() => {
+            touched.current = true;
+            setOpen((v) => !v);
+          }}
+          className="min-h-11 flex-row items-center justify-between px-3.5 active:opacity-60"
+        >
+          <View className="flex-1 flex-row items-center gap-2">
+            <StepMark status={anyRunning ? 'running' : errorCount > 0 ? 'error' : 'success'} />
+            <Text numberOfLines={1} className="text-[13px] font-semibold text-surface-secondary-foreground">
+              {anyRunning
+                ? t('mobile.chat.pipelineRunning', { current: successCount + 1, total: tools.length })
+                : t('mobile.chat.pipelineDone', { count: tools.length })}
+            </Text>
+          </View>
+          <View className="flex-row items-center gap-1.5">
+            {errorCount > 0 ? (
+              <Text className="text-[11px] font-semibold text-danger">{t('mobile.chat.errorCount', { count: errorCount })}</Text>
+            ) : null}
+            <Glyph name={open ? 'chevron-down' : 'chevron-right'} size={14} color={vars['--muted']} />
+          </View>
+        </Pressable>
+      )}
 
-        <View className="flex-row items-center gap-1.5">
-          {errorCount > 0 ? (
-            <View className="rounded-md bg-destructive/15 px-1.5 py-0.5">
-              <Text className="text-[10px] font-bold text-destructive">{t('mobile.chat.errorCount', { count: errorCount })}</Text>
-            </View>
-          ) : null}
-          <Glyph
-            name={open ? 'chevron-down' : 'chevron-right'}
-            size={14}
-            color={vars['--muted']}
-          />
-        </View>
-      </Pressable>
-
-      {/* Expanded Timeline Steps */}
       {open ? (
-        <View className="border-t border-border/60 bg-surface-secondary/25 px-3 py-2">
+        <View className="px-1.5 py-1">
           {tools.map((tool, idx) => {
             const hint = toolHint(tool);
             const hasDiff = Boolean(diffTextOf(tool));
-            const isRunning = tool.status === 'running';
-            const isError = tool.status === 'error' || tool.status === 'cancelled';
-            const isLast = idx === tools.length - 1;
-            const { icon } = getToolCategory(tool.tool);
-
             return (
-              <View key={tool.id || idx} className="flex-row">
-                {/* Timeline vertical rail */}
-                <View className="items-center px-1">
-                  <View
-                    className={`h-4 w-4 items-center justify-center rounded-full ${
-                      isRunning
-                        ? 'bg-primary/20'
-                        : isError
-                          ? 'bg-destructive/20'
-                          : 'bg-success/20'
-                    }`}
-                  >
-                    <Text
-                      className={`text-[9px] font-bold ${
-                        isRunning ? 'text-primary' : isError ? 'text-destructive' : 'text-success'
-                      }`}
-                    >
-                      {isRunning ? '▶' : isError ? '✕' : '✓'}
-                    </Text>
-                  </View>
-                  {!isLast ? <View className="my-1 w-[1.5px] flex-1 bg-border/80" /> : null}
+              <Pressable
+                key={tool.id || idx}
+                accessibilityRole="button"
+                onPress={() => setDetail(tool)}
+                className="min-h-11 flex-row items-center gap-2.5 rounded-xl px-2 py-1.5 active:bg-surface-tertiary"
+              >
+                <View className="w-4 items-center">
+                  <StepMark status={tool.status} />
                 </View>
-
-                {/* Step Item Content */}
-                <Pressable
-                  accessibilityRole="button"
-                  onPress={() => setDetail(tool)}
-                  className="mb-2 ml-2 min-h-[34px] flex-1 rounded-xl border border-border/50 bg-surface/70 px-2.5 py-1.5 active:bg-surface active:border-border"
-                >
-                  <View className="flex-row items-center justify-between">
-                    <View className="flex-1 flex-row items-center gap-1.5">
-                      <Text className="text-xs">{icon}</Text>
-                      <Text numberOfLines={1} className="font-mono text-xs font-semibold text-foreground">
-                        {tool.tool}
-                      </Text>
-                    </View>
-                    {hasDiff ? (
-                      <View className="rounded bg-primary/10 px-1.5 py-0.5">
-                        <Text className="text-[10px] font-bold text-primary">Diff</Text>
-                      </View>
-                    ) : null}
-                  </View>
+                <View className="min-w-0 flex-1">
+                  <Text numberOfLines={1} className="font-mono text-[13px] text-surface-secondary-foreground">
+                    {tool.tool}
+                  </Text>
                   {hint ? (
-                    <Text numberOfLines={1} className="mt-0.5 font-mono text-[11px] text-muted">
+                    <Text numberOfLines={1} className="font-mono text-[11px] text-muted">
                       {hint}
                     </Text>
                   ) : null}
-                </Pressable>
-              </View>
+                </View>
+                {hasDiff ? <Text className="text-[11px] font-semibold text-link">Diff</Text> : null}
+              </Pressable>
             );
           })}
         </View>
@@ -309,4 +243,3 @@ export function AgentToolPipeline({ tools }: { tools: ToolLike[] }) {
     </View>
   );
 }
-

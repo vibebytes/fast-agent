@@ -1832,7 +1832,18 @@
       "lastConnectedNow": "Just connected",
       "lastConnectedMinutes": "Connected {{count}} min ago",
       "lastConnectedHours": "Connected {{count}} h ago",
-      "lastConnectedDays": "Connected {{count}} d ago"
+      "lastConnectedDays": "Connected {{count}} d ago",
+      "assistant": "Assistant",
+      "assistantHint": "Stored on this phone only.",
+      "assistantName": "Name",
+      "assistantMark": "Avatar",
+      "assistantMarkPlaceholder": "An emoji, or blank for the default mark",
+      "fieldLabel": "Label",
+      "fieldUrl": "Address",
+      "fieldFingerprint": "Fingerprint",
+      "test": "Test",
+      "about": "About",
+      "version": "Version"
     },
     "index": {
       "new": "New",
@@ -1855,10 +1866,12 @@
       "loadingList": "Loading sessions…",
       "connectingDesktop": "Connecting to desktop…",
       "emptyTitle": "No sessions yet",
-      "emptyBody": "Tap New session to start chatting",
+      "emptyBody": "Tap + at the top right to start a temporary chat",
       "running": "Running",
       "noMessages": "No messages",
-      "messageCount": "{{count}} messages"
+      "messageCount": "{{count}} messages",
+      "mainGroup": "Main chat",
+      "tempGroup": "Temporary chats"
     },
     "session": {
       "missing": "Session not found."
@@ -1921,7 +1934,11 @@
       "pauseQueue": "Pause queue",
       "edit": "Edit",
       "prevCard": "Previous",
-      "nextCard": "Next"
+      "nextCard": "Next",
+      "approvalLabel": "Needs your approval",
+      "questionLabel": "A question for you",
+      "details": "Details",
+      "hideDetails": "Hide details"
     },
     "voice": {
       "micDenied": "Microphone permission denied. Allow it in system settings.",
@@ -1961,6 +1978,45 @@
       "rescanHint": "Re-scan the QR code on the desktop",
       "unconfigured": "No server saved",
       "retry": "Retry"
+    },
+    "home": {
+      "title": "Main chat",
+      "greeting": "What should {{name}} do?",
+      "example1": "Summarize what changed in this project today",
+      "example2": "Run the tests and tell me what fails",
+      "example3": "Find the TODOs I left last week",
+      "creating": "Setting up the main chat…",
+      "failed": "Couldn't create the main chat."
+    },
+    "avatar": {
+      "a11y": "{{name}}, show status"
+    },
+    "status": {
+      "title": "Status",
+      "empty": "Nothing in progress",
+      "needs": "Needs you",
+      "working": "Working on",
+      "running": "Running",
+      "scope": "Only counts conversations opened on this phone."
+    },
+    "brief": {
+      "running": "{{what}}…",
+      "done": "Done in {{count}} steps",
+      "doneFailed": "{{count}} steps ·",
+      "failed": "{{count}} failed",
+      "changed": "Changed {{count}} files",
+      "verb": {
+        "shell": "Running a command",
+        "file": "Editing files",
+        "search": "Reading code",
+        "git": "Working with git",
+        "agent": "Delegating",
+        "system": "Using a tool"
+      }
+    },
+    "display": {
+      "toBrief": "Show brief",
+      "toFull": "Show full"
     }
   }
 }
