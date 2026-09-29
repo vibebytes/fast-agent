@@ -159,3 +159,21 @@ test('turn_finished still unlocks immediately without waiting for lease', () => 
 	assert.equal(composerGate(state, true).runState, 'idle');
 	assert.equal(composerGate(state, true).canCancel, false);
 });
+
+test('cold attach: chat heartbeat seeds Stop for a run missing from restored turns', () => {
+	let state = createTranscriptState();
+	state = applyBridgeEvent(state, {type: 'session_restored', sessionId: 's', turns: []} as never);
+	state = applyBridgeEvent(state, {type: 'run_state', runId: 'run-9', state: 'running', ts: 1});
+	assert.equal(composerGate(state, true).canCancel, false, 'no turnId: could be a Goal run');
+	state = applyBridgeEvent(state, {
+		type: 'run_state',
+		runId: 'run-9',
+		turnId: 'run-9',
+		state: 'running',
+		ts: 2
+	});
+	assert.equal(chromeRunId(state.chrome), 'run-9');
+	assert.equal(composerGate(state, true).canCancel, true);
+	state = applyBridgeEvent(state, {type: 'run_state', state: 'idle', ts: 3});
+	assert.equal(composerGate(state, true).runState, 'idle');
+});

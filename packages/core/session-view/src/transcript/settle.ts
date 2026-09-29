@@ -28,7 +28,7 @@ function keepFault(
 }
 
 /** Attach snapshot said the chat run is still live after a local idle settle. */
-function reviveChatRun(state: TranscriptState, runId: string): TranscriptState {
+function reviveChatRun(state: TranscriptState, runId: string, isChat: boolean): TranscriptState {
 	let revived = false;
 	const entries = state.entries.map(entry => {
 		if (entry.role !== 'assistant') return entry;
@@ -38,7 +38,9 @@ function reviveChatRun(state: TranscriptState, runId: string): TranscriptState {
 		if (entry.status === 'streaming') return entry;
 		return {...entry, status: 'streaming' as const};
 	});
-	if (!revived) return state;
+	// A chat run started elsewhere (e.g. mobile) may not be in the restored turns yet:
+	// its heartbeat carries `turnId`, so seed the chrome and keep Stop reachable.
+	if (!revived && !isChat) return state;
 	return {
 		...state,
 		chrome: runChromeTransition(state.chrome, {
@@ -218,7 +220,7 @@ export function applyRunState(
 		event.runId &&
 		(event.state === 'running' || event.state === 'waiting' || event.state === 'cancelling')
 	) {
-		return reviveChatRun(marked, event.runId);
+		return reviveChatRun(marked, event.runId, event.turnId === event.runId);
 	}
 	return marked;
 }
