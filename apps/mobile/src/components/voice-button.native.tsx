@@ -1,4 +1,3 @@
-import { BlurView } from 'expo-blur';
 import * as Haptics from 'expo-haptics';
 import {
   AudioQuality,
@@ -14,8 +13,10 @@ import {
   KeyboardAvoidingView,
   Linking,
   Modal,
+  PanResponder,
   Platform,
   Pressable,
+  StyleSheet,
   Text,
   TextInput,
   View
@@ -26,10 +27,11 @@ import { useTranslation } from 'react-i18next';
 
 import { Glyph } from '@/components/glyphs';
 import { ensureVoiceEngine, transcribeFile } from '@/lib/voice-engine';
-import { FastThemeScope, useThemeMode, useThemeVars } from '@/theme/theme-context';
+import { FastThemeScope, useThemeVars } from '@/theme/theme-context';
 
 interface VoiceInputProps {
   onResult: (text: string) => void;
+  onSend?: (text: string) => void;
   disabled?: boolean;
   /** Sits inside the composer pill: no own background, round hit area. */
   inline?: boolean;
@@ -71,6 +73,15 @@ const BAR_FACTORS = [
 function WaveformVisualizer({ metering, active, color }: { metering: number; active: boolean; color: string }) {
   const bars = useRef(Array.from({ length: NUM_BARS }, () => new Animated.Value(0.15))).current;
   const idleAnim = useRef(new Animated.Value(0)).current;
+  const expandAnim = useRef(new Animated.Value(active ? 1 : 0)).current;
+
+  useEffect(() => {
+    Animated.timing(expandAnim, {
+      toValue: active ? 1 : 0,
+      duration: 220,
+      useNativeDriver: false
+    }).start();
+  }, [active, expandAnim]);
 
   useEffect(() => {
     let loop: Animated.CompositeAnimation | null = null;
@@ -113,18 +124,25 @@ function WaveformVisualizer({ metering, active, color }: { metering: number; act
   }, [active, metering, bars]);
 
   return (
-    <View className="h-9 w-full flex-row items-center justify-center gap-[3px] py-1">
+    <Animated.View
+      style={{
+        height: expandAnim.interpolate({ inputRange: [0, 1], outputRange: [0, 38] }),
+        opacity: expandAnim,
+        overflow: 'hidden'
+      }}
+      className="w-full flex-row items-center justify-center gap-[3px]"
+    >
       {bars.map((bar, i) => (
         <Animated.View
           key={i}
           style={{
-            width: 3,
-            height: 28,
-            borderRadius: 1.5,
+            width: 3.5,
+            height: 26,
+            borderRadius: 2,
             backgroundColor: color,
             opacity: bar.interpolate({
               inputRange: [0.1, 0.4, 1],
-              outputRange: [0.35, 0.75, 1],
+              outputRange: [0.4, 0.8, 1],
               extrapolate: 'clamp'
             }),
             transform: [
@@ -139,13 +157,12 @@ function WaveformVisualizer({ metering, active, color }: { metering: number; act
           }}
         />
       ))}
-    </View>
+    </Animated.View>
   );
 }
 
-export function VoiceButton({ onResult, disabled, inline = false }: VoiceInputProps) {
+export function VoiceButton({ onResult, onSend, disabled, inline = false }: VoiceInputProps) {
   const { t } = useTranslation();
-  const { scheme } = useThemeMode();
   const vars = useThemeVars();
   const insets = useSafeAreaInsets();
   const [active, setActive] = useState(false);
@@ -162,6 +179,7 @@ export function VoiceButton({ onResult, disabled, inline = false }: VoiceInputPr
   const pressAnim = useRef(new Animated.Value(1)).current;
   const ringAnim = useRef(new Animated.Value(0)).current;
   const waveAnim = useRef(new Animated.Value(0)).current;
+  const pulseAnim = useRef(new Animated.Value(0)).current;
 
   const setPhaseSafe = (next: Phase) => {
     phaseRef.current = next;
@@ -170,6 +188,22 @@ export function VoiceButton({ onResult, disabled, inline = false }: VoiceInputPr
 
   const recorder = useAudioRecorder(RECORD_OPTIONS);
   const recorderState = useAudioRecorderState(recorder, 100);
+
+  useEffect(() => {
+    let loop: Animated.CompositeAnimation | null = null;
+    if (phase === 'listening') {
+      loop = Animated.loop(
+        Animated.sequence([
+          Animated.timing(pulseAnim, { toValue: 1, duration: 1100, useNativeDriver: true }),
+          Animated.timing(pulseAnim, { toValue: 0, duration: 1100, useNativeDriver: true })
+        ])
+      );
+      loop.start();
+    } else {
+      pulseAnim.setValue(0);
+    }
+    return () => loop?.stop();
+  }, [phase, pulseAnim]);
 
   useEffect(() => {
     if (recorderState.metering == null) return;
@@ -257,6 +291,19 @@ export function VoiceButton({ onResult, disabled, inline = false }: VoiceInputPr
     errorRef.current = null;
   }, [recorder]);
 
+  const panResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponder: (_, gesture) => gesture.dy > 5,
+      onPanResponderRelease: (_, gesture) => {
+        if (gesture.dy > 45 || gesture.vy > 0.5) {
+          hapticImpact(Haptics.ImpactFeedbackStyle.Light);
+          closePanel();
+        }
+      }
+    })
+  ).current;
+
   const handlePressOut = () => {
     if (!pressingRef.current) return;
     pressingRef.current = false;
@@ -266,10 +313,15 @@ export function VoiceButton({ onResult, disabled, inline = false }: VoiceInputPr
   };
 
   const handleTap = () => {
+    if (disabled) return;
     hapticImpact(Haptics.ImpactFeedbackStyle.Light);
-    setHint(true);
-    if (hintTimer.current) clearTimeout(hintTimer.current);
-    hintTimer.current = setTimeout(() => setHint(false), 1500);
+    pressingRef.current = false;
+    setActive(true);
+    transcriptRef.current = '';
+    setTranscript('');
+    setError(null);
+    errorRef.current = null;
+    void startListening();
   };
 
   const animatePressIn = () => {
@@ -286,10 +338,54 @@ export function VoiceButton({ onResult, disabled, inline = false }: VoiceInputPr
     ]).start();
   };
 
-  const handleSend = () => {
+  const handleSendOrFinish = async () => {
+    if (phaseRef.current === 'listening') {
+      setPhaseSafe('transcribing');
+      waveAnim.setValue(0);
+      try {
+        await recorder.stop();
+        const uri = recorder.uri;
+        if (!uri) {
+          setError({ code: 'emptyRecording' });
+          setPhaseSafe('idle');
+          return;
+        }
+        const text = await transcribeFile(uri);
+        const fullText = (transcriptRef.current ? transcriptRef.current + (text ?? '') : (text ?? '')).trim();
+        if (fullText) {
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+          if (onSend) {
+            onSend(fullText);
+          } else {
+            onResult(fullText);
+          }
+          closePanel();
+          return;
+        }
+      } catch (e) {
+        errorRef.current = 'transcribe';
+        setError({ code: 'transcribe', message: String((e as Error)?.message ?? e) });
+      } finally {
+        setPhaseSafe('idle');
+      }
+      return;
+    }
+
     const text = transcript.trim();
     if (!text) return;
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+    if (onSend) {
+      onSend(text);
+    } else {
+      onResult(text);
+    }
+    closePanel();
+  };
+
+  const handleInsert = () => {
+    const text = transcript.trim();
+    if (!text) return;
+    hapticImpact(Haptics.ImpactFeedbackStyle.Light);
     onResult(text);
     closePanel();
   };
@@ -365,67 +461,122 @@ export function VoiceButton({ onResult, disabled, inline = false }: VoiceInputPr
         ) : null}
       </Animated.View>
 
-      <Modal visible={active} transparent animationType="fade" onRequestClose={closePanel}>
+      <Modal
+        visible={active}
+        transparent
+        animationType="slide"
+        onRequestClose={closePanel}
+        statusBarTranslucent
+      >
         <FastThemeScope>
           <KeyboardAvoidingView
             behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-            className="flex-1 justify-end bg-backdrop"
+            className="flex-1 justify-end"
           >
-            <Pressable className="flex-1" onPress={closePanel} accessibilityLabel={t('mobile.voice.closeInputA11y')} />
-            <BlurView
-              intensity={Platform.OS === 'ios' ? 95 : 100}
-              tint={scheme === 'dark' ? 'dark' : 'light'}
-              className="overflow-hidden rounded-t-3xl bg-overlay px-5 pt-3 shadow-lg"
-              style={{ paddingBottom: Math.max(32, insets.bottom + 12) }}
+            {/* Dimmed backdrop */}
+            <Pressable
+              style={StyleSheet.absoluteFill}
+              onPress={closePanel}
+              className="bg-black/55"
+              accessibilityRole="button"
+              accessibilityLabel={t('mobile.voice.closeInputA11y')}
+            />
+
+            {/* Solid elevated sheet surface */}
+            <View
+              style={{
+                backgroundColor: vars['--overlay'] || vars['--surface'],
+                borderTopLeftRadius: 28,
+                borderTopRightRadius: 28,
+                borderTopWidth: StyleSheet.hairlineWidth,
+                borderLeftWidth: StyleSheet.hairlineWidth,
+                borderRightWidth: StyleSheet.hairlineWidth,
+                borderColor: vars['--border'],
+                shadowColor: '#000',
+                shadowOffset: { width: 0, height: -4 },
+                shadowOpacity: 0.12,
+                shadowRadius: 16,
+                elevation: 24,
+                paddingBottom: Math.max(28, insets.bottom + 8)
+              }}
+              className="px-5 pt-2"
             >
-              <View className="items-center pb-3">
-                <View className="h-1 w-9 rounded-full bg-border" />
+              {/* Grab handle with PanResponder (Swipe down to dismiss) */}
+              <View {...panResponder.panHandlers} className="items-center pb-2 pt-1">
+                <View className="h-1.5 w-10 rounded-full bg-foreground/20" />
               </View>
 
-              <View className="flex-row items-center justify-between px-1 pb-1">
-                <View className="flex-row items-center gap-2">
-                  <View
-                    className={`h-2.5 w-2.5 rounded-full ${
-                      phase === 'listening'
-                        ? 'bg-danger'
-                        : phase === 'transcribing' || phase === 'loading'
-                          ? 'bg-focus'
-                          : 'bg-muted'
-                    }`}
-                  />
+              {/* Status Header */}
+              <View className="mb-2 flex-row items-center justify-between px-1">
+                <View className="flex-row items-center gap-2.5">
+                  <View className="relative h-3 w-3 items-center justify-center">
+                    {phase === 'listening' ? (
+                      <Animated.View
+                        style={{
+                          position: 'absolute',
+                          width: 16,
+                          height: 16,
+                          borderRadius: 8,
+                          backgroundColor: '#ef4444',
+                          opacity: pulseAnim.interpolate({ inputRange: [0, 1], outputRange: [0.65, 0] }),
+                          transform: [
+                            {
+                              scale: pulseAnim.interpolate({ inputRange: [0, 1], outputRange: [1, 2.2] })
+                            }
+                          ]
+                        }}
+                      />
+                    ) : null}
+                    <View
+                      className={`h-2.5 w-2.5 rounded-full ${
+                        phase === 'listening'
+                          ? 'bg-danger'
+                          : phase === 'transcribing' || phase === 'loading'
+                            ? 'bg-focus'
+                            : transcript.trim()
+                              ? 'bg-emerald-500'
+                              : 'bg-muted'
+                      }`}
+                    />
+                  </View>
                   <Text className="text-[13px] font-semibold text-muted">{statusText}</Text>
                 </View>
+
                 <Pressable
                   onPress={closePanel}
+                  hitSlop={8}
+                  accessibilityRole="button"
                   accessibilityLabel={t('shell.common.close')}
-                  className="h-8 w-8 items-center justify-center rounded-full active:bg-surface-secondary"
+                  className="h-8 w-8 items-center justify-center rounded-full bg-surface-secondary active:opacity-60"
                 >
                   <Glyph name="cross" size={13} color={vars['--muted']} />
                 </Pressable>
               </View>
 
+              {/* Dynamic waveform visualizer */}
               <WaveformVisualizer
                 metering={recorderState.metering ?? -160}
                 active={phase === 'listening'}
-                color={vars['--foreground']}
+                color={vars['--focus']}
               />
 
+              {/* Error banner if any */}
               {error ? (
-                <View className="mb-2.5 flex-row items-center justify-between gap-1.5">
+                <View className="my-2 flex-row items-center justify-between gap-1.5 rounded-xl bg-danger/10 px-3 py-2">
                   <Text numberOfLines={2} className="flex-1 text-[13px] leading-5 text-danger">
                     {voiceErrorCopy(t, error)}
                   </Text>
                   {error.code === 'not-allowed' ? (
                     <Pressable
                       onPress={() => void Linking.openSettings()}
-                      className="min-h-11 justify-center px-2 active:opacity-60"
+                      className="min-h-8 justify-center px-2 active:opacity-60"
                     >
                       <Text className="text-[13px] font-semibold text-link">{t('mobile.voice.goSettings')}</Text>
                     </Pressable>
                   ) : (
                     <Pressable
                       onPress={() => void startListening()}
-                      className="min-h-11 justify-center px-2 active:opacity-60"
+                      className="min-h-8 justify-center px-2 active:opacity-60"
                     >
                       <Text className="text-[13px] font-semibold text-link">{t('shell.common.retry')}</Text>
                     </Pressable>
@@ -433,64 +584,103 @@ export function VoiceButton({ onResult, disabled, inline = false }: VoiceInputPr
                 </View>
               ) : null}
 
-              <TextInput
-                value={transcript}
-                onChangeText={(t) => {
-                  setTranscript(t);
-                  transcriptRef.current = t;
-                }}
-                placeholder={t('mobile.voice.placeholder')}
-                placeholderTextColor={vars['--muted']}
-                multiline
-                textAlignVertical="top"
-                className="min-h-[132px] rounded-2xl bg-surface-secondary px-4 py-3.5 text-[15px] leading-6 text-surface-secondary-foreground"
-              />
+              {/* Elastic transcript card with inline clear button */}
+              <View className="relative mt-1 overflow-hidden rounded-2xl border border-border/70 bg-surface-secondary/70">
+                <TextInput
+                  value={transcript}
+                  onChangeText={(t) => {
+                    setTranscript(t);
+                    transcriptRef.current = t;
+                  }}
+                  placeholder={t('mobile.voice.placeholder')}
+                  placeholderTextColor={vars['--muted']}
+                  multiline
+                  textAlignVertical="top"
+                  underlineColorAndroid="transparent"
+                  style={{
+                    minHeight: 76,
+                    maxHeight: 180,
+                    paddingTop: 12,
+                    paddingBottom: 12,
+                    paddingLeft: 14,
+                    paddingRight: transcript.trim() ? 40 : 14
+                  }}
+                  className="text-[15px] leading-6 text-surface-secondary-foreground"
+                />
+                {transcript.trim() ? (
+                  <Pressable
+                    onPress={handleClear}
+                    accessibilityRole="button"
+                    accessibilityLabel={t('mobile.voice.clearA11y')}
+                    hitSlop={8}
+                    className="absolute right-2.5 top-2.5 h-7 w-7 items-center justify-center rounded-full bg-border/60 active:opacity-60"
+                  >
+                    <Glyph name="cross" size={11} color={vars['--muted']} />
+                  </Pressable>
+                ) : null}
+              </View>
 
+              {/* Bottom Action Bar */}
               <View className="mt-3.5 flex-row items-center justify-between">
-                <View className="flex-row items-center gap-1.5">
+                {/* Left: Recording state control */}
+                <View className="flex-row items-center gap-2">
                   {phase === 'listening' ? (
                     <Pressable
                       onPress={toggleListening}
+                      accessibilityRole="button"
                       accessibilityLabel={t('mobile.voice.stopRecordA11y')}
-                      className="h-9 flex-row items-center gap-2 rounded-full bg-default px-4 active:opacity-80"
+                      className="h-11 flex-row items-center gap-2 rounded-2xl bg-danger/10 px-4 active:opacity-75"
                     >
-                      <View className="h-2.5 w-2.5 rounded-[2px] bg-default-foreground" />
-                      <Text className="text-[13px] font-semibold text-default-foreground">{t('shell.common.stop')}</Text>
+                      <View className="h-2.5 w-2.5 rounded-[2px] bg-danger" />
+                      <Text className="text-[14px] font-semibold text-danger">{t('shell.common.stop')}</Text>
                     </Pressable>
                   ) : (
-                    <>
-                      <Pressable
-                        onPress={toggleListening}
-                        accessibilityLabel={transcript.trim() ? t('mobile.voice.continueA11y') : t('mobile.voice.startA11y')}
-                        disabled={phase === 'loading' || phase === 'transcribing'}
-                        className="h-9 flex-row items-center gap-1.5 rounded-full bg-surface-secondary px-4 active:opacity-70 disabled:opacity-40"
-                      >
-                        <Glyph name="mic" size={13} color={vars['--foreground']} />
-                        <Text className="text-[13px] font-semibold text-foreground">
-                          {transcript.trim() ? t('mobile.voice.continueSpeak') : t('mobile.voice.speak')}
-                        </Text>
-                      </Pressable>
-                      {transcript.trim() ? (
-                        <Pressable
-                          onPress={handleClear}
-                          accessibilityLabel={t('mobile.voice.clearA11y')}
-                          className="h-9 items-center justify-center rounded-full px-3 active:opacity-60"
-                        >
-                          <Text className="text-[13px] font-medium text-muted">{t('mobile.voice.clear')}</Text>
-                        </Pressable>
-                      ) : null}
-                    </>
+                    <Pressable
+                      onPress={toggleListening}
+                      accessibilityRole="button"
+                      accessibilityLabel={transcript.trim() ? t('mobile.voice.continueA11y') : t('mobile.voice.startA11y')}
+                      disabled={phase === 'loading' || phase === 'transcribing'}
+                      className="h-11 flex-row items-center gap-2 rounded-2xl border border-border/70 bg-surface-secondary px-4 active:opacity-75 disabled:opacity-40"
+                    >
+                      <Glyph name="mic" size={15} color={vars['--foreground']} />
+                      <Text className="text-[14px] font-semibold text-foreground">
+                        {transcript.trim() ? t('mobile.voice.continueSpeak') : t('mobile.voice.speak')}
+                      </Text>
+                    </Pressable>
                   )}
                 </View>
-                <Pressable
-                  onPress={handleSend}
-                  disabled={!transcript.trim() || phase === 'listening' || phase === 'transcribing'}
-                  className="h-11 min-w-[96px] items-center justify-center rounded-2xl bg-default px-5 active:scale-95 active:opacity-80 disabled:opacity-30"
-                >
-                  <Text className="text-[15px] font-semibold text-default-foreground">{t('shell.common.send')}</Text>
-                </Pressable>
+
+                {/* Right: Actions */}
+                <View className="flex-row items-center gap-2">
+                  {transcript.trim() && phase !== 'listening' ? (
+                    <Pressable
+                      onPress={handleInsert}
+                      disabled={phase === 'loading' || phase === 'transcribing'}
+                      accessibilityRole="button"
+                      accessibilityLabel={t('mobile.voice.insertA11y')}
+                      className="h-11 items-center justify-center rounded-2xl border border-border/70 bg-surface-secondary px-4 active:opacity-70 disabled:opacity-30"
+                    >
+                      <Text className="text-[14px] font-semibold text-foreground">{t('mobile.voice.insert')}</Text>
+                    </Pressable>
+                  ) : null}
+
+                  <Pressable
+                    onPress={handleSendOrFinish}
+                    disabled={
+                      phase === 'loading' ||
+                      phase === 'transcribing' ||
+                      (phase !== 'listening' && !transcript.trim())
+                    }
+                    accessibilityRole="button"
+                    accessibilityLabel={t('shell.common.send')}
+                    className="h-11 min-w-[96px] flex-row items-center justify-center gap-1.5 rounded-2xl bg-default px-5 shadow-sm active:scale-95 active:opacity-85 disabled:opacity-30"
+                  >
+                    <Glyph name="arrow-up" size={15} color={vars['--default-foreground']} />
+                    <Text className="text-[15px] font-bold text-default-foreground">{t('shell.common.send')}</Text>
+                  </Pressable>
+                </View>
               </View>
-            </BlurView>
+            </View>
           </KeyboardAvoidingView>
         </FastThemeScope>
       </Modal>

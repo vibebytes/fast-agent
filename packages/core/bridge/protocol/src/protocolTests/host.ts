@@ -3,6 +3,27 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {bridgeEventSchema, bridgeCommandSchema, isLiveChrome, parseBridgeCommand, pickIdList, wireIdList} from '../protocol.js';
 
+test('roster_changed carries roster items', () => {
+	const parsed = bridgeEventSchema.parse({
+		type: 'roster_changed',
+		items: [
+			{
+				id: 'agent-b',
+				displayName: '小B',
+				endpoints: ['wss://b.example/bridge'],
+				fingerprint: 'sha256:abc',
+				presence: 'Idle',
+				mainSessionId: 'sess-b'
+			}
+		]
+	});
+	assert.equal(parsed.type, 'roster_changed');
+	if (parsed.type === 'roster_changed') {
+		assert.equal(parsed.items[0]?.id, 'agent-b');
+		assert.equal(parsed.items[0]?.mainSessionId, 'sess-b');
+	}
+});
+
 test('bridgeEventSchema accepts GetBridgePairing command_result pairing payload', () => {
 	const parsed = bridgeEventSchema.parse({
 		type: 'command_result',

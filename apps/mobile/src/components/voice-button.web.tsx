@@ -8,11 +8,12 @@ import { useThemeVars } from '@/theme/theme-context';
 
 interface VoiceInputProps {
   onResult: (text: string) => void;
+  onSend?: (text: string) => void;
   disabled?: boolean;
   inline?: boolean;
 }
 
-export function VoiceButton({ onResult, disabled, inline = false }: VoiceInputProps) {
+export function VoiceButton({ onResult, onSend, disabled, inline = false }: VoiceInputProps) {
   const { t } = useTranslation();
   const vars = useThemeVars();
   const [listening, setListening] = useState(false);

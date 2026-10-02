@@ -8,6 +8,7 @@ import { AppearanceGroup } from '@/components/settings/appearance-group';
 import { AssistantGroup } from '@/components/settings/assistant-group';
 import { Group, Row } from '@/components/settings/group';
 import { LanguageGroup } from '@/components/settings/language-group';
+import { IndividualGroup } from '@/components/settings/individual-group';
 import { ServerGroup } from '@/components/settings/server-group';
 import { useTabBarSpace } from '@/components/shell/tab-bar';
 
@@ -30,6 +31,7 @@ export default function SettingsScreen() {
       >
         <AssistantGroup />
         <ServerGroup />
+        <IndividualGroup />
         <AppearanceGroup />
         <LanguageGroup />
         <Group title={t('mobile.settings.about')}>

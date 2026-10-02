@@ -1956,6 +1956,8 @@
       "speak": "說話",
       "clearA11y": "清空文字",
       "clear": "清空",
+      "insert": "填入",
+      "insertA11y": "填入輸入框",
       "goSettings": "去設定",
       "webUnsupported": "目前瀏覽器不支援語音辨識，請在支援的瀏覽器（如 Chrome）中重試。"
     },

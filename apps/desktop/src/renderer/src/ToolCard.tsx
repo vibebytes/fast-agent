@@ -13,6 +13,7 @@ import {
 import {shouldThresholdFoldTool} from './thresholdFold';
 import {
 	displayToolOutput,
+	extractErrorDiagnostic,
 	isSkillView,
 	isSubagentTool,
 	parseSkillEnvelope,
@@ -48,11 +49,12 @@ function StatusIcon({
 	}
 	if (status === 'error') {
 		return (
-			<span className="inline-flex items-center gap-1 rounded-full bg-red-500/10 px-2 py-0.5 text-[11px] font-medium text-red-600 dark:text-red-400">
+			<span className="inline-flex items-center gap-1 rounded-full border border-red-500/20 bg-red-500/10 px-2 py-0.5 text-[11px] font-medium text-red-600 dark:text-red-400">
 				{exitCode != null && exitCode !== '' ? (
 					<span className="font-mono tabular-nums">exit {exitCode}</span>
-				) : null}
-				<X className="size-3" aria-label={t('shell.toolCard.failed')} strokeWidth={2.5} />
+				) : (
+					<span>failed</span>
+				)}
 			</span>
 		);
 	}
@@ -387,14 +389,26 @@ export function ToolCard({item}: {item: ToolItem}) {
 	// non-command tools like goal). Running / failed keep evidence visible.
 	const isAgentOp =
 		item.tool === 'define_agent' || item.tool === 'update_agent' || item.tool === 'delete_agent';
-	const collapsible = isAgentOp || thresholdFold || item.status === 'success';
-	const defaultOpen = isAgentOp ? false : (item.status === 'running' || item.status === 'error');
+	const collapsible = isAgentOp || thresholdFold || item.status === 'success' || item.status === 'error';
+	const defaultOpen = isAgentOp ? false : item.status === 'running';
+
+	const errorDiagnostic = item.status === 'error' ? extractErrorDiagnostic(output || item.summary) : null;
+	const titleNode = errorDiagnostic ? (
+		<span className="flex min-w-0 max-w-full items-baseline gap-2 truncate">
+			<span className="truncate">{item.title}</span>
+			<span className="hidden sm:inline truncate text-[11px] font-normal text-muted-foreground/85">
+				— {errorDiagnostic}
+			</span>
+		</span>
+	) : (
+		item.title
+	);
 
 	return (
 		<WindowFrame
 			variant="terminal"
 			tone={item.status === 'error' ? 'error' : undefined}
-			title={item.title}
+			title={titleNode}
 			titleShimmer={item.status === 'running'}
 			trailing={<StatusIcon status={item.status} exitCode={item.exitCode} />}
 			collapsible={collapsible}

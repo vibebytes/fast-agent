@@ -491,6 +491,11 @@ export function createDesktopHost(deps: DesktopHostDeps): ProductInvokeMap {
 				fingerprint: ''
 			},
 
+		'cluster:status': () => hub.getClusterStatus(),
+		'cluster:join': input => ({ok: hub.joinCluster(input.peerAddress, input.advertisedAddress, input.displayName)}),
+		'cluster:leave': () => ({ok: hub.leaveCluster()}),
+		'cluster:roster': () => hub.listClusterRoster(),
+
 		'cloudflareTunnel:status': () => deps.cloudflareTunnel?.status() ?? {state: 'disabled'},
 		'cloudflareTunnel:start': () => deps.cloudflareTunnel?.start() ?? {state: 'disabled'},
 		'cloudflareTunnel:stop': () => deps.cloudflareTunnel?.stop() ?? {state: 'disabled'}

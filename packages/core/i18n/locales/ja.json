@@ -1956,6 +1956,8 @@
       "speak": "話す",
       "clearA11y": "テキストを消去",
       "clear": "消去",
+      "insert": "挿入",
+      "insertA11y": "入力欄に挿入",
       "goSettings": "設定を開く",
       "webUnsupported": "このブラウザは音声認識に対応していません。Chrome をお試しください。"
     },

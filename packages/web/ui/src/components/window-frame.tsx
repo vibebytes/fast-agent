@@ -67,7 +67,7 @@ export function WindowFrame({
 				<Icon
 					className={cn(
 						'relative z-[1] size-3.5 shrink-0',
-						isError ? 'text-red-600 dark:text-red-400' : 'text-muted-foreground'
+						isError ? 'text-red-600/90 dark:text-red-400/90' : 'text-muted-foreground'
 					)}
 					aria-hidden
 				/>
@@ -80,7 +80,7 @@ export function WindowFrame({
 				<div
 					className={cn(
 						'relative z-[1] min-w-0 flex-1 truncate text-left text-xs font-medium tracking-[-0.01em]',
-						isError ? 'text-red-950 dark:text-red-200' : 'text-foreground/85'
+						isError ? 'text-foreground/90' : 'text-foreground/85'
 					)}
 				>
 					{title}
@@ -107,8 +107,8 @@ export function WindowFrame({
 		'w-full min-w-0 overflow-hidden rounded-md text-foreground shadow-none transition-all duration-150',
 		isError
 			? collapsible && !open
-				? 'border border-red-500/25 bg-red-500/[0.03] hover:border-red-500/40 hover:bg-red-500/[0.06]'
-				: 'border border-red-500/30 bg-red-500/[0.02] dark:border-red-500/30 dark:bg-red-500/[0.04]'
+				? 'border border-red-500/20 bg-muted/5 hover:border-red-500/35 hover:bg-muted/15'
+				: 'border border-red-500/25 bg-background dark:border-red-500/30'
 			: collapsible && !open
 				? 'border border-border/30 bg-muted/10 hover:border-border/50 hover:bg-muted/20'
 				: 'border border-border/50 bg-background',
@@ -119,12 +119,12 @@ export function WindowFrame({
 		'relative flex h-8 w-full shrink-0 items-center gap-2 overflow-hidden px-2.5 text-left outline-none transition-colors',
 		isError
 			? collapsible && !open
-				? 'bg-red-500/[0.05] hover:bg-red-500/[0.08]'
-				: 'bg-red-500/[0.07] hover:bg-red-500/[0.10]'
+				? 'bg-transparent hover:bg-muted/20'
+				: 'bg-muted/15 hover:bg-muted/25'
 			: collapsible && !open
 				? 'bg-transparent hover:bg-muted/20'
 				: 'bg-muted/15 hover:bg-muted/30',
-		(!collapsible || open) && (isError ? 'border-b border-red-500/20' : 'border-b border-border/50'),
+		(!collapsible || open) && (isError ? 'border-b border-red-500/15' : 'border-b border-border/50'),
 		collapsible && 'cursor-pointer select-none',
 		titleShimmer && 'ai-shimmer-header'
 	);

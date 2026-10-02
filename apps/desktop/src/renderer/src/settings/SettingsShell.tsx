@@ -12,6 +12,7 @@ import {
 	HardDrive,
 	FlaskConical,
 	Info,
+	Network,
 	// Layers3,
 	LockKeyhole,
 	Settings,
@@ -24,7 +25,7 @@ import {cn} from '@fast-ide/ui/lib/utils';
 import {settingsMockStore} from './mock/settingsMockStore';
 import type {SettingsIcon} from './SettingsPrimitives';
 
-export type SettingsSection = 'general' | 'providers' | 'models' | 'agents' | 'plugins' | 'experimental' | 'engines' | 'projects' | 'servers' | 'security' | 'tasks' | 'usage' | 'health' | 'tracing' | 'about';
+export type SettingsSection = 'general' | 'providers' | 'models' | 'agents' | 'plugins' | 'experimental' | 'engines' | 'projects' | 'servers' | 'cluster' | 'security' | 'tasks' | 'usage' | 'health' | 'tracing' | 'about';
 type SectionCopy = {label: string; description: string};
 export type SettingsSectionMeta = {id: SettingsSection; icon: SettingsIcon; copy: SectionCopy};
 export type SettingsNavItem<Id extends string = SettingsSection> = {
@@ -43,6 +44,7 @@ export const settingsSections: SettingsNavItem[] = [
 	{id: 'experimental', icon: FlaskConical, copyKey: 'experimental'},
 	{id: 'engines', icon: Cpu, copyKey: 'engines'},
 	{id: 'servers', icon: HardDrive, copyKey: 'servers'},
+	{id: 'cluster', icon: Network, copyKey: 'cluster'},
 	// Temporarily hidden — restore when these pages are ready for settings nav.
 	// {id: 'projects', icon: FolderKanban, copyKey: 'projects'},
 	{id: 'security', icon: LockKeyhole, copyKey: 'security', hidden: true},

@@ -3,6 +3,8 @@
  */
 import type {
 	AmbientRule,
+	ClusterRosterItem,
+	ClusterStatusPayload,
 	CloudflareTunnelStatus,
 	CreateSkillInput,
 	ConfigurableTool,
@@ -75,6 +77,17 @@ export type InvokeHost = {
 	'cloudflareTunnel:status': {args: []; result: CloudflareTunnelStatus};
 	'cloudflareTunnel:start': {args: []; result: CloudflareTunnelStatus};
 	'cloudflareTunnel:stop': {args: []; result: CloudflareTunnelStatus};
+	/** 集群入群状态（缓存快照；同时触发一次引擎刷新，事件经 cluster:status push）。 */
+	'cluster:status': {args: []; result: ClusterStatusPayload | null};
+	/** 加入集群 — 返回前先校验非空；结果与后续迁移经 cluster:status push 逐步更新。 */
+	'cluster:join': {
+		args: [input: {peerAddress: string; advertisedAddress?: string; displayName?: string}];
+		result: {ok: boolean; notice?: string};
+	};
+	/** 主动离开集群（HTTP leave 与本通道共用引擎侧同一协调器）。 */
+	'cluster:leave': {args: []; result: {ok: boolean; notice?: string}};
+	/** 拉取集群成员快照（ListRoster）；后续变更经 cluster:roster push。 */
+	'cluster:roster': {args: []; result: {items: ClusterRosterItem[]}};
 	getWorkspaceFile: {args: [relativePath: string]; result: GetWorkspaceFileResult};
 	saveWorkspaceFile: {
 		args: [relativePath: string, content: string, mtime?: number, bytes?: number];

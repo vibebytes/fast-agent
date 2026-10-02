@@ -1,7 +1,12 @@
 /**
  * Push + invoke channel maps. InvokeChannels is the intersection of the domain halves.
  */
-import type {CloudflareTunnelStatus, EdgesList} from './desktop.js';
+import type {
+	ClusterRosterItem,
+	ClusterStatusPayload,
+	CloudflareTunnelStatus,
+	EdgesList
+} from './desktop.js';
 import type {InvokeHost} from './invokeHost.js';
 import type {InvokeOrg} from './invokeOrg.js';
 import type {InvokeSession} from './invokeSession.js';
@@ -48,6 +53,10 @@ export type PushChannels = {
 	'edges:changed': EdgesList;
 	/** Cloudflare Tunnel 状态变更（主进程 push，§cloudflare-tunnel-pairing.md §4.5.2）。 */
 	'cloudflareTunnel:changed': CloudflareTunnelStatus;
+	/** Engine 集群入群生命周期（主进程 push，desktop-join.md §7；null = 引擎未就绪/缓存已清）。 */
+	'cluster:status': ClusterStatusPayload | null;
+	/** 集群成员快照变更（全量名册）。 */
+	'cluster:roster': {items: ClusterRosterItem[]};
 };
 
 export type InvokeDesktop = InvokeHost & InvokeOrg;

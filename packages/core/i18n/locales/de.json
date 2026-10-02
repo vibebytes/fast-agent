@@ -1956,6 +1956,8 @@
       "speak": "Sprechen",
       "clearA11y": "Text löschen",
       "clear": "Löschen",
+      "insert": "Einfügen",
+      "insertA11y": "In Eingabefeld einfügen",
       "goSettings": "Einstellungen öffnen",
       "webUnsupported": "Dieser Browser erkennt keine Sprache. Versuche Chrome."
     },

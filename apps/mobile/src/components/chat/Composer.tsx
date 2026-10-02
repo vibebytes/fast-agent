@@ -33,8 +33,8 @@ export function Composer({ sessionId, bottomSpace }: { sessionId: string; bottom
     runState: gate?.runState
   });
 
-  const submit = () => {
-    const value = text.trim();
+  const submit = (overrideText?: string) => {
+    const value = (typeof overrideText === 'string' ? overrideText : text).trim();
     if (!value || locked) return;
     const hasUserTurn = (record?.transcript.entries ?? []).some((entry) => entry.role === 'user');
     const result = bridgeStore.sendUserMessage(sessionId, value, {
@@ -46,6 +46,9 @@ export function Composer({ sessionId, bottomSpace }: { sessionId: string; bottom
       setText('');
     } else {
       setPendingId(result.clientMessageId);
+      if (typeof overrideText === 'string') {
+        setText(overrideText);
+      }
     }
   };
 

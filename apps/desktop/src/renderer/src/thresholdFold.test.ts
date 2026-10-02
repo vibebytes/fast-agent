@@ -76,3 +76,7 @@ test('file threshold uses capped preview plus hidden full-diff lines', () => {
 test('running file diff never threshold-folds', () => {
 	assert.equal(shouldThresholdFoldFile(file(48, 500, 'running')), false);
 });
+
+test('failed shell output folds when exceeding threshold', () => {
+	assert.equal(shouldThresholdFoldTool(shell(SHELL_OUTPUT_FOLD_LINES + 1, 'error')), true);
+});

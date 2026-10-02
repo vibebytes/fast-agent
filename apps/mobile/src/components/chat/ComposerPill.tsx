@@ -19,7 +19,7 @@ export function ComposerPill({
 }: {
   value: string;
   onChange: (text: string) => void;
-  onSend: () => void;
+  onSend: (overrideText?: string) => void;
   placeholder: string;
   locked?: boolean;
   voice?: boolean;
@@ -37,6 +37,13 @@ export function ComposerPill({
     onChange(value.trim() ? `${value.trim()} ${said}` : said);
   };
 
+  const handleVoiceSend = (spoken: string) => {
+    const said = spoken.trim();
+    if (!said || locked) return;
+    const fullText = value.trim() ? `${value.trim()} ${said}` : said;
+    onSend(fullText);
+  };
+
   const handleSend = () => {
     if (locked) return;
     lightImpact();
@@ -44,7 +51,7 @@ export function ComposerPill({
   };
 
   const sendBtnStyle = useAnimatedStyle(() => ({
-    width: withTiming(hasText ? 40 : 0, { duration: 180 }),
+    width: withTiming(hasText ? 48 : 0, { duration: 180 }),
     opacity: withTiming(hasText ? 1 : 0, { duration: 150 }),
     transform: [{ scale: withSpring(hasText ? 1 : 0.4, { damping: 14, stiffness: 220 }) }]
   }));
@@ -54,17 +61,21 @@ export function ComposerPill({
   return (
     <View className="flex-row items-end">
       <View
-        style={{
-          borderColor: isHighlighted ? vars['--focus'] : undefined,
-          shadowColor: vars['--focus'],
-          shadowOffset: { width: 0, height: 0 },
-          shadowOpacity: isHighlighted ? 0.25 : 0,
-          shadowRadius: isHighlighted ? 6 : 0
-        }}
-        className={`min-h-12 flex-1 flex-row items-end rounded-3xl border bg-surface-secondary pl-4 pr-1 ${
+        style={
+          isHighlighted
+            ? {
+                borderColor: vars['--focus'],
+                shadowColor: vars['--focus'],
+                shadowOffset: { width: 0, height: 0 },
+                shadowOpacity: 0.25,
+                shadowRadius: 6
+              }
+            : undefined
+        }
+        className={`min-h-12 flex-1 flex-row items-end overflow-hidden rounded-3xl border bg-surface-secondary pl-4 pr-1 ${
           isHighlighted
             ? 'border-focus'
-            : 'border-black/[0.04] dark:border-white/10 dark:border-t-white/20'
+            : 'border-border/70 dark:border-white/15'
         }`}
       >
         <Input
@@ -77,19 +88,25 @@ export function ComposerPill({
           editable={!locked}
           multiline
           numberOfLines={6}
+          underlineColorAndroid="transparent"
           style={{ maxHeight: 6 * 22 + 24 }}
           className="min-h-12 flex-1 py-3 text-[15px] leading-[22px] text-surface-secondary-foreground"
         />
         {voice ? (
           <View className="pb-0.5">
-            <VoiceButton onResult={appendVoice} disabled={locked} inline />
+            <VoiceButton
+              onResult={appendVoice}
+              onSend={handleVoiceSend}
+              disabled={locked}
+              inline
+            />
           </View>
         ) : null}
       </View>
 
       <Animated.View
         style={[sendBtnStyle, { overflow: 'hidden' }]}
-        className="items-center justify-end"
+        className="items-center justify-end pl-2"
         pointerEvents={hasText ? 'auto' : 'none'}
       >
         <Pressable
@@ -98,7 +115,7 @@ export function ComposerPill({
           accessibilityRole="button"
           accessibilityLabel={t('mobile.chat.sendA11y')}
           hitSlop={4}
-          className="mb-1 ml-2 h-10 w-10 items-center justify-center rounded-full border border-transparent bg-default active:opacity-80 disabled:opacity-30 dark:border-t-white/30"
+          className="mb-1 h-10 w-10 items-center justify-center rounded-full border border-transparent bg-default active:opacity-80 disabled:opacity-30 dark:border-t-white/30"
         >
           <Glyph name="arrow-up" size={20} color={vars['--default-foreground']} />
         </Pressable>

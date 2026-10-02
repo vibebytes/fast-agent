@@ -19,6 +19,8 @@ import type {
 	DshSkillsResult,
 	BridgeErrorEnvelope,
 	BridgeEventEnvelope,
+	ClusterRosterItem,
+	ClusterStatusPayload,
 	CloudflareTunnelStatus,
 	CreateSkillInput,
 	ConfigurableTool,
@@ -221,6 +223,12 @@ export type FastIdeApi = {
 	onEngineInstallLog: (
 		handler: (log: {engineId: string; stream: 'stdout' | 'stderr'; text: string; seq: number}) => void
 	) => () => void;
+	getClusterStatus: () => Promise<ClusterStatusPayload | null>;
+	joinCluster: (input: {peerAddress: string; advertisedAddress?: string; displayName?: string}) => Promise<{ok: boolean; notice?: string}>;
+	leaveCluster: () => Promise<{ok: boolean; notice?: string}>;
+	listClusterRoster: () => Promise<{items: ClusterRosterItem[]}>;
+	onClusterStatus: (handler: (status: ClusterStatusPayload | null) => void) => () => void;
+	onClusterRoster: (handler: (items: ClusterRosterItem[]) => void) => () => void;
 	listRules: (
 		projectId: string
 	) => Promise<{ok: true; rules: AmbientRule[]; replace: true} | {ok: false; notice: string}>;

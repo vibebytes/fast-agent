@@ -175,6 +175,35 @@ export function skillViewBody(output: string): string {
 	return parseSkillEnvelope(output).body;
 }
 
+/** Extract a short one-line diagnosis from raw tool error output / stderr. */
+export function extractErrorDiagnostic(output: string | null | undefined): string | null {
+	if (!output?.trim()) return null;
+	const lines = output
+		.split(/\r?\n/)
+		.map(line => line.trim())
+		.filter(line => line.length > 0);
+
+	// 1. First look for an explicit fatal/error/exception line
+	const explicit = lines.find(line =>
+		/^(?:fatal|error|exception|errno|command failed|failed|exit code|exit=\d+)/i.test(line) ||
+		/^(?:致命错误|错误|异常|失败)[:：]/i.test(line) ||
+		/\b(?:fatal error|command not found|no such file|permission denied)\b/i.test(line) ||
+		/不是\s*git\s*仓库/i.test(line)
+	);
+	if (explicit) {
+		return explicit.length > 120 ? `${explicit.slice(0, 117)}…` : explicit;
+	}
+
+	// 2. Otherwise find the first non-boilerplate line (skipping command echo or empty usage)
+	const candidate = lines.find(line => !/^usage:/i.test(line) && !line.startsWith('$ '));
+	if (candidate) {
+		return candidate.length > 120 ? `${candidate.slice(0, 117)}…` : candidate;
+	}
+
+	const fallback = lines[0] ?? null;
+	return fallback && fallback.length > 120 ? `${fallback.slice(0, 117)}…` : fallback;
+}
+
 /** Idempotent renderer seam: also fixes cached pre-normalization TimelineItems after HMR. */
 export function displayToolOutput(output: string | null): string {
 	return normalizeToolOutput(output);

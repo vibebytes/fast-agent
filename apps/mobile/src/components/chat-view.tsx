@@ -147,6 +147,7 @@ export function ChatView({
         extraData={display}
         onScroll={onScroll}
         scrollEventThrottle={32}
+        showsVerticalScrollIndicator={false}
         keyboardDismissMode="on-drag"
         keyboardShouldPersistTaps="handled"
         maintainVisibleContentPosition={{ startRenderingFromBottom: true, autoscrollToBottomThreshold: 100 }}

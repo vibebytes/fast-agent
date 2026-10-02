@@ -1,7 +1,7 @@
 /** The phone's pinned main conversation. The engine sees an ordinary session; only the phone treats it as home. */
-export type Home = {serverId: string; projectId: string; sessionId: string};
+export type Home = {serverId: string; projectId: string; sessionId: string; agentId?: string};
 
-/** One home per saved server, keyed by server id. */
+/** One home per saved server, keyed by agent id when the cluster roster has one, otherwise by server id. */
 export type Homes = Record<string, Home>;
 
 export type HomeStep =
@@ -21,6 +21,7 @@ export type HomeInput = {
 
 /** Attach the recorded home right away; recreate only once the listing proves it is gone. */
 export function homeStep(home: Home | undefined, input: HomeInput): HomeStep {
+  if (home?.agentId && home.sessionId) return {kind: 'attach', sessionId: home.sessionId};
   if (home && !isGone(home, input)) return {kind: 'attach', sessionId: home.sessionId};
   if (!input.connected || !input.projectId) return {kind: 'wait'};
   return {kind: 'create', projectId: input.projectId};
@@ -32,8 +33,38 @@ function isGone(home: Home, input: HomeInput): boolean {
   return input.listed !== undefined && !input.listed.includes(home.sessionId);
 }
 
+export function homeKey(home: Home): string {
+  return home.agentId ?? home.serverId;
+}
+
 export function withHome(homes: Homes, home: Home): Homes {
-  return {...homes, [home.serverId]: home};
+  return {...homes, [homeKey(home)]: home};
+}
+
+let activeAgentId: string | null = null;
+
+export function getActiveAgent(): string | null {
+  return activeAgentId;
+}
+
+/** The home on screen: the selected individual when one is pinned, otherwise this server's home. */
+export function activeHome(homes: Homes, serverId: string, agentId: string | null): Home | undefined {
+  if (agentId && homes[agentId]) return homes[agentId];
+  return homes[serverId];
+}
+
+/** Remember this individual's main session and make it the one the home tab opens. */
+export function pinIndividual(
+  homes: Homes,
+  pick: {serverId: string; projectId: string; agentId: string; mainSessionId: string}
+): Homes {
+  activeAgentId = pick.agentId;
+  return withHome(homes, {
+    serverId: pick.serverId,
+    projectId: pick.projectId,
+    sessionId: pick.mainSessionId,
+    agentId: pick.agentId
+  });
 }
 
 export function withoutHome(homes: Homes, serverId: string): Homes {

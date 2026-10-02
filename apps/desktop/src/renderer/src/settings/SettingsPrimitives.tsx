@@ -241,7 +241,7 @@ export function SettingsSourceBadge({source}: {source: Source}) {
 	);
 }
 
-export function SettingsStatusBadge({status}: {status: string}) {
+export function SettingsStatusBadge({status, label}: {status: string; label?: string}) {
 	const {t} = useTranslation();
 	const key = `settings.common.${status.toLowerCase().replaceAll(' ', '')}`;
 	const lower = status.toLowerCase();
@@ -252,7 +252,7 @@ export function SettingsStatusBadge({status}: {status: string}) {
 	return (
 		<PulseStatusBadge
 			status={isNegative ? 'error' : isWarning ? 'warning' : isSuccess ? 'healthy' : 'neutral'}
-			label={t(key, {defaultValue: status})}
+			label={label ?? t(key, {defaultValue: status})}
 		/>
 	);
 }

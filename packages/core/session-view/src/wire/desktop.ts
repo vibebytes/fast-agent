@@ -22,6 +22,28 @@ export type {
 
 export type GitFileChangeKind = 'modified' | 'added' | 'deleted';
 
+/** Wire shape of engine `cluster_status` events and command replies. */
+export type ClusterStatusPayload = {
+	phase: string;
+	peerAddress?: string;
+	advertisedAddress?: string;
+	error?: string;
+	updatedAt?: number;
+};
+
+/** One member row of the desktop cluster member map (from ListRoster/roster_changed). */
+export type ClusterRosterItem = {
+	id?: string;
+	agentId?: string;
+	displayName?: string;
+	endpoints?: string[];
+	fingerprint?: string;
+	presence?: string;
+	mainSessionId?: string;
+	/** Engine marks the local node in the roster so the map can pin it to the center. */
+	self?: boolean;
+};
+
 export type GitFileChange = {
 	/** Project-relative path with `/` separators. */
 	path: string;
@@ -457,6 +479,25 @@ export type EngineCallError = {
 export type EngineCallResult =
 	| {ok: true; method: string; value: unknown}
 	| {ok: false; error: EngineCallError};
+
+export type ClusterStatusWire = {
+	phase: 'idle' | 'joining' | 'joined' | 'leaving' | 'failed';
+	peerAddress?: string;
+	advertisedAddress?: string;
+	error?: string;
+	updatedAt?: number;
+};
+
+export type ClusterRosterMember = {
+	id: string;
+	displayName?: string;
+	presence?: string;
+	main?: boolean;
+};
+
+export type ClusterRosterWire = {
+	members: ClusterRosterMember[];
+};
 
 export type McpServerRowWire = {
 	name: string;

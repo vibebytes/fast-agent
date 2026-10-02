@@ -1956,6 +1956,8 @@
       "speak": "Hablar",
       "clearA11y": "Borrar texto",
       "clear": "Borrar",
+      "insert": "Insertar",
+      "insertA11y": "Insertar en el campo",
       "goSettings": "Abrir ajustes",
       "webUnsupported": "Este navegador no puede reconocer voz. Prueba Chrome."
     },

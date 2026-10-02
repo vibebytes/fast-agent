@@ -378,6 +378,8 @@ export type {
 	EdgeTestResult,
 	EdgeDeleteResult,
 	EdgeUpsertResult,
+	ClusterRosterItem,
+	ClusterStatusPayload,
 	CloudflareTunnelFailureCode,
 	CloudflareTunnelStatus,
 	MobilePairingInfo,

@@ -5,6 +5,7 @@ import {pathToFileURL} from 'node:url';
 import type {BridgeEvent} from '@fastllm/bridge-protocol';
 import type {
 	CloudflareTunnelStatus,
+	ClusterStatusPayload,
 	InvokeChannel,
 	InvokeChannels,
 	PushChannel,
@@ -446,11 +447,33 @@ function sharedProjectHandlers() {
 			publisher.handleExit(projectId, code, signal);
 		},
 		onEngineStatus() {
+			const status = hub.getEngineStatus().status;
 			publisher.publishWorkspace();
-			if (hub.getEngineStatus().status === 'ready') startHeartbeat();
+			if (status === 'ready') {
+				startHeartbeat();
+			} else {
+				hub.forgetClusterState();
+				sendToRenderer('cluster:status', null);
+				sendToRenderer('cluster:roster', {items: []});
+			}
 		},
 		onEngineInstallLog(log: {engineId: string; stream: 'stdout' | 'stderr'; text: string; seq: number}) {
 			sendToRenderer('engines:installLog', log);
+		},
+		onClusterStatus(event: Extract<BridgeEvent, {type: 'cluster_status'}>) {
+			const payload: ClusterStatusPayload = {
+				phase: event.phase,
+				peerAddress: event.peerAddress ?? undefined,
+				advertisedAddress: event.advertisedAddress ?? undefined,
+				error: event.error ?? undefined,
+				updatedAt: event.updatedAt ?? undefined
+			};
+			hub.rememberClusterStatus(payload);
+			sendToRenderer('cluster:status', payload);
+		},
+		onClusterRoster(items: Extract<BridgeEvent, {type: 'roster_changed'}>['items']) {
+			hub.rememberClusterRoster(items);
+			sendToRenderer('cluster:roster', {items});
 		}
 	};
 }

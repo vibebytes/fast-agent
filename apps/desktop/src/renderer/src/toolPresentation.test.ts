@@ -4,6 +4,7 @@ import {join} from 'node:path';
 import {test} from 'node:test';
 import {
 	displayToolOutput,
+	extractErrorDiagnostic,
 	isSkillView,
 	isSubagentTool,
 	parseSkillEnvelope,
@@ -99,5 +100,27 @@ test('renderer extracts outputPreview from truncated unclosed JSON envelope', ()
 	assert.equal(
 		displayToolOutput(truncated2),
 		'AgentInstanceUpsert.scala h2=1 pg='
+	);
+});
+
+test('extractErrorDiagnostic finds explicit error line in output', () => {
+	const raw = `git status exit=128
+致命错误: 不是 git 仓库 (或者任何父目录): .git`;
+	assert.equal(
+		extractErrorDiagnostic(raw),
+		'致命错误: 不是 git 仓库 (或者任何父目录): .git'
+	);
+});
+
+test('extractErrorDiagnostic prefers fatal over git usage help', () => {
+	const raw = `git diff exit=129
+警告: 不是 git 仓库。使用 --no-index 比较工作区之外的两个路径
+用法: git diff --no-index [<选项>] <路径> <路径>
+
+差异输出格式化选项
+    -p, --patch           生成补丁`;
+	assert.equal(
+		extractErrorDiagnostic(raw),
+		'警告: 不是 git 仓库。使用 --no-index 比较工作区之外的两个路径'
 	);
 });

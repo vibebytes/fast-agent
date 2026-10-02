@@ -47,6 +47,7 @@ import { helloRejectDetail } from './hello';
 import {bridgeUrlIssue, normalizeBridgeUrl} from './pairing';
 import {openPinnedSocket} from './pinned-socket';
 import {upsertServer} from './saved-server';
+import {bootRoster, expireReachability, loseSource, persistRoster, probeRoster, rosterFromEvent, type CachedRoster, type RosterItem} from './roster';
 import {probeTlsFingerprint} from './tls-pinning';
 import {wsFrameText} from './wsFrame';
 
@@ -107,6 +108,7 @@ export type StoreSnapshot = {
   /** Session whose latest Submit was accepted onto the follow-up queue. */
   queuedSessionId: string | null;
   parseStats: ParseStats;
+  roster: RosterItem[];
 };
 
 function sessionIdFromEvent(event: BridgeEvent): string | undefined {
@@ -188,13 +190,16 @@ class BridgeStore {
     leaseNotice: null,
     hostNotice: null,
     queuedSessionId: null,
-    parseStats: {parseFailures: 0, deadLetters: []}
+    parseStats: {parseFailures: 0, deadLetters: []},
+    roster: []
   };
 
   private notify = createNotify();
   private queuedTimer: ReturnType<typeof setTimeout> | null = null;
 
   private boot: Promise<void> | null = null;
+  private rosterCache: CachedRoster = {items: [], sourceId: null};
+  private rosterGen = 0;
 
   async start(): Promise<void> {
     if (this.boot) return this.boot;
@@ -236,9 +241,11 @@ class BridgeStore {
 
   private async bootClient(): Promise<void> {
     this.config = await loadBridgeConfig();
+    await this.loadRosterCache();
     this.snapshot = {
       ...this.snapshot,
-      lastSessionId: await this.loadLastSessionId()
+      lastSessionId: await this.loadLastSessionId(),
+      roster: this.rosterCache.items
     };
     const clientConfig = toClientConfig(this.config);
     if (!clientConfig) {
@@ -256,7 +263,11 @@ class BridgeStore {
           connectionDetail: detail ?? null,
           connUi
         };
-        if (connUi === 'connected' && prevUi !== 'connected') this.noteConnected();
+        if (prevUi === 'connected' && connUi !== 'connected') this.noteRosterSourceDown();
+        if (connUi === 'connected' && prevUi !== 'connected') {
+          this.noteConnected();
+          this.requestRoster();
+        }
         this.emit();
       },
       onEvent: event => this.handleEvent(event),
@@ -790,6 +801,56 @@ class BridgeStore {
     return this.send({type: 'FetchSessionHistory', sessionId, beforeTurnId: oldest.turnId, limit: 30});
   }
 
+  private async loadRosterCache(): Promise<void> {
+    const {storageGet} = await import('./safe-storage');
+    this.rosterCache = bootRoster(await storageGet('fast.roster'));
+  }
+
+  private async saveRosterCache(): Promise<void> {
+    const {storageSet} = await import('./safe-storage');
+    await storageSet('fast.roster', persistRoster(this.rosterCache));
+  }
+
+  private noteRosterSourceDown(): void {
+    const dead = this.rosterCache.sourceId;
+    if (!dead) return;
+    const live = (this.config?.servers ?? []).map(server => server.id);
+    const lost = loseSource(this.rosterCache, dead, live);
+    this.rosterCache = expireReachability(lost.cache);
+    this.snapshot = {...this.snapshot, roster: this.rosterCache.items};
+    this.emit();
+    void this.saveRosterCache();
+    if (lost.resubscribe && this.snapshot.connection === 'open' && this.config?.activeServerId === lost.cache.sourceId) {
+      this.requestRoster();
+    }
+  }
+
+  private acceptRoster(items: RosterItem[]): void {
+    const gen = ++this.rosterGen;
+    const sourceId = this.config?.activeServerId ?? this.rosterCache.sourceId;
+    this.rosterCache = {items, sourceId};
+    this.snapshot = {...this.snapshot, roster: items};
+    this.emit();
+    void this.saveRosterCache();
+    void this.markReachability(items, gen);
+  }
+
+  private async markReachability(items: RosterItem[], gen: number): Promise<void> {
+    const marked = await probeRoster(items, async (item, url) => {
+      try {
+        const probe = await probeTlsFingerprint(url, item.fingerprint || null);
+        return probe.ok;
+      } catch {
+        return false;
+      }
+    });
+    if (gen !== this.rosterGen) return;
+    this.rosterCache = {...this.rosterCache, items: marked};
+    this.snapshot = {...this.snapshot, roster: marked};
+    this.emit();
+    void this.saveRosterCache();
+  }
+
   private async loadLastSessionId(): Promise<string | null> {
     const {storageGet} = await import('./safe-storage');
     const raw = await storageGet('fast.lastSessionId');
@@ -832,6 +893,10 @@ class BridgeStore {
     if (this.snapshot.lastSessionId === sessionId) return;
     this.snapshot = {...this.snapshot, lastSessionId: sessionId};
     void this.saveLastSessionId(sessionId);
+  }
+
+  requestRoster(): void {
+    this.send({type: 'ListRoster'});
   }
 
   private sendAttach(sessionId: string) {
@@ -950,6 +1015,8 @@ class BridgeStore {
       this.settleCreate(event);
       return;
     }
+    const rosterItems = rosterFromEvent(event);
+    if (rosterItems) this.acceptRoster(rosterItems);
     if (event.type === 'command_result' && event.name === 'CancelGoal') {
       this.clearGoalCard(sessionIdFromEvent(event) ?? this.snapshot.lastSessionId);
       return;

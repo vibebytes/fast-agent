@@ -1,7 +1,7 @@
 import {useCallback, useEffect, useRef, useState} from 'react';
 import {useTranslation} from 'react-i18next';
 
-import {homeStep, parseHomes, withHome, withoutHome, type Homes} from './home';
+import {activeHome, getActiveAgent, homeStep, parseHomes, pinIndividual, withHome, withoutHome, type Homes} from './home';
 import {storageGet, storageSet} from './safe-storage';
 import {bridgeStore} from './store';
 import {useBridgeSnapshot} from './useBridge';
@@ -19,9 +19,23 @@ async function loadHomes(): Promise<Homes> {
   return cache;
 }
 
+const homeListeners = new Set<(homes: Homes) => void>();
+
 function saveHomes(next: Homes): void {
   cache = next;
   void storageSet(HOMES_KEY, JSON.stringify(next));
+  homeListeners.forEach((listener) => listener(next));
+}
+
+/** Persist the selected individual's main session and tell the home tab to open it. */
+export async function pinIndividualHome(pick: {
+  serverId: string;
+  projectId: string;
+  agentId: string;
+  mainSessionId: string;
+}): Promise<void> {
+  const homes = await loadHomes();
+  saveHomes(pinIndividual(homes, pick));
 }
 
 /** Home session ids for every saved server, for places that only need to tell home apart. */
@@ -48,7 +62,15 @@ export function useHome(): {sessionId: string | null; status: HomeStatus; retry:
     if (!homes) void loadHomes().then(setHomes);
   }, [homes]);
 
-  const home = serverId && homes ? homes[serverId] : undefined;
+  useEffect(() => {
+    const onHomes = (next: Homes) => setHomes(next);
+    homeListeners.add(onHomes);
+    return () => {
+      homeListeners.delete(onHomes);
+    };
+  }, []);
+
+  const home = serverId && homes ? activeHome(homes, serverId, getActiveAgent()) : undefined;
   const step =
     serverId && homes
       ? homeStep(home, {

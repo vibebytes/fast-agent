@@ -58,6 +58,10 @@ export type HostCommand =
 	| {type: 'GetBridgePairing'}
 	| {type: 'SetLanPairing'; enabled: boolean}
 	| {type: 'Shutdown'; force?: boolean}
+	| {type: 'ListRoster'}
+	| {type: 'GetClusterJoinStatus'}
+	| {type: 'JoinCluster'; peerAddress: string; advertisedAddress?: string; displayName?: string}
+	| {type: 'LeaveCluster'}
 
 export const hostCommandSchemas = [
 	z.object({type: z.literal('RegisterWorkspace'), path: z.string()}),
@@ -133,7 +137,16 @@ export const hostCommandSchemas = [
 	z.object({
 		type: z.literal('Shutdown'),
 		force: z.boolean().optional()
-	})
+	}),
+	z.object({type: z.literal('ListRoster')}),
+	z.object({type: z.literal('GetClusterJoinStatus')}),
+	z.object({
+		type: z.literal('JoinCluster'),
+		peerAddress: z.string(),
+		advertisedAddress: z.string().optional(),
+		displayName: z.string().optional()
+	}),
+	z.object({type: z.literal('LeaveCluster')})
 ] as const
 
 export const hostEventSchemas = [
@@ -160,6 +173,27 @@ export const hostEventSchemas = [
 		checkpoint: z.object({backend: z.string(), available: z.boolean()}).optional()
 	}),
 	z.object({type: z.literal('host_error'), message: z.string()}),
+	z.object({
+		type: z.literal('roster_changed'),
+		items: z.array(z.object({
+			id: z.string().optional(),
+			agentId: z.string().optional(),
+			displayName: z.string().optional(),
+			endpoints: z.array(z.string()).optional(),
+			fingerprint: z.string().optional(),
+			presence: z.string().optional(),
+			mainSessionId: z.string().optional(),
+			self: z.boolean().optional()
+		}))
+	}),
+	z.object({
+		type: z.literal('cluster_status'),
+		phase: z.string(),
+		peerAddress: z.string().nullish(),
+		advertisedAddress: z.string().nullish(),
+		error: z.string().nullish(),
+		updatedAt: z.number().nullish()
+	}),
 	z.object({
 		type: z.literal('sessions_list'),
 		sessions: z.array(sessionInfo)

@@ -1956,6 +1956,8 @@
       "speak": "Parler",
       "clearA11y": "Effacer le texte",
       "clear": "Effacer",
+      "insert": "Insérer",
+      "insertA11y": "Insérer dans le champ",
       "goSettings": "Ouvrir les réglages",
       "webUnsupported": "Ce navigateur ne reconnaît pas la parole. Essayez Chrome."
     },

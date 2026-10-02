@@ -1956,6 +1956,8 @@
       "speak": "말하기",
       "clearA11y": "텍스트 지우기",
       "clear": "지우기",
+      "insert": "입력",
+      "insertA11y": "입력창에 넣기",
       "goSettings": "설정 열기",
       "webUnsupported": "이 브라우저는 음성을 인식할 수 없습니다. Chrome을 사용해 보세요."
     },

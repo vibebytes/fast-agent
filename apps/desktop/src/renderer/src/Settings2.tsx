@@ -45,6 +45,7 @@ import {PluginsSettings} from './settings/PluginsSettings';
 import {EnginesSettings} from './settings/EnginesSettings';
 import {ProvidersSettings} from './settings/ProvidersSettings';
 import {ModelsSettings} from './settings/ModelsSettings';
+import {ClusterSettings} from './settings/ClusterSettings';
 import {useSettings} from './settings/useSettings';
 import {cn} from '@fast-ide/ui/lib/utils';
 import {Root as DshRoot} from './dsh/settings/Root';
@@ -182,6 +183,8 @@ export function Settings2(props: Props) {
 				/>
 			) : section === 'servers' ? (
 				<ServersSettings />
+			) : section === 'cluster' ? (
+				<ClusterSettings />
 			) : section === 'security' ? (
 				<PermissionsSettings />
 			) : section === 'tasks' ? (

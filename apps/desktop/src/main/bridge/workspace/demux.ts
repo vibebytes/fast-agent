@@ -174,6 +174,16 @@ export function createDemux(h: DemuxHost): WorkspaceDemux {
 			handlers.onEvent('engine', event);
 			return true;
 		},
+		cluster_status: (event, handlers) => {
+			if (event.type !== 'cluster_status') return false;
+			h.engineHandlers?.onClusterStatus?.(event);
+			return true;
+		},
+		roster_changed: (event, handlers) => {
+			if (event.type !== 'roster_changed') return false;
+			h.engineHandlers?.onClusterRoster?.(event.items);
+			return true;
+		},
 		error: (event, handlers) => h.handleBareError(event, handlers),
 		sessions_list: (event, handlers) => {
 			if (event.type !== 'sessions_list') return false;

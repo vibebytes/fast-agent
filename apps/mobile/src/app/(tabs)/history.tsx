@@ -260,17 +260,21 @@ export default function HistoryScreen() {
                 {/* Instant Capsule Search Bar */}
                 <View className="mb-3 px-4 pt-2">
                   <View
-                    style={{
-                      borderColor: searchFocused ? vars['--focus'] : undefined,
-                      shadowColor: vars['--focus'],
-                      shadowOffset: { width: 0, height: 0 },
-                      shadowOpacity: searchFocused ? 0.22 : 0,
-                      shadowRadius: 5
-                    }}
-                    className={`h-9 flex-row items-center rounded-full border bg-surface-secondary px-3 ${
+                    style={
+                      searchFocused
+                        ? {
+                            borderColor: vars['--focus'],
+                            shadowColor: vars['--focus'],
+                            shadowOffset: { width: 0, height: 0 },
+                            shadowOpacity: 0.22,
+                            shadowRadius: 5
+                          }
+                        : undefined
+                    }
+                    className={`h-9 flex-row items-center overflow-hidden rounded-full border bg-surface-secondary px-3 ${
                       searchFocused
                         ? 'border-focus'
-                        : 'border-black/[0.04] dark:border-white/10 dark:border-t-white/15'
+                        : 'border-border/70 dark:border-white/15'
                     }`}
                   >
                     <Glyph name="search" size={15} color={searchFocused ? vars['--focus'] : vars['--muted']} />
@@ -281,6 +285,7 @@ export default function HistoryScreen() {
                       onBlur={() => setSearchFocused(false)}
                       placeholder={t('mobile.history.searchPlaceholder')}
                       placeholderTextColor={vars['--muted']}
+                      underlineColorAndroid="transparent"
                       className="ml-2 flex-1 p-0 text-[13px] text-foreground"
                       clearButtonMode="while-editing"
                     />

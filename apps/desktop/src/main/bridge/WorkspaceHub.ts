@@ -5,6 +5,7 @@ import {TERMINAL_PARSE_FAILURE_PREFIX, PROTOCOL_MISMATCH_PREFIX, type BridgeEven
 import type {
 	AgentRow,
 	AmbientRule,
+	ClusterStatusPayload,
 	CreateSkillInput,
 	PutConfigurableToolInput,
 	EngineHostStatus,
@@ -62,6 +63,8 @@ import {createProjects, type WorkspaceProjects} from './workspace/projects.js';
 import {createDemux, type WorkspaceDemux} from './workspace/demux.js';
 import {pickerEngineIds} from './workspace/enginePickerIds.js';
 
+type RosterItem = Extract<BridgeEvent, {type: 'roster_changed'}>['items'][number];
+
 export type {AmbientRule, EngineHostStatus, ProjectSnapshot, ProjectStatus};
 
 
@@ -87,6 +90,8 @@ export type WorkspaceProjectHandlers = {
 		text: string;
 		seq: number;
 	}) => void;
+	onClusterStatus?: (status: Extract<BridgeEvent, {type: 'cluster_status'}>) => void;
+	onClusterRoster?: (items: RosterItem[]) => void;
 };
 
 export type WorkspaceHubDeps = {
@@ -175,6 +180,8 @@ export class WorkspaceHub {
 	private engineError?: string;
 	/** Last Engine `ready` — fan out model chrome to projects opened after Hello. */
 	private lastReady: Extract<BridgeEvent, {type: 'ready'}> | null = null;
+	private lastClusterRoster: RosterItem[] = [];
+	private lastClusterStatus: ClusterStatusPayload | null = null;
 	private engineHandlers: WorkspaceProjectHandlers | null = null;
 	/** In-flight ListProviders → Composer catalog so ready / restore / model:list share one wait. */
 	private composerCatalogSync: Promise<void> | null = null;
@@ -547,6 +554,56 @@ export class WorkspaceHub {
 	requestWorkspaceMeta(): boolean {
 		if (!this.bridge || this.engineStatus !== 'ready') return false;
 		return this.bridge.send({type: 'GetWorkspaceMeta'});
+	}
+
+	requestClusterStatus(): boolean {
+		if (!this.bridge || this.engineStatus !== 'ready') return false;
+		return this.bridge.send({type: 'GetClusterJoinStatus'});
+	}
+
+	requestClusterRoster(): boolean {
+		if (!this.bridge || this.engineStatus !== 'ready') return false;
+		return this.bridge.send({type: 'ListRoster'});
+	}
+
+	joinCluster(peerAddress: string, advertisedAddress?: string, displayName?: string): boolean {
+		if (!this.bridge || this.engineStatus !== 'ready') return false;
+		return this.bridge.send({
+			type: 'JoinCluster',
+			peerAddress,
+			...(advertisedAddress ? {advertisedAddress} : {}),
+			...(displayName ? {displayName} : {})
+		});
+	}
+
+	leaveCluster(): boolean {
+		if (!this.bridge || this.engineStatus !== 'ready') return false;
+		return this.bridge.send({type: 'LeaveCluster'});
+	}
+
+	/** 最近一次 roster 快照（cluster_status/roster_changed push 时刷新）。 */
+	async listClusterRoster(): Promise<{items: RosterItem[]}> {
+		this.requestClusterRoster();
+		return {items: this.lastClusterRoster};
+	}
+
+	async getClusterStatus(): Promise<ClusterStatusPayload | null> {
+		this.requestClusterStatus();
+		return this.lastClusterStatus;
+	}
+
+	rememberClusterRoster(items: RosterItem[]): void {
+		this.lastClusterRoster = items;
+	}
+
+	/** 引擎掉线/重启后清空缓存的集群状态，跨引擎不残留旧群成员。 */
+	forgetClusterState(): void {
+		this.lastClusterStatus = null;
+		this.lastClusterRoster = [];
+	}
+
+	rememberClusterStatus(status: ClusterStatusPayload): void {
+		this.lastClusterStatus = status;
 	}
 
 	/** @deprecated use requestWorkspaceMeta */
@@ -1122,5 +1179,6 @@ export class WorkspaceHub {
 		this.engineStatus = status;
 		this.engineError = error;
 		this.engineHandlers?.onEngineStatus?.(status, error);
+		if (status !== 'ready') this.forgetClusterState();
 	}
 }
