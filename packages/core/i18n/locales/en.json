@@ -91,6 +91,7 @@
 			"joinHint": "Enter the peer address shown on another machine's cluster page",
 			"errorTitle": "Last error",
 			"selectHint": "Select a member to view details",
+			"unreachable": "Unreachable",
 			"details": {
 				"id": "Node ID",
 				"fingerprint": "Fingerprint",

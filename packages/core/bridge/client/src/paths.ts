@@ -12,7 +12,8 @@ export type BridgePaths = {
 
 export function bridgePaths(env: NodeJS.ProcessEnv = process.env): BridgePaths {
 	const home = env.HOME ?? env.USERPROFILE ?? os.homedir();
-	const runDir = env.FAST_RUN_DIR?.trim() || path.join(home, '.fast', 'run');
+	const root = env.FAST_RUNTIME_ROOT?.trim() || path.join(home, '.fast');
+	const runDir = env.FAST_RUN_DIR?.trim() || path.join(root, 'run');
 	const socketPath = env.FAST_BRIDGE_SOCK?.trim() || path.join(runDir, 'bridge.sock');
 	return {
 		runDir,

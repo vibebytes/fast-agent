@@ -12,6 +12,13 @@ test('bridgePaths defaults under ~/.fast/run', () => {
 	assert.equal(p.logDir, path.join('/tmp/home-x', '.fast', 'logs'));
 });
 
+test('bridgePaths follows FAST_RUNTIME_ROOT', () => {
+	const p = bridgePaths({HOME: '/tmp/home-x', FAST_RUNTIME_ROOT: '/data/app/runtime'});
+	assert.equal(p.runDir, path.join('/data/app/runtime', 'run'));
+	assert.equal(p.socketPath, path.join(p.runDir, 'bridge.sock'));
+	assert.equal(p.tokenFile, path.join(p.runDir, 'bridge.token'));
+});
+
 test('bridgePaths honors FAST_RUN_DIR and FAST_BRIDGE_SOCK', () => {
 	const p = bridgePaths({
 		HOME: '/tmp/home-x',

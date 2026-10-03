@@ -59,6 +59,7 @@ export type AdoptHost = {
 	}) => AdoptProject;
 	pendingSessions: Set<string>;
 	requestSessionsList: (project: AdoptProject) => void;
+	release: (id: string) => void;
 };
 
 export type WorkspaceAdopt = {
@@ -140,6 +141,7 @@ export function createAdopt(host: AdoptHost): WorkspaceAdopt {
 	const applyWorkspaceMeta = (event: WorkspaceMetaEvent, handlers: AdoptHandlers): void => {
 		const sessionsByProject = event.sessionsByProjectId ?? {};
 		const remote = host.isRemote();
+		const kept = new Set<string>();
 		for (const meta of event.projects) {
 			const rawRoot = meta.workspace?.rootPath?.trim();
 			const rootPath = remote
@@ -202,6 +204,7 @@ export function createAdopt(host: AdoptHost): WorkspaceAdopt {
 			}
 
 			if (!project) continue;
+			kept.add(project.id);
 			project.metaProjectId = meta.id;
 			const minted = projectHash(project.path);
 			if (isEchoProbePath(project.path)) {
@@ -228,6 +231,10 @@ export function createAdopt(host: AdoptHost): WorkspaceAdopt {
 				}))
 			);
 			handlers.onSessionsChanged?.(project.id);
+		}
+		if (!remote) return;
+		for (const project of [...host.projects()]) {
+			if (!kept.has(project.id)) host.release(project.id);
 		}
 	};
 

@@ -29,8 +29,11 @@ test('applyRuntimeEnv sets bundled engines yaml only when packaged', () => {
 		env: packaged,
 		userDataPath: '/data/app',
 		resourcesPath: '/app/Contents/Resources',
-		isPackaged: true
+		isPackaged: true,
+		homeDir: '/Users/someone',
+		mkdir: () => undefined
 	});
+	assert.equal(packaged.FAST_RUNTIME_ROOT, `/Users/someone/.fast`);
 	assert.equal(packaged.FAST_ENGINES_YAML, `/app/Contents/Resources/engine/conf/engines.yaml`);
 
 	const dev: NodeJS.ProcessEnv = {};

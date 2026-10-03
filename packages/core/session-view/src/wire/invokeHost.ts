@@ -88,6 +88,11 @@ export type InvokeHost = {
 	'cluster:leave': {args: []; result: {ok: boolean; notice?: string}};
 	/** 拉取集群成员快照（ListRoster）；后续变更经 cluster:roster push。 */
 	'cluster:roster': {args: []; result: {items: ClusterRosterItem[]}};
+	/** 直连名册里的个体并打开它的主会话。本机没有 unix 联系点时拒绝。 */
+	'cluster:open': {
+		args: [input: {self?: boolean; agentId?: string; endpoints?: string[]; mainSessionId?: string}];
+		result: {ok: boolean; message?: string};
+	};
 	getWorkspaceFile: {args: [relativePath: string]; result: GetWorkspaceFileResult};
 	saveWorkspaceFile: {
 		args: [relativePath: string, content: string, mtime?: number, bytes?: number];

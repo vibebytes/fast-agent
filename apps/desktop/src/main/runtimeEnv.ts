@@ -1,15 +1,19 @@
 import {mkdirSync} from 'node:fs';
+import {homedir} from 'node:os';
 import {join} from 'node:path';
 
-/** Point agent-side runtime roots at userData so overlay/engines.yaml never resolve against cwd. */
+/** Packaged desktop keeps the engine at ~/.fast. Dev stays under userData so it does not touch that tree. */
 export function applyRuntimeEnv(input: {
 	env: NodeJS.ProcessEnv;
 	userDataPath: string;
 	resourcesPath?: string;
 	isPackaged?: boolean;
+	homeDir?: string;
 	mkdir?: (path: string) => void;
 }): void {
-	const root = join(input.userDataPath, 'runtime');
+	const root = input.isPackaged
+		? join(input.homeDir ?? homedir(), '.fast')
+		: join(input.userDataPath, 'runtime');
 	input.env.FAST_RUNTIME_ROOT ??= root;
 	try {
 		(input.mkdir ?? ((path: string) => mkdirSync(path, {recursive: true})))(join(root, 'conf'));

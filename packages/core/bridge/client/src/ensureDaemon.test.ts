@@ -19,6 +19,30 @@ const noLiveBridges = {liveBridgePids: () => [] as number[]};
 const bridgeCmd =
 	'java -cp x ai.fastllm.agent.cli.CliApp engine --mode bridge --transport unix --socket /tmp/b.sock';
 
+test('ensureDaemon attach fails closed when the socket is down', async () => {
+	let spawned = false;
+	await assert.rejects(
+		() =>
+			ensureDaemon({
+				env: {
+					HOME: '/tmp/bridge-attach-home',
+					FAST_RUN_DIR: '/tmp/bridge-attach-run',
+					FAST_BRIDGE_SOCK: '/tmp/bridge-attach.sock',
+					FAST_BRIDGE_ATTACH: '1'
+				},
+				tryConnect: async () => false,
+				spawnDaemon: () => {
+					spawned = true;
+					return undefined;
+				},
+				liveBridgePids: () => [4242],
+				isPidAlive: () => true
+			}),
+		/socket not accepting/
+	);
+	assert.equal(spawned, false);
+});
+
 test('resolveDaemonLaunch appends loopback --ws only when port given', () => {
 	const base = resolveDaemonLaunch('/tmp/b.sock', {FAST_ENGINE_COMMAND: 'fast-cli'});
 	assert.ok(!base.args.includes('--ws'));

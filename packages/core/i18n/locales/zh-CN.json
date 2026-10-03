@@ -91,6 +91,7 @@
 			"joinHint": "填写另一台机器集群页上显示的对端地址",
 			"errorTitle": "最近错误",
 			"selectHint": "选择成员查看详情",
+			"unreachable": "不可连接",
 			"details": {
 				"id": "节点 ID",
 				"fingerprint": "指纹",

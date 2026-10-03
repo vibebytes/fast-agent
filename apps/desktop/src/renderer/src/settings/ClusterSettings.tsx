@@ -220,11 +220,19 @@ export function ClusterSettings() {
 		if (a.self !== b.self) return a.self ? -1 : 1;
 		return memberKey(a).localeCompare(memberKey(b));
 	});
+	const visibleRoster = sortedRoster.some(item => item.self)
+		? sortedRoster
+		: [
+				{
+					id: 'local',
+					displayName: engineName.trim() || t('settings.cluster.self'),
+					self: true,
+					presence: 'Idle'
+				},
+				...sortedRoster
+			];
 
-	const peerTarget = () => {
-		const value = peer.trim();
-		return /^[a-zA-Z][\w+.-]*:\/\//.test(value) ? value : `engine://${value}`;
-	};
+	const peerTarget = () => peer.trim().replace(/^engine:\/\//, '');
 
 	const join = async () => {
 		setBusy(true);
@@ -242,6 +250,30 @@ export function ClusterSettings() {
 		} finally {
 			setBusy(false);
 		}
+	};
+
+	const openMember = async (item: ClusterRosterItem) => {
+		setBusy(true);
+		setNotice(null);
+		try {
+			const result = await window.fastIde.openClusterIndividual({
+				self: Boolean(item.self),
+				agentId: item.agentId ?? item.id,
+				endpoints: item.endpoints,
+				mainSessionId: item.mainSessionId
+			});
+			if (!result.ok) setNotice(result.message || t('settings.cluster.unreachable'));
+		} catch (e) {
+			setNotice(e instanceof Error ? e.message : String(e));
+		} finally {
+			setBusy(false);
+		}
+	};
+
+	const selectMember = (key: string) => {
+		setSelected(key);
+		const item = visibleRoster.find(row => memberKey(row) === key);
+		if (item) void openMember(item);
 	};
 
 	const leave = async () => {
@@ -276,11 +308,13 @@ export function ClusterSettings() {
 				{switching ? (
 					<p className="mb-1 text-[11px] text-amber-600 dark:text-amber-400">{t('settings.cluster.mapSwitching')}</p>
 				) : null}
-				<ClusterMap roster={sortedRoster} phase={phase} selected={selected} onSelect={setSelected} />
-				{roster.length === 0 ? (
+				<ClusterMap roster={visibleRoster} phase={phase} selected={selected} onSelect={selectMember} />
+				{phase === 'idle' ? (
+					<p className="text-center text-[11px] text-muted-foreground">{t('settings.cluster.notJoined')}</p>
+				) : roster.length === 0 ? (
 					<p className="text-center text-[11px] text-muted-foreground">{t('settings.cluster.emptyRoster')}</p>
 				) : null}
-				<MemberList roster={sortedRoster} selected={selected} onSelect={setSelected} />
+				<MemberList roster={visibleRoster} selected={selected} onSelect={selectMember} />
 			</SettingsSection>
 
 			<SettingsSection title={t('settings.navigation.cluster')}>

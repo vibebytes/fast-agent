@@ -227,6 +227,12 @@ export type FastIdeApi = {
 	joinCluster: (input: {peerAddress: string; advertisedAddress?: string; displayName?: string}) => Promise<{ok: boolean; notice?: string}>;
 	leaveCluster: () => Promise<{ok: boolean; notice?: string}>;
 	listClusterRoster: () => Promise<{items: ClusterRosterItem[]}>;
+	openClusterIndividual: (input: {
+		self?: boolean;
+		agentId?: string;
+		endpoints?: string[];
+		mainSessionId?: string;
+	}) => Promise<{ok: boolean; message?: string}>;
 	onClusterStatus: (handler: (status: ClusterStatusPayload | null) => void) => () => void;
 	onClusterRoster: (handler: (items: ClusterRosterItem[]) => void) => () => void;
 	listRules: (

@@ -37,6 +37,8 @@ export type EngineHost = {
 	switchingEdge: boolean;
 	shuttingDown: boolean;
 	remoteOpts?: RemoteBridgeConnectionOptions;
+	/** Unix attach for another individual. Rebind must keep this, the way remoteOpts keeps a server. */
+	bridgeEnv?: NodeJS.ProcessEnv;
 	engineHandshakeOk: boolean;
 	rebindAttempts: number;
 	rebindResetTimer: ReturnType<typeof setTimeout> | null;
@@ -88,11 +90,12 @@ export function createEngine(h: EngineHost): WorkspaceEngine {
 		h.bridge = candidate;
 		h.committedEdgeId = target.id;
 		h.remoteOpts = target.remote;
+		h.bridgeEnv = target.env;
 		h.pendingEdgeId = null;
 		h.switchAbort = undefined;
 		h.engineHandshakeOk = true;
 		h.rebindAttempts = 0;
-		h.persistActiveId?.(target.id);
+		if (!target.id.startsWith('individual:')) h.persistActiveId?.(target.id);
 		h.switchingEdge = false;
 		h.shuttingDown = false;
 		h.engineHandlers = handlers;
@@ -179,8 +182,10 @@ export function createEngine(h: EngineHost): WorkspaceEngine {
 				{
 					sessionMode: 'continue',
 					remote,
+					env: h.bridgeEnv,
+					keepDaemon: Boolean(h.bridgeEnv),
 					clientId: h.createClientId(),
-					wantEngineId: process.env.FAST_WANT_ENGINE_ID
+					wantEngineId: h.bridgeEnv ? undefined : process.env.FAST_WANT_ENGINE_ID
 				}
 			)
 		)
@@ -271,8 +276,10 @@ export function createEngine(h: EngineHost): WorkspaceEngine {
 					{
 						sessionMode: 'continue',
 						remote,
+						env: target.env,
+						keepDaemon: Boolean(target.env),
 						clientId: h.createClientId(),
-						wantEngineId: process.env.FAST_WANT_ENGINE_ID
+						wantEngineId: target.env ? undefined : process.env.FAST_WANT_ENGINE_ID
 					}
 				);
 			} catch (error) {

@@ -2,7 +2,7 @@
  * DesktopHost — product InvokeChannels implementation (no Electron import).
  * Pet / locale channels stay in the host entry; window/tray/media protocol stay there too.
  */
-import {join} from 'node:path';
+import {dirname, join} from 'node:path';
 import type {CloudflareTunnelStatus, InvokeChannel, InvokeChannels} from '@fast-ide/session-view';
 import {classifyProbeError, probeBridge} from '@fastllm/bridge-client';
 import type {WorkspaceHub, WorkspaceProjectHandlers} from './WorkspaceHub.js';
@@ -495,6 +495,44 @@ export function createDesktopHost(deps: DesktopHostDeps): ProductInvokeMap {
 		'cluster:join': input => ({ok: hub.joinCluster(input.peerAddress, input.advertisedAddress, input.displayName)}),
 		'cluster:leave': () => ({ok: hub.leaveCluster()}),
 		'cluster:roster': () => hub.listClusterRoster(),
+		'cluster:open': async input => {
+			const blocked = refusePending();
+			if (blocked) return {ok: false, message: blocked.message};
+			const roster = (await hub.listClusterRoster()).items;
+			const known = roster.find(item => (item.agentId ?? item.id) === input.agentId);
+			const endpoints = input.endpoints?.length ? input.endpoints : known?.endpoints ?? [];
+			const endpoint = endpoints.find(item => item.startsWith('unix://'));
+			const self = Boolean(input.self);
+			try {
+				if (self) {
+					await hub.switchEdge({id: LOCAL_EDGE_ID}, projectHandlers());
+				} else if (!endpoint) {
+					return {ok: false, message: '不可连接'};
+				} else {
+					const socket = endpoint.slice('unix://'.length);
+					const runDir = dirname(socket);
+					await hub.switchEdge(
+						{
+							id: `individual:${input.agentId ?? known?.id ?? 'peer'}`,
+							env: {
+								FAST_RUN_DIR: runDir,
+								FAST_BRIDGE_SOCK: socket,
+								FAST_RUNTIME_ROOT: dirname(runDir),
+								FAST_BRIDGE_ATTACH: '1'
+							}
+						},
+						projectHandlers()
+					);
+				}
+				publisher.publishWorkspace();
+				publisher.publishFocusChange();
+				onEdgesChanged?.();
+				return {ok: true};
+			} catch (error) {
+				if (error instanceof Error && error.name === 'AbortError') return {ok: false, message: 'aborted'};
+				return {ok: false, message: error instanceof Error ? error.message : String(error)};
+			}
+		},
 
 		'cloudflareTunnel:status': () => deps.cloudflareTunnel?.status() ?? {state: 'disabled'},
 		'cloudflareTunnel:start': () => deps.cloudflareTunnel?.start() ?? {state: 'disabled'},

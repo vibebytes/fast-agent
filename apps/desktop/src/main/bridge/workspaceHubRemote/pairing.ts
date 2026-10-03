@@ -260,6 +260,35 @@ test('openRemoteProject missing dir deletes the row and sends no CreateProject',
 	hub.closeAll();
 });
 
+test('remote workspace_meta replaces the previous project list', async () => {
+	const fake = fakeBridge();
+	const hub = remoteHub(() => fake);
+	hub.ensureEngine(handlers());
+	await new Promise(r => setTimeout(r, 20));
+	await hub.openRemoteProject('/home/kai/code', handlers());
+	assert.equal(hub.listProjects()[0]?.path, '/home/kai/code');
+	fake.handlers?.onEvent({
+		type: 'workspace_meta',
+		tenantId: 'default',
+		appId: 'default-app',
+		projects: [
+			{
+				id: 'srv-bar',
+				projectType: 'coding',
+				displayName: 'bar',
+				status: 'active',
+				isDefault: false,
+				workspace: {id: 'ws-bar', placement: 'local', rootPath: '/home/kai/bar', pathHash: 'bar'}
+			}
+		],
+		sessionsByProjectId: {}
+	});
+	const listed = hub.listProjects();
+	assert.equal(listed.length, 1);
+	assert.equal(listed[0]?.path, '/home/kai/bar');
+	hub.closeAll();
+});
+
 test('openRemoteProject existing dir becomes ready after Register', async () => {
 	const fake = fakeBridge();
 	const hub = remoteHub(() => fake);

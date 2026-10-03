@@ -34,10 +34,18 @@ export type BridgeStartOptions = Pick<
 	remote?: RemoteBridgeConnectionOptions;
 	clientId?: string;
 	wantEngineId?: string;
+	/** Attach an already-listening bridge. Do not replace or respawn that process. */
+	keepDaemon?: boolean;
 };
 
 const defaultSpawn: SpawnFn = (command, args, spawnOptions) =>
 	spawn(command, args, {...spawnOptions, stdio: ['pipe', 'pipe', 'pipe']}) as ChildProcessWithoutNullStreams;
+
+function withoutWantEngine(env: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
+	const next = {...env};
+	delete next.FAST_WANT_ENGINE_ID;
+	return next;
+}
 
 function useStdio(options: BridgeClientOptions, env: NodeJS.ProcessEnv): boolean {
 	if (options.transport === 'stdio') return true;
@@ -103,15 +111,18 @@ export class BridgeClient {
 		const host = new BridgeHost();
 		this.host = host;
 		this.clientId = launchOptions.clientId ?? `fast-ide-${randomUUID()}`;
+		const hostEnv = launchOptions.keepDaemon ? withoutWantEngine(env) : env;
 		try {
 			await host.connect(
 				{
 					clientKind: 'fast-ide',
 					clientId: this.clientId,
 					cwd: launchOptions.remote ? undefined : workspaceRoot,
-					env,
+					env: hostEnv,
 					remote: launchOptions.remote,
-					wantEngineId: launchOptions.wantEngineId ?? env.FAST_WANT_ENGINE_ID,
+					wantEngineId: launchOptions.keepDaemon
+						? undefined
+						: launchOptions.wantEngineId ?? env.FAST_WANT_ENGINE_ID,
 					ensureDeps:
 						launchOptions.remote || this.options.loopbackWsPort === undefined
 							? undefined

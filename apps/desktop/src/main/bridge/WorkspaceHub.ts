@@ -117,6 +117,8 @@ export type WorkspaceHubDeps = {
 export type SwitchEdgeTarget = {
 	id: string;
 	remote?: RemoteBridgeConnectionOptions;
+	/** Attach a bridge that is not the desktop's own runtime (another individual's socket). */
+	env?: NodeJS.ProcessEnv;
 };
 
 type RegisterWaiter = {
@@ -170,6 +172,7 @@ export class WorkspaceHub {
 	private pendingEdgeId: string | null = null;
 	private switchingEdge = false;
 	private remoteOpts?: RemoteBridgeConnectionOptions;
+	private bridgeEnv?: NodeJS.ProcessEnv;
 	private hostHome?: string;
 	private switchAbort?: AbortController;
 	private edgeAttempt = 0;
@@ -323,7 +326,16 @@ export class WorkspaceHub {
 			hasRegisterFailed: id => this.registerFailed.has(id),
 			mintAdopted: input => this.projectOps.mintAdoptedProject(input),
 			pendingSessions: this.pendingSessionsList,
-			requestSessionsList: p => this.requestProjectSessionsList(p as OpenProject)
+			requestSessionsList: p => this.requestProjectSessionsList(p as OpenProject),
+			release: id => {
+				const project = this.projects.get(id);
+				if (!project) return;
+				project.sessions.detachAll();
+				this.projects.delete(id);
+				if (this.activeProjectId === id) {
+					this.activeProjectId = [...this.projects.keys()][0] ?? null;
+				}
+			}
 		});
 		this.projectOps = createProjects(this as never);
 		this.engine = createEngine(this as never);

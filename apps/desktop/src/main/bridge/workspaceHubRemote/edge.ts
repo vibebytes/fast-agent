@@ -428,3 +428,46 @@ test('rebind Register remounts a session with AttachSession lastEventSeq', async
 	);
 	hub.closeAll();
 });
+
+test('individual attach rebind keeps the other socket', async () => {
+	const socks: Array<string | undefined> = [];
+	const keeps: boolean[] = [];
+	const fakes: Fake[] = [];
+	const hub = new WorkspaceHub({
+		createBridge: () => {
+			const fake = fakeBridge();
+			const orig = fake.start.bind(fake);
+			fake.start = ((cwd, h, opts?: BridgeStartOptions) => {
+				socks.push(opts?.env?.FAST_BRIDGE_SOCK);
+				keeps.push(Boolean(opts?.keepDaemon));
+				return orig(cwd, h, opts);
+			}) as Fake['start'];
+			fakes.push(fake);
+			return fake as unknown as BridgeClient;
+		},
+		hostCwd: mkdtempSync(path.join(tmpdir(), 'hub-ind-cwd-')),
+		homeDir: mkdtempSync(path.join(tmpdir(), 'hub-ind-home-')),
+		rebindBaseMs: 5
+	});
+	await hub.switchEdge(
+		{
+			id: 'individual:b',
+			env: {
+				FAST_BRIDGE_SOCK: '/tmp/b.sock',
+				FAST_BRIDGE_ATTACH: '1',
+				FAST_RUN_DIR: '/tmp/b-run',
+				FAST_RUNTIME_ROOT: '/tmp/b'
+			}
+		},
+		handlers()
+	);
+	assert.equal(socks[0], '/tmp/b.sock');
+	assert.equal(keeps[0], true);
+	assert.equal(hub.isRemote(), true);
+	fakes[0]?.handlers?.onExit(1, null);
+	await new Promise(r => setTimeout(r, 40));
+	assert.equal(socks.at(-1), '/tmp/b.sock');
+	assert.equal(keeps.at(-1), true);
+	assert.equal(hub.edgeSnapshot().activeId, 'individual:b');
+	hub.closeAll();
+});
