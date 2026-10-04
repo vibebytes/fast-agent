@@ -36,6 +36,7 @@ test('an individual with no open endpoint is not reachable', () => {
   assert.equal(reachable(item(), () => false), false);
   assert.equal(reachable(item(), url => url.includes('b.example')), true);
   assert.equal(reachable(item({ endpoints: [] }), () => true), false);
+  assert.equal(reachable(item({ endpoints: ['unix:///tmp/b.sock'] }), () => true), false);
 });
 
 test('a server roster id becomes the phone agent id and keeps the main session', () => {
@@ -46,6 +47,7 @@ test('a server roster id becomes the phone agent id and keeps the main session',
         displayName: '小B',
         endpoints: ['wss://b.example/bridge'],
         fingerprint: 'sha256:abc',
+        token: 'tok-b',
         presence: 'Idle',
         mainSessionId: 'sess-b'
       }
@@ -54,6 +56,7 @@ test('a server roster id becomes the phone agent id and keeps the main session',
   assert.equal(items.length, 1);
   assert.equal(items[0].agentId, 'agent-b');
   assert.equal(items[0].mainSessionId, 'sess-b');
+  assert.equal(items[0].token, 'tok-b');
   assert.deepEqual(items[0].endpoints, ['wss://b.example/bridge']);
 });
 

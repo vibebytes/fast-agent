@@ -38,6 +38,7 @@ export type ClusterRosterItem = {
 	displayName?: string;
 	endpoints?: string[];
 	fingerprint?: string;
+	token?: string;
 	presence?: string;
 	mainSessionId?: string;
 	/** Engine marks the local node in the roster so the map can pin it to the center. */

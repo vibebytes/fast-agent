@@ -12,6 +12,7 @@ test('roster_changed carries roster items', () => {
 				displayName: '小B',
 				endpoints: ['wss://b.example/bridge'],
 				fingerprint: 'sha256:abc',
+				token: 'tok-b',
 				presence: 'Idle',
 				mainSessionId: 'sess-b'
 			}
@@ -21,6 +22,7 @@ test('roster_changed carries roster items', () => {
 	if (parsed.type === 'roster_changed') {
 		assert.equal(parsed.items[0]?.id, 'agent-b');
 		assert.equal(parsed.items[0]?.mainSessionId, 'sess-b');
+		assert.equal(parsed.items[0]?.token, 'tok-b');
 	}
 });
 

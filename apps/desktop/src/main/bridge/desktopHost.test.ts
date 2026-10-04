@@ -403,3 +403,62 @@ test('edges:select refuses an unpinned stored server', async () => {
 	assert.equal(res.ok, false);
 	if (!res.ok) assert.equal(res.code, 'unpinned');
 });
+
+test('cluster:open switches via wss like a remote server', async () => {
+	const remotes: Array<{url?: string; authToken?: string; fingerprint?: string}> = [];
+	const hub = new WorkspaceHub({
+		createBridge: () =>
+			({
+				start(_cwd: string, handlers: {onEvent: (e: {type: string}) => void}, opts?: {remote?: {url?: string; authToken?: string; fingerprint?: string}}) {
+					remotes.push({
+						url: opts?.remote?.url,
+						authToken: opts?.remote?.authToken,
+						fingerprint: opts?.remote?.fingerprint
+					});
+					queueMicrotask(() => handlers.onEvent({type: 'HelloOk'}));
+					return Promise.resolve();
+				},
+				send: () => true,
+				stop() {}
+			}) as never
+	});
+	hub.rememberClusterRoster([
+		{
+			id: 'b',
+			displayName: '小B',
+			endpoints: ['wss://127.0.0.1:1982/bridge'],
+			token: 'tok-b',
+			fingerprint: PIN
+		}
+	]);
+	const publisher = createUiPublisher({hub, send: () => {}});
+	const host = createDesktopHost({
+		hub,
+		publisher,
+		...hostStub()
+	});
+	const res = await host['cluster:open']({agentId: 'b'});
+	assert.equal(res.ok, true);
+	assert.equal(remotes[0]?.url, 'wss://127.0.0.1:1982/bridge');
+	assert.equal(remotes[0]?.authToken, 'tok-b');
+	assert.equal(remotes[0]?.fingerprint, PIN);
+});
+
+test('cluster:open refuses a card without wss', async () => {
+	const hub = new WorkspaceHub({
+		createBridge: () => ({start() {}, send: () => true, stop() {}} as never)
+	});
+	const publisher = createUiPublisher({hub, send: () => {}});
+	const host = createDesktopHost({
+		hub,
+		publisher,
+		...hostStub()
+	});
+	const res = await host['cluster:open']({
+		agentId: 'b',
+		endpoints: ['unix:///tmp/b.sock'],
+		token: 'tok-b'
+	});
+	assert.equal(res.ok, false);
+	assert.equal(res.message, '不可连接');
+});

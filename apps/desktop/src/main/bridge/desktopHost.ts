@@ -2,7 +2,7 @@
  * DesktopHost — product InvokeChannels implementation (no Electron import).
  * Pet / locale channels stay in the host entry; window/tray/media protocol stay there too.
  */
-import {dirname, join} from 'node:path';
+import {join} from 'node:path';
 import type {CloudflareTunnelStatus, InvokeChannel, InvokeChannels} from '@fast-ide/session-view';
 import {classifyProbeError, probeBridge} from '@fastllm/bridge-client';
 import type {WorkspaceHub, WorkspaceProjectHandlers} from './WorkspaceHub.js';
@@ -501,24 +501,24 @@ export function createDesktopHost(deps: DesktopHostDeps): ProductInvokeMap {
 			const roster = (await hub.listClusterRoster()).items;
 			const known = roster.find(item => (item.agentId ?? item.id) === input.agentId);
 			const endpoints = input.endpoints?.length ? input.endpoints : known?.endpoints ?? [];
-			const endpoint = endpoints.find(item => item.startsWith('unix://'));
+			const endpoint = endpoints.find(item => item.startsWith('wss://'));
+			const token = input.token ?? known?.token ?? '';
+			const fingerprint = input.fingerprint ?? known?.fingerprint;
 			const self = Boolean(input.self);
 			try {
 				if (self) {
 					await hub.switchEdge({id: LOCAL_EDGE_ID}, projectHandlers());
-				} else if (!endpoint) {
+				} else if (!endpoint || !token) {
 					return {ok: false, message: '不可连接'};
 				} else {
-					const socket = endpoint.slice('unix://'.length);
-					const runDir = dirname(socket);
 					await hub.switchEdge(
 						{
 							id: `individual:${input.agentId ?? known?.id ?? 'peer'}`,
-							env: {
-								FAST_RUN_DIR: runDir,
-								FAST_BRIDGE_SOCK: socket,
-								FAST_RUNTIME_ROOT: dirname(runDir),
-								FAST_BRIDGE_ATTACH: '1'
+							remote: {
+								url: endpoint,
+								authToken: token,
+								fingerprint,
+								timeoutMs: CONNECT_DEADLINE_MS
 							}
 						},
 						projectHandlers()

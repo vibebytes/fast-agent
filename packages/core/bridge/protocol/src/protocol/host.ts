@@ -181,6 +181,7 @@ export const hostEventSchemas = [
 			displayName: z.string().optional(),
 			endpoints: z.array(z.string()).optional(),
 			fingerprint: z.string().optional(),
+			token: z.string().optional(),
 			presence: z.string().optional(),
 			mainSessionId: z.string().optional(),
 			self: z.boolean().optional()

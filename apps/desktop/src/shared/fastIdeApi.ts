@@ -231,6 +231,8 @@ export type FastIdeApi = {
 		self?: boolean;
 		agentId?: string;
 		endpoints?: string[];
+		fingerprint?: string;
+		token?: string;
 		mainSessionId?: string;
 	}) => Promise<{ok: boolean; message?: string}>;
 	onClusterStatus: (handler: (status: ClusterStatusPayload | null) => void) => () => void;

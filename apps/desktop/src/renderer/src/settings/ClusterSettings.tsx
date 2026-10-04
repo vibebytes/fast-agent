@@ -260,6 +260,8 @@ export function ClusterSettings() {
 				self: Boolean(item.self),
 				agentId: item.agentId ?? item.id,
 				endpoints: item.endpoints,
+				fingerprint: item.fingerprint,
+				token: item.token,
 				mainSessionId: item.mainSessionId
 			});
 			if (!result.ok) setNotice(result.message || t('settings.cluster.unreachable'));

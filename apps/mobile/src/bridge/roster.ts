@@ -4,6 +4,7 @@ export type RosterItem = {
   displayName: string;
   endpoints: string[];
   fingerprint: string;
+  token?: string;
   presence: string;
   mainSessionId?: string;
   reachable?: boolean | 'unknown';
@@ -17,6 +18,7 @@ type ServerRosterRow = {
   displayName?: string;
   endpoints?: string[];
   fingerprint?: string;
+  token?: string;
   presence?: string;
   mainSessionId?: string;
 };
@@ -37,6 +39,7 @@ export function fromServerRoster(body: unknown): RosterItem[] {
         displayName: row.displayName || agentId,
         endpoints,
         fingerprint: row.fingerprint || '',
+        token: row.token || '',
         presence: row.presence || '',
         mainSessionId: row.mainSessionId
       }
@@ -50,7 +53,7 @@ export async function connectChecked(
   open: (url: string) => boolean,
   probe: (url: string) => Promise<string | null>
 ): Promise<ConnectTarget | {error: string}> {
-  const candidates = item.endpoints.filter(open);
+  const candidates = item.endpoints.filter(url => url.startsWith('wss://') && open(url));
   if (candidates.length === 0) return {error: '不可连接'};
   let sawCertificate = false;
   for (const url of candidates) {
@@ -66,7 +69,7 @@ export async function connectChecked(
 export type CachedRoster = {items: RosterItem[]; sourceId: string | null};
 
 export function reachable(item: RosterItem, open: (url: string) => boolean): boolean {
-  return item.endpoints.some(open);
+  return item.endpoints.some(url => url.startsWith('wss://') && open(url));
 }
 
 export function trustFingerprint(expected: string, presented: string): boolean {
@@ -144,8 +147,9 @@ export async function probeRoster(
   timeoutMs = 10000
 ): Promise<RosterItem[]> {
   return Promise.all(items.map(async item => {
-    if (item.endpoints.length === 0) return {...item, reachable: false as const};
-    const checks = await Promise.all(item.endpoints.map(url => within(open(item, url), timeoutMs)));
+    const urls = item.endpoints.filter(url => url.startsWith('wss://'));
+    if (urls.length === 0) return {...item, reachable: false as const};
+    const checks = await Promise.all(urls.map(url => within(open(item, url), timeoutMs)));
     return {...item, reachable: checks.some(Boolean)};
   }));
 }

@@ -29,7 +29,7 @@ export function IndividualGroup() {
     const serverId = await bridgeStore.saveServer({
       label: target.label,
       serverUrl: target.url,
-      token: current.token,
+      token: item.token || current.token,
       fingerprint: target.fingerprint,
       transport: transport.transport,
       trust: 'pinned',

@@ -471,19 +471,6 @@ export async function ensureDaemon(deps: EnsureDaemonDeps = {}): Promise<EnsureD
 	const liveBridge = (pid: number) => isLiveBridgeHost(pid, {alive, commandLine});
 	const deadline = now() + startupTimeoutMs;
 
-	// Another individual's already-listening socket. Same as a remote server: connect or fail.
-	// Do not spawn into that runtime, and do not treat some other JVM as the owner of this socket.
-	if (env.FAST_BRIDGE_ATTACH === '1') {
-		if (!(await tryConnect(paths.socketPath))) {
-			throw new Error(`socket not accepting: ${paths.socketPath}`);
-		}
-		return {
-			socketPath: paths.socketPath,
-			token: await waitToken(paths.tokenFile, readToken, exists, sleep, now, deadline),
-			spawned: false
-		};
-	}
-
 	ensureDir(paths.runDir);
 	let spawned = false;
 	let staleAliveSince: number | undefined;
