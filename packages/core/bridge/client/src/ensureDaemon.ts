@@ -59,8 +59,10 @@ export type EnsureDaemonDeps = {
 	rocksLockPath?: (env: NodeJS.ProcessEnv) => string;
 	/** `ps` command line for a pid; used to reject PID-reuse false owners. */
 	commandLine?: (pid: number) => string | undefined;
-	/** All live Bridge engine PIDs on this machine (process scan). */
+	/** Live Bridge PIDs on *this* `FAST_RUNTIME_ROOT`. */
 	liveBridgePids?: () => number[];
+	/** Every live Bridge JVM (any root). Used to attach when ports already match. */
+	allBridgePids?: () => number[];
 	wantEngineId?: string;
 	bundledEngine?: string;
 	killPid?: (pid: number, signal: NodeJS.Signals) => void;
@@ -176,16 +178,136 @@ export function isBridgeEngineCommand(command: string): boolean {
 	);
 }
 
+function stripFlagValue(raw: string): string {
+	return raw.replace(/^["']|["']$/g, '');
+}
+
+/** `ps` leaves spaces inside unquoted `-D` / `--socket` values; the next argv starts with ` -`. */
+const NEXT_ARGV = /(?=\s+-|\s*$)/;
+
+function lastRuntimeRootFlag(command: string): string | undefined {
+	const hits = [
+		...command.matchAll(new RegExp(`-Dfast\\.runtime\\.root=(?:"([^"]+)"|'([^']+)'|(.+?))${NEXT_ARGV.source}`, 'g'))
+	];
+	const raw = hits.at(-1);
+	if (!raw) return undefined;
+	const value = stripFlagValue(raw[1] ?? raw[2] ?? raw[3] ?? '');
+	return value || undefined;
+}
+
+function socketFlag(command: string): string | undefined {
+	const m = command.match(
+		new RegExp(`--socket(?:=|\\s+)(?:"([^"]+)"|'([^']+)'|(.+?))${NEXT_ARGV.source}`)
+	);
+	if (!m) return undefined;
+	const value = stripFlagValue(m[1] ?? m[2] ?? m[3] ?? '');
+	return value || undefined;
+}
+
+function lastIntProp(command: string, prop: string): number | undefined {
+	const hits = [...command.matchAll(new RegExp(`-D${prop}=(\\d+)`, 'g'))];
+	const n = Number(hits.at(-1)?.[1]);
+	return Number.isFinite(n) && n > 0 ? n : undefined;
+}
+
+function lastBindPort(command: string, flag: string): number | undefined {
+	const hits = [...command.matchAll(new RegExp(`${flag}(?:=|\\s+)(\\S+)`, 'g'))];
+	const n = Number(hits.at(-1)?.[1]?.split(':').pop());
+	return Number.isFinite(n) && n > 0 ? n : undefined;
+}
+
+function envPort(env: NodeJS.ProcessEnv, keys: readonly string[], fallback: number): number {
+	for (const key of keys) {
+		const raw = env[key]?.trim();
+		if (!raw) continue;
+		const n = Number(raw.includes(':') ? raw.split(':').pop() : raw);
+		if (Number.isFinite(n) && n > 0) return n;
+	}
+	return fallback;
+}
+
+/** Ports this slot will bind — same defaults as Scala `Ports.load`. */
+export function slotPorts(env: NodeJS.ProcessEnv = process.env): {enroll: number; wss: number; ws: number} {
+	return {
+		enroll: envPort(env, ['FAST_JOIN_PORT', 'FAST_ENROLL_PORT'], 2580),
+		wss: envPort(env, ['FAST_BRIDGE_WSS_PORT', 'FAST_BRIDGE_WSS'], 1979),
+		ws: envPort(env, ['FAST_BRIDGE_WS_PORT', 'FAST_BRIDGE_WS'], 1981)
+	};
+}
+
+/** Unix sock from `--socket` or `<last -Dfast.runtime.root=>/run/bridge.sock`. */
+export function peerSocket(command: string): string | undefined {
+	const sock = socketFlag(command);
+	if (sock) return sock;
+	const root = lastRuntimeRootFlag(command);
+	if (!root) return undefined;
+	return path.join(root, 'run', 'bridge.sock');
+}
+
 /**
- * Live pid owns the slot only if it is a Bridge engine.
+ * True when this JVM already holds an enroll/wss/ws port we would bind.
+ * Last `-D` / `--wss` / `--ws` wins; no marker ⇒ packaged defaults (2580/1979/1981).
+ */
+export function commandSharesSlotPorts(
+	command: string,
+	ports: {enroll: number; wss: number; ws: number}
+): boolean {
+	const enroll = lastIntProp(command, 'fast\\.enroll\\.port') ?? 2580;
+	const wss = lastIntProp(command, 'fast\\.bridge\\.wss') ?? lastBindPort(command, '--wss') ?? 1979;
+	const ws = lastIntProp(command, 'fast\\.bridge\\.ws') ?? lastBindPort(command, '--ws') ?? 1981;
+	return (
+		(ports.enroll > 0 && enroll === ports.enroll) ||
+		(ports.wss > 0 && wss === ports.wss) ||
+		(ports.ws > 0 && ws === ports.ws)
+	);
+}
+
+function normalizeMarker(p: string): string {
+	return path.normalize(path.resolve(p.trim()));
+}
+
+function markerOverlaps(candidate: string, roots: readonly string[]): boolean {
+	if (!candidate) return false;
+	const a = normalizeMarker(candidate);
+	return roots.some(root => {
+		const b = normalizeMarker(root);
+		return a === b || a.startsWith(`${b}${path.sep}`) || b.startsWith(`${a}${path.sep}`);
+	});
+}
+
+/** Resolved root / runDir / sock for this slot — two individuals must not share them. */
+export function runtimeMarkers(env: NodeJS.ProcessEnv = process.env): string[] {
+	const paths = bridgePaths(env);
+	const home = env.HOME ?? env.USERPROFILE ?? os.homedir();
+	const root = env.FAST_RUNTIME_ROOT?.trim() || path.join(home, '.fast');
+	return [...new Set([root, paths.runDir, paths.socketPath].map(normalizeMarker))];
+}
+
+/**
+ * Last `-Dfast.runtime.root=` (or `--socket`) wins. No marker → assume this slot
+ * so a legacy cmdline still blocks a second JVM on the same root.
+ */
+export function commandOwnsThisRuntime(command: string, roots: readonly string[]): boolean {
+	if (roots.length === 0) return true;
+	const declared = lastRuntimeRootFlag(command);
+	if (declared !== undefined) return markerOverlaps(declared, roots);
+	const sock = socketFlag(command);
+	if (sock !== undefined) return markerOverlaps(sock, roots);
+	return true;
+}
+
+/**
+ * Live pid owns the slot only if it is a Bridge engine on *this* runtime root.
  * Alive + non-bridge ⇒ PID reuse / stale pidfile (safe to clear).
  * Alive + unknown cmdline (`ps` failed) ⇒ treat as owner (do not steal).
+ * Alive + Bridge on another `FAST_RUNTIME_ROOT` ⇒ not this slot.
  */
 export function isLiveBridgeHost(
 	pid: number,
 	deps: {
 		alive?: (pid: number) => boolean;
 		commandLine?: (pid: number) => string | undefined;
+		runtimeRoots?: readonly string[];
 	} = {}
 ): boolean {
 	const alive = deps.alive ?? isPidAlive;
@@ -193,11 +315,18 @@ export function isLiveBridgeHost(
 	if (!alive(pid)) return false;
 	const cmd = commandLine(pid);
 	if (cmd === undefined) return true;
-	return isBridgeEngineCommand(cmd);
+	if (!isBridgeEngineCommand(cmd)) return false;
+	if (deps.runtimeRoots && !commandOwnsThisRuntime(cmd, deps.runtimeRoots)) return false;
+	return true;
 }
 
-/** Best-effort: every live Bridge host JVM/cli on this machine. */
-function liveBridgePidsWindows(): number[] {
+function ownsThisRuntimeOrUnknown(command: string | undefined, roots: readonly string[]): boolean {
+	if (command === undefined) return true;
+	return commandOwnsThisRuntime(command, roots);
+}
+
+/** Best-effort: Bridge hosts on *this* `FAST_RUNTIME_ROOT`. */
+function liveBridgePidsWindows(roots: readonly string[]): number[] {
 	try {
 		const out = execFileSync(
 			'wmic',
@@ -208,6 +337,7 @@ function liveBridgePidsWindows(): number[] {
 		const blocks = out.split(/\r?\n\r?\n/);
 		for (const block of blocks) {
 			if (!/engine/i.test(block) || !/bridge/i.test(block)) continue;
+			if (!ownsThisRuntimeOrUnknown(block, roots)) continue;
 			const m = block.match(/ProcessId=(\d+)/i);
 			const n = Number(m?.[1]);
 			if (Number.isFinite(n) && n > 0 && n !== process.pid) found.add(n);
@@ -218,8 +348,7 @@ function liveBridgePidsWindows(): number[] {
 	}
 }
 
-export function liveBridgePids(): number[] {
-	if (process.platform === 'win32') return liveBridgePidsWindows();
+function allLiveBridgePidsUnix(): number[] {
 	const patterns = [
 		'ai.fastllm.agent.cli.CliApp.*engine.*bridge',
 		'fast-cli.*engine.*bridge',
@@ -243,6 +372,17 @@ export function liveBridgePids(): number[] {
 		}
 	}
 	return [...found];
+}
+
+export function allLiveBridgePids(): number[] {
+	if (process.platform === 'win32') return liveBridgePidsWindows([]);
+	return allLiveBridgePidsUnix();
+}
+
+export function liveBridgePids(env: NodeJS.ProcessEnv = process.env): number[] {
+	const roots = runtimeMarkers(env);
+	if (process.platform === 'win32') return liveBridgePidsWindows(roots);
+	return allLiveBridgePidsUnix().filter(pid => ownsThisRuntimeOrUnknown(engineCommandLine(pid), roots));
 }
 
 export function engineBinName(platform: NodeJS.Platform = process.platform): string {
@@ -463,12 +603,15 @@ export async function ensureDaemon(deps: EnsureDaemonDeps = {}): Promise<EnsureD
 	const lockPathOf = deps.rocksLockPath ?? rocksLockPath;
 	const lockHoldersOf = deps.rocksLockHolders ?? rocksLockHolders;
 	const commandLine = deps.commandLine ?? engineCommandLine;
-	const bridgePidsOf = deps.liveBridgePids ?? liveBridgePids;
+	const roots = runtimeMarkers(env);
+	const ports = slotPorts(env);
+	const bridgePidsOf = deps.liveBridgePids ?? (() => liveBridgePids(env));
+	const allBridgesOf = deps.allBridgePids ?? allLiveBridgePids;
 	const killPid = deps.killPid ?? ((pid, signal) => process.kill(pid, signal));
 	const wantEngineId = deps.wantEngineId ?? env.FAST_WANT_ENGINE_ID;
 	const bundledEngine = deps.bundledEngine ?? env.FAST_BUNDLED_ENGINE;
 	const lockPath = lockPathOf(env);
-	const liveBridge = (pid: number) => isLiveBridgeHost(pid, {alive, commandLine});
+	const liveBridge = (pid: number) => isLiveBridgeHost(pid, {alive, commandLine, runtimeRoots: roots});
 	const deadline = now() + startupTimeoutMs;
 
 	ensureDir(paths.runDir);
@@ -485,9 +628,32 @@ export async function ensureDaemon(deps: EnsureDaemonDeps = {}): Promise<EnsureD
 			};
 		}
 
-		// Any live Bridge JVM owns the machine slot — wait for sock, never spawn another
-		// unless it is our leftover bundled CLI (identity replace; never a public --ws host).
-		const running = bridgePidsOf().filter(alive);
+		// Another root already bound our enroll/wss/ws — attach to its sock, do not spawn.
+		for (const pid of allBridgesOf().filter(alive)) {
+			const cmd = commandLine(pid);
+			if (!cmd || !isBridgeEngineCommand(cmd)) continue;
+			if (commandOwnsThisRuntime(cmd, roots)) continue;
+			if (!commandSharesSlotPorts(cmd, ports)) continue;
+			const sock = peerSocket(cmd);
+			if (!sock || sock === paths.socketPath) continue;
+			if (!(await tryConnect(sock))) continue;
+			return {
+				socketPath: sock,
+				token: await waitToken(
+					path.join(path.dirname(sock), 'bridge.token'),
+					readToken,
+					exists,
+					sleep,
+					now,
+					deadline
+				),
+				spawned: false
+			};
+		}
+
+		// A live Bridge on *this* runtime root owns the slot — wait for sock, never
+		// spawn another (unless leftover bundled CLI). Another individual's JVM is ignored.
+		const running = bridgePidsOf().filter(liveBridge);
 		if (running.length > 0) {
 			let reaped = false;
 			for (const pid of running) {
@@ -606,7 +772,7 @@ export async function ensureDaemon(deps: EnsureDaemonDeps = {}): Promise<EnsureD
 					spawned
 				};
 			}
-			const mid = bridgePidsOf().filter(alive);
+			const mid = bridgePidsOf().filter(liveBridge);
 			if (mid.length > 0) {
 				sawJvm = true;
 				missingJvmSince = undefined;
@@ -622,7 +788,7 @@ export async function ensureDaemon(deps: EnsureDaemonDeps = {}): Promise<EnsureD
 				`ENGINE_BUSY: Rocks LOCK held by pid(s) ${afterHolders.join(',')} at ${lockPath}; refuse another JVM`
 			);
 		}
-		const still = bridgePidsOf().filter(alive);
+		const still = bridgePidsOf().filter(liveBridge);
 		if (still.length > 0) {
 			throw new Error(
 				`ENGINE_BUSY: Bridge host pid(s) ${still.join(',')} alive but socket ${paths.socketPath} not accepting`
@@ -633,7 +799,7 @@ export async function ensureDaemon(deps: EnsureDaemonDeps = {}): Promise<EnsureD
 		await sleep(200);
 	}
 
-	const leftover = bridgePidsOf().filter(alive);
+	const leftover = bridgePidsOf().filter(liveBridge);
 	if (leftover.length > 0) {
 		throw new Error(
 			`ENGINE_BUSY: Bridge host pid(s) ${leftover.join(',')} alive but socket ${paths.socketPath} not accepting`

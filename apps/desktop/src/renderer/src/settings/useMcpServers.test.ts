@@ -287,7 +287,7 @@ test('save of a starting server polls until it leaves starting', async () => {
 			}
 		})
 	);
-	mock.timers.enable({apis: ['setTimeout']});
+	mock.timers.enable(['setTimeout']);
 	try {
 		const done = await mcpStore.save('fresh', {command: 'uvx'});
 		assert.equal(done, true);

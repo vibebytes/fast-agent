@@ -592,7 +592,7 @@ test('ListRoster host_error does not paint a session banner', async () => {
 		message: 'Invalid command: Unknown command type: ListRoster'
 	} as BridgeEvent);
 	await new Promise(r => setTimeout(r, 40));
-	assert.deepEqual(errors, []);
+	assert.deepEqual(errors, [] as string[]);
 	bridge!.__inject({type: 'host_error', message: 'Invalid command: nope'} as BridgeEvent);
 	await new Promise(r => setTimeout(r, 40));
 	assert.ok(errors.some(m => m.includes('nope')));

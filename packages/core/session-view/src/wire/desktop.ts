@@ -138,6 +138,8 @@ export type EdgesList = {
 	capabilities: EdgeCapabilities;
 	hostHome?: string;
 	runActive?: boolean;
+	/** Cluster individual displayName for the active / pending edge. */
+	nodeName?: string;
 };
 
 export type EdgeDetail = EdgePublic & {

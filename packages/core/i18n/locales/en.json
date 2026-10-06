@@ -103,7 +103,13 @@
 			"engineUnreachable": "Engine not ready",
 			"updatedAt": "Updated",
 			"error": "Error",
-			"mapEmpty": "No member info yet"
+			"mapEmpty": "No member info yet",
+			"onlineCount": "{{count}} online",
+			"joinDialogTitle": "Join cluster",
+			"joinDialogDescription": "Enter the peer address shown on another machine's cluster page.",
+			"leaveDialogTitle": "Leave cluster",
+			"leaveDialogDescription": "Leaving disconnects from the current cluster. The local main session and bridge keep running, and it will not auto-rejoin.",
+			"retry": "Retry"
 		},
 		"common": {
 			"all": "All",
@@ -1850,6 +1856,7 @@
 		},
 		"settings": {
 			"title": "Preferences",
+			"individuals": "Individuals",
 			"subtitle": "Servers and appearance",
 			"bridge": "Desktop bridge",
 			"noActiveServer": "No active server",

@@ -4,14 +4,19 @@ import {mkdirSync, mkdtempSync, writeFileSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import path from 'node:path';
 import {
+	commandOwnsThisRuntime,
+	commandSharesSlotPorts,
 	ensureDaemon,
 	engineExtensionsDir,
 	isBridgeEngineCommand,
 	isLiveBridgeHost,
+	peerSocket,
 	placedEngineCli,
 	resolveDaemonLaunch,
 	resourcesEngineCli,
-	rocksLockPath
+	rocksLockPath,
+	runtimeMarkers,
+	slotPorts
 } from './ensureDaemon.js';
 
 const noRocksHolders = {rocksLockHolders: () => [] as number[]};
@@ -216,6 +221,96 @@ test('isLiveBridgeHost treats unknown cmdline as owner; non-bridge as stale', ()
 	assert.equal(isLiveBridgeHost(1, {alive: () => false, commandLine: () => bridgeCmd}), false);
 });
 
+test('commandSharesSlotPorts uses last enroll/wss and ignores 小B ports', () => {
+	const defaults = slotPorts({});
+	assert.deepEqual(defaults, {enroll: 2580, wss: 1979, ws: 1981});
+	const desktop =
+		'java -Dfast.enroll.port=2580 -Dfast.bridge.wss=1979 -Dfast.runtime.root=/Users/kai/Library/Application Support/@fast-ide/desktop/runtime -cp x ai.fastllm.agent.cli.CliApp engine --mode bridge --ws 127.0.0.1:1981';
+	assert.equal(commandSharesSlotPorts(desktop, defaults), true);
+	const other =
+		'java -Dfast.enroll.port=2580 -Dfast.enroll.port=2581 -Dfast.bridge.wss=1982 -Dfast.bridge.ws=1983 -cp x ai.fastllm.agent.cli.CliApp engine --mode bridge --wss 0.0.0.0:1982';
+	assert.equal(commandSharesSlotPorts(other, defaults), false);
+	assert.equal(
+		peerSocket(
+			`java --socket /Users/kai/Library/Application Support/@fast-ide/desktop/runtime/run/bridge.sock --continue`
+		),
+		'/Users/kai/Library/Application Support/@fast-ide/desktop/runtime/run/bridge.sock'
+	);
+});
+
+test('commandOwnsThisRuntime uses last -Dfast.runtime.root=', () => {
+	const desktop = runtimeMarkers({HOME: '/tmp/h', FAST_RUNTIME_ROOT: '/data/desktop/runtime'});
+	const other =
+		'java -Dfast.runtime.root=$/Users/kai/.fast -Dfast.runtime.root=/Users/kai/.fast-b -cp x ai.fastllm.agent.cli.CliApp engine --mode bridge --wss 0.0.0.0:1982';
+	assert.equal(commandOwnsThisRuntime(other, desktop), false);
+	assert.equal(
+		commandOwnsThisRuntime(other, runtimeMarkers({HOME: '/tmp/h', FAST_RUNTIME_ROOT: '/Users/kai/.fast-b'})),
+		true
+	);
+	assert.equal(
+		commandOwnsThisRuntime(
+			'java -Dfast.runtime.root=/data/desktop/runtime -cp x ai.fastllm.agent.cli.CliApp engine --mode bridge',
+			desktop
+		),
+		true
+	);
+	assert.equal(
+		commandOwnsThisRuntime(
+			'java -cp x ai.fastllm.agent.cli.CliApp engine --mode bridge --socket /data/desktop/runtime/run/bridge.sock',
+			desktop
+		),
+		true
+	);
+	assert.equal(
+		commandOwnsThisRuntime(
+			'java -cp x ai.fastllm.agent.cli.CliApp engine --mode bridge --socket /Users/kai/.fast-b/run/bridge.sock',
+			desktop
+		),
+		false
+	);
+	assert.equal(
+		commandOwnsThisRuntime('java -cp x ai.fastllm.agent.cli.CliApp engine --mode bridge', desktop),
+		true
+	);
+});
+
+test('commandOwnsThisRuntime keeps unquoted Application Support paths', () => {
+	const root = '/Users/kai/Library/Application Support/@fast-ide/desktop/runtime';
+	const markers = runtimeMarkers({HOME: '/tmp/h', FAST_RUNTIME_ROOT: root});
+	const desktop =
+		'java -Dfast.runtime.root=$/Users/kai/.fast -Dfast.enroll.port=2580 ' +
+		`-Dfast.runtime.root=${root} -cp x ai.fastllm.agent.cli.CliApp engine --mode bridge ` +
+		`--transport unix --socket ${root}/run/bridge.sock --continue --ws 127.0.0.1:1981`;
+	assert.equal(commandOwnsThisRuntime(desktop, markers), true);
+	assert.equal(
+		commandOwnsThisRuntime(desktop, runtimeMarkers({HOME: '/tmp/h', FAST_RUNTIME_ROOT: '/Users/kai/.fast-b'})),
+		false
+	);
+	assert.equal(
+		isLiveBridgeHost(12362, {alive: () => true, commandLine: () => desktop, runtimeRoots: markers}),
+		true
+	);
+});
+
+test('isLiveBridgeHost ignores a Bridge on another FAST_RUNTIME_ROOT', () => {
+	const roots = runtimeMarkers({HOME: '/tmp/h', FAST_RUNTIME_ROOT: '/data/desktop/runtime'});
+	const other =
+		'java -Dfast.runtime.root=/Users/kai/.fast-b -cp x ai.fastllm.agent.cli.CliApp engine --mode bridge';
+	assert.equal(
+		isLiveBridgeHost(88769, {alive: () => true, commandLine: () => other, runtimeRoots: roots}),
+		false
+	);
+	assert.equal(
+		isLiveBridgeHost(1, {
+			alive: () => true,
+			commandLine: () =>
+				'java -Dfast.runtime.root=/data/desktop/runtime -cp x ai.fastllm.agent.cli.CliApp engine --mode bridge',
+			runtimeRoots: roots
+		}),
+		true
+	);
+});
+
 test('ensureDaemon SIGTERM leftover bundled CLI when wantId set and sock is down', async () => {
 	const killed: Array<[number, NodeJS.Signals]> = [];
 	let spawned = 0;
@@ -250,6 +345,171 @@ test('ensureDaemon SIGTERM leftover bundled CLI when wantId set and sock is down
 	assert.deepEqual(killed, [[7777, 'SIGTERM']]);
 	assert.equal(spawned, 1);
 	assert.equal(result.spawned, true);
+});
+
+test('ensureDaemon attaches to an existing engine that already holds our enroll port', async () => {
+	const peerSock =
+		'/Users/kai/Library/Application Support/@fast-ide/desktop/runtime/run/bridge.sock';
+	const result = await ensureDaemon({
+		...noRocksHolders,
+		env: {HOME: '/tmp/h', FAST_RUNTIME_ROOT: '/Users/kai/.fast'},
+		startupTimeoutMs: 2_000,
+		sleep: async () => {},
+		now: (() => {
+			let t = 0;
+			return () => (t += 100);
+		})(),
+		tryConnect: async p => p === peerSock,
+		isPidAlive: () => true,
+		liveBridgePids: () => [],
+		allBridgePids: () => [12362],
+		commandLine: () =>
+			`java -Dfast.enroll.port=2580 -Dfast.runtime.root=/Users/kai/Library/Application Support/@fast-ide/desktop/runtime -cp x ai.fastllm.agent.cli.CliApp engine --mode bridge --socket ${peerSock} --ws 127.0.0.1:1981`,
+		readPid: () => undefined,
+		unlink: () => {},
+		claimPidExclusive: () => {
+			assert.fail('must attach instead of claiming');
+		},
+		spawnDaemon: () => {
+			assert.fail('must attach instead of spawning');
+		},
+		readToken: () => 'peer-tok',
+		exists: p => String(p).includes('bridge.token'),
+		ensureDir: () => {}
+	});
+	assert.equal(result.socketPath, peerSock);
+	assert.equal(result.token, 'peer-tok');
+	assert.equal(result.spawned, false);
+});
+
+test('ensureDaemon does not attach to a Bridge on different enroll/wss ports', async () => {
+	let spawned = 0;
+	const result = await ensureDaemon({
+		...noRocksHolders,
+		env: {HOME: '/tmp/h', FAST_RUNTIME_ROOT: '/Users/kai/.fast'},
+		startupTimeoutMs: 2_000,
+		sleep: async () => {},
+		now: (() => {
+			let t = 0;
+			return () => (t += 100);
+		})(),
+		tryConnect: async () => spawned > 0,
+		isPidAlive: () => true,
+		liveBridgePids: () => [],
+		allBridgePids: () => [88769],
+		commandLine: () =>
+			'java -Dfast.enroll.port=2581 -Dfast.bridge.wss=1982 -Dfast.runtime.root=/Users/kai/.fast-b -cp x ai.fastllm.agent.cli.CliApp engine --mode bridge --wss 0.0.0.0:1982',
+		readPid: () => undefined,
+		unlink: () => {},
+		claimPidExclusive: () => {},
+		spawnDaemon: () => {
+			spawned += 1;
+			return undefined;
+		},
+		readToken: () => 'tok',
+		exists: p => spawned > 0 && String(p).includes('bridge.token'),
+		ensureDir: () => {}
+	});
+	assert.equal(spawned, 1);
+	assert.equal(result.spawned, true);
+});
+
+test('ensureDaemon spawns when the only live Bridge belongs to another runtime root', async () => {
+	let spawned = 0;
+	const result = await ensureDaemon({
+		...noRocksHolders,
+		env: {HOME: '/tmp/h', FAST_RUNTIME_ROOT: '/data/desktop/runtime'},
+		startupTimeoutMs: 2_000,
+		sleep: async () => {},
+		now: (() => {
+			let t = 0;
+			return () => (t += 100);
+		})(),
+		tryConnect: async () => spawned > 0,
+		isPidAlive: () => true,
+		liveBridgePids: () => (spawned > 0 ? [] : [88769]),
+		commandLine: () =>
+			'java -Dfast.runtime.root=/Users/kai/.fast-b -Dfast.enroll.port=2581 -cp x ai.fastllm.agent.cli.CliApp engine --mode bridge --wss 0.0.0.0:1982',
+		readPid: () => undefined,
+		unlink: () => {},
+		claimPidExclusive: () => {},
+		spawnDaemon: () => {
+			spawned += 1;
+			return undefined;
+		},
+		readToken: () => 'tok',
+		exists: p => spawned > 0 && String(p).includes('bridge.token'),
+		ensureDir: () => {}
+	});
+	assert.equal(spawned, 1);
+	assert.equal(result.spawned, true);
+});
+
+test('ensureDaemon waits on an unquoted Application Support runtime root', async () => {
+	const root = '/Users/kai/Library/Application Support/@fast-ide/desktop/runtime';
+	await assert.rejects(
+		() =>
+			ensureDaemon({
+				...noRocksHolders,
+				env: {HOME: '/tmp/h', FAST_RUNTIME_ROOT: root},
+				startupTimeoutMs: 500,
+				connectTimeoutMs: 200,
+				sleep: async () => {},
+				now: (() => {
+					let t = 0;
+					return () => (t += 100);
+				})(),
+				tryConnect: async () => false,
+				isPidAlive: () => true,
+				liveBridgePids: () => [12362],
+				commandLine: () =>
+					`java -Dfast.runtime.root=$/Users/kai/.fast -Dfast.runtime.root=${root} -cp x ai.fastllm.agent.cli.CliApp engine --mode bridge --socket ${root}/run/bridge.sock`,
+				readPid: () => undefined,
+				unlink: () => {},
+				claimPidExclusive: () => {
+					assert.fail('must not claim over this-root Bridge');
+				},
+				spawnDaemon: () => {
+					assert.fail('must not spawn over this-root Bridge');
+				},
+				exists: () => false,
+				ensureDir: () => {}
+			}),
+		(err: unknown) => err instanceof Error && err.message.startsWith('ENGINE_BUSY:')
+	);
+});
+
+test('ensureDaemon still waits when live Bridge declares this FAST_RUNTIME_ROOT', async () => {
+	await assert.rejects(
+		() =>
+			ensureDaemon({
+				...noRocksHolders,
+				env: {HOME: '/tmp/h', FAST_RUNTIME_ROOT: '/data/desktop/runtime'},
+				startupTimeoutMs: 500,
+				connectTimeoutMs: 200,
+				sleep: async () => {},
+				now: (() => {
+					let t = 0;
+					return () => (t += 100);
+				})(),
+				tryConnect: async () => false,
+				isPidAlive: () => true,
+				liveBridgePids: () => [5555],
+				commandLine: () =>
+					'java -Dfast.runtime.root=/data/desktop/runtime -cp x ai.fastllm.agent.cli.CliApp engine --mode bridge --transport unix',
+				readPid: () => undefined,
+				unlink: () => {},
+				claimPidExclusive: () => {
+					assert.fail('must not claim while this-root Bridge exists');
+				},
+				spawnDaemon: () => {
+					assert.fail('must not spawn while this-root Bridge exists');
+				},
+				exists: () => false,
+				ensureDir: () => {}
+			}),
+		(err: unknown) => err instanceof Error && err.message.startsWith('ENGINE_BUSY:')
+	);
 });
 
 test('ensureDaemon waits on liveBridgePids — never spawn second JVM', async () => {
@@ -301,7 +561,8 @@ test('ensureDaemon ENGINE_BUSY when pid alive but sock never accepts', async () 
 				tryConnect: async () => false,
 				isPidAlive: () => true,
 				readPid: () => 4242,
-				commandLine: () => bridgeCmd,
+				commandLine: () =>
+					'java -cp x ai.fastllm.agent.cli.CliApp engine --mode bridge --transport unix --socket /tmp/bridge-client-test-run4/bridge.sock',
 				unlink: () => {},
 				claimPidExclusive: () => {
 					assert.fail('must not claim over live Bridge pid');

@@ -695,3 +695,34 @@ test('cluster:probe marks a dead wss down and a missing main session separately'
 	assert.equal(probed.items.find(row => row.agentId === 'bad')?.message, '指纹不符');
 	assert.equal(probed.items.find(row => row.agentId === 'plain')?.reach, 'no-main');
 });
+
+test('edges:list names the local cluster self', async () => {
+	const hub = new WorkspaceHub({
+		createBridge: () => ({start() {}, send: () => true, stop() {}} as never)
+	});
+	hub.rememberClusterRoster([
+		{id: 'a', displayName: '小A', self: true, mainSessionId: 'sess-a'},
+		{id: 'b', displayName: '小B', mainSessionId: 'sess-b'}
+	]);
+	const publisher = createUiPublisher({hub, send: () => {}});
+	const host = createDesktopHost({hub, publisher, ...hostStub()});
+	const listed = await host['edges:list']();
+	assert.equal(listed.activeId, 'local');
+	assert.equal(listed.nodeName, '小A');
+});
+
+test('edges:list names the open cluster individual', async () => {
+	const hub = new WorkspaceHub({
+		createBridge: () => ({start() {}, send: () => true, stop() {}} as never)
+	});
+	hub.bindCommittedEdge('individual:b');
+	hub.rememberClusterRoster([
+		{id: 'a', displayName: '小A', self: true},
+		{id: 'b', displayName: '小B'}
+	]);
+	const publisher = createUiPublisher({hub, send: () => {}});
+	const host = createDesktopHost({hub, publisher, ...hostStub()});
+	const listed = await host['edges:list']();
+	assert.equal(listed.activeId, 'individual:b');
+	assert.equal(listed.nodeName, '小B');
+});

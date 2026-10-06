@@ -22,13 +22,21 @@ export function statusBarServer(
 	if (!edges) return null;
 	const id = edges.pendingEdgeId || edges.activeId;
 	const connecting = Boolean(edges.pendingEdgeId);
+	const node = edges.nodeName?.trim();
 	if (id === LOCAL_EDGE_ID) {
-		return {name: localLabel, title: localLabel, connecting};
+		const name = node || localLabel;
+		return {name, title: name, connecting};
 	}
 	const row = edges.servers.find(s => s.id === id);
-	const name = row?.name ?? localLabel;
-	const title = row ? `${row.name} (${row.ip}:${row.port})` : name;
-	return {name, title, connecting};
+	if (row) {
+		return {
+			name: node || row.name,
+			title: `${row.name} (${row.ip}:${row.port})`,
+			connecting
+		};
+	}
+	if (node) return {name: node, title: node, connecting};
+	return {name: localLabel, title: localLabel, connecting};
 }
 
 export type StatusBarGit = {

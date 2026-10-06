@@ -3,7 +3,7 @@
  * Pet / locale channels stay in the host entry; window/tray/media protocol stay there too.
  */
 import {join} from 'node:path';
-import type {CloudflareTunnelStatus, InvokeChannel, InvokeChannels} from '@fast-ide/session-view';
+import type {CloudflareTunnelStatus, EdgeFailure, InvokeChannel, InvokeChannels} from '@fast-ide/session-view';
 import {classifyProbeError, inspectTls, probeBridge} from '@fastllm/bridge-client';
 import type {WorkspaceHub, WorkspaceProjectHandlers} from './WorkspaceHub.js';
 import {hostSession} from './workspace/hostSession.js';
@@ -34,6 +34,7 @@ import {
 	type ClusterHomes
 } from './clusterHomes.js';
 import {clusterReach, wssEndpoint, type ClusterCard} from './clusterReach.js';
+import {clusterNodeName} from './clusterNodeName.js';
 
 export type ProductInvokeChannel = Exclude<
 	InvokeChannel,
@@ -124,15 +125,21 @@ export function createDesktopHost(deps: DesktopHostDeps): ProductInvokeMap {
 		saveEdgesFile(edgesPath(userData()), file);
 		onEdgesChanged?.();
 	};
+	let lastClusterNode: {edgeId: string; name: string} | null = null;
+	const nodeNameFor = (edgeId: string): string | undefined =>
+		clusterNodeName(edgeId, hub.rosterSnapshot()) ??
+		(lastClusterNode?.edgeId === edgeId ? lastClusterNode.name : undefined);
 	const edgesList = (): InvokeChannels['edges:list']['result'] => {
 		const snap = hub.edgeSnapshot();
+		const nodeName = nodeNameFor(snap.pendingEdgeId || snap.activeId);
 		return {
 			activeId: snap.activeId,
 			pendingEdgeId: snap.pendingEdgeId,
 			servers: userData ? publicServers(edgesFile()) : [],
 			capabilities: snap.capabilities,
 			hostHome: snap.hostHome,
-			runActive: hub.hasInFlightRuns()
+			runActive: hub.hasInFlightRuns(),
+			...(nodeName ? {nodeName} : {})
 		};
 	};
 
@@ -156,7 +163,7 @@ export function createDesktopHost(deps: DesktopHostDeps): ProductInvokeMap {
 		return clusterReach(card, presented);
 	};
 
-	const refusePending = (): InvokeChannels['edges:upsert']['result'] | null => {
+	const refusePending = (): EdgeFailure | null => {
 		if (!hub.edgeSnapshot().pendingEdgeId) return null;
 		return {ok: false, code: 'pending', message: 'Edge switch in progress'};
 	};
@@ -559,6 +566,7 @@ export function createDesktopHost(deps: DesktopHostDeps): ProductInvokeMap {
 			const mainSessionId = input.mainSessionId ?? known?.mainSessionId ?? '';
 			const title = known?.displayName || agentId || '主会话';
 			const edgeId = self ? LOCAL_EDGE_ID : `individual:${agentId || 'peer'}`;
+			lastClusterNode = {edgeId, name: title};
 			const card: ClusterCard = {self, endpoints, fingerprint, mainSessionId};
 			try {
 				const gated = await gateCard(card);

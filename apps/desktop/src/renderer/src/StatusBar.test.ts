@@ -67,3 +67,16 @@ test('statusBarServer pending back to this machine', () => {
 		connecting: true
 	});
 });
+
+test('statusBarServer prefers the cluster node name on the local edge', () => {
+	const shown = statusBarServer(list({activeId: 'local', nodeName: '小A'}), 'This machine');
+	assert.deepEqual(shown, {name: '小A', title: '小A', connecting: false});
+});
+
+test('statusBarServer shows a cluster individual that is not a paired server', () => {
+	const shown = statusBarServer(
+		list({activeId: 'individual:b', nodeName: '小B'}),
+		'This machine'
+	);
+	assert.deepEqual(shown, {name: '小B', title: '小B', connecting: false});
+});
