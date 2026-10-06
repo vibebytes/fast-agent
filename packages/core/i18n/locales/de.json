@@ -789,10 +789,9 @@
     },
     "cluster": {
       "aloneTitle": "Dieser Rechner",
-      "aloneDescription": "Noch keinem Cluster eines anderen Individuums beigetreten",
+      "aloneDescription": "Nicht mit anderen Cluster-Knoten verbunden",
       "notJoined": "Nicht mit einem Cluster verbunden",
-      "notJoinedDescription": "Nach dem Verbinden erscheinen hier die Online-Individuen des aktuellen Clusters. Dieses Fenster bleibt beim lokalen Individuum.",
-      "localOnly": "Nur das Individuum dieses Rechners ist hier",
+      "notJoinedDescription": "Nach dem Verbinden werden Online-Knoten im aktuellen Cluster hier angezeigt.",
       "statusTitle": "Status",
       "phase": {
         "idle": "Nicht beigetreten",
@@ -808,7 +807,7 @@
       "advertisedAddress": "Angekündigte Adresse (optional)",
       "advertisedPlaceholder": "Leer lassen für automatische Erkennung",
       "join": "Cluster beitreten",
-      "leave": "Cluster verlassen",
+      "leave": "Dieser Knoten verlässt den Cluster",
       "joining": "Beitritt…",
       "leaving": "Verlassen…",
       "peerRequired": "Peer-Adresse ist erforderlich",
@@ -845,9 +844,23 @@
       "onlineCount": "{{count}} online",
       "joinDialogTitle": "Cluster beitreten",
       "joinDialogDescription": "Peer-Adresse eingeben, die auf der Cluster-Seite eines anderen Rechners angezeigt wird.",
-      "leaveDialogTitle": "Cluster verlassen",
-      "leaveDialogDescription": "Beim Verlassen wird die Verbindung zum aktuellen Cluster getrennt. Die lokale Hauptsitzung und die Bridge laufen weiter und treten nicht automatisch wieder bei.",
-      "retry": "Erneut versuchen"
+      "leaveDialogTitle": "Dieser Knoten verlässt den Cluster",
+      "leaveDialogDescription": "Dieser lokale Knoten verlässt den gesamten Cluster und trennt die Verbindung zu allen Knoten. Die lokale Hauptsitzung und die Bridge laufen weiter und treten nicht automatisch wieder bei.",
+      "retry": "Erneut versuchen",
+      "actions": {
+        "switch": "Verbinden und Workspace zu diesem Knoten wechseln",
+        "copyEndpoint": "Adresse kopieren",
+        "copied": "Kopiert",
+        "currentlyActive": "Aktuell verbunden",
+        "connectedBadge": "Verbunden",
+        "connected": "Verbunden",
+        "switchHelp": "Wechseln Sie die Sitzung Ihres aktuellen Arbeitsbereichs, um direkt mit diesem Knoten zu kommunizieren."
+      },
+      "radar": {
+        "scanning": "Topologie wird gescannt…",
+        "selfPill": "LOKALER HOST",
+        "peerPill": "PEER-KNOTEN"
+      }
     }
   },
   "shell": {
@@ -1856,7 +1869,7 @@
     },
     "settings": {
       "title": "Preferences",
-      "individuals": "Individuen",
+      "individuals": "Knoten",
       "subtitle": "Servers and appearance",
       "bridge": "Desktop bridge",
       "noActiveServer": "No active server",

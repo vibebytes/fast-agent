@@ -789,10 +789,9 @@
     },
     "cluster": {
       "aloneTitle": "Esta máquina",
-      "aloneDescription": "Aún no te has unido al clúster de otro individuo",
+      "aloneDescription": "No conectado a otros nodos del clúster",
       "notJoined": "No conectado a un clúster",
-      "notJoinedDescription": "Tras conectarte, los individuos en línea del clúster actual aparecerán aquí. Esta ventana permanece en el individuo local.",
-      "localOnly": "Solo está el individuo de esta máquina",
+      "notJoinedDescription": "Tras conectar, los nodos en línea del clúster actual se mostrarán aquí.",
       "statusTitle": "Estado",
       "phase": {
         "idle": "Sin unir",
@@ -808,7 +807,7 @@
       "advertisedAddress": "Dirección anunciada (opcional)",
       "advertisedPlaceholder": "Dejar vacío para detectar automáticamente",
       "join": "Unirse al clúster",
-      "leave": "Salir del clúster",
+      "leave": "Este nodo sale del clúster",
       "joining": "Uniéndose…",
       "leaving": "Saliendo…",
       "peerRequired": "La dirección del par es obligatoria",
@@ -845,9 +844,23 @@
       "onlineCount": "{{count}} en línea",
       "joinDialogTitle": "Unirse al clúster",
       "joinDialogDescription": "Introduce la dirección del par que aparece en la página de clúster de otra máquina.",
-      "leaveDialogTitle": "Salir del clúster",
-      "leaveDialogDescription": "Al salir se desconecta del clúster actual. La sesión principal local y el bridge siguen funcionando y no se volverá a unir automáticamente.",
-      "retry": "Reintentar"
+      "leaveDialogTitle": "Este nodo sale del clúster",
+      "leaveDialogDescription": "Este nodo local saldrá de todo el clúster y se desconectará de todos los nodos. La sesión principal local y el bridge siguen funcionando y no se volverá a unir automáticamente.",
+      "retry": "Reintentar",
+      "actions": {
+        "switch": "Conectar y cambiar sesión a este nodo",
+        "copyEndpoint": "Copiar dirección",
+        "copied": "Copiado",
+        "currentlyActive": "Actualmente conectado",
+        "connectedBadge": "Conectado",
+        "connected": "Conectado",
+        "switchHelp": "Cambie la sesión del espacio de trabajo para comunicarse directamente con este nodo."
+      },
+      "radar": {
+        "scanning": "Escaneando topología…",
+        "selfPill": "HOST LOCAL",
+        "peerPill": "NODO PAR"
+      }
     }
   },
   "shell": {
@@ -1856,7 +1869,7 @@
     },
     "settings": {
       "title": "Preferences",
-      "individuals": "Individuos",
+      "individuals": "Nodos",
       "subtitle": "Servers and appearance",
       "bridge": "Desktop bridge",
       "noActiveServer": "No active server",

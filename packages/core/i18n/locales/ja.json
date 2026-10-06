@@ -789,10 +789,9 @@
     },
     "cluster": {
       "aloneTitle": "このマシン",
-      "aloneDescription": "まだ他の個体のクラスターに参加していません",
+      "aloneDescription": "他のクラスタノードに未接続",
       "notJoined": "クラスターに未接続",
-      "notJoinedDescription": "接続すると、現在のクラスターのオンライン個体がここに表示されます。このウィンドウはローカルの個体のままです。",
-      "localOnly": "このマシンの個体のみがここにあります",
+      "notJoinedDescription": "接続後、現在のクラスタ内のオンラインノードがここに表示されます。",
       "statusTitle": "状態",
       "phase": {
         "idle": "未参加",
@@ -808,7 +807,7 @@
       "advertisedAddress": "通知アドレス（任意）",
       "advertisedPlaceholder": "空欄で自動検出",
       "join": "クラスターに参加",
-      "leave": "クラスターから退出",
+      "leave": "このノードがクラスターから退出",
       "joining": "参加中…",
       "leaving": "退出中…",
       "peerRequired": "ピアアドレスは必須です",
@@ -845,9 +844,23 @@
       "onlineCount": "{{count}} オンライン",
       "joinDialogTitle": "クラスターに参加",
       "joinDialogDescription": "他のマシンのクラスターページに表示されるピアアドレスを入力してください。",
-      "leaveDialogTitle": "クラスターから退出",
-      "leaveDialogDescription": "退出すると現在のクラスターから切断されます。ローカルのメインセッションとブリッジは動作を続け、自動的に再参加することはありません。",
-      "retry": "再試行"
+      "leaveDialogTitle": "このノードがクラスターから退出",
+      "leaveDialogDescription": "このローカルノードはクラスター全体から退出し、すべてのノードとの接続を切断します。ローカルのメインセッションとブリッジは動作を続け、自動的に再参加することはありません。",
+      "retry": "再試行",
+      "actions": {
+        "switch": "このノードに接続して切り替え",
+        "copyEndpoint": "アドレスをコピー",
+        "copied": "コピーしました",
+        "currentlyActive": "現在接続中",
+        "connectedBadge": "接続中",
+        "connected": "接続中",
+        "switchHelp": "現在のワークスペースセッションを切り替えて、このノードと直接連携します。"
+      },
+      "radar": {
+        "scanning": "トポロジーをスキャン中…",
+        "selfPill": "ローカルホスト",
+        "peerPill": "ピアノード"
+      }
     }
   },
   "shell": {
@@ -1856,7 +1869,7 @@
     },
     "settings": {
       "title": "Preferences",
-      "individuals": "個体",
+      "individuals": "ノード",
       "subtitle": "Servers and appearance",
       "bridge": "Desktop bridge",
       "noActiveServer": "No active server",

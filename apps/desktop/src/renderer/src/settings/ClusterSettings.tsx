@@ -1,7 +1,17 @@
 import {useEffect, useState} from 'react';
 import {useTranslation} from 'react-i18next';
-import {Plus} from 'lucide-react';
-import type {ClusterRosterItem, ClusterStatusPayload} from '@fast-ide/session-view';
+import {
+	Activity,
+	Laptop,
+	Network,
+	Plus,
+	Radio,
+	RefreshCw,
+	Server,
+	ShieldAlert,
+	Sparkles
+} from 'lucide-react';
+import type {ClusterRosterItem, ClusterStatusPayload, EdgesList} from '@fast-ide/session-view';
 import {
 	MonoTag,
 	PulseStatusBadge,
@@ -26,48 +36,105 @@ import {LeaveClusterDialog} from './LeaveClusterDialog';
 const phaseBadge = (phase: Phase): 'healthy' | 'warning' | 'error' | 'neutral' =>
 	phase === 'joined' ? 'healthy' : phase === 'joining' || phase === 'leaving' ? 'warning' : phase === 'failed' ? 'error' : 'neutral';
 
-/** 语义化成员列表：键盘可达，选择与地图联动。 */
+/** Compact member list: supports keyboard navigation & selection */
 function MemberList({
 	roster,
 	selected,
 	reach,
+	activeEdgeId,
 	onSelect
 }: {
 	roster: ClusterRosterItem[];
 	selected: string | null;
 	reach: ReachMap;
+	activeEdgeId?: string | null;
 	onSelect: (key: string) => void;
 }) {
 	const {t} = useTranslation();
 	return (
-		<ul className="flex max-h-44 flex-col gap-0.5 overflow-y-auto" aria-label={t('settings.cluster.members')}>
-			{roster.map(item => {
-				const key = memberKey(item);
-				const online = memberOnline(item);
-				const gated = reachOf(item, reach);
-				const blocked = isBlocked(gated);
-				return (
-					<li key={key}>
-						<button
-							type="button"
-							disabled={blocked}
-							onClick={() => onSelect(key)}
-							className={`flex w-full items-center gap-2 rounded px-2 py-1.5 text-left transition-colors hover:bg-muted/60 disabled:cursor-not-allowed disabled:opacity-60 ${selected === key ? 'bg-muted' : ''}`}
-						>
-							<span className={`size-2 shrink-0 rounded-full ${online ? 'bg-emerald-500' : 'bg-muted-foreground/40'}`} />
-							<span className="truncate text-[12px]">{memberName(item)}</span>
-							{item.self ? <span className="text-[10px] text-muted-foreground">{t('settings.cluster.self')}</span> : null}
-							<span className="ml-auto truncate font-mono text-[10px] text-muted-foreground">
-								{blocked ? gated?.message : item.endpoints?.[0] ?? ''}
-							</span>
-							<span className={`shrink-0 text-[10px] ${online ? 'text-emerald-600' : 'text-muted-foreground'}`}>
-								{t(`settings.cluster.presence.${presenceKey(item)}`)}
-							</span>
-						</button>
-					</li>
-				);
-			})}
-		</ul>
+		<div className="space-y-1.5">
+			<div className="flex items-center justify-between px-1 text-[11px] font-medium text-muted-foreground">
+				<span className="flex items-center gap-1.5">
+					<Network className="size-3.5" />
+					{t('settings.cluster.members')} ({roster.length})
+				</span>
+				<span>{t('settings.cluster.details.presence')}</span>
+			</div>
+			<ul className="flex max-h-48 flex-col gap-1 overflow-y-auto pr-1" aria-label={t('settings.cluster.members')}>
+				{roster.map(item => {
+					const key = memberKey(item);
+					const online = memberOnline(item);
+					const gated = reachOf(item, reach);
+					const blocked = isBlocked(gated);
+					const isSelected = selected === key;
+					const isActive = !activeEdgeId || activeEdgeId === 'local'
+						? Boolean(item.self)
+						: activeEdgeId === `individual:${item.agentId ?? item.id}` || activeEdgeId === (item.agentId ?? item.id);
+					return (
+						<li key={key}>
+							<button
+								type="button"
+								onClick={() => onSelect(key)}
+								className={`group flex w-full items-center gap-2.5 rounded-lg border px-3 py-2 text-left transition-all ${
+									isSelected
+										? isActive
+											? 'border-emerald-500/60 bg-emerald-500/10 shadow-xs'
+											: 'border-primary/50 bg-primary/10 shadow-xs'
+										: isActive
+											? 'border-emerald-500/30 bg-emerald-500/5 hover:border-emerald-500/50 hover:bg-emerald-500/10'
+											: 'border-border/40 bg-card/30 hover:border-border hover:bg-muted/40'
+								}`}
+							>
+								<div
+									className={`flex size-6 shrink-0 items-center justify-center rounded-md text-[10px] ${
+										isActive
+											? 'bg-emerald-500/20 text-emerald-600 font-bold'
+											: item.self
+												? 'bg-primary/15 text-primary'
+												: online
+													? 'bg-emerald-500/15 text-emerald-600'
+													: 'bg-muted text-muted-foreground'
+									}`}
+								>
+									{item.self ? <Laptop className="size-3" /> : <Server className="size-3" />}
+								</div>
+
+								<div className="flex min-w-0 flex-1 items-center gap-1.5">
+									<span className={`truncate text-[12px] ${isSelected ? 'font-semibold text-primary' : 'font-medium'}`}>
+										{memberName(item)}
+									</span>
+									{item.self ? (
+										<span className="rounded bg-primary/10 px-1 py-0.2 text-[9px] font-bold text-primary">
+											{t('settings.cluster.self')}
+										</span>
+									) : null}
+									{isActive ? (
+										<span className="rounded bg-emerald-500/15 px-1.5 py-0.2 text-[9px] font-bold text-emerald-600 border border-emerald-500/30">
+											{t('settings.cluster.actions.connectedBadge')}
+										</span>
+									) : null}
+								</div>
+
+								<span className="truncate font-mono text-[10px] text-muted-foreground/80 max-w-[130px]">
+									{blocked ? gated?.message : item.endpoints?.[0] ?? ''}
+								</span>
+
+								<div className="flex shrink-0 items-center gap-1.5 pl-1">
+									<span
+										className={`size-1.5 rounded-full ${
+											blocked ? 'bg-destructive' : online ? 'bg-emerald-500 shadow-[0_0_4px_rgba(16,185,129,0.5)]' : 'bg-muted-foreground/30'
+										}`}
+									/>
+									<span className={`text-[10px] ${blocked ? 'text-destructive' : online ? 'text-emerald-600' : 'text-muted-foreground'}`}>
+										{blocked ? t('settings.cluster.unreachable') : t(`settings.cluster.presence.${presenceKey(item)}`)}
+									</span>
+								</div>
+							</button>
+						</li>
+					);
+				})}
+			</ul>
+		</div>
 	);
 }
 
@@ -75,6 +142,7 @@ export function ClusterSettings() {
 	const {t} = useTranslation();
 	const [status, setStatus] = useState<ClusterStatusPayload | null>(null);
 	const [roster, setRoster] = useState<ClusterRosterItem[]>([]);
+	const [edges, setEdges] = useState<EdgesList | null>(null);
 	const [notice, setNotice] = useState<string | null>(null);
 	const [busy, setBusy] = useState(false);
 	const [selected, setSelected] = useState<string | null>(null);
@@ -85,11 +153,14 @@ export function ClusterSettings() {
 	useEffect(() => {
 		void window.fastIde.getClusterStatus().then(setStatus);
 		void window.fastIde.listClusterRoster().then(r => setRoster(r.items));
+		void window.fastIde.listEdges().then(setEdges);
 		const offStatus = window.fastIde.onClusterStatus(setStatus);
 		const offRoster = window.fastIde.onClusterRoster(setRoster);
+		const offEdges = window.fastIde.onEdgesChanged(setEdges);
 		return () => {
 			offStatus();
 			offRoster();
+			offEdges();
 		};
 	}, []);
 
@@ -121,6 +192,7 @@ export function ClusterSettings() {
 		if (a.self !== b.self) return a.self ? -1 : 1;
 		return memberKey(a).localeCompare(memberKey(b));
 	});
+
 	const selfItem = sortedRoster.find(item => item.self) ?? null;
 	const visibleRoster = selfItem
 		? sortedRoster
@@ -133,6 +205,14 @@ export function ClusterSettings() {
 				},
 				...sortedRoster
 			];
+
+	// Auto-select self initially
+	useEffect(() => {
+		if (!selected && visibleRoster.length > 0) {
+			const initial = visibleRoster.find(r => r.self) ?? visibleRoster[0];
+			if (initial) setSelected(memberKey(initial));
+		}
+	}, [visibleRoster, selected]);
 
 	const join = async (input: {peerAddress: string; advertisedAddress?: string; displayName?: string}) => {
 		setBusy(true);
@@ -183,89 +263,109 @@ export function ClusterSettings() {
 
 	const selectMember = (key: string) => {
 		setSelected(key);
-		const item = visibleRoster.find(row => memberKey(row) === key);
-		if (!item) return;
-		if (isBlocked(memberReach(item))) return;
-		void openMember(item);
 	};
 
-	const emptyState = () => {
-		if (phase === 'failed') {
-			return (
+	const refreshRoster = () => {
+		void window.fastIde.getClusterStatus().then(setStatus);
+		void window.fastIde.listClusterRoster().then(r => setRoster(r.items));
+		void window.fastIde.listEdges().then(setEdges);
+	};
+
+	return (
+		<div className="mx-auto w-full max-w-3xl space-y-4">
+			{/* Hero status & action bar */}
+			<div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border/70 bg-linear-to-r from-card/80 via-card/50 to-muted/20 px-4 py-3 shadow-xs">
+				<div className="flex items-center gap-3">
+					<div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+						<Radio className="size-4.5 animate-pulse" />
+					</div>
+					<div>
+						<div className="flex items-center gap-2">
+							<h2 className="text-[14px] font-semibold tracking-tight text-foreground">{t('settings.cluster.mapTitle')}</h2>
+							<PulseStatusBadge status={phaseBadge(phase)} label={t(`settings.cluster.phase.${phase}`)} />
+						</div>
+						<div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 pt-0.5 text-[11px] text-muted-foreground">
+							<span>{t('settings.cluster.onlineCount', {count: onlineCount})}</span>
+							{status?.advertisedAddress ? (
+								<>
+									<span>·</span>
+									<span className="font-mono">{status.advertisedAddress}</span>
+								</>
+							) : null}
+							{updatedAt ? (
+								<>
+									<span>·</span>
+									<span>{t('settings.cluster.updatedAt')} {updatedAt}</span>
+								</>
+							) : null}
+						</div>
+					</div>
+				</div>
+
+				<div className="flex items-center gap-2">
+					<button
+						type="button"
+						onClick={refreshRoster}
+						disabled={busy}
+						className="flex size-7 items-center justify-center rounded-lg border border-border/60 bg-background/80 text-muted-foreground transition-colors hover:text-foreground"
+						title={t('settings.cluster.retry')}
+					>
+						<RefreshCw className={`size-3.5 ${busy ? 'animate-spin' : ''}`} />
+					</button>
+
+					{joined ? (
+						<SettingsButton variant="ghost" disabled={busy} onClick={() => setLeaveOpen(true)}>
+							{t('settings.cluster.leave')}
+						</SettingsButton>
+					) : (
+						<SettingsButton disabled={busy} onClick={() => setJoinOpen(true)}>
+							<Plus className="mr-1 size-3.5" />
+							{t('settings.cluster.join')}
+						</SettingsButton>
+					)}
+				</div>
+			</div>
+
+			{/* Error banner */}
+			{notice ? (
+				<div className="flex items-center gap-2 rounded-lg border border-destructive/30 bg-destructive/10 px-3.5 py-2 text-[12px] text-destructive">
+					<ShieldAlert className="size-4 shrink-0" />
+					<span className="flex-1">{notice}</span>
+				</div>
+			) : null}
+
+			{/* Main area: error state or topology map */}
+			{phase === 'failed' ? (
 				<SettingsState
 					status="error"
 					title={t('settings.cluster.errorTitle')}
 					description={status?.error}
-					onRetry={() => void window.fastIde.getClusterStatus().then(setStatus)}
+					onRetry={refreshRoster}
 				/>
-			);
-		}
-		if (phase === 'idle') {
-			return <SettingsState status="empty" title={t('settings.cluster.notJoined')} />;
-		}
-		if (roster.length === 0) {
-			return <SettingsState status="empty" title={t('settings.cluster.emptyRoster')} />;
-		}
-		return null;
-	};
+			) : (
+				<SettingsSection className="overflow-hidden border-border/70 p-4">
+					<ClusterMap
+						roster={visibleRoster}
+						phase={phase}
+						selected={selected}
+						reach={reach}
+						activeEdgeId={edges?.activeId}
+						busy={busy}
+						onSelect={selectMember}
+						onOpen={openMember}
+					/>
 
-	const empty = emptyState();
-
-	return (
-		<div className="mx-auto w-full max-w-2xl space-y-4">
-			<SettingsSection
-				title={t('settings.cluster.mapTitle')}
-				tone="accent"
-				action={
-					<div className="flex items-center gap-2">
-						{selfItem ? <MonoTag>{memberName(selfItem)}</MonoTag> : null}
-						{joined ? (
-							<SettingsButton variant="ghost" disabled={busy} onClick={() => setLeaveOpen(true)}>
-								{t('settings.cluster.leave')}
-							</SettingsButton>
-						) : (
-							<SettingsButton disabled={busy} onClick={() => setJoinOpen(true)}>
-								<Plus className="mr-1 size-3.5" />
-								{t('settings.cluster.join')}
-							</SettingsButton>
-						)}
+					<div className="mt-4 border-t border-border/40 pt-4">
+						<MemberList
+							roster={visibleRoster}
+							selected={selected}
+							reach={reach}
+							activeEdgeId={edges?.activeId}
+							onSelect={selectMember}
+						/>
 					</div>
-				}
-			>
-				<div className="flex flex-wrap items-center gap-x-3 gap-y-1 px-4 py-2 text-[11px] text-muted-foreground">
-					<PulseStatusBadge status={phaseBadge(phase)} label={t(`settings.cluster.phase.${phase}`)} />
-					<span>{t('settings.cluster.onlineCount', {count: onlineCount})}</span>
-					{status?.advertisedAddress ? <MonoTag>{status.advertisedAddress}</MonoTag> : null}
-					{updatedAt ? (
-						<span>
-							{t('settings.cluster.updatedAt')} {updatedAt}
-						</span>
-					) : null}
-				</div>
-				<div className="px-4 pb-3">
-					{empty ? (
-						empty
-					) : (
-						<>
-							<ClusterMap
-								roster={visibleRoster}
-								phase={phase}
-								selected={selected}
-								reach={reach}
-								onSelect={selectMember}
-							/>
-							<div className="mt-3">
-								<MemberList roster={visibleRoster} selected={selected} reach={reach} onSelect={selectMember} />
-							</div>
-						</>
-					)}
-				</div>
-				{notice ? (
-					<p className="px-4 pb-3 text-[11px] text-destructive" role="alert">
-						{notice}
-					</p>
-				) : null}
-			</SettingsSection>
+				</SettingsSection>
+			)}
 
 			<JoinClusterDialog open={joinOpen} onOpenChange={setJoinOpen} busy={busy} onJoin={join} />
 			<LeaveClusterDialog open={leaveOpen} onOpenChange={setLeaveOpen} busy={busy} onLeave={leave} />

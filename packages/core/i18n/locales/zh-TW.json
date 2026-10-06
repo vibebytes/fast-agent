@@ -789,10 +789,9 @@
     },
     "cluster": {
       "aloneTitle": "本機",
-      "aloneDescription": "尚未加入其他個體的叢集",
+      "aloneDescription": "未連線其他叢集節點",
       "notJoined": "尚未連接叢集",
-      "notJoinedDescription": "連接後，這裡會顯示目前叢集裡的線上個體。本機對話不會因此切到對方。",
-      "localOnly": "這裡只有本機的個體",
+      "notJoinedDescription": "連線後，這裡會顯示目前叢集裡的線上節點。",
       "statusTitle": "狀態",
       "phase": {
         "idle": "未入群",
@@ -808,7 +807,7 @@
       "advertisedAddress": "本機通告位址（選填）",
       "advertisedPlaceholder": "留空自動偵測",
       "join": "加入叢集",
-      "leave": "離開叢集",
+      "leave": "本機退出叢集",
       "joining": "正在加入…",
       "leaving": "正在離開…",
       "peerRequired": "請填寫對端位址",
@@ -845,9 +844,23 @@
       "onlineCount": "{{count}} 線上",
       "joinDialogTitle": "加入叢集",
       "joinDialogDescription": "填寫另一台機器叢集頁上顯示的對端位址。",
-      "leaveDialogTitle": "離開叢集",
-      "leaveDialogDescription": "離開後將斷開與目前叢集的連接。本機主會話與 bridge 繼續運作，且不會自動重新入群。",
-      "retry": "重試"
+      "leaveDialogTitle": "本機退出叢集",
+      "leaveDialogDescription": "本機節點將退出整個叢集，斷開與所有節點的連接。本機主會話與 bridge 繼續運作，且不會自動重新入群。",
+      "retry": "重試",
+      "actions": {
+        "switch": "連線並切換工作階段至該節點",
+        "copyEndpoint": "複製連線位址",
+        "copied": "已複製",
+        "currentlyActive": "目前已連線此節點",
+        "connectedBadge": "已連線",
+        "connected": "目前已連線",
+        "switchHelp": "將桌面端主工作區工作階段切換連線至此節點進行互動與協作。"
+      },
+      "radar": {
+        "scanning": "拓撲掃描中…",
+        "selfPill": "本機節點",
+        "peerPill": "叢集成員"
+      }
     }
   },
   "shell": {
@@ -1856,7 +1869,7 @@
     },
     "settings": {
       "title": "Preferences",
-      "individuals": "個體",
+      "individuals": "節點",
       "subtitle": "Servers and appearance",
       "bridge": "Desktop bridge",
       "noActiveServer": "No active server",

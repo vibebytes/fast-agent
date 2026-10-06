@@ -789,10 +789,9 @@
     },
     "cluster": {
       "aloneTitle": "Esta máquina",
-      "aloneDescription": "Ainda não entrou no cluster de outro indivíduo",
+      "aloneDescription": "Não conectado a outros nós do cluster",
       "notJoined": "Não conectado a um cluster",
-      "notJoinedDescription": "Após conectar, os indivíduos online do cluster atual aparecerão aqui. Esta janela permanece no indivíduo local.",
-      "localOnly": "Apenas o indivíduo desta máquina está aqui",
+      "notJoinedDescription": "Após a conexão, os nós online no cluster atual aparecerão aqui.",
       "statusTitle": "Status",
       "phase": {
         "idle": "Não entrou",
@@ -808,7 +807,7 @@
       "advertisedAddress": "Endereço anunciado (opcional)",
       "advertisedPlaceholder": "Deixe vazio para detectar automaticamente",
       "join": "Entrar no cluster",
-      "leave": "Sair do cluster",
+      "leave": "Este nó sai do cluster",
       "joining": "Entrando…",
       "leaving": "Saindo…",
       "peerRequired": "O endereço do par é obrigatório",
@@ -845,9 +844,23 @@
       "onlineCount": "{{count}} online",
       "joinDialogTitle": "Entrar no cluster",
       "joinDialogDescription": "Insira o endereço do par exibido na página de cluster de outra máquina.",
-      "leaveDialogTitle": "Sair do cluster",
-      "leaveDialogDescription": "Sair desconecta do cluster atual. A sessão principal local e a bridge continuam funcionando e não entrarão novamente de forma automática.",
-      "retry": "Tentar novamente"
+      "leaveDialogTitle": "Este nó sai do cluster",
+      "leaveDialogDescription": "Este nó local sairá de todo o cluster e se desconectará de todos os nós. A sessão principal local e a bridge continuam funcionando e não entrarão novamente de forma automática.",
+      "retry": "Tentar novamente",
+      "actions": {
+        "switch": "Conectar e alternar sessão para este nó",
+        "copyEndpoint": "Copiar endereço",
+        "copied": "Copiado",
+        "currentlyActive": "Conectado atualmente",
+        "connectedBadge": "Conectado",
+        "connected": "Conectado",
+        "switchHelp": "Alterne a sessão do espaço de trabalho para se comunicar diretamente com este nó."
+      },
+      "radar": {
+        "scanning": "Verificando topologia…",
+        "selfPill": "HOST LOCAL",
+        "peerPill": "NÓ PEER"
+      }
     }
   },
   "shell": {
@@ -1856,7 +1869,7 @@
     },
     "settings": {
       "title": "Preferences",
-      "individuals": "Indivíduos",
+      "individuals": "Nós",
       "subtitle": "Servers and appearance",
       "bridge": "Desktop bridge",
       "noActiveServer": "No active server",

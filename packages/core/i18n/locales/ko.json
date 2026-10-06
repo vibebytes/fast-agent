@@ -789,10 +789,9 @@
     },
     "cluster": {
       "aloneTitle": "이 컴퓨터",
-      "aloneDescription": "아직 다른 개체의 클러스터에 참여하지 않았습니다",
+      "aloneDescription": "다른 클러스터 노드에 연결되지 않음",
       "notJoined": "클러스터에 연결되지 않음",
-      "notJoinedDescription": "연결하면 현재 클러스터의 온라인 개체가 여기에 표시됩니다. 이 창은 로컬 개체로 유지됩니다.",
-      "localOnly": "이 컴퓨터의 개체만 있습니다",
+      "notJoinedDescription": "연결 후 현재 클러스터의 온라인 노드가 여기에 표시됩니다.",
       "statusTitle": "상태",
       "phase": {
         "idle": "참여 안 함",
@@ -808,7 +807,7 @@
       "advertisedAddress": "공지 주소(선택)",
       "advertisedPlaceholder": "비워 두면 자동 감지",
       "join": "클러스터 참여",
-      "leave": "클러스터 나가기",
+      "leave": "이 노드가 클러스터에서 나감",
       "joining": "참여 중…",
       "leaving": "나가는 중…",
       "peerRequired": "피어 주소가 필요합니다",
@@ -845,9 +844,23 @@
       "onlineCount": "{{count}} 온라인",
       "joinDialogTitle": "클러스터 참여",
       "joinDialogDescription": "다른 컴퓨터의 클러스터 페이지에 표시된 피어 주소를 입력하세요.",
-      "leaveDialogTitle": "클러스터 나가기",
-      "leaveDialogDescription": "나가면 현재 클러스터에서 연결이 끊어집니다. 로컬 메인 세션과 브리지는 계속 작동하며 자동으로 다시 참여하지 않습니다.",
-      "retry": "다시 시도"
+      "leaveDialogTitle": "이 노드가 클러스터에서 나감",
+      "leaveDialogDescription": "이 로컬 노드가 전체 클러스터에서 나가 모든 노드와의 연결이 끊어집니다. 로컬 메인 세션과 브리지는 계속 작동하며 자동으로 다시 참여하지 않습니다.",
+      "retry": "다시 시도",
+      "actions": {
+        "switch": "이 노드에 연결하고 작업 전환",
+        "copyEndpoint": "주소 복사",
+        "copied": "복사됨",
+        "currentlyActive": "현재 연결됨",
+        "connectedBadge": "연결됨",
+        "connected": "연결됨",
+        "switchHelp": "이 노드와 직접 상호작용하도록 현재 작업 세션을 전환합니다."
+      },
+      "radar": {
+        "scanning": "토폴로지 스캔 중…",
+        "selfPill": "로컬 호스트",
+        "peerPill": "피어 노드"
+      }
     }
   },
   "shell": {
@@ -1856,7 +1869,7 @@
     },
     "settings": {
       "title": "Preferences",
-      "individuals": "개체",
+      "individuals": "노드",
       "subtitle": "Servers and appearance",
       "bridge": "Desktop bridge",
       "noActiveServer": "No active server",

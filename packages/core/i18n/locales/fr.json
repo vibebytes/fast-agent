@@ -789,10 +789,9 @@
     },
     "cluster": {
       "aloneTitle": "Cette machine",
-      "aloneDescription": "Pas encore rejoint le cluster d'un autre individu",
+      "aloneDescription": "Non connecté à d'autres nœuds du cluster",
       "notJoined": "Non connecté à un cluster",
-      "notJoinedDescription": "Après connexion, les individus en ligne du cluster actuel apparaîtront ici. Cette fenêtre reste sur l'individu local.",
-      "localOnly": "Seul l'individu de cette machine est présent",
+      "notJoinedDescription": "Après la connexion, les nœuds en ligne du cluster actuel s'affichent ici.",
       "statusTitle": "État",
       "phase": {
         "idle": "Non rejoint",
@@ -808,7 +807,7 @@
       "advertisedAddress": "Adresse annoncée (facultatif)",
       "advertisedPlaceholder": "Laisser vide pour détection automatique",
       "join": "Rejoindre le cluster",
-      "leave": "Quitter le cluster",
+      "leave": "Ce nœud quitte le cluster",
       "joining": "Connexion…",
       "leaving": "Sortie…",
       "peerRequired": "L'adresse du pair est requise",
@@ -845,9 +844,23 @@
       "onlineCount": "{{count}} en ligne",
       "joinDialogTitle": "Rejoindre le cluster",
       "joinDialogDescription": "Saisissez l'adresse du pair affichée sur la page cluster d'une autre machine.",
-      "leaveDialogTitle": "Quitter le cluster",
-      "leaveDialogDescription": "Quitter déconnecte du cluster actuel. La session principale locale et le bridge continuent de fonctionner et ne rejoindront pas automatiquement.",
-      "retry": "Réessayer"
+      "leaveDialogTitle": "Ce nœud quitte le cluster",
+      "leaveDialogDescription": "Ce nœud local quittera tout le cluster et se déconnectera de tous les nœuds. La session principale locale et le bridge continuent de fonctionner et ne rejoindront pas automatiquement.",
+      "retry": "Réessayer",
+      "actions": {
+        "switch": "Se connecter et basculer sur ce nœud",
+        "copyEndpoint": "Copier l'adresse",
+        "copied": "Copié",
+        "currentlyActive": "Actuellement connecté",
+        "connectedBadge": "Connecté",
+        "connected": "Connecté",
+        "switchHelp": "Basculez la session de travail pour communiquer directement avec ce nœud."
+      },
+      "radar": {
+        "scanning": "Analyse de la topologie…",
+        "selfPill": "HÔTE LOCAL",
+        "peerPill": "NŒUD PAIR"
+      }
     }
   },
   "shell": {
@@ -1856,7 +1869,7 @@
     },
     "settings": {
       "title": "Preferences",
-      "individuals": "Individus",
+      "individuals": "Nœuds",
       "subtitle": "Servers and appearance",
       "bridge": "Desktop bridge",
       "noActiveServer": "No active server",

@@ -51,10 +51,9 @@
     },
     "cluster": {
       "aloneTitle": "本机",
-      "aloneDescription": "还没有加入其他个体的集群",
+      "aloneDescription": "未连接其他集群节点",
       "notJoined": "尚未连接集群",
-      "notJoinedDescription": "连接后，这里会显示当前集群里的在线个体。本机对话不会因此切到对方。",
-      "localOnly": "当前只有本机这一个体",
+      "notJoinedDescription": "连接后，这里会显示当前集群里的在线节点。",
       "statusTitle": "状态",
       "phase": {
         "idle": "未入群",
@@ -70,7 +69,7 @@
       "advertisedAddress": "本机通告地址（可选）",
       "advertisedPlaceholder": "留空自动探测",
       "join": "加入集群",
-      "leave": "离开集群",
+      "leave": "本机退出集群",
       "joining": "正在加入…",
       "leaving": "正在离开…",
       "peerRequired": "请输入主节点地址",
@@ -107,9 +106,23 @@
       "onlineCount": "{{count}} 在线",
       "joinDialogTitle": "加入集群",
       "joinDialogDescription": "填写另一台机器集群页上显示的对端地址。",
-      "leaveDialogTitle": "离开集群",
-      "leaveDialogDescription": "离开后将断开与当前集群的连接。本机主会话与 bridge 继续工作，且不会自动重新入群。",
-      "retry": "重试"
+      "leaveDialogTitle": "本机退出集群",
+      "leaveDialogDescription": "本机节点将退出整个集群，断开与所有节点的连接。本机主会话与 bridge 继续工作，且不会自动重新入群。",
+      "retry": "重试",
+      "actions": {
+        "switch": "连接并切换会话至该节点",
+        "copyEndpoint": "复制连接地址",
+        "copied": "已复制",
+        "currentlyActive": "当前已连接此节点",
+        "connectedBadge": "已连接",
+        "connected": "当前已连接",
+        "switchHelp": "将桌面端主工作区会话切换连接至此节点进行交互与协作。"
+      },
+      "radar": {
+        "scanning": "拓扑扫描中…",
+        "selfPill": "本机节点",
+        "peerPill": "集群成员"
+      }
     },
     "common": {
       "all": "全部",
@@ -1856,7 +1869,7 @@
     },
     "settings": {
       "title": "偏好设置",
-      "individuals": "个体",
+      "individuals": "节点",
       "subtitle": "服务连接与视觉定制",
       "bridge": "桌面端服务连接 (Bridge)",
       "noActiveServer": "未选择活动服务器",
