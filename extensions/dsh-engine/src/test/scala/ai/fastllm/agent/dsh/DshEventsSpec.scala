@@ -29,7 +29,7 @@ class DshEventsSpec extends AnyFunSuite with Matchers:
     val step = fold("text-turn.jsonl")
     step.events.collect { case RunCreated(_, agentId, runId, parent, _, _) => (agentId, runId, parent) } shouldBe
       List(("dsh", Rid, None))
-    step.events.collect { case TurnStarted(_, _, turnId, _, _) => turnId } shouldBe List("1")
+    step.events.collect { case TurnStarted(_, _, turnId, _, _, _, _, _) => turnId } shouldBe List("1")
     step.events.collect { case AssistantDelta(_, _, text, _) => text } shouldBe List("Hel", "lo")
     step.events.collect { case ReasoningDelta(_, _, text, _) => text } shouldBe List("think")
     step.events.collect { case r: RunStateChanged => r.status } shouldBe List("completed")
@@ -41,7 +41,7 @@ class DshEventsSpec extends AnyFunSuite with Matchers:
       List(("plugin", "snapshot", "Runtime context"))
     step.events.collect { case c: ContextInjected => c.text } shouldBe
       List("Current runtime context. This snapshot supersedes earlier runtime-context snapshots.")
-    step.events.collect { case TurnStarted(_, _, turnId, _, _) => turnId } shouldBe List("1")
+    step.events.collect { case TurnStarted(_, _, turnId, _, _, _, _, _) => turnId } shouldBe List("1")
 
   test("tool pair: arguments land in args.raw; flatten command; result success"):
     val step = fold("tool-pair.jsonl")
