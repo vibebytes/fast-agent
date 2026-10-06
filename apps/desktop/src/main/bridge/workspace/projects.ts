@@ -82,6 +82,14 @@ export type WorkspaceProjects = {
 	) =>
 		| {ok: true; taskId: string; title: string; kind?: string; sessionId: string | null}
 		| {ok: false; notice: string};
+	/** Inject the individual's main session onto Default Project and Attach it, even before Meta lists it. */
+	openMainSession: (
+		sessionId: string,
+		title: string,
+		handlers: WorkspaceProjectHandlers
+	) =>
+		| {ok: true; taskId: string; title: string; sessionId: string; projectId: string}
+		| {ok: false; notice: string};
 	openScheduledRun: (
 		sessionId: string,
 		metaProjectId: string | null | undefined,
@@ -429,6 +437,42 @@ export function createProjects(h: ProjectsHost): WorkspaceProjects {
 				]);
 			}
 			return this.openLivingSession(sid, meta || project.metaProjectId);
+		},
+		openMainSession(sessionId, title, handlers) {
+			const sid = sessionId.trim();
+			if (!sid) return {ok: false, notice: 'sessionId required'};
+			let snap: ProjectSnapshot;
+			try {
+				snap = this.ensureDefaultProject(handlers);
+			} catch (error) {
+				return {ok: false, notice: error instanceof Error ? error.message : String(error)};
+			}
+			const project = h.projects.get(snap.id);
+			if (!project) return {ok: false, notice: '没有主会话'};
+			if (!resolveTaskRef(sid, sid)) {
+				project.sessions.hydrateFromMeta([
+					{
+						id: sid,
+						title: title.trim() || sid.slice(0, 8),
+						status: 'active',
+						sessionType: 'main'
+					}
+				]);
+			}
+			const task =
+				project.sessions.listTasks().find(t => t.sessionId === sid) ??
+				project.sessions.listChats().find(t => t.sessionId === sid);
+			if (!task) return {ok: false, notice: '没有主会话'};
+			h.focusProject(project.id);
+			const selected = project.sessions.selectTask(task.id);
+			if (!selected) return {ok: false, notice: 'Failed to select task'};
+			return {
+				ok: true,
+				taskId: selected.id,
+				title: selected.title,
+				sessionId: sid,
+				projectId: project.metaProjectId ?? project.id
+			};
 		}
 	};
 }

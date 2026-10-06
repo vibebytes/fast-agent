@@ -227,6 +227,9 @@ export type FastIdeApi = {
 	joinCluster: (input: {peerAddress: string; advertisedAddress?: string; displayName?: string}) => Promise<{ok: boolean; notice?: string}>;
 	leaveCluster: () => Promise<{ok: boolean; notice?: string}>;
 	listClusterRoster: () => Promise<{items: ClusterRosterItem[]}>;
+	probeClusterRoster: (
+		items: ClusterRosterItem[]
+	) => Promise<{items: Array<{agentId: string; reach: 'open' | 'down' | 'mismatch' | 'no-main'; message?: string}>}>;
 	openClusterIndividual: (input: {
 		self?: boolean;
 		agentId?: string;

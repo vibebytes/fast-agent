@@ -40,6 +40,8 @@ export const restoredTurn = z.object({
 	steps: z.array(restoredStep).nullish(),
 	/** User message_origin wire (e.g. scheduler_generated) for restore styling. */
 	origin: z.string().nullish(),
+	fromAgentId: z.string().nullish(),
+	displayName: z.string().nullish(),
 	/** User message_type when not plain text (e.g. plan_build). */
 	userMessageType: z.string().nullish(),
 	/** PlanBuild payload plan_id. */

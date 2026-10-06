@@ -95,6 +95,7 @@ const api = {
 	joinCluster: input => invoke('cluster:join', input),
 	leaveCluster: () => invoke('cluster:leave'),
 	listClusterRoster: () => invoke('cluster:roster'),
+	probeClusterRoster: items => invoke('cluster:probe', items),
 	openClusterIndividual: input => invoke('cluster:open', input),
 	onClusterStatus: handler => onPush('cluster:status', handler),
 	onClusterRoster: handler => onPush('cluster:roster', payload => handler(payload.items)),

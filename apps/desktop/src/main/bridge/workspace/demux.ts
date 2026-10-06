@@ -170,7 +170,7 @@ export function createDemux(h: DemuxHost): WorkspaceDemux {
 		host_error: (event, handlers) => {
 			if (event.type !== 'host_error') return false;
 			h.hostWait.hostError(event.message);
-			handlers.onError('engine', event.message);
+			if (!/ListRoster/.test(event.message)) handlers.onError('engine', event.message);
 			handlers.onEvent('engine', event);
 			return true;
 		},

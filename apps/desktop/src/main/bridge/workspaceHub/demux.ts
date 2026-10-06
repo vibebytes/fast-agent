@@ -567,6 +567,38 @@ test('error with sessionId routes to the owning session; without sessionId stays
 	hub.closeAll();
 });
 
+test('ListRoster host_error does not paint a session banner', async () => {
+	const commands: BridgeCommand[] = [];
+	let bridge: FakeBridge | null = null;
+	const hub = new WorkspaceHub({
+		createBridge: () => {
+			bridge = createFakeBridge(commands);
+			return bridge;
+		},
+		hostCwd: mkdtempSync(path.join(tmpdir(), 'hub-host-')),
+		homeDir: mkdtempSync(path.join(tmpdir(), 'hub-home-'))
+	});
+	const errors: string[] = [];
+	hub.openProject(mkdtempSync(path.join(tmpdir(), 'roster-err-')), {
+		onEvent() {},
+		onError(_id, message) {
+			errors.push(message);
+		},
+		onExit() {}
+	});
+	await new Promise(r => setTimeout(r, 80));
+	bridge!.__inject({
+		type: 'host_error',
+		message: 'Invalid command: Unknown command type: ListRoster'
+	} as BridgeEvent);
+	await new Promise(r => setTimeout(r, 40));
+	assert.deepEqual(errors, []);
+	bridge!.__inject({type: 'host_error', message: 'Invalid command: nope'} as BridgeEvent);
+	await new Promise(r => setTimeout(r, 40));
+	assert.ok(errors.some(m => m.includes('nope')));
+	hub.closeAll();
+});
+
 /**
  * Checkpoint push names a checkout, not a conversation, so it carries no sessionId. Falling through
  * to getActive() would tell the focused Project that another Project's change list moved.

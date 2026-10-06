@@ -26,6 +26,21 @@ export function tlsProbeAvailable(): boolean {
   return nativeProbe() !== null;
 }
 
+export function isFingerprintMismatch(error: unknown): boolean {
+  const code = error && typeof error === 'object' && 'code' in error ? String((error as {code?: unknown}).code) : '';
+  const text =
+    error instanceof Error
+      ? error.message
+      : error && typeof error === 'object' && 'message' in error
+        ? String((error as {message?: unknown}).message)
+        : String(error ?? '');
+  return (
+    code === 'ERR_FINGERPRINT_MISMATCH' ||
+    /does not match pinned/i.test(text) ||
+    text.includes('指纹不符')
+  );
+}
+
 export async function probeTlsFingerprint(serverUrl: string, expected: string | null): Promise<TlsProbe> {
   if (!serverUrl.startsWith('wss://')) return {ok: true, fingerprint: ''};
   const probe = nativeProbe();
@@ -41,6 +56,9 @@ export async function probeTlsFingerprint(serverUrl: string, expected: string | 
     const fingerprint = await probe(serverUrl.replace(/^wss:/, 'https:'), expected);
     return {ok: true, fingerprint};
   } catch (error) {
+    if (isFingerprintMismatch(error)) {
+      return {ok: false, detail: {code: 'raw', text: '指纹不符'}};
+    }
     return {ok: false, detail: rawError(error)};
   }
 }

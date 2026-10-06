@@ -838,8 +838,10 @@ class BridgeStore {
   private async markReachability(items: RosterItem[], gen: number): Promise<void> {
     const marked = await probeRoster(items, async (item, url) => {
       try {
-        const probe = await probeTlsFingerprint(url, item.fingerprint || null);
-        return probe.ok;
+        const probe = await probeTlsFingerprint(url, null);
+        if (!probe.ok || !probe.fingerprint) return false;
+        if (!item.fingerprint || item.fingerprint !== probe.fingerprint) return 'mismatch';
+        return true;
       } catch {
         return false;
       }

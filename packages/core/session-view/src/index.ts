@@ -233,6 +233,13 @@ export {
 	toTimelineItems,
 	projectEntryToTimelineItems,
 	wrapProcessStacks,
+	wrapForeignFolds,
+	foldForeignEntries,
+	isForeignFoldItem,
+	isForeignFoldRow,
+	splitForeignColumns,
+	splitForeignEntryColumns,
+	FOREIGN_ORIGIN,
 	goalFlowInsertIndex,
 	placeGoalFlow,
 	staleErrorCardIds,
@@ -240,7 +247,9 @@ export {
 	type ProcessStackStep,
 	type TimelineItem,
 	type TimelineOptions,
-	type TimelineSource
+	type TimelineSource,
+	type ChatListRow,
+	type ForeignEntryFold
 } from './timeline.js';
 
 /** @deprecated Production hosts: prefer createSessionViewProjector / projectSessionView. */

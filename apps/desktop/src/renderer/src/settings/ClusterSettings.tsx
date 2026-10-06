@@ -35,6 +35,17 @@ function presenceKey(item: ClusterRosterItem): string {
 
 type MapNode = {item: ClusterRosterItem; x: number; y: number; online: boolean; key: string};
 
+type ReachRow = {reach: 'open' | 'down' | 'mismatch' | 'no-main'; message?: string};
+type ReachMap = Record<string, ReachRow>;
+
+function reachOf(item: ClusterRosterItem, reach: ReachMap): ReachRow | undefined {
+	return reach[item.agentId ?? item.id ?? ''];
+}
+
+function isBlocked(gated?: ReachRow): boolean {
+	return gated?.reach === 'down' || gated?.reach === 'mismatch';
+}
+
 const MAX_RING_NODES = 12;
 
 /** §2.1: 本机固定中心，成员环排（按 id 排序保证位置稳定），不画节点间连线。 */
@@ -42,11 +53,13 @@ function ClusterMap({
 	roster,
 	phase,
 	selected,
+	reach,
 	onSelect
 }: {
 	roster: ClusterRosterItem[];
 	phase: Phase;
 	selected: string | null;
+	reach: ReachMap;
 	onSelect: (key: string) => void;
 }) {
 	const {t} = useTranslation();
@@ -95,26 +108,47 @@ function ClusterMap({
 						</text>
 					</g>
 				) : null}
-				{nodes.map(n => (
-					<g key={n.key} className="cursor-pointer" onClick={() => onSelect(n.key)}>
-						<title>{`${memberName(n.item)} · ${t(`settings.cluster.presence.${presenceKey(n.item)}`)}`}</title>
-						<circle
-							cx={n.x}
-							cy={n.y}
-							r={6}
-							className={`${n.online ? 'fill-emerald-500 stroke-emerald-500/40' : 'fill-muted stroke-border'} ${selected === n.key ? 'stroke-primary' : ''}`}
-							strokeWidth={1.5}
-						/>
-						<text
-							x={n.x}
-							y={n.y + (n.y >= cy ? 19 : -11)}
-							textAnchor="middle"
-							className={n.online ? 'fill-foreground text-[9px]' : 'fill-muted-foreground text-[9px]'}
+				{nodes.map(n => {
+					const gated = reachOf(n.item, reach);
+					const blocked = isBlocked(gated);
+					const label = gated?.message
+						? `${memberName(n.item)} · ${gated.message}`
+						: `${memberName(n.item)} · ${t(`settings.cluster.presence.${presenceKey(n.item)}`)}`;
+					return (
+						<g
+							key={n.key}
+							className={blocked ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}
+							onClick={blocked ? undefined : () => onSelect(n.key)}
 						>
-							{memberName(n.item).length > 14 ? `${memberName(n.item).slice(0, 13)}…` : memberName(n.item)}
-						</text>
-					</g>
-				))}
+							<title>{label}</title>
+							<circle
+								cx={n.x}
+								cy={n.y}
+								r={6}
+								className={`${blocked ? 'fill-muted stroke-border' : n.online ? 'fill-emerald-500 stroke-emerald-500/40' : 'fill-muted stroke-border'} ${selected === n.key ? 'stroke-primary' : ''}`}
+								strokeWidth={1.5}
+							/>
+							<text
+								x={n.x}
+								y={n.y + (n.y >= cy ? 19 : -11)}
+								textAnchor="middle"
+								className={blocked || !n.online ? 'fill-muted-foreground text-[9px]' : 'fill-foreground text-[9px]'}
+							>
+								{memberName(n.item).length > 14 ? `${memberName(n.item).slice(0, 13)}…` : memberName(n.item)}
+							</text>
+							{blocked && gated?.message ? (
+								<text
+									x={n.x}
+									y={n.y + (n.y >= cy ? 29 : -21)}
+									textAnchor="middle"
+									className="fill-destructive text-[8px]"
+								>
+									{gated.message}
+								</text>
+							) : null}
+						</g>
+					);
+				})}
 			</svg>
 			{switching ? <p className="animate-pulse text-[11px] text-primary">{t('settings.cluster.mapSwitching')}</p> : null}
 			{detail ? <MemberDetails node={detail} /> : <p className="text-[11px] text-muted-foreground">{t('settings.cluster.selectHint')}</p>}
@@ -155,10 +189,12 @@ function MemberDetails({node}: {node: MapNode}) {
 function MemberList({
 	roster,
 	selected,
+	reach,
 	onSelect
 }: {
 	roster: ClusterRosterItem[];
 	selected: string | null;
+	reach: ReachMap;
 	onSelect: (key: string) => void;
 }) {
 	const {t} = useTranslation();
@@ -167,17 +203,22 @@ function MemberList({
 			{roster.map(item => {
 				const key = memberKey(item);
 				const online = memberOnline(item);
+				const gated = reachOf(item, reach);
+				const blocked = isBlocked(gated);
 				return (
 					<li key={key}>
 						<button
 							type="button"
+							disabled={blocked}
 							onClick={() => onSelect(key)}
-							className={`flex w-full items-center gap-2 rounded px-2 py-1.5 text-left transition-colors hover:bg-muted/60 ${selected === key ? 'bg-muted' : ''}`}
+							className={`flex w-full items-center gap-2 rounded px-2 py-1.5 text-left transition-colors hover:bg-muted/60 disabled:cursor-not-allowed disabled:opacity-60 ${selected === key ? 'bg-muted' : ''}`}
 						>
 							<span className={`size-2 shrink-0 rounded-full ${online ? 'bg-emerald-500' : 'bg-muted-foreground/40'}`} />
 							<span className="truncate text-[12px]">{memberName(item)}</span>
 							{item.self ? <span className="text-[10px] text-muted-foreground">{t('settings.cluster.self')}</span> : null}
-							<span className="ml-auto truncate font-mono text-[10px] text-muted-foreground">{item.endpoints?.[0] ?? ''}</span>
+							<span className="ml-auto truncate font-mono text-[10px] text-muted-foreground">
+								{blocked ? gated?.message : item.endpoints?.[0] ?? ''}
+							</span>
 							<span className={`shrink-0 text-[10px] ${online ? 'text-emerald-600' : 'text-muted-foreground'}`}>
 								{t(`settings.cluster.presence.${presenceKey(item)}`)}
 							</span>
@@ -201,6 +242,7 @@ export function ClusterSettings() {
 	const [notice, setNotice] = useState<string | null>(null);
 	const [busy, setBusy] = useState(false);
 	const [selected, setSelected] = useState<string | null>(null);
+	const [reach, setReach] = useState<ReachMap>({});
 
 	useEffect(() => {
 		void window.fastIde.getClusterStatus().then(setStatus);
@@ -212,6 +254,25 @@ export function ClusterSettings() {
 			offRoster();
 		};
 	}, []);
+
+	useEffect(() => {
+		if (roster.length === 0) {
+			setReach({});
+			return;
+		}
+		let cancelled = false;
+		void window.fastIde.probeClusterRoster(roster).then(result => {
+			if (cancelled) return;
+			const next: ReachMap = {};
+			for (const row of result.items) {
+				if (row.agentId) next[row.agentId] = {reach: row.reach, message: row.message};
+			}
+			setReach(next);
+		});
+		return () => {
+			cancelled = true;
+		};
+	}, [roster]);
 
 	const phase = (status?.phase ?? 'idle') as Phase;
 	const joined = phase === 'joined' || phase === 'joining' || phase === 'leaving';
@@ -252,7 +313,14 @@ export function ClusterSettings() {
 		}
 	};
 
+	const memberReach = (item: ClusterRosterItem) => reachOf(item, reach);
+
 	const openMember = async (item: ClusterRosterItem) => {
+		const blocked = memberReach(item);
+		if (isBlocked(blocked)) {
+			setNotice(blocked?.message || t('settings.cluster.unreachable'));
+			return;
+		}
 		setBusy(true);
 		setNotice(null);
 		try {
@@ -275,7 +343,9 @@ export function ClusterSettings() {
 	const selectMember = (key: string) => {
 		setSelected(key);
 		const item = visibleRoster.find(row => memberKey(row) === key);
-		if (item) void openMember(item);
+		if (!item) return;
+		if (isBlocked(memberReach(item))) return;
+		void openMember(item);
 	};
 
 	const leave = async () => {
@@ -310,13 +380,24 @@ export function ClusterSettings() {
 				{switching ? (
 					<p className="mb-1 text-[11px] text-amber-600 dark:text-amber-400">{t('settings.cluster.mapSwitching')}</p>
 				) : null}
-				<ClusterMap roster={visibleRoster} phase={phase} selected={selected} onSelect={selectMember} />
+				<ClusterMap
+					roster={visibleRoster}
+					phase={phase}
+					selected={selected}
+					reach={reach}
+					onSelect={selectMember}
+				/>
 				{phase === 'idle' ? (
 					<p className="text-center text-[11px] text-muted-foreground">{t('settings.cluster.notJoined')}</p>
 				) : roster.length === 0 ? (
 					<p className="text-center text-[11px] text-muted-foreground">{t('settings.cluster.emptyRoster')}</p>
 				) : null}
-				<MemberList roster={visibleRoster} selected={selected} onSelect={selectMember} />
+				<MemberList
+					roster={visibleRoster}
+					selected={selected}
+					reach={reach}
+					onSelect={selectMember}
+				/>
 			</SettingsSection>
 
 			<SettingsSection title={t('settings.navigation.cluster')}>

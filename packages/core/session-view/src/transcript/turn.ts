@@ -14,6 +14,27 @@ import {
 import {patchAssistant, sealOpenThinking, sealStreamingAsDone} from './entry.js';
 import type {TranscriptEntry, TranscriptState} from './state.js';
 
+function liveOrigin(
+	event: Extract<BridgeEvent, {type: 'turn_started'}>,
+	fallback?: string
+): string | undefined {
+	const wire = event.origin?.trim();
+	if (wire) return wire;
+	if (isScheduledId(event.clientMessageId)) return 'scheduler_generated';
+	return fallback;
+}
+
+function liveFrom(
+	event: Extract<BridgeEvent, {type: 'turn_started'}>
+): {fromAgentId?: string; displayName?: string} {
+	const fromAgentId = event.fromAgentId?.trim() || undefined;
+	const displayName = event.displayName?.trim() || undefined;
+	return {
+		...(fromAgentId ? {fromAgentId} : {}),
+		...(displayName ? {displayName} : {})
+	};
+}
+
 /** Per-run delta views (usage / prune notices) must not leak into the next turn. */
 const freshRunDeltas: Pick<TranscriptState, 'usage' | 'contextPrunes' | 'compacting'> = {
 	usage: undefined,
@@ -211,9 +232,7 @@ export function applyTurnStarted(
 						entry.turnId === existingAssistant.turnId ||
 						entry.turnId === existingAssistant.clientMessageId);
 				if (!matchesAssistant && !matchesUser) return entry;
-				const schedOrigin = isScheduledId(event.clientMessageId)
-					? 'scheduler_generated'
-					: entry.origin;
+				const schedOrigin = liveOrigin(event, entry.origin);
 				const persistRiver =
 					typeof event.eventSeq === 'number' &&
 					event.eventSeq > 0 &&
@@ -232,6 +251,7 @@ export function applyTurnStarted(
 					turnId: entry.turnId ?? event.turnId,
 					clientMessageId: event.clientMessageId ?? entry.clientMessageId,
 					...(schedOrigin ? {origin: schedOrigin} : {}),
+					...(matchesUser ? liveFrom(event) : {}),
 					...(matchesUser && planBuildFields ? planBuildFields : {})
 				};
 			})
@@ -243,7 +263,7 @@ export function applyTurnStarted(
 			? sealStreamingAsDone(entry)
 			: entry
 	);
-	const schedOrigin = isScheduledId(event.clientMessageId) ? 'scheduler_generated' : undefined;
+	const schedOrigin = liveOrigin(event);
 	const userText = (event.text ?? '').trim()
 		? event.text!
 		: planBuildFields
@@ -260,6 +280,7 @@ export function applyTurnStarted(
 			turnId: event.turnId,
 			clientMessageId: event.clientMessageId,
 			...(schedOrigin ? {origin: schedOrigin} : {}),
+			...liveFrom(event),
 			...planBuild
 		});
 	}

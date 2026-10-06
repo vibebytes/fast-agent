@@ -23,6 +23,39 @@ test('session_restored preserves scheduler_generated origin on user entry', () =
 	assert.equal(userItem && 'origin' in userItem ? userItem.origin : undefined, 'scheduler_generated');
 });
 
+test('session_restored preserves cluster_agent origin and folds consecutive from', () => {
+	let state = createTranscriptState();
+	state = applyBridgeEvent(state, {
+		type: 'session_restored',
+		sessionId: 'sess',
+		turns: [
+			{
+				turnId: 'f1',
+				userText: 'from A',
+				assistantText: 'reply 1',
+				origin: 'cluster_agent',
+				fromAgentId: 'peer-a',
+				displayName: '小A'
+			},
+			{
+				turnId: 'f2',
+				userText: 'from A again',
+				assistantText: 'reply 2',
+				origin: 'cluster_agent',
+				fromAgentId: 'peer-a',
+				displayName: '小A'
+			}
+		]
+	});
+	const user = state.entries.find(e => e.role === 'user');
+	assert.equal(user?.origin, 'cluster_agent');
+	assert.equal(user?.displayName, '小A');
+	const items = toTimelineItems(state);
+	assert.equal(items.length, 1);
+	assert.equal(items[0]?.kind, 'foreignFold');
+	assert.equal(items[0] && items[0].kind === 'foreignFold' ? items[0].displayName : '', '小A');
+});
+
 test('session_restored with shell+edit tools yields tool and file cards', () => {
 	let state = createTranscriptState();
 	state = applyBridgeEvent(state, {

@@ -4,7 +4,7 @@
  */
 import {join} from 'node:path';
 import type {CloudflareTunnelStatus, InvokeChannel, InvokeChannels} from '@fast-ide/session-view';
-import {classifyProbeError, probeBridge} from '@fastllm/bridge-client';
+import {classifyProbeError, inspectTls, probeBridge} from '@fastllm/bridge-client';
 import type {WorkspaceHub, WorkspaceProjectHandlers} from './WorkspaceHub.js';
 import {hostSession} from './workspace/hostSession.js';
 import {getDshModels, selectDshModel} from './dsh/models.js';
@@ -26,6 +26,14 @@ import {
 	upsertServer,
 	type TokenVault
 } from '../remoteEdges.js';
+import {
+	clusterHomesPath,
+	loadClusterHomes,
+	pinClusterHome,
+	saveClusterHomes,
+	type ClusterHomes
+} from './clusterHomes.js';
+import {clusterReach, wssEndpoint, type ClusterCard} from './clusterReach.js';
 
 export type ProductInvokeChannel = Exclude<
 	InvokeChannel,
@@ -73,6 +81,8 @@ export type DesktopHostDeps = {
 		stop: () => CloudflareTunnelStatus;
 	};
 	probe?: typeof probeBridge;
+	/** TLS inspect only. No Hello. Tests inject this so a roster probe never dials. */
+	inspect?: (url: string) => Promise<string | null>;
 };
 
 async function writeEngineAndPublish(
@@ -104,7 +114,8 @@ export function createDesktopHost(deps: DesktopHostDeps): ProductInvokeMap {
 		vault,
 		userData,
 		onEdgesChanged,
-		probe = probeBridge
+		probe = probeBridge,
+		inspect
 	} = deps;
 
 	const edgesFile = () => loadEdgesFile(edgesPath(userData?.() ?? ''));
@@ -123,6 +134,26 @@ export function createDesktopHost(deps: DesktopHostDeps): ProductInvokeMap {
 			hostHome: snap.hostHome,
 			runActive: hub.hasInFlightRuns()
 		};
+	};
+
+	let homes: ClusterHomes = userData ? loadClusterHomes(clusterHomesPath(userData())) : {};
+	const rememberHome = (home: {edgeId: string; agentId: string; projectId: string; sessionId: string}) => {
+		homes = pinClusterHome(homes, home);
+		if (userData) saveClusterHomes(clusterHomesPath(userData()), homes);
+	};
+	const presentedFingerprint = async (url: string): Promise<string | null> => {
+		if (inspect) return inspect(url);
+		try {
+			return (await inspectTls(url)).fingerprint;
+		} catch {
+			return null;
+		}
+	};
+	const gateCard = async (card: ClusterCard) => {
+		if (card.self) return clusterReach(card, null);
+		const url = wssEndpoint(card.endpoints);
+		const presented = url ? await presentedFingerprint(url) : null;
+		return clusterReach(card, presented);
 	};
 
 	const refusePending = (): InvokeChannels['edges:upsert']['result'] | null => {
@@ -495,34 +526,84 @@ export function createDesktopHost(deps: DesktopHostDeps): ProductInvokeMap {
 		'cluster:join': input => ({ok: hub.joinCluster(input.peerAddress, input.advertisedAddress, input.displayName)}),
 		'cluster:leave': () => ({ok: hub.leaveCluster()}),
 		'cluster:roster': () => hub.listClusterRoster(),
+		'cluster:probe': async items => {
+			const rows = await Promise.all(
+				items.map(async item => {
+					const card: ClusterCard = {
+						self: Boolean(item.self),
+						endpoints: item.endpoints,
+						fingerprint: item.fingerprint,
+						mainSessionId: item.mainSessionId
+					};
+					const gated = await gateCard(card);
+					return {
+						agentId: item.agentId ?? item.id ?? '',
+						reach: gated.reach,
+						...(gated.message ? {message: gated.message} : {})
+					};
+				})
+			);
+			return {items: rows};
+		},
 		'cluster:open': async input => {
 			const blocked = refusePending();
 			if (blocked) return {ok: false, message: blocked.message};
 			const roster = (await hub.listClusterRoster()).items;
 			const known = roster.find(item => (item.agentId ?? item.id) === input.agentId);
 			const endpoints = input.endpoints?.length ? input.endpoints : known?.endpoints ?? [];
-			const endpoint = endpoints.find(item => item.startsWith('wss://'));
+			const endpoint = wssEndpoint(endpoints);
 			const token = input.token ?? known?.token ?? '';
 			const fingerprint = input.fingerprint ?? known?.fingerprint;
 			const self = Boolean(input.self);
+			const agentId = input.agentId ?? known?.agentId ?? known?.id ?? '';
+			const mainSessionId = input.mainSessionId ?? known?.mainSessionId ?? '';
+			const title = known?.displayName || agentId || '主会话';
+			const edgeId = self ? LOCAL_EDGE_ID : `individual:${agentId || 'peer'}`;
+			const card: ClusterCard = {self, endpoints, fingerprint, mainSessionId};
 			try {
-				if (self) {
-					await hub.switchEdge({id: LOCAL_EDGE_ID}, projectHandlers());
-				} else if (!endpoint || !token) {
-					return {ok: false, message: '不可连接'};
-				} else {
-					await hub.switchEdge(
-						{
-							id: `individual:${input.agentId ?? known?.id ?? 'peer'}`,
-							remote: {
-								url: endpoint,
-								authToken: token,
-								fingerprint,
-								timeoutMs: CONNECT_DEADLINE_MS
-							}
-						},
-						projectHandlers()
-					);
+				const gated = await gateCard(card);
+				if (!self && (gated.reach === 'down' || gated.reach === 'mismatch')) {
+					return {ok: false, message: gated.message};
+				}
+				if (!self && !token) return {ok: false, message: '不可连接'};
+				const snap = hub.edgeSnapshot();
+				const already =
+					snap.activeId === edgeId &&
+					!snap.pendingEdgeId &&
+					hub.getEngineStatus().status === 'ready';
+				if (!already) {
+					if (self) {
+						await hub.switchEdge({id: LOCAL_EDGE_ID}, projectHandlers());
+					} else {
+						await hub.switchEdge(
+							{
+								id: edgeId,
+								remote: {
+									url: endpoint!,
+									authToken: token,
+									fingerprint,
+									timeoutMs: CONNECT_DEADLINE_MS
+								}
+							},
+							projectHandlers()
+						);
+					}
+				}
+				if (!mainSessionId) {
+					publisher.publishWorkspace();
+					publisher.publishFocusChange();
+					onEdgesChanged?.();
+					return {ok: true, message: '没有主会话'};
+				}
+				const opened = hub.openMainSession(mainSessionId, title, projectHandlers());
+				if (!opened.ok) return {ok: false, message: opened.notice};
+				if (agentId) {
+					rememberHome({
+						edgeId,
+						agentId,
+						projectId: opened.projectId,
+						sessionId: mainSessionId
+					});
 				}
 				publisher.publishWorkspace();
 				publisher.publishFocusChange();

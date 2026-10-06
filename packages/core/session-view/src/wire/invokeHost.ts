@@ -88,6 +88,11 @@ export type InvokeHost = {
 	'cluster:leave': {args: []; result: {ok: boolean; notice?: string}};
 	/** 拉取集群成员快照（ListRoster）；后续变更经 cluster:roster push。 */
 	'cluster:roster': {args: []; result: {items: ClusterRosterItem[]}};
+	/** TLS inspect each card. No Hello. */
+	'cluster:probe': {
+		args: [items: ClusterRosterItem[]];
+		result: {items: Array<{agentId: string; reach: 'open' | 'down' | 'mismatch' | 'no-main'; message?: string}>};
+	};
 	/** 直连名册里的个体并打开它的主会话。名片没有 wss + token 时拒绝。 */
 	'cluster:open': {
 		args: [input: {self?: boolean; agentId?: string; endpoints?: string[]; fingerprint?: string; token?: string; mainSessionId?: string}];

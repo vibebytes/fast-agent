@@ -63,8 +63,12 @@ export type TranscriptEntry = {
 	turnId?: string;
 	/** Client message id — Engine may later remap turnId to a server run id. */
 	clientMessageId?: string;
-	/** e.g. scheduler_generated when fired by a scheduled job. */
+	/** e.g. scheduler_generated / background_wake / cluster_agent. */
 	origin?: string;
+	/** Foreign sender id when origin is cluster_agent. */
+	fromAgentId?: string;
+	/** Sender displayName snapshot for the 「来自」 badge. */
+	displayName?: string;
 	/** User message_type when plan_build; assistant when goal_step_conclusion / goal_outcome. */
 	messageType?: string;
 	/** PlanBuild → plan message id. */

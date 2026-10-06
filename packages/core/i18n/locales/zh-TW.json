@@ -1602,6 +1602,9 @@
       "done": "已思考",
       "duration": "思考了 {{seconds}} 秒"
     },
+    "foreign": {
+      "rail": "來自節點"
+    },
     "network": {
       "waiting": "等待網路",
       "compacting": "正在壓縮上下文",
@@ -1917,6 +1920,7 @@
       "loadingTranscript": "正在載入會話記錄…",
       "connectingDesktop": "正在連線桌面端…",
       "emptyMessages": "暫無訊息，傳送第一則訊息開始對話",
+      "foreignRail": "來自節點",
       "loadOlder": "載入更早的歷史訊息…",
       "approvalTitle": "請求授權執行：{{tool}}",
       "approvalRisk": "風險提示：{{risk}}",

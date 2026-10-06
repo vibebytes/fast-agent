@@ -1719,6 +1719,9 @@
 			"done": "Thought",
 			"duration": "Thought for {{seconds}}s"
 		},
+		"foreign": {
+			"rail": "From peers"
+		},
 		"network": {
 			"waiting": "Waiting for network",
 			"compacting": "Compacting context",
@@ -1997,6 +2000,7 @@
 			"loadingTranscript": "Loading session…",
 			"connectingDesktop": "Connecting to desktop…",
 			"emptyMessages": "No messages yet. Send the first one to start.",
+			"foreignRail": "From peers",
 			"loadOlder": "Loading earlier messages…",
 			"approvalTitle": "Approve: {{tool}}",
 			"approvalRisk": "Risk: {{risk}}",

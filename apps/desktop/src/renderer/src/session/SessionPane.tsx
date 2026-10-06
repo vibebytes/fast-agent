@@ -11,7 +11,7 @@ import {
 	type ProfilerOnRenderCallback,
 	type ReactNode
 } from 'react';
-import {compactionNotice, usageFooter, type TimelineItem} from '@fast-ide/session-view';
+import {compactionNotice, splitForeignColumns, usageFooter, type TimelineItem} from '@fast-ide/session-view';
 import {Alert, AlertDescription, AlertTitle} from '@fast-ide/ui/components/alert';
 import {cn} from '@fast-ide/ui/lib/utils';
 import {CircleAlert} from 'lucide-react';
@@ -38,7 +38,8 @@ import {type QueueEcho} from './queueEcho';
 import {stashOnSwitch, type KeepAliveEntry} from './transcriptKeepAlive';
 import type {AgentReview} from '../review/useAgentReview';
 import {UndoConfirm} from '../review/UndoConfirm';
-import {deferredValueForTask} from './timelineDerived';
+import {deferredValueForTask, transcriptScrollKey} from './timelineDerived';
+import {ForeignRail} from './ForeignRail';
 import {usePaneEffects} from './paneEffects';
 import {markTabBodyPull, markTabProfile} from '../performanceTrace';
 
@@ -55,10 +56,13 @@ const StableOpenTabStrip = memo(OpenTabStrip);
 /** Frozen render props of one transcript pane (keep-alive stash payload). */
 type TranscriptPane = {
 	items: TimelineItem[];
+	foreignItems: TimelineItem[];
 	scrollKey: string;
+	foreignScrollKey: string;
 	taskId: string | null;
 	bodyLoading: boolean;
 	stick: {current: boolean};
+	foreignStick: {current: boolean};
 	header: ReactNode;
 	renderItem: (item: TimelineItem) => ReactNode;
 };
@@ -262,6 +266,7 @@ export const SessionPane = memo(function SessionPane({
 		return ref;
 	}, []);
 	const stickToBottomRef = stickFor(activeTaskId);
+	const foreignStickRef = stickFor(activeTaskId ? `${activeTaskId}::foreign` : '__none__::foreign');
 	// Frozen panes of recently left Tasks (render-phase adjust: the leaving pane
 	// must stay mounted in the very same commit that renders the new active one).
 	const stashRef = useRef<KeepAliveEntry<TranscriptPane>[]>([]);
@@ -355,7 +360,6 @@ export const SessionPane = memo(function SessionPane({
 
 	const {
 		displayTimeline,
-		scrollKey,
 		hasThread,
 		renderItem,
 		onStopPlanBuild,
@@ -470,12 +474,24 @@ export const SessionPane = memo(function SessionPane({
 	// Live pane + frozen keep-alive panes render as keyed siblings: switching
 	// A→B keeps A's instance (key A) mounted-but-hidden, so A→B→A skips the
 	// whole re-mount — React sees the same instance with identical frozen props.
+	const {owner: ownerTimeline, foreign: foreignTimeline} = useMemo(
+		() => splitForeignColumns(displayTimeline),
+		[displayTimeline]
+	);
+	const ownerScrollKey = useMemo(() => transcriptScrollKey(ownerTimeline), [ownerTimeline]);
+	const foreignScrollKey = useMemo(
+		() => transcriptScrollKey(foreignTimeline),
+		[foreignTimeline]
+	);
 	const livePane: TranscriptPane = {
-		items: displayTimeline,
-		scrollKey,
+		items: ownerTimeline,
+		foreignItems: foreignTimeline,
+		scrollKey: ownerScrollKey,
+		foreignScrollKey,
 		taskId: activeTaskId,
 		bodyLoading: transcriptBodyLoading,
 		stick: stickToBottomRef,
+		foreignStick: foreignStickRef,
 		header: transcriptHeader,
 		renderItem
 	};
@@ -501,19 +517,39 @@ export const SessionPane = memo(function SessionPane({
 
 			<Profiler id="transcript-panes" onRender={profileCommit}>
 				{transcriptPanes.map(p => (
-					<VirtualTranscript
+					<div
 						key={p.key}
-						items={p.pane.items}
-						scrollKey={p.pane.scrollKey}
-						activeTaskId={p.pane.taskId}
-						bodyLoading={p.pane.bodyLoading}
-						stickToBottomRef={p.pane.stick}
-						onStopPlanBuild={onStopPlanBuild}
-						onNearTop={onNearTop}
-						visible={p.visible}
-						header={p.pane.header}
-						renderItem={p.pane.renderItem}
-					/>
+						inert={!p.visible || undefined}
+						className={cn(
+							'relative flex min-h-0',
+							p.visible
+								? 'flex-1'
+								: 'h-0 flex-none overflow-hidden [content-visibility:hidden] pointer-events-none'
+						)}
+					>
+						<VirtualTranscript
+							className="min-w-0"
+							items={p.pane.items}
+							scrollKey={p.pane.scrollKey}
+							activeTaskId={p.pane.taskId}
+							bodyLoading={p.pane.bodyLoading}
+							stickToBottomRef={p.pane.stick}
+							onStopPlanBuild={onStopPlanBuild}
+							onNearTop={onNearTop}
+							visible={p.visible}
+							header={p.pane.header}
+							renderItem={p.pane.renderItem}
+						/>
+						<ForeignRail
+							items={p.pane.foreignItems}
+							scrollKey={p.pane.foreignScrollKey}
+							taskId={p.pane.taskId}
+							bodyLoading={p.pane.bodyLoading}
+							stick={p.pane.foreignStick}
+							visible={p.visible}
+							renderItem={p.pane.renderItem}
+						/>
+					</div>
 				))}
 			</Profiler>
 

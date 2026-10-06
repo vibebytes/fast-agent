@@ -1719,6 +1719,9 @@
 			"done": "已思考",
 			"duration": "思考了 {{seconds}} 秒"
 		},
+		"foreign": {
+			"rail": "来自节点"
+		},
 		"network": {
 			"waiting": "等待网络",
 			"compacting": "正在压缩上下文",
@@ -1997,6 +2000,7 @@
 			"loadingTranscript": "正在加载会话记录…",
 			"connectingDesktop": "正在连接桌面端…",
 			"emptyMessages": "暂无消息，发送第一条消息开始对话",
+			"foreignRail": "来自节点",
 			"loadOlder": "加载更早的历史消息…",
 			"approvalTitle": "请求授权执行：{{tool}}",
 			"approvalRisk": "风险提示：{{risk}}",

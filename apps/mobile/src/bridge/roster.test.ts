@@ -7,7 +7,9 @@ import {
   fromServerRoster,
   loseSource,
   persistRoster,
+  openIndividual,
   pickerBlocked,
+  pickerNote,
   probeRoster,
   reachable,
   rosterFromEvent,
@@ -109,10 +111,49 @@ test('a dead source switches and asks to subscribe again', () => {
 test('a failed probe marks the individual unreachable and blocks a tap', async () => {
   const marked = await probeRoster([item()], async () => false, 30);
   assert.equal(marked[0]?.reachable, false);
+  assert.equal(marked[0]?.reach, 'down');
+  assert.equal(pickerNote(marked[0]!), '不可连接');
   assert.equal(pickerBlocked(marked[0]!), true);
-  const open = await probeRoster([item()], async () => true, 30);
+  const open = await probeRoster([item({mainSessionId: 'sess-b'})], async () => true, 30);
   assert.equal(open[0]?.reachable, true);
-  assert.equal(pickerBlocked({...open[0]!, mainSessionId: 'sess-b'}), false);
+  assert.equal(open[0]?.reach, 'open');
+  assert.equal(pickerBlocked(open[0]!), false);
+});
+
+test('a certificate mismatch is 指纹不符 and does not Hello', async () => {
+  const marked = await probeRoster([item({mainSessionId: 'sess-b'})], async () => 'mismatch', 30);
+  assert.equal(marked[0]?.reach, 'mismatch');
+  assert.equal(pickerNote(marked[0]!), '指纹不符');
+  assert.equal(pickerBlocked(marked[0]!), true);
+  let saved = 0;
+  const blocked = await openIndividual(marked[0]!, {
+    open: () => true,
+    probe: async () => 'sha256:other',
+    save: async () => {
+      saved += 1;
+      return true;
+    },
+    pin: async () => {
+      saved += 1;
+    }
+  });
+  assert.equal(blocked.ok, false);
+  if (!blocked.ok) assert.equal(blocked.error, '指纹不符');
+  assert.equal(saved, 0);
+  const refused = await openIndividual(item({mainSessionId: 'sess-b'}), {
+    open: () => true,
+    probe: async () => 'sha256:other',
+    save: async () => {
+      saved += 1;
+      return true;
+    },
+    pin: async () => {
+      saved += 1;
+    }
+  });
+  assert.equal(refused.ok, false);
+  if (!refused.ok) assert.equal(refused.error, '指纹不符');
+  assert.equal(saved, 0);
 });
 
 test('a dead roster source is replaced by another live connection', () => {

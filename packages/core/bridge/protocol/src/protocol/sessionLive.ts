@@ -27,7 +27,10 @@ export const sessionLiveSchemas = [
 		 */
 		supersedes: z.string().nullish(),
 		/** Victim ended in failure (Retry) rather than being regenerated. */
-		supersedesFailed: z.boolean().nullish()
+		supersedesFailed: z.boolean().nullish(),
+		origin: z.string().optional(),
+		fromAgentId: z.string().optional(),
+		displayName: z.string().optional()
 	}),
 	z.object({
 		type: z.literal('plan_build_submitted'),

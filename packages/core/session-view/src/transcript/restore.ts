@@ -118,6 +118,8 @@ function entriesFromRestoredTurns(
 		}> | null;
 		steps?: Parameters<typeof restoreSegmentsFromTurn>[0]['steps'];
 		origin?: string | null;
+		fromAgentId?: string | null;
+		displayName?: string | null;
 		userMessageType?: string | null;
 		planId?: string | null;
 		planName?: string | null;
@@ -187,6 +189,8 @@ function entriesFromRestoredTurns(
 		const runId = rt.runId?.trim() ? {runId: rt.runId.trim()} : {};
 		if (userText || planBuild || userImages.length > 0) {
 			const origin = rt.origin?.trim() || undefined;
+			const fromAgentId = rt.fromAgentId?.trim() || undefined;
+			const displayName = rt.displayName?.trim() || undefined;
 			restoredEntries.push({
 				id: `user-${rt.turnId}`,
 				role: 'user',
@@ -195,6 +199,8 @@ function entriesFromRestoredTurns(
 				turnId: rt.turnId,
 				...runId,
 				...(origin ? {origin} : {}),
+				...(fromAgentId ? {fromAgentId} : {}),
+				...(displayName ? {displayName} : {}),
 				...(planBuild ?? {}),
 				...(userImages.length ? {images: userImages} : {})
 			});

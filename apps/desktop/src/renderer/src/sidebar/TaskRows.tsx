@@ -246,7 +246,8 @@ export const DefaultTaskRow = memo(
 		defaultProject: ProjectSnapshot;
 		actions: RowActions;
 	}) {
-		const {task, pinned, canMutate, isActive} = row;
+		const {task, pinned, canMutate, isActive, main} = row;
+		const {t} = useTranslation();
 		return (
 			<ContextMenu>
 				<ContextMenuTrigger asChild>
@@ -258,7 +259,12 @@ export const DefaultTaskRow = memo(
 							className="gap-1.5 pr-16 text-sm"
 						>
 							{task.runState ? <RunStateDot runState={task.runState} /> : null}
-							<span>{task.title}</span>
+							<span className="truncate">{task.title}</span>
+							{main ? (
+								<span className="shrink-0 text-[10px] text-muted-foreground">
+									{t('shell.sidebar.mainSession', {defaultValue: '主会话'})}
+								</span>
+							) : null}
 						</SidebarMenuButton>
 						<RowTime iso={task.lastModified} />
 					</SidebarMenuItem>
@@ -285,6 +291,7 @@ export const DefaultTaskRow = memo(
 		a.actions === b.actions &&
 		a.row.task === b.row.task &&
 		a.row.pinned === b.row.pinned &&
+		a.row.main === b.row.main &&
 		a.row.canMutate === b.row.canMutate &&
 		a.row.isActive === b.row.isActive
 );

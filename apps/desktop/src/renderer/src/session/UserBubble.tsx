@@ -188,6 +188,7 @@ export function UserBubble({
 	regen,
 	scheduled,
 	wake,
+	fromName,
 	dockedBelow,
 	images
 }: {
@@ -196,19 +197,21 @@ export function UserBubble({
 	regen?: RegenSlot;
 	scheduled?: boolean;
 	wake?: boolean;
+	fromName?: string;
 	dockedBelow?: boolean;
 	images?: Array<{mediaType: string; name?: string; dataUrl: string}>;
 }) {
+	const badge = scheduled ? 'Scheduled' : wake ? 'Background task' : fromName ? `来自 ${fromName}` : null;
 	return (
 		<UserMessageShell
 			canCancel={canCancel}
 			regen={regen}
 			dockedBelow={dockedBelow}
-			className={scheduled || wake ? 'border-l-2 border-primary/35 pl-3' : undefined}
+			className={badge ? 'border-l-2 border-primary/35 pl-3' : undefined}
 		>
-			{scheduled || wake ? (
+			{badge ? (
 				<span className="mb-1 block text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
-					{scheduled ? 'Scheduled' : 'Background task'}
+					{badge}
 				</span>
 			) : null}
 			{images && images.length > 0 ? (

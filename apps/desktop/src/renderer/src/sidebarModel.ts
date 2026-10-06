@@ -26,6 +26,8 @@ export type TaskRow = {
 	projectId: string | null;
 	displayProjectName: string | null;
 	pinned: boolean;
+	/** The individual's fixed main session. Not the user's pin. */
+	main: boolean;
 	isActive: boolean;
 	canMutate: boolean;
 };
@@ -71,13 +73,19 @@ export function projectDisplayName(project: {
 	return project.displayName?.trim() || basename(project.path);
 }
 
+function isMainTask(task: TaskSummary, homeSessionIds?: ReadonlySet<string>): boolean {
+	if (task.sessionType === 'main') return true;
+	return Boolean(task.sessionId && homeSessionIds?.has(task.sessionId));
+}
+
 function taskRow(
 	task: TaskSummary,
 	projectPath: string,
 	projectId: string | null,
 	displayProjectName: string | null,
 	ui: SidebarUiState,
-	activeTaskId: string | null
+	activeTaskId: string | null,
+	homeSessionIds?: ReadonlySet<string>
 ): TaskRow {
 	return {
 		task,
@@ -85,6 +93,7 @@ function taskRow(
 		projectId,
 		displayProjectName,
 		pinned: isPinnedTask(ui.pinnedTasks, projectPath, task.sessionId),
+		main: isMainTask(task, homeSessionIds),
 		isActive: task.id === activeTaskId,
 		canMutate: Boolean(task.sessionId)
 	};
@@ -97,6 +106,16 @@ function recency(task: TaskSummary): string {
 /** Newest-updated first. Missing timestamps sort last. */
 function sortTaskRows(rows: TaskRow[]): TaskRow[] {
 	return [...rows].sort((a, b) => {
+		const byTime = recency(b.task).localeCompare(recency(a.task));
+		if (byTime !== 0) return byTime;
+		return a.task.title.localeCompare(b.task.title, 'zh');
+	});
+}
+
+/** Main session stays at the top of Tasks. User pins are a separate flag. */
+function sortDefaultTaskRows(rows: TaskRow[]): TaskRow[] {
+	return [...rows].sort((a, b) => {
+		if (a.main !== b.main) return a.main ? -1 : 1;
 		const byTime = recency(b.task).localeCompare(recency(a.task));
 		if (byTime !== 0) return byTime;
 		return a.task.title.localeCompare(b.task.title, 'zh');
@@ -131,8 +150,11 @@ export function buildSidebarModel(input: {
 	defaultProjectPath: string;
 	ui: SidebarUiState;
 	activeTaskId: string | null;
+	/** Pinned cluster homes, used when sessionType has not arrived yet. */
+	homeSessionIds?: readonly string[];
 }): SidebarModel {
 	const {projects, projectTasks, defaultTasks, defaultProjectPath, ui, activeTaskId} = input;
+	const homeIds = new Set(input.homeSessionIds ?? []);
 	const sorted = sortProjects(projects, ui);
 
 	const projectRows: ProjectRow[] = sorted.map(project => {
@@ -175,11 +197,11 @@ export function buildSidebarModel(input: {
 		active: false
 	};
 
-	const visibleDefault = sortTaskRows(
+	const visibleDefault = sortDefaultTaskRows(
 		defaultTasks
 			.filter(t => !isArchived(ui.archivedTasks, defaultProjectPath, t.sessionId))
 			.filter(t => !isAutomationTreeTask(t))
-			.map(t => taskRow(t, defaultProjectPath, null, null, ui, activeTaskId))
+			.map(t => taskRow(t, defaultProjectPath, null, null, ui, activeTaskId, homeIds))
 	);
 
 	const pinned: PinnedRow[] = ui.pinnedTasks

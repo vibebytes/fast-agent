@@ -220,6 +220,8 @@ export function estimateTimelineRowPx(item: {
 			return 120;
 		case 'system':
 			return 40;
+		case 'foreignFold':
+			return 132;
 		default:
 			return DEFAULT_ROW_ESTIMATE_PX;
 	}

@@ -23,6 +23,7 @@ import {
 	GoalStepConclusionChrome
 } from './GoalChrome';
 import {ExploringCollapsible, ProcessStackView, ThoughtCollapsible} from './ThoughtChrome';
+import {ForeignFromCard} from './ForeignFromCard';
 import {MessageStopHost, SlashChip, UserBubble} from './UserBubble';
 
 export type TimelineRowProps = {
@@ -96,6 +97,7 @@ export const TimelineRow = memo(function TimelineRow({
 					regen={regen}
 					scheduled={item.origin === 'scheduler_generated'}
 					wake={item.origin === 'background_wake'}
+					fromName={item.origin === 'cluster_agent' ? item.displayName : undefined}
 					dockedBelow={Boolean(item.planBuild)}
 					images={item.images}
 				/>
@@ -221,12 +223,41 @@ export const TimelineRow = memo(function TimelineRow({
 		case 'contextInjection':
 			body = <ContextInjectionChrome item={item} />;
 			break;
+		case 'foreignFold':
+			body = (
+				<ForeignFromCard item={item}>
+					{item.items.map(child => (
+						<TimelineRow
+							key={child.id}
+							{...{
+								item: child,
+								decisionScope,
+								canCancel,
+								showUserStop: child.kind === 'user' && showUserStop,
+								onOpenFile,
+								buildActivePlanIds,
+								engineKind,
+								onRerun,
+								onContinueRun,
+								onRegenerate,
+								errorStale,
+								regenUserId,
+								runBusy,
+								retryBusy,
+								store,
+								dshCaps
+							}}
+						/>
+					))}
+				</ForeignFromCard>
+			);
+			break;
 		default:
 			body = null;
 	}
 
 	// User prompt keeps full column width; reply stream is slightly narrower paper column.
-	if (item.kind === 'user' || body == null) return body;
+	if (item.kind === 'user' || item.kind === 'foreignFold' || body == null) return body;
 	return (
 		<OpenFileContext.Provider value={onOpenFile}>
 			<div className="relative z-0 mx-auto w-[calc(100%-2.5rem)] min-w-0 max-w-[calc(100%-2.5rem)] shrink-0 self-center">

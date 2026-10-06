@@ -71,6 +71,8 @@ export type VirtualTranscriptProps = {
 	 */
 	visible?: boolean;
 	className?: string;
+	/** Drop the 3xl paper column so a side rail can use the full pane width. */
+	narrow?: boolean;
 };
 
 /**
@@ -268,7 +270,8 @@ export function VirtualTranscript({
 	onNearTop,
 	onStopPlanBuild,
 	visible = true,
-	className
+	className,
+	narrow = false
 }: VirtualTranscriptProps) {
 	const parentRef = useRef<HTMLDivElement>(null);
 	const pinUntilRef = useRef(0);
@@ -628,7 +631,8 @@ export function VirtualTranscript({
 			<div ref={parentRef} className="h-full overflow-y-auto [overflow-anchor:none]">
 				<div
 					className={cn(
-						'mx-auto flex max-w-3xl flex-col gap-3 p-4',
+						'flex flex-col gap-3 p-4',
+						narrow ? 'w-full' : 'mx-auto max-w-3xl',
 						items.length === 0 && 'min-h-full justify-center'
 					)}
 				>

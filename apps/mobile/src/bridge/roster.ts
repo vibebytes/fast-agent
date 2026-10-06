@@ -1,3 +1,6 @@
+/** Same four states as desktop `clusterReach`. */
+export type ClusterReach = 'open' | 'down' | 'mismatch' | 'no-main';
+
 /** Roster row the phone keeps. `hostedBy` never arrives from the bridge. */
 export type RosterItem = {
   agentId: string;
@@ -8,9 +11,14 @@ export type RosterItem = {
   presence: string;
   mainSessionId?: string;
   reachable?: boolean | 'unknown';
+  reach?: ClusterReach;
+  reachMessage?: string;
 };
 
 export type ConnectTarget = {url: string; fingerprint: string; agentId: string; label: string};
+
+/** TLS inspect result for one URL. `true` = pin matches; `'mismatch'` ≠ down. */
+export type RosterProbe = boolean | 'mismatch';
 
 type ServerRosterRow = {
   id?: string;
@@ -102,7 +110,10 @@ export function loadRoster(raw: string | null): CachedRoster {
 export function expireReachability(cache: CachedRoster): CachedRoster {
   return {
     ...cache,
-    items: cache.items.map(item => ({...item, reachable: 'unknown' as const}))
+    items: cache.items.map(({reach: _reach, reachMessage: _message, ...item}) => ({
+      ...item,
+      reachable: 'unknown' as const
+    }))
   };
 }
 
@@ -124,7 +135,7 @@ export function loseSource(cache: CachedRoster, dead: string, live: string[]): {
   return {cache: next, resubscribe: next.sourceId !== null && next.sourceId !== cache.sourceId};
 }
 
-function within(work: Promise<boolean>, timeoutMs: number): Promise<boolean> {
+function within(work: Promise<RosterProbe>, timeoutMs: number): Promise<RosterProbe> {
   return new Promise(resolve => {
     const timer = setTimeout(() => resolve(false), timeoutMs);
     work.then(
@@ -140,24 +151,70 @@ function within(work: Promise<boolean>, timeoutMs: number): Promise<boolean> {
   });
 }
 
-/** Probe each endpoint. A timeout or a false result marks the individual unreachable. */
+function classified(item: RosterItem, reach: ClusterReach, message?: string): RosterItem {
+  return {
+    ...item,
+    reach,
+    reachMessage: message,
+    reachable: reach === 'open' || reach === 'no-main'
+  };
+}
+
+/** Probe each endpoint. Certificate mismatch is not the same as unreachable. */
 export async function probeRoster(
   items: RosterItem[],
-  open: (item: RosterItem, url: string) => Promise<boolean>,
+  open: (item: RosterItem, url: string) => Promise<RosterProbe>,
   timeoutMs = 10000
 ): Promise<RosterItem[]> {
   return Promise.all(items.map(async item => {
     const urls = item.endpoints.filter(url => url.startsWith('wss://'));
-    if (urls.length === 0) return {...item, reachable: false as const};
+    if (urls.length === 0) return classified(item, 'down', '不可连接');
     const checks = await Promise.all(urls.map(url => within(open(item, url), timeoutMs)));
-    return {...item, reachable: checks.some(Boolean)};
+    if (checks.some(result => result === true)) {
+      return item.mainSessionId
+        ? classified(item, 'open')
+        : classified(item, 'no-main', '没有主会话');
+    }
+    if (checks.some(result => result === 'mismatch')) return classified(item, 'mismatch', '指纹不符');
+    return classified(item, 'down', '不可连接');
   }));
 }
 
-/** A failed probe, a missing endpoint, or a missing main session cannot be opened. */
+/** A failed probe, a missing endpoint, a pin mismatch, or a missing main session cannot be opened. */
 export function pickerBlocked(item: RosterItem): boolean {
+  if (item.reach === 'down' || item.reach === 'mismatch') return true;
   if (item.reachable === false) return true;
-  if (item.endpoints.length === 0) return true;
-  if (!item.mainSessionId) return true;
+  if (item.endpoints.filter(url => url.startsWith('wss://')).length === 0) return true;
+  if (!item.mainSessionId || item.reach === 'no-main') return true;
   return false;
+}
+
+export function pickerNote(item: RosterItem): string {
+  if (item.reach === 'mismatch' || item.reachMessage === '指纹不符') return '指纹不符';
+  if (item.reach === 'down' || item.reachable === false || item.endpoints.filter(url => url.startsWith('wss://')).length === 0) {
+    return item.reachMessage || '不可连接';
+  }
+  if (!item.mainSessionId || item.reach === 'no-main') return '没有主会话';
+  return item.reachMessage || '';
+}
+
+/** Direct-connect one roster row. Callers must not Hello / save when this returns an error. */
+export async function openIndividual(
+  item: RosterItem,
+  deps: {
+    open: (url: string) => boolean;
+    probe: (url: string) => Promise<string | null>;
+    save: (target: ConnectTarget) => Promise<boolean>;
+    pin: (target: ConnectTarget, mainSessionId: string) => Promise<void>;
+  }
+): Promise<{ok: true} | {ok: false; error: string}> {
+  if (item.reach === 'mismatch') return {ok: false, error: '指纹不符'};
+  if (item.reach === 'down') return {ok: false, error: item.reachMessage || '不可连接'};
+  const target = await connectChecked(item, deps.open, deps.probe);
+  if ('error' in target) return {ok: false, error: target.error};
+  if (!item.mainSessionId) return {ok: false, error: '没有主会话'};
+  const saved = await deps.save(target);
+  if (!saved) return {ok: false, error: '不可连接'};
+  await deps.pin(target, item.mainSessionId);
+  return {ok: true};
 }

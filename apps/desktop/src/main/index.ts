@@ -473,7 +473,7 @@ function sharedProjectHandlers() {
 		},
 		onClusterRoster(items: Extract<BridgeEvent, {type: 'roster_changed'}>['items']) {
 			hub.rememberClusterRoster(items);
-			sendToRenderer('cluster:roster', {items});
+			sendToRenderer('cluster:roster', {items: hub.rosterSnapshot()});
 		}
 	};
 }

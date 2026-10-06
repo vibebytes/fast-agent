@@ -25,6 +25,8 @@ export function timelineItemEqual(a: TimelineItem, b: TimelineItem): boolean {
 				a.text === b.text &&
 				a.isCommand === b.isCommand &&
 				a.origin === b.origin &&
+				a.fromAgentId === b.fromAgentId &&
+				a.displayName === b.displayName &&
 				Boolean(a.showStop) === Boolean(b.showStop) &&
 				(a.planBuild?.planId ?? '') === (b.planBuild?.planId ?? '') &&
 				(a.planBuild?.name ?? '') === (b.planBuild?.name ?? '') &&
@@ -176,6 +178,18 @@ export function timelineItemEqual(a: TimelineItem, b: TimelineItem): boolean {
 				a.form === b.form &&
 				a.label === b.label &&
 				a.text === b.text
+			);
+		case 'foreignFold':
+			return (
+				b.kind === 'foreignFold' &&
+				a.displayName === b.displayName &&
+				a.fromAgentId === b.fromAgentId &&
+				a.preview === b.preview &&
+				a.items.length === b.items.length &&
+				a.items.every((child, i) => {
+					const other = b.items[i];
+					return other != null && timelineItemEqual(child, other);
+				})
 			);
 		default:
 			return false;

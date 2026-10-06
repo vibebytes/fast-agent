@@ -12,6 +12,7 @@ import type {ActivityCounts, DiffLine} from './diff.js';
 import type {PlanTodoView, PlanView} from './plan.js';
 import type {FileOp, ThoughtChrome} from './chrome.js';
 import {engineRunId, plansById, projectEntryToTimelineItems} from './timeline/convert.js';
+import {flattenTimelineItems, wrapForeignFolds} from './timeline/foreignFold.js';
 import {wrapProcessStacks} from './timeline/processStack.js';
 
 export type {FileOp, NetworkWait, ThoughtChrome} from './chrome.js';
@@ -24,6 +25,18 @@ export {
 } from './chrome.js';
 
 export {PROCESS_STACK_MIN_STEPS, wrapProcessStacks} from './timeline/processStack.js';
+export {
+	FOREIGN_ORIGIN,
+	flattenTimelineItems,
+	foldForeignEntries,
+	isForeignFoldItem,
+	isForeignFoldRow,
+	splitForeignColumns,
+	splitForeignEntryColumns,
+	wrapForeignFolds,
+	type ChatListRow,
+	type ForeignEntryFold
+} from './timeline/foreignFold.js';
 export {projectEntryToTimelineItems, plansById} from './timeline/convert.js';
 
 export type TimelineItem =
@@ -39,8 +52,12 @@ export type TimelineItem =
 			runId?: string;
 			/** In-flight Turn's user prompt may show Stop (Session View). */
 			showStop?: boolean;
-			/** scheduler_generated when message came from a scheduled job. */
+			/** scheduler_generated / background_wake / cluster_agent. */
 			origin?: string;
+			/** Foreign sender id when origin is cluster_agent. */
+			fromAgentId?: string;
+			/** Sender displayName snapshot for the 「来自」 badge. */
+			displayName?: string;
 			/** Attached images for bubble thumbnails. */
 			images?: Array<{mediaType: string; name?: string; dataUrl: string}>;
 			/** PlanBuild dock under this user row (UI Build execution). */
@@ -224,6 +241,15 @@ export type TimelineItem =
 			form: string;
 			label: string;
 			text: string;
+	  }
+	| {
+			/** Consecutive cluster_agent user+assistant turns from the same sender. */
+			kind: 'foreignFold';
+			id: string;
+			displayName: string;
+			fromAgentId?: string;
+			preview: string;
+			items: TimelineItem[];
 	  };
 
 /** Sealed Thought / Exploring rows that may form a Process Stack. */
@@ -262,12 +288,13 @@ export type TimelineOptions = {
  * failed turns retry from the ErrorCard, not regenerate.
  */
 export function regenUserIdOf(items: readonly TimelineItem[]): string | null {
-	for (let i = items.length - 1; i >= 0; i--) {
-		const it = items[i]!;
+	const flat = flattenTimelineItems(items);
+	for (let i = flat.length - 1; i >= 0; i--) {
+		const it = flat[i]!;
 		if (it.kind !== 'assistant') continue;
 		if (it.status !== 'done') return null;
 		for (let j = i - 1; j >= 0; j--) {
-			const prev = items[j]!;
+			const prev = flat[j]!;
 			if (prev.kind === 'user' && !prev.isCommand) return prev.id;
 		}
 		return null;
@@ -278,7 +305,7 @@ export function regenUserIdOf(items: readonly TimelineItem[]): string | null {
 export function staleErrorCardIds(items: readonly TimelineItem[]): Set<string> {
 	const stale = new Set<string>();
 	let pendingErrorId: string | null = null;
-	for (const item of items) {
+	for (const item of flattenTimelineItems(items)) {
 		if (item.kind !== 'assistant') continue;
 		if (item.status === 'error') {
 			if (pendingErrorId !== null) stale.add(pendingErrorId);
@@ -399,10 +426,12 @@ export function toTimelineItems(
 	const activeTurn = state.entries[state.entries.length - 1]?.status === 'streaming';
 	const lastEntryId = state.entries[state.entries.length - 1]?.id ?? 'global';
 
-	return wrapProcessStacks(rawItems, {
-		turnActive: activeTurn,
-		entryId: lastEntryId
-	});
+	return wrapForeignFolds(
+		wrapProcessStacks(rawItems, {
+			turnActive: activeTurn,
+			entryId: lastEntryId
+		})
+	);
 }
 
 function approvalToItem(approval: PendingApproval): TimelineItem {

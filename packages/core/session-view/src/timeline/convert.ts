@@ -414,7 +414,13 @@ export function projectEntryToTimelineItems(
 			// `/skill args` live turns, or legacy `[Skill: name]…` on restore.
 			isCommand: parseUserSkillDisplay(trimmed) != null,
 			...(engineRunId(entry) ? {runId: engineRunId(entry)} : {}),
-			...(entry.origin === 'scheduler_generated' ? {origin: entry.origin} : {}),
+			...(entry.origin === 'scheduler_generated' ||
+			entry.origin === 'background_wake' ||
+			entry.origin === 'cluster_agent'
+				? {origin: entry.origin}
+				: {}),
+			...(entry.fromAgentId ? {fromAgentId: entry.fromAgentId} : {}),
+			...(entry.displayName ? {displayName: entry.displayName} : {}),
 			...(entry.images?.length ? {images: entry.images} : {}),
 			...planBuild
 		});

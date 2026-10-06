@@ -428,3 +428,33 @@ test('rebind Register remounts a session with AttachSession lastEventSeq', async
 	);
 	hub.closeAll();
 });
+
+test('individual switch is not persisted and attaches a main session meta has not listed', async () => {
+	const persisted: string[] = [];
+	const fakes: Fake[] = [];
+	const hub = new WorkspaceHub({
+		createBridge: () => {
+			const fake = fakeBridge();
+			fakes.push(fake);
+			return fake as unknown as BridgeClient;
+		},
+		persistActiveId: id => persisted.push(id),
+		homeDir: mkdtempSync(path.join(tmpdir(), 'hub-main-home-')),
+		hostCwd: mkdtempSync(path.join(tmpdir(), 'hub-main-cwd-'))
+	});
+	await hub.switchEdge(
+		{
+			id: 'individual:b',
+			remote: {url: 'wss://127.0.0.1:1982/bridge', authToken: 'tok', fingerprint: 'sha256:abc', timeoutMs: 200}
+		},
+		handlers()
+	);
+	assert.deepEqual(persisted, []);
+	const opened = hub.openMainSession('sess-b', '小B');
+	assert.equal(opened.ok, true);
+	if (opened.ok) assert.equal(opened.sessionId, 'sess-b');
+	await new Promise(r => setTimeout(r, 40));
+	assert.equal(hub.getDefaultProject()?.sessions.getActiveTask()?.sessionId, 'sess-b');
+	assert.ok(fakes[0]?.commands.some(c => c.type === 'AttachSession' && c.sessionId === 'sess-b'));
+	hub.closeAll();
+});

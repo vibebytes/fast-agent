@@ -1,9 +1,14 @@
 import assert from 'node:assert/strict';
+import {mkdtempSync} from 'node:fs';
+import {tmpdir} from 'node:os';
+import path from 'node:path';
 import {test} from 'node:test';
 import {createDesktopHost} from './desktopHost.js';
 import {isSessionStreamEvent} from './sessionEvents.js';
 import {WorkspaceHub} from './WorkspaceHub.js';
 import {createUiPublisher} from './uiPublisher.js';
+import {projectHash} from './projectHash.js';
+import {loadClusterHomes, clusterHomesPath} from './clusterHomes.js';
 
 test('plan_build_submitted is a session-stream event for multi-task demux', () => {
 	assert.equal(isSessionStreamEvent('plan_build_submitted'), true);
@@ -435,10 +440,12 @@ test('cluster:open switches via wss like a remote server', async () => {
 	const host = createDesktopHost({
 		hub,
 		publisher,
-		...hostStub()
+		...hostStub(),
+		inspect: async () => PIN
 	});
 	const res = await host['cluster:open']({agentId: 'b'});
 	assert.equal(res.ok, true);
+	assert.equal(res.message, '没有主会话');
 	assert.equal(remotes[0]?.url, 'wss://127.0.0.1:1982/bridge');
 	assert.equal(remotes[0]?.authToken, 'tok-b');
 	assert.equal(remotes[0]?.fingerprint, PIN);
@@ -461,4 +468,230 @@ test('cluster:open refuses a card without wss', async () => {
 	});
 	assert.equal(res.ok, false);
 	assert.equal(res.message, '不可连接');
+});
+
+test('cluster:open attaches the main session even when meta has not listed it', async () => {
+	const starts: string[] = [];
+	const commands: Array<{type: string; sessionId?: string}> = [];
+	let live: {onEvent: (e: {type: string; hostHome?: string; name?: string; status?: string; message?: string}) => void} | undefined;
+	const home = mkdtempSync(path.join(tmpdir(), 'cluster-open-home-'));
+	const data = mkdtempSync(path.join(tmpdir(), 'cluster-open-data-'));
+	const hub = new WorkspaceHub({
+		homeDir: home,
+		createBridge: () =>
+			({
+				start(_cwd: string, handlers: typeof live, opts?: {remote?: {url?: string}}) {
+					live = handlers;
+					starts.push(opts?.remote?.url ?? 'local');
+					queueMicrotask(() => handlers?.onEvent({type: 'HelloOk', hostHome: '/home/kai'}));
+					return Promise.resolve();
+				},
+				send(cmd: {type: string; path?: string; sessionId?: string}) {
+					commands.push(cmd);
+					if (cmd.type === 'RegisterWorkspace' && cmd.path) {
+						const message = projectHash(cmd.path);
+						queueMicrotask(() =>
+							live?.onEvent({
+								type: 'command_result',
+								name: 'RegisterWorkspace',
+								status: 'accepted',
+								message
+							})
+						);
+					}
+					return true;
+				},
+				stop() {}
+			}) as never
+	});
+	hub.rememberClusterRoster([
+		{
+			id: 'b',
+			displayName: '小B',
+			endpoints: ['wss://127.0.0.1:1982/bridge'],
+			token: 'tok-b',
+			fingerprint: PIN,
+			mainSessionId: 'sess-b'
+		}
+	]);
+	const publisher = createUiPublisher({hub, send: () => {}});
+	const host = createDesktopHost({
+		hub,
+		publisher,
+		...hostStub(),
+		userData: () => data,
+		inspect: async () => PIN
+	});
+	const res = await host['cluster:open']({agentId: 'b'});
+	assert.equal(res.ok, true);
+	assert.equal(res.message, undefined);
+	const task = hub.getDefaultProject()?.sessions.listTasks().find(t => t.sessionId === 'sess-b');
+	assert.equal(task?.sessionType, 'main');
+	assert.equal(hub.getDefaultProject()?.sessions.getActiveTask()?.sessionId, 'sess-b');
+	await new Promise(r => setTimeout(r, 30));
+	assert.ok(commands.some(c => c.type === 'AttachSession' && c.sessionId === 'sess-b'));
+	assert.equal(loadClusterHomes(clusterHomesPath(data)).b?.sessionId, 'sess-b');
+	const again = await host['cluster:open']({
+		agentId: 'b',
+		endpoints: ['wss://127.0.0.1:1982/bridge'],
+		token: 'tok-b',
+		fingerprint: PIN,
+		mainSessionId: 'sess-b'
+	});
+	assert.equal(again.ok, true);
+	assert.equal(starts.length, 1);
+});
+
+test('cluster:open refuses a fingerprint that does not match and does not Hello', async () => {
+	let started = 0;
+	const hub = new WorkspaceHub({
+		createBridge: () =>
+			({
+				start() {
+					started += 1;
+					return Promise.resolve();
+				},
+				send: () => true,
+				stop() {}
+			}) as never
+	});
+	const publisher = createUiPublisher({hub, send: () => {}});
+	const host = createDesktopHost({
+		hub,
+		publisher,
+		...hostStub(),
+		inspect: async () => 'sha256:other'
+	});
+	const res = await host['cluster:open']({
+		agentId: 'b',
+		endpoints: ['wss://127.0.0.1:1982/bridge'],
+		token: 'tok-b',
+		fingerprint: PIN,
+		mainSessionId: 'sess-b'
+	});
+	assert.equal(res.ok, false);
+	assert.equal(res.message, '指纹不符');
+	assert.equal(started, 0);
+});
+
+test('cluster:open self switches back to local and drops the peer projects', async () => {
+	const starts: string[] = [];
+	const commands: Array<{type: string; sessionId?: string}> = [];
+	let live: {onEvent: (e: {type: string; hostHome?: string; name?: string; status?: string; message?: string; tenantId?: string; appId?: string; projects?: unknown[]; sessionsByProjectId?: Record<string, unknown>}) => void} | undefined;
+	const home = mkdtempSync(path.join(tmpdir(), 'cluster-self-home-'));
+	const data = mkdtempSync(path.join(tmpdir(), 'cluster-self-data-'));
+	const hub = new WorkspaceHub({
+		hostCwd: mkdtempSync(path.join(tmpdir(), 'cluster-self-cwd-')),
+		homeDir: home,
+		createBridge: () =>
+			({
+				start(_cwd: string, handlers: typeof live, opts?: {remote?: {url?: string}}) {
+					live = handlers;
+					starts.push(opts?.remote?.url ?? 'local');
+					queueMicrotask(() => handlers?.onEvent({type: 'HelloOk', hostHome: '/home/kai'}));
+					return Promise.resolve();
+				},
+				send(cmd: {type: string; path?: string; sessionId?: string}) {
+					commands.push(cmd);
+					if (cmd.type === 'RegisterWorkspace' && cmd.path) {
+						const message = projectHash(cmd.path);
+						queueMicrotask(() =>
+							live?.onEvent({
+								type: 'command_result',
+								name: 'RegisterWorkspace',
+								status: 'accepted',
+								message
+							})
+						);
+					}
+					return true;
+				},
+				stop() {}
+			}) as never
+	});
+	hub.rememberClusterRoster([
+		{
+			id: 'local',
+			displayName: '本机',
+			self: true,
+			mainSessionId: 'sess-a'
+		},
+		{
+			id: 'b',
+			displayName: '小B',
+			endpoints: ['wss://127.0.0.1:1982/bridge'],
+			token: 'tok-b',
+			fingerprint: PIN,
+			mainSessionId: 'sess-b'
+		}
+	]);
+	const publisher = createUiPublisher({hub, send: () => {}});
+	const host = createDesktopHost({
+		hub,
+		publisher,
+		...hostStub(),
+		userData: () => data,
+		inspect: async () => PIN
+	});
+	const remote = await host['cluster:open']({agentId: 'b'});
+	assert.equal(remote.ok, true);
+	assert.ok(starts.includes('wss://127.0.0.1:1982/bridge'));
+	live?.onEvent({
+		type: 'workspace_meta',
+		tenantId: 'b',
+		appId: 'default-app',
+		projects: [
+			{
+				id: 'proj-b',
+				projectType: 'general',
+				displayName: 'B Project',
+				status: 'active',
+				isDefault: true,
+				workspace: {
+					id: 'ws-b',
+					placement: 'local',
+					rootPath: '/home/kai/fast_workspace/.default_project',
+					pathHash: 'b-def'
+				}
+			}
+		],
+		sessionsByProjectId: {}
+	});
+	assert.equal(hub.getDefaultProject()?.metaProjectId, 'proj-b');
+	const back = await host['cluster:open']({
+		self: true,
+		agentId: 'local',
+		mainSessionId: 'sess-a'
+	});
+	assert.equal(back.ok, true);
+	assert.equal(hub.edgeSnapshot().activeId, 'local');
+	assert.ok(starts.includes('local'));
+	assert.notEqual(hub.getDefaultProject()?.metaProjectId, 'proj-b');
+	assert.equal(
+		hub.listAllProjects().some(p => p.displayName === 'B Project'),
+		false
+	);
+	await new Promise(r => setTimeout(r, 30));
+	assert.ok(commands.some(c => c.type === 'AttachSession' && c.sessionId === 'sess-a'));
+});
+
+test('cluster:probe marks a dead wss down and a missing main session separately', async () => {
+	const hub = new WorkspaceHub({
+		createBridge: () => ({start() {}, send: () => true, stop() {}} as never)
+	});
+	const publisher = createUiPublisher({hub, send: () => {}});
+	const host = createDesktopHost({
+		hub,
+		publisher,
+		...hostStub(),
+		inspect: async url => (url.includes('1982') ? PIN : null)
+	});
+	const probed = await host['cluster:probe']([
+		{id: 'down', endpoints: ['unix:///tmp/b.sock'], fingerprint: PIN, mainSessionId: 's'},
+		{id: 'bad', endpoints: ['wss://127.0.0.1:1982/bridge'], fingerprint: 'sha256:nope', mainSessionId: 's'},
+		{id: 'plain', endpoints: ['wss://127.0.0.1:1982/bridge'], fingerprint: PIN}
+	]);
+	assert.equal(probed.items.find(row => row.agentId === 'down')?.message, '不可连接');
+	assert.equal(probed.items.find(row => row.agentId === 'bad')?.message, '指纹不符');
+	assert.equal(probed.items.find(row => row.agentId === 'plain')?.reach, 'no-main');
 });

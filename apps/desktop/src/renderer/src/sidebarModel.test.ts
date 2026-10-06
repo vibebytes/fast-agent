@@ -74,6 +74,30 @@ test('togglePinProject', () => {
 	assert.deepEqual(ui.pinnedProjectPaths, []);
 });
 
+test('buildSidebarModel puts the main session first in Tasks without treating it as a user pin', () => {
+	const model = buildSidebarModel({
+		projects: [],
+		projectTasks: {},
+		defaultTasks: [
+			{id: 'd1', title: 'Later', sessionId: 'later', lastModified: '2026-10-05T00:00:00.000Z'},
+			{id: 'd0', title: '小B', sessionId: 'sess-b', sessionType: 'main', lastModified: '2026-10-04T00:00:00.000Z'},
+			{id: 'd2', title: 'Home', sessionId: 'sess-home', lastModified: '2026-02-01T00:00:00.000Z'}
+		],
+		defaultProjectPath: '__default__',
+		ui: emptyUi(),
+		activeTaskId: null,
+		homeSessionIds: ['sess-home']
+	});
+	assert.deepEqual(
+		model.defaultTasks.map(row => row.task.id),
+		['d0', 'd2', 'd1']
+	);
+	assert.equal(model.defaultTasks[0]?.main, true);
+	assert.equal(model.defaultTasks[1]?.main, true);
+	assert.equal(model.defaultTasks[0]?.pinned, false);
+	assert.equal(model.defaultTasks[2]?.main, false);
+});
+
 test('buildSidebarModel hides automation sessions from the chat tree', () => {
 	const model = buildSidebarModel({
 		projects: [{id: 'p1', path: '/proj', status: 'ready', active: true}],

@@ -62,6 +62,7 @@ import {createEngine, type WorkspaceEngine} from './workspace/engine.js';
 import {createProjects, type WorkspaceProjects} from './workspace/projects.js';
 import {createDemux, type WorkspaceDemux} from './workspace/demux.js';
 import {pickerEngineIds} from './workspace/enginePickerIds.js';
+import {pinLocalSelf, rememberLocalId} from './clusterSelf.js';
 
 type RosterItem = Extract<BridgeEvent, {type: 'roster_changed'}>['items'][number];
 
@@ -185,6 +186,8 @@ export class WorkspaceHub {
 	private lastReady: Extract<BridgeEvent, {type: 'ready'}> | null = null;
 	private lastClusterRoster: RosterItem[] = [];
 	private lastClusterStatus: ClusterStatusPayload | null = null;
+	/** Desktop's local individual — not the self flag of the currently connected engine. */
+	private localAgentId?: string;
 	private engineHandlers: WorkspaceProjectHandlers | null = null;
 	/** In-flight ListProviders → Composer catalog so ready / restore / model:list share one wait. */
 	private composerCatalogSync: Promise<void> | null = null;
@@ -371,6 +374,18 @@ export class WorkspaceHub {
 
 	async switchEdge(target: SwitchEdgeTarget, handlers: WorkspaceProjectHandlers): Promise<void> {
 		return this.engine.switchEdge(target, handlers);
+	}
+
+	openMainSession(
+		sessionId: string,
+		title: string,
+		handlers?: WorkspaceProjectHandlers
+	):
+		| {ok: true; taskId: string; title: string; sessionId: string; projectId: string}
+		| {ok: false; notice: string} {
+		const live = handlers ?? this.engineHandlers;
+		if (!live) return {ok: false, notice: 'Engine not ready'};
+		return this.projectOps.openMainSession(sessionId, title, live);
 	}
 
 	async openRemoteProject(serverPath: string, handlers: WorkspaceProjectHandlers): Promise<ProjectSnapshot> {
@@ -605,7 +620,14 @@ export class WorkspaceHub {
 	}
 
 	rememberClusterRoster(items: RosterItem[]): void {
-		this.lastClusterRoster = items;
+		if (this.edgeSnapshot().activeId === LOCAL_EDGE_ID) {
+			this.localAgentId = rememberLocalId(items, this.localAgentId);
+		}
+		this.lastClusterRoster = pinLocalSelf(items, this.localAgentId);
+	}
+
+	rosterSnapshot(): RosterItem[] {
+		return this.lastClusterRoster;
 	}
 
 	/** 引擎掉线/重启后清空缓存的集群状态，跨引擎不残留旧群成员。 */

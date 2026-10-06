@@ -130,3 +130,20 @@ test('turn_started accepts optional supersedes provenance', () => {
 		assert.equal(event.supersedesFailed, true);
 	}
 });
+
+test('turn_started accepts cluster_agent origin snapshot', () => {
+	const event = bridgeEventSchema.parse({
+		type: 'turn_started',
+		turnId: 'run-1',
+		text: 'hello',
+		origin: 'cluster_agent',
+		fromAgentId: 'peer-a',
+		displayName: '小A'
+	});
+	assert.equal(event.type, 'turn_started');
+	if (event.type === 'turn_started') {
+		assert.equal(event.origin, 'cluster_agent');
+		assert.equal(event.fromAgentId, 'peer-a');
+		assert.equal(event.displayName, '小A');
+	}
+});

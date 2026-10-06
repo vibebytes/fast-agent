@@ -132,12 +132,26 @@ export function EntryBubble({
   };
 
   if (entry.role === 'user') {
+    const foreign = entry.origin === 'cluster_agent';
+    const fromName = entry.displayName?.trim() || entry.fromAgentId?.trim();
     return (
       <Pressable
         onLongPress={() => handleCopy()}
-        className="max-w-[85%] self-end rounded-[20px] border border-black/[0.04] bg-accent px-4 py-2.5 dark:border-white/[0.08] dark:border-t-white/[0.18] active:opacity-90"
+        className={
+          foreign
+            ? 'max-w-[85%] self-start rounded-[20px] border border-black/[0.04] bg-surface-secondary px-4 py-2.5 dark:border-white/8 active:opacity-90'
+            : 'max-w-[85%] self-end rounded-[20px] border border-black/[0.04] bg-accent px-4 py-2.5 dark:border-white/[0.08] dark:border-t-white/[0.18] active:opacity-90'
+        }
       >
-        <Text className="text-[15px] leading-6 text-accent-foreground" selectable>
+        {foreign && fromName ? (
+          <Text className="mb-1 text-[10px] font-medium uppercase tracking-wide text-muted">
+            {`来自 ${fromName}`}
+          </Text>
+        ) : null}
+        <Text
+          className={`text-[15px] leading-6 ${foreign ? 'text-foreground' : 'text-accent-foreground'}`}
+          selectable
+        >
           {entry.text}
         </Text>
       </Pressable>
