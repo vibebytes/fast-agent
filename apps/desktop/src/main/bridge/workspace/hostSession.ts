@@ -195,6 +195,16 @@ export function hostSession(input: {
 				publisher.publishFocusChange();
 				return {ok: true as const};
 			}
+			const target =
+				resolved.project.sessions
+					.listTasks()
+					.find(t => t.id === resolved.taskId) ??
+				resolved.project.sessions
+					.listChats()
+					.find(t => t.id === resolved.taskId);
+			if (target?.sessionType === 'main') {
+				return {ok: false as const, notice: 'Main session cannot be deleted'};
+			}
 			const sessions: TaskCommands = resolved.project.sessions;
 			const result = await sessions.deleteTask(resolved.taskId);
 			publisher.publishWorkspace();

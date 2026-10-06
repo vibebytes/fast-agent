@@ -80,12 +80,14 @@ function TaskHoverActions({
 	projectPath,
 	task,
 	pinned,
+	main = false,
 	actions
 }: {
 	project: ProjectSnapshot;
 	projectPath: string;
 	task: TaskSummary;
 	pinned: boolean;
+	main?: boolean;
 	actions: RowActions;
 }) {
 	return (
@@ -114,25 +116,27 @@ function TaskHoverActions({
 				</TooltipTrigger>
 				<TooltipContent side="top">{pinned ? t('shell.sidebar.unpinTask') : t('shell.sidebar.pinTask')}</TooltipContent>
 			</Tooltip>
-			<Tooltip>
-				<TooltipTrigger asChild>
-					<Button
-						type="button"
-						variant="ghost"
-						size="icon"
-						className="size-6"
-						disabled={!task.sessionId}
-						aria-label={t('shell.sidebar.archiveTask')}
-						onClick={e => {
-							e.stopPropagation();
-							actions.requestArchiveTask(project, task);
-						}}
-					>
-						<Archive className="size-3.5" />
-					</Button>
-				</TooltipTrigger>
-				<TooltipContent side="top">{t('shell.sidebar.archiveTask')}</TooltipContent>
-			</Tooltip>
+			{main ? null : (
+				<Tooltip>
+					<TooltipTrigger asChild>
+						<Button
+							type="button"
+							variant="ghost"
+							size="icon"
+							className="size-6"
+							disabled={!task.sessionId}
+							aria-label={t('shell.sidebar.archiveTask')}
+							onClick={e => {
+								e.stopPropagation();
+								actions.requestArchiveTask(project, task);
+							}}
+						>
+							<Archive className="size-3.5" />
+						</Button>
+					</TooltipTrigger>
+					<TooltipContent side="top">{t('shell.sidebar.archiveTask')}</TooltipContent>
+				</Tooltip>
+			)}
 		</div>
 	);
 }
@@ -177,12 +181,17 @@ export const FlatTaskRow = memo(function FlatTaskRow({
 						projectPath={row.projectPath}
 						task={task}
 						pinned={pinned}
+						main={row.main}
 						actions={actions}
 					/>
 				</SidebarMenuItem>
 			</ContextMenuTrigger>
 			<ContextMenuContent className="w-52">
-				<TaskMenuItems menu={contextChrome} {...taskMenuPropsOf(actions, project, task, pinned)} />
+				<TaskMenuItems
+					menu={contextChrome}
+					main={row.main}
+					{...taskMenuPropsOf(actions, project, task, pinned)}
+				/>
 			</ContextMenuContent>
 		</ContextMenu>
 	);
@@ -224,13 +233,18 @@ export const TreeTaskRow = memo(function TreeTaskRow({
 							projectPath={row.projectPath}
 							task={task}
 							pinned={pinned}
+							main={row.main}
 							actions={actions}
 						/>
 					</div>
 				</li>
 			</ContextMenuTrigger>
 			<ContextMenuContent className="w-52">
-				<TaskMenuItems menu={contextChrome} {...taskMenuPropsOf(actions, project, task, pinned)} />
+				<TaskMenuItems
+					menu={contextChrome}
+					main={row.main}
+					{...taskMenuPropsOf(actions, project, task, pinned)}
+				/>
 			</ContextMenuContent>
 		</ContextMenu>
 	);
@@ -274,6 +288,7 @@ export const DefaultTaskRow = memo(
 						menu={contextChrome}
 						canMutate={canMutate}
 						pinned={pinned}
+						main={main}
 						onOpen={() => actions.openTask(task.id)}
 						onRename={() => actions.renameTask(defaultProject, task)}
 						onShowInFolder={() => void window.fastIde.showTaskProjectInFolder(task.id)}

@@ -47,6 +47,8 @@ type TaskEntry = {
 	projectName: string | null;
 	sessionId: string | null;
 	kind: 'task' | 'chat';
+	/** Fixed main session — archive/delete are disabled. */
+	main: boolean;
 };
 
 function isMacPlatform(): boolean {
@@ -92,7 +94,8 @@ export function CommandPalette({
 					projectPath: project.path,
 					projectName: project.displayName?.trim() || basename(project.path),
 					sessionId: task.sessionId ?? null,
-					kind: 'task'
+					kind: 'task',
+					main: task.sessionType === 'main'
 				});
 			}
 		}
@@ -104,7 +107,8 @@ export function CommandPalette({
 				projectPath: null,
 				projectName: null,
 				sessionId: chat.sessionId ?? null,
-				kind: 'chat'
+				kind: 'chat',
+				main: chat.sessionType === 'main'
 			});
 		}
 		return list;
@@ -181,8 +185,9 @@ export function CommandPalette({
 		close();
 	}
 
-	const canArchiveOrPin = Boolean(activeEntry()?.projectPath && activeEntry()?.sessionId);
-	const canDelete = Boolean(activeEntry());
+	const canTogglePin = Boolean(activeEntry()?.projectPath && activeEntry()?.sessionId);
+	const canArchive = canTogglePin && !activeEntry()?.main;
+	const canDelete = Boolean(activeEntry()) && !activeEntry()?.main;
 
 	return (
 		<CommandDialog
@@ -297,7 +302,7 @@ export function CommandPalette({
 					</CommandItem>
 					<CommandItem
 						value="archive task"
-						disabled={!canArchiveOrPin}
+						disabled={!canArchive}
 						onSelect={runArchiveActive}
 					>
 						<Archive />
@@ -317,7 +322,7 @@ export function CommandPalette({
 					</CommandItem>
 					<CommandItem
 						value="toggle pin"
-						disabled={!canArchiveOrPin}
+						disabled={!canTogglePin}
 						onSelect={runTogglePinActive}
 					>
 						<Pin />

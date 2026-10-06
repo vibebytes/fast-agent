@@ -433,6 +433,7 @@ function ProjectsSidebarImpl({
 										<ContextMenuContent className="w-52">
 											<TaskMenuItems
 												menu={contextChrome}
+												main={task.sessionType === 'main'}
 												{...taskMenuPropsOf(
 													actions,
 													project,

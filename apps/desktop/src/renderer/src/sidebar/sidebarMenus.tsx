@@ -105,6 +105,7 @@ export function TaskMenuItems({
 	menu,
 	canMutate,
 	pinned,
+	main = false,
 	onOpen,
 	onRename,
 	onShowInFolder,
@@ -115,6 +116,8 @@ export function TaskMenuItems({
 	menu: MenuChrome;
 	canMutate: boolean;
 	pinned: boolean;
+	/** Fixed main session — archive/delete would be destructive and are hidden. */
+	main?: boolean;
 	onOpen: () => void;
 	onRename: () => void;
 	onShowInFolder: () => void;
@@ -142,15 +145,19 @@ export function TaskMenuItems({
 				<Pin className="size-4" />
 				{pinned ? t('shell.sidebarMenu.unpin') : t('shell.sidebarMenu.pin')}
 			</Item>
-			<Separator />
-			<Item disabled={!canMutate} onSelect={onArchive}>
-				<Archive className="size-4" />
-				{t('shell.sidebarMenu.archive')}
-			</Item>
-			<Item variant="destructive" onSelect={onDelete}>
-				<Trash2 className="size-4" />
-				{t('shell.sidebarMenu.delete')}
-			</Item>
+			{main ? null : (
+				<>
+					<Separator />
+					<Item disabled={!canMutate} onSelect={onArchive}>
+						<Archive className="size-4" />
+						{t('shell.sidebarMenu.archive')}
+					</Item>
+					<Item variant="destructive" onSelect={onDelete}>
+						<Trash2 className="size-4" />
+						{t('shell.sidebarMenu.delete')}
+					</Item>
+				</>
+			)}
 		</>
 	);
 }
