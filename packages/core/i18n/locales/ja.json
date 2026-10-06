@@ -1073,7 +1073,14 @@
       "cancelled": "cancelled",
       "success": "success",
       "copyCommand": "Copy command",
-      "copyOutput": "Copy output"
+      "copyOutput": "Copy output",
+      "procRunning": "バックグラウンド実行中",
+      "procExited": "完了",
+      "procKilled": "強制終了",
+      "copyProcId": "プロセスIDをコピー",
+      "copyLogPath": "ログパスをコピー",
+      "showOutput": "出力を表示",
+      "hideOutput": "出力を隠す"
     },
     "planCard": {
       "completed": "completed",

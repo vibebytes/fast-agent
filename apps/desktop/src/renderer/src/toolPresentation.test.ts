@@ -7,9 +7,11 @@ import {
 	extractErrorDiagnostic,
 	isSkillView,
 	isSubagentTool,
+	parseShellEnvelope,
 	parseSkillEnvelope,
 	parseSubagentPayload,
 	shouldHideToolItem,
+	shortProcLogPath,
 	skillViewBody,
 	skillViewName
 } from './toolPresentation.js';
@@ -77,6 +79,62 @@ test('raw cached shell envelope is unwrapped again at the renderer seam', () => 
 			'modules/runtime/storage/postgres/src/B.scala:9:object B'
 		].join('\n')
 	);
+});
+
+test('parseShellEnvelope detects background / empty-preview shell envelopes', () => {
+	const background = JSON.stringify({
+		status: 'running',
+		outputPreview: '',
+		outFile: '/tmp/.fast/artifacts/terminal/da49f714.log',
+		procId: '01a110fe-1621-7bb9-81b9-12b3502fc8fd',
+		exitCode: null,
+		reason: 'explicit_background'
+	});
+	const parsed = parseShellEnvelope(background);
+	assert.ok(parsed);
+	assert.equal(parsed?.status, 'running');
+	assert.equal(parsed?.procId, '01a110fe-1621-7bb9-81b9-12b3502fc8fd');
+	assert.equal(parsed?.outFile, '/tmp/.fast/artifacts/terminal/da49f714.log');
+	assert.equal(parsed?.reason, 'explicit_background');
+	assert.equal(parsed?.exitCode, undefined);
+	assert.equal(parsed?.outputPreview, undefined);
+
+	const exitedNoPreview = '{"status":"exited","outputPreview":"","outFile":"/tmp/x.log","exitCode":7}';
+	const exited = parseShellEnvelope(exitedNoPreview);
+	assert.ok(exited);
+	assert.equal(exited?.exitCode, 7);
+	assert.equal(exited?.outputPreview, undefined);
+});
+
+test('parseShellEnvelope tolerates killed envelopes and streaming truncation', () => {
+	const killed = parseShellEnvelope('{"status":"killed","procId":"proc-9","reason":"user_request"}');
+	assert.ok(killed);
+	assert.equal(killed?.procId, 'proc-9');
+	assert.equal(killed?.outFile, undefined);
+
+	const truncated = parseShellEnvelope('{"status":"running","procId":"abc-123"');
+	assert.ok(truncated);
+	assert.equal(truncated?.procId, 'abc-123');
+});
+
+test('parseShellEnvelope rejects non-envelope payloads', () => {
+	assert.equal(parseShellEnvelope('{"status":"ok"}'), null);
+	assert.equal(parseShellEnvelope('[]'), null);
+	assert.equal(parseShellEnvelope('plain output\nline2'), null);
+	assert.equal(parseShellEnvelope(null), null);
+	assert.equal(parseShellEnvelope(undefined), null);
+
+	const genericJson = JSON.stringify({status: 'ok', result: 'saved to db'});
+	assert.equal(parseShellEnvelope(genericJson), null);
+});
+
+test('shortProcLogPath keeps the two tail path segments', () => {
+	assert.equal(
+		shortProcLogPath('/Users/kai/.fast/artifacts/terminal/da49f714-8923.log'),
+		'…/terminal/da49f714-8923.log'
+	);
+	assert.equal(shortProcLogPath('relative.log'), 'relative.log');
+	assert.equal(shortProcLogPath('/only-root/'), '/only-root/');
 });
 
 test('renderer recovers an envelope whose escaped preview newlines were already expanded', () => {

@@ -1073,7 +1073,14 @@
       "cancelled": "cancelled",
       "success": "success",
       "copyCommand": "Copy command",
-      "copyOutput": "Copy output"
+      "copyOutput": "Copy output",
+      "procRunning": "Läuft im Hintergrund",
+      "procExited": "Beendet",
+      "procKilled": "Abgebrochen",
+      "copyProcId": "Prozess-ID kopieren",
+      "copyLogPath": "Log-Pfad kopieren",
+      "showOutput": "Ausgabe anzeigen",
+      "hideOutput": "Ausgabe ausblenden"
     },
     "planCard": {
       "completed": "completed",

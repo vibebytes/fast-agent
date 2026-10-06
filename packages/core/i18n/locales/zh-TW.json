@@ -1073,7 +1073,14 @@
       "cancelled": "cancelled",
       "success": "success",
       "copyCommand": "Copy command",
-      "copyOutput": "Copy output"
+      "copyOutput": "Copy output",
+      "procRunning": "背景執行中",
+      "procExited": "已結束",
+      "procKilled": "已終止",
+      "copyProcId": "複製程序 ID",
+      "copyLogPath": "複製日誌路徑",
+      "showOutput": "展開輸出",
+      "hideOutput": "收起輸出"
     },
     "planCard": {
       "completed": "completed",

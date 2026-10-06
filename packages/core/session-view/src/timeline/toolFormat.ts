@@ -33,6 +33,27 @@ export function isSearchTool(tool: string): boolean {
 
 export function formatToolArgs(tool: string, args?: Record<string, string>): string | null {
 	if (!args) return null;
+	const lowerTool = tool.toLowerCase();
+	if (lowerTool === 'shell_wait' || lowerTool === 'shell_kill') {
+		const procId = args.procId || args.proc_id;
+		const shortId = procId ? (procId.length > 8 ? procId.slice(0, 8) : procId) : null;
+		const parts: string[] = [];
+		if (shortId) parts.push(`id: ${shortId}`);
+		const timeout = args.timeout_ms || args.timeoutMs;
+		if (timeout && timeout !== '0') {
+			const ms = Number(timeout);
+			if (!Number.isNaN(ms) && ms > 0) {
+				const secs = ms >= 1000 ? `${Math.round(ms / 1000)}s` : `${ms}ms`;
+				parts.push(`timeout: ${secs}`);
+			}
+		}
+		const tail = args.tail_lines || args.tailLines;
+		if (tail) parts.push(`tail: ${tail}`);
+		return parts.length > 0 ? parts.join(' · ') : null;
+	}
+	if (lowerTool === 'shell_list') {
+		return args.status ? `status: ${args.status}` : null;
+	}
 	if (/shell|bash|terminal|command/i.test(tool) && args.command) return `$ ${args.command}`;
 	// Search: title carries the needle; summary is only the scope path.
 	if (isSearchTool(tool)) {

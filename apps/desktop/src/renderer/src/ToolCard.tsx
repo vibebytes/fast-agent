@@ -3,7 +3,7 @@ import {useEffect, useState, type ReactNode} from 'react';
 import {WindowFrame} from '@fast-ide/ui/components/window-frame';
 import {cn} from '@fast-ide/ui/lib/utils';
 import type {TimelineItem} from '@fast-ide/session-view';
-import {Boxes, Check, Copy, FileText, LoaderCircle, X} from 'lucide-react';
+import {Boxes, Check, ChevronDown, Copy, FileText, LoaderCircle, X} from 'lucide-react';
 import {highlightCode} from './highlightCode';
 import {
 	extractImagePath,
@@ -16,9 +16,12 @@ import {
 	extractErrorDiagnostic,
 	isSkillView,
 	isSubagentTool,
+	parseShellEnvelope,
 	parseSkillEnvelope,
 	parseSubagentPayload,
-	skillViewName
+	shortProcLogPath,
+	skillViewName,
+	type ShellEnvelopeMeta
 } from './toolPresentation';
 
 type ToolItem = Extract<TimelineItem, {kind: 'tool'}>;
@@ -177,6 +180,128 @@ function ToolOutput({output}: {output: string}) {
 				</span>
 			))}
 		</pre>
+	);
+}
+
+function MonoChip({
+	value,
+	title,
+	className,
+	children
+}: {
+	value: string;
+	title: string;
+	className?: string;
+	children: ReactNode;
+}) {
+	const [copied, setCopied] = useState(false);
+	return (
+		<button
+			type="button"
+			onClick={e => {
+				e.stopPropagation();
+				void navigator.clipboard.writeText(value);
+				setCopied(true);
+				setTimeout(() => setCopied(false), 1500);
+			}}
+			title={title}
+			aria-label={title}
+			className={cn(
+				'inline-flex min-w-0 max-w-[18rem] cursor-pointer items-center gap-1 rounded border border-border/40 bg-muted/20 px-1.5 py-px font-mono text-[11px] leading-4 text-muted-foreground transition-colors hover:border-border hover:bg-muted/40 hover:text-foreground',
+				copied && 'text-emerald-600 dark:text-emerald-400',
+				className
+			)}
+		>
+			{copied ? <Check className="size-3 shrink-0" strokeWidth={2.5} /> : null}
+			{children}
+		</button>
+	);
+}
+
+/**
+ * Lean ribbon replacing raw ShellEnvelope JSON dumps (background `shell` starts,
+ * `shell_wait` results with no preview): one status row — dot · state · procId
+ * chip · log chip · exit — plus an on-demand preview fold. Never taller than the
+ * JSON blob it replaces while collapsed.
+ */
+function ProcEnvelopeView({env}: {env: ShellEnvelopeMeta}) {
+	const [open, setOpen] = useState(false);
+	const running = env.status === 'running';
+	const killed = env.status === 'killed';
+	const failed = env.exitCode != null && env.exitCode !== 0;
+	const preview = (env.outputPreview ?? '').replace(/\n$/, '');
+	const shortId = env.procId ? (env.procId.length > 8 ? env.procId.slice(0, 8) : env.procId) : null;
+
+	const statusLabel = running
+		? t('shell.toolCard.procRunning')
+		: killed
+			? t('shell.toolCard.procKilled')
+			: env.status === 'exited' || env.exitCode != null
+				? t('shell.toolCard.procExited')
+				: env.status;
+
+	return (
+		<div className="px-3 py-2">
+			<div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-[11px] leading-4 text-muted-foreground">
+				<span
+					className="inline-flex shrink-0 items-center gap-1.5 font-medium"
+					title={env.reason ?? undefined}
+				>
+					<span
+						aria-hidden
+						className={cn(
+							'size-1.5 rounded-full',
+							running && 'animate-pulse bg-primary',
+							!running && (failed ? 'bg-red-500' : killed ? 'bg-muted-foreground/50' : 'bg-emerald-500')
+						)}
+					/>
+					{statusLabel}
+				</span>
+				{shortId ? (
+					<MonoChip value={env.procId!} title={t('shell.toolCard.copyProcId')}>
+						<span className="truncate">#{shortId}</span>
+					</MonoChip>
+				) : null}
+				{env.outFile ? (
+					<MonoChip value={env.outFile} title={t('shell.toolCard.copyLogPath')}>
+						<FileText className="size-3 shrink-0 text-muted-foreground/60" aria-hidden />
+						<span className="truncate">{shortProcLogPath(env.outFile)}</span>
+					</MonoChip>
+				) : null}
+				{failed ? (
+					<span className="shrink-0 font-mono tabular-nums text-red-600 dark:text-red-400">
+						exit {env.exitCode}
+					</span>
+				) : null}
+				{preview ? (
+					<button
+						type="button"
+						onClick={e => {
+							e.stopPropagation();
+							setOpen(v => !v);
+						}}
+						aria-label={open ? t('shell.toolCard.hideOutput') : t('shell.toolCard.showOutput')}
+						aria-expanded={open}
+						title={open ? t('shell.toolCard.hideOutput') : t('shell.toolCard.showOutput')}
+						className="ml-auto inline-flex size-5 shrink-0 cursor-pointer items-center justify-center rounded text-muted-foreground/70 transition-colors hover:bg-muted/40 hover:text-foreground"
+					>
+						<ChevronDown className={cn('size-3.5 transition-transform', open && 'rotate-180')} />
+					</button>
+				) : null}
+			</div>
+			{open && preview ? (
+				<pre
+					data-scrollable
+					className="mt-1.5 max-h-44 overflow-auto border-t border-border/40 pt-1.5 font-mono text-[11px] leading-4 text-muted-foreground whitespace-pre-wrap break-all"
+				>
+					{preview.split('\n').map((line, i) => (
+						<span key={i} className="block">
+							{tintOutputLine(line.length === 0 ? ' ' : line)}
+						</span>
+					))}
+				</pre>
+			) : null}
+		</div>
 	);
 }
 
@@ -379,6 +504,7 @@ export function ToolCard({item}: {item: ToolItem}) {
 	if (isSubagentTool(item.tool)) return <SubagentCard item={item} />;
 
 	const output = displayToolOutput(item.output);
+	const shellEnv = parseShellEnvelope(output);
 	const displayItem = output === (item.output ?? '') ? item : {...item, output};
 	const imagePath =
 		extractImagePath(output) ??
@@ -392,7 +518,14 @@ export function ToolCard({item}: {item: ToolItem}) {
 	const collapsible = isAgentOp || thresholdFold || item.status === 'success' || item.status === 'error';
 	const defaultOpen = isAgentOp ? false : item.status === 'running';
 
-	const errorDiagnostic = item.status === 'error' ? extractErrorDiagnostic(output || item.summary) : null;
+	// Envelope cards (no preview text) would otherwise surface their JSON blob as
+	// the "diagnostic" — show the preview line instead, or nothing.
+	const errorDiagnostic =
+		item.status !== 'error'
+			? null
+			: shellEnv
+				? (shellEnv.outputPreview?.split('\n').find(l => l.trim())?.slice(0, 120) ?? null)
+				: extractErrorDiagnostic(output || item.summary);
 	const titleNode = errorDiagnostic ? (
 		<span className="flex min-w-0 max-w-full items-baseline gap-2 truncate">
 			<span className="truncate">{item.title}</span>
@@ -421,7 +554,9 @@ export function ToolCard({item}: {item: ToolItem}) {
 					<ProjectImage src={imagePath} alt={item.title} className="my-0" />
 				</div>
 			) : null}
-			{output ? (
+			{shellEnv ? (
+				<ProcEnvelopeView env={shellEnv} />
+			) : output ? (
 				<ToolOutput output={output} />
 			) : item.summary && !item.command ? (
 				<pre

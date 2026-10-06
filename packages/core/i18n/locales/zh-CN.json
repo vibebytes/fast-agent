@@ -1103,7 +1103,14 @@
       "cancelled": "已取消",
       "success": "成功",
       "copyCommand": "复制命令",
-      "copyOutput": "复制输出"
+      "copyOutput": "复制输出",
+      "procRunning": "后台运行中",
+      "procExited": "已退出",
+      "procKilled": "已终止",
+      "copyProcId": "复制进程 ID",
+      "copyLogPath": "复制日志路径",
+      "showOutput": "展开输出",
+      "hideOutput": "收起输出"
     },
     "planCard": {
       "completed": "已完成",

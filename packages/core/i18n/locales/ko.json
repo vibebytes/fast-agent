@@ -1073,7 +1073,14 @@
       "cancelled": "cancelled",
       "success": "success",
       "copyCommand": "Copy command",
-      "copyOutput": "Copy output"
+      "copyOutput": "Copy output",
+      "procRunning": "백그라운드 실행 중",
+      "procExited": "완료",
+      "procKilled": "강제 종료됨",
+      "copyProcId": "프로세스 ID 복사",
+      "copyLogPath": "로그 경로 복사",
+      "showOutput": "출력 펼치기",
+      "hideOutput": "출력 접기"
     },
     "planCard": {
       "completed": "completed",

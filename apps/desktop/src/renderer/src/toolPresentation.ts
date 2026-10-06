@@ -208,3 +208,84 @@ export function extractErrorDiagnostic(output: string | null | undefined): strin
 export function displayToolOutput(output: string | null): string {
 	return normalizeToolOutput(output);
 }
+
+export type ShellEnvelopeMeta = {
+	status: string;
+	reason?: string;
+	procId?: string;
+	exitCode?: number;
+	outFile?: string;
+	outputPreview?: string;
+};
+
+function envelopeString(parsed: Record<string, unknown>, keys: string[]): string | undefined {
+	for (const key of keys) {
+		const value = parsed[key];
+		if (typeof value === 'string' && value.trim()) return value;
+	}
+	return undefined;
+}
+
+function envelopeNumber(parsed: Record<string, unknown>, keys: string[]): number | undefined {
+	for (const key of keys) {
+		const value = parsed[key];
+		if (typeof value === 'number' && Number.isFinite(value)) return value;
+		if (typeof value === 'string' && value.trim() !== '' && Number.isFinite(Number(value))) {
+			return Number(value);
+		}
+	}
+	return undefined;
+}
+
+/**
+ * ShellEnvelope JSON (`{status, procId, outFile, outputPreview, exitCode, reason}`)
+ * that survived output normalization because `outputPreview` was empty — exactly
+ * the payloads a plain text view would otherwise dump as raw JSON. Non-envelope
+ * JSON (arbitrary tool results, arrays) returns null and renders as before.
+ */
+export function parseShellEnvelope(output: string | null | undefined): ShellEnvelopeMeta | null {
+	const trimmed = output?.trim();
+	// Streamed envelopes may arrive clipped mid-string — completion candidates below
+	// close the missing quote/brace, so only the leading `{` is required here.
+	if (!trimmed || !trimmed.startsWith('{')) return null;
+
+	let parsed: Record<string, unknown> | null = null;
+	const candidates = [trimmed, `${trimmed}"}`, `${trimmed}"`, `${trimmed}}`];
+	for (const candidate of candidates) {
+		try {
+			const value: unknown = JSON.parse(candidate);
+			if (value && typeof value === 'object' && !Array.isArray(value)) {
+				parsed = value as Record<string, unknown>;
+				break;
+			}
+		} catch {
+			// try the next completion candidate
+		}
+	}
+	if (!parsed) return null;
+
+	const status = envelopeString(parsed, ['status']);
+	const procId = envelopeString(parsed, ['procId', 'proc_id']);
+	const outFile = envelopeString(parsed, ['outFile', 'out_file']);
+	const outputPreview = envelopeString(parsed, ['outputPreview', 'output_preview']);
+	const reason = envelopeString(parsed, ['reason']);
+	const exitCode = envelopeNumber(parsed, ['exitCode', 'exit', 'exit_code']);
+
+	if (!status || (!procId && !outFile && !('outputPreview' in parsed))) return null;
+
+	return {
+		status,
+		...(reason ? {reason} : {}),
+		...(procId ? {procId} : {}),
+		...(exitCode !== undefined ? {exitCode} : {}),
+		...(outFile ? {outFile} : {}),
+		...(outputPreview ? {outputPreview} : {})
+	};
+}
+
+/** Tail-segment log path for the ribbon chip: `…/terminal/<uuid>.log`. */
+export function shortProcLogPath(path: string): string {
+	const segments = path.split('/').filter(Boolean);
+	if (segments.length <= 1) return path;
+	return `…/${segments.slice(-2).join('/')}`;
+}
