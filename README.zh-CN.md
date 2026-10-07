@@ -1,377 +1,198 @@
 <div align="center">
-  <img src="docs/hero.png?v=5" alt="Fast Agent — 企业级自学习 AI Agent，coding 是一等公民" width="100%">
+  <img src="docs/hero.png?v=5" alt="Fast Agent — 开源版 Muse 与 Grok，集成多智能体集群工程团队" width="100%">
+  <h1>Fast Agent</h1>
+  <p><strong>开源版 Muse / Grok 随身助理，更是你随时调遣的百人级多智能体编程与自动化工程团队。</strong></p>
+
+  <p>
+    <a href="https://github.com/kai2002/fast-agent/releases"><img alt="Release" src="https://img.shields.io/badge/release-v0.3.1-blue"></a>
+    <a href="LICENSE"><img alt="License" src="https://img.shields.io/badge/license-Apache%202.0-brightgreen"></a>
+    <img alt="Platforms" src="https://img.shields.io/badge/platforms-macOS%20%7C%20Linux%20%7C%20Windows%20%7C%20Android%20%7C%20iOS-informational">
+    <a href="https://discord.gg/HXeK9QV57"><img alt="Discord" src="https://img.shields.io/badge/Discord-5865F2?logo=discord&logoColor=white"></a>
+  </p>
+
+  <p>
+    <a href="README.md">English</a> | <a href="README.zh-CN.md">简体中文</a>
+  </p>
 </div>
 
-<p align="center">
-  <strong>企业级自学习 AI Agent，coding 是一等公民。</strong>
-</p>
+---
 
-<p align="center">
-  <img alt="Release" src="https://img.shields.io/badge/release-v0.3.1-blue">
-  <a href="LICENSE"><img alt="License" src="https://img.shields.io/badge/license-Apache%202.0-brightgreen"></a>
-  <img alt="Platforms" src="https://img.shields.io/badge/platforms-macOS%20%7C%20Linux%20%7C%20Windows%20%7C%20Android%20%7C%20iOS-informational">
-  <a href="https://discord.gg/HXeK9QV57"><img alt="Discord" src="https://img.shields.io/badge/Discord-5865F2?logo=discord&logoColor=white"></a>
-</p>
-
-<p align="center"><a href="README.md">English</a> | <a href="README.zh-CN.md">中文</a></p>
-
-<p align="center">
-  <a href="#1-下载与安装">1. 下载</a> ·
-  <a href="#11-直接下载">1.1 安装包</a> ·
-  <a href="#12-怎么使用移动客户端实验性高频开发中">1.2 移动客户端</a> ·
-  <a href="#13-通过源码安装">1.3 源码</a> ·
-  <a href="#14-其他引擎dsh">1.4 其他引擎</a> ·
-  <a href="#2-开发">2. 开发</a> ·
-  <a href="#21-快速开始">2.1 快速开始</a> ·
-  <a href="#3-截图">3. 截图</a> ·
-  <a href="#4-社区">4. 社区</a> ·
-  <a href="CONTRIBUTING.md">Contributing</a> ·
-  <a href="SECURITY.md">Security</a> ·
-  <a href="#5-许可证">5. 许可证</a>
-</p>
-
-Fast Agent 的目标是成为企业级、自学习的 AI Agent，并把 coding 作为一等公民。
-
-- **企业级** – 提供可审查、可管理、可观测的能力，覆盖代码审查、回滚与追踪。
-- **自学习** – 持续从项目经验中学习，下一任务优于上一任务。
-- **Coding 优先** – 直接改代码、跑代码、落地代码，而不只是谈论代码。
-- **集群与远程** – 支持多智能体协作与远程任务编排，分布式执行。
-- **Agent 原生** – 所有组件都是 Agent，自主协作、高度可组合。
-- **多引擎** – 自带 Fast 引擎，也可挂载外部引擎（当前是 DSH），按会话选择。
+**Fast Agent** 重新定义了个人 AI 助理与软件工程范式。它既具备 **Muse / Cue** 般无缝陪伴、跨端随行的随身助理体验，又拥有 **Grok** 般硬核、迅捷与自主的执行力；更重要的是，它原生内置了**多智能体集群调度中心**，让你无论在桌面端、终端还是手机上，都能随时指挥一支训练有素的专属 AI 软件工程军团。
 
 > [!IMPORTANT]
-> Fast Agent **仍在开发中**（v0.3.1）。本机引擎可以改你的工作区并执行 shell。请审阅每一条审批，预期会有破坏性变更，不要把未签名安装包当作生产发行。软件按 [Apache 2.0](LICENSE) 按现状提供。
+> Fast Agent 目前处于**高频活跃开发期**（v0.3.1）。本机引擎支持直接修改工作区并经审批执行 shell。请注意审阅每一项授权，体验最前沿的 Agentic Coding！
 
-## 1. 下载与安装
+---
 
-v0.3.1 预发布。**macOS** 是主路径。**Windows** 原生开发中。安装包未签名。
+## 🚀 核心亮点：为什么选择 Fast Agent？
 
-### 1.1 直接下载
+### 1. 👥 指挥你的专属 AI 助理军团（集群与多 Agent 编排）
+告别单一单薄的 Chatbot。Fast Agent 让你化身指挥官，一键编排专属工程团队：
+- **专职角色分工**：在同一个工作区内同时唤醒架构师、核心编码员、自动化测试员与质量核查员。
+- **自主协同与博弈**：Agents 之间自动拆解目标、委派子任务、交叉审阅代码，不达验收标准誓不罢休。
+- **分布式集群算力**：任务既可在本机安静执行，也能一键调度编排到远程工作站与服务器集群。
 
-| 类型 | 平台 | 下载 | 安装方式 | 测试状态 | 构建命令 |
-| --- | --- | --- | --- | --- | --- |
-| 桌面 | macOS（Apple Silicon） | [下载 `Fast-*-mac-arm64.dmg`](https://github.com/kai2002/fast-agent/releases) | 打开 DMG，运行 `Install Fast.pkg` → `/Applications` + `/usr/local/bin` shim | 较好 | `pnpm pack:desktop -- --clean --os darwin-arm64` |
-| 桌面 | macOS（Intel） | [下载 `Fast-*-mac-x64.dmg`](https://github.com/kai2002/fast-agent/releases) | 与 Apple Silicon 相同。独立包，不是 universal | 未测试 | `pnpm pack:desktop -- --clean --os darwin-x64` |
-| 桌面 | Linux（glibc x64） | N/A（未验证） | `chmod +x Fast-*-linux-x64.AppImage` 后运行。不支持 Alpine / musl | 未测试 | `pnpm pack:desktop -- --clean --os linux-x64` |
-| 桌面 | Linux（glibc arm64） | N/A（未验证） | 与 Linux x64 相同（`Fast-*-linux-arm64.AppImage`）。独立包，不是 universal | 未测试 | `pnpm pack:desktop -- --clean --os linux-arm64` |
-| 桌面 | Windows（x64） | N/A（未验证） | 运行 `Fast-*-win-x64.exe`（NSIS）→ Fast.exe + 用户 PATH shim。未签名。开发中 | 未测试 | `pnpm pack:desktop -- --clean --os win32-x64` |
-| 移动端 | Android | [下载 `fast-mobile-*.apk`](https://github.com/kai2002/fast-agent/releases) | `adb install` 配套 APK，再与桌面配对 | 较好 | `pnpm pack:mobile` |
-| 移动端 | iOS | N/A（未验证） | 配套客户端，走 Expo / 源码（Xcode，macOS）。与桌面配对。没有 IPA | 未测试 | `pnpm --dir apps/mobile ios` |
-| CLI | macOS（Apple Silicon） | N/A（未验证） | 解压 `fast-cli`（别名 `fast`） | 部分 | `pnpm pack:cli -- --clean --os darwin-arm64` |
-| CLI | macOS（Intel） | N/A（未验证） | 与 Apple Silicon 相同。独立包 | 未测试 | `pnpm pack:cli -- --clean --os darwin-x64` |
-| CLI | Linux（glibc x64） | N/A（未验证） | 解压 `fast-cli`（别名 `fast`）。不支持 Alpine / musl | 未测试 | `pnpm pack:cli -- --clean --os linux-x64` |
-| CLI | Linux（glibc arm64） | N/A（未验证） | 与 Linux x64 相同。独立包 | 未测试 | `pnpm pack:cli -- --clean --os linux-arm64` |
-| CLI | Windows（x64） | N/A（未验证） | 解压 `cli-win32-x64`（`fast-cli.bat`，别名 `fast.bat`）。开发中 | 未测试 | `pnpm pack:cli -- --clean --os win32-x64` |
+### 2. 💻 Coding 是一等公民（真落地，非口嗨）
+不只是在聊天框里吐出 Markdown 代码块，Fast Agent 深入开发闭环：
+- **深度理解与修改**：精准索引代码库、规划变更集（Diff）、原子化修改多文件，并执行真实编译。
+- **企业级可信机制**：实时可视化的代码 Diff 审查、可逐次追溯的 Checkpoint 账本，随时一键安全回滚。
+- **自我进化与验证**：自动运行单元测试与构建，拦截编译器报错，持续诊断修正直至通过验收。
 
-打包方式见 [1.3 通过源码安装](#13-通过源码安装)。
+### 3. 📱 全场景随身（桌面端、移动端、TUI 纯命令行）
+- **桌面工作台（Desktop）**：功能完备的重型武器，集成 Diff 审查、项目树、多会话标签与 Agent 拓扑追踪。
+- **随身遥控器（Mobile）**：下班通勤、出差在外？掏出手机随时连上工位电脑或云端引擎。一句语音安排重构任务，实时查看终端日志流，单手滑动点击完成代码合并审批。
+- **黑客级终端（TUI）**：超低延迟、极速响应的纯 Unix Bridge 命令行界面，SSH 极客的梦中情端。
 
-你可以通过微信群或 Discord 获得帮助。
+### 4. 🔌 可插拔的多引擎生态
+按会话自由切换底层执行大脑。Fast Agent 原生搭载高性能自研引擎，并原生兼容第三方引擎（如 **DeepSeek DSH**）与社区扩展。
+
+---
+
+## 📸 产品界面一览
 
 <div align="center">
-
-| 微信群 | Discord |
-| :---: | :---: |
-| <img src="docs/community/weichat.jpg" width="180" alt="微信群二维码"> | [加入 Fast Agent](https://discord.gg/HXeK9QV57) |
-
+  <h3>桌面工作台 — 多 Agent 协同、任务看板与可视化 Diff 审查</h3>
+  <img src="docs/screenshots/desktop.png" width="90%" alt="Fast 桌面工作台">
 </div>
 
-### 1.2 怎么使用移动客户端（实验性，高频开发中）
+<br/>
 
-手机是遥控器。不在手机上起引擎，不改文件。先装 App（Android：`adb install` 同一发行里的 APK；iOS：走 Expo / 源码，未测试），再选一种连法。
+<div align="center">
+  <h3>移动配套端 — 随身指挥、实时日志流与一键审批流</h3>
+  <p align="center">
+    <img src="docs/screenshots/mobile1.jpg" width="22%" alt="手机端会话">
+    <img src="docs/screenshots/mobile2.jpg" width="22%" alt="手机端设置-浅色">
+    <img src="docs/screenshots/mobile3.jpg" width="22%" alt="手机端设置-深色">
+    <img src="docs/screenshots/mobile4.jpg" width="22%" alt="手机端主题色板">
+  </p>
+</div>
 
-#### 1.2.1 局域网（桌面）
+<br/>
 
-手机连本机已经在跑的桌面 Fast，同一局域网。
+<div align="center">
+  <h3>极速 TUI 终端 — 轻量纯粹，原生 Unix Bridge</h3>
+  <img src="docs/screenshots/tui.png" width="90%" alt="Fast TUI 终端">
+</div>
 
-1. **先装桌面**（[1.1 直接下载](#11-直接下载)）。macOS 是主路径。
-2. **配对。** 桌面 → 设置 → 服务器 → 手机配对。手机：设置 → 扫码配对。也可手填地址和 token。
+---
 
-局域网配对不再需要重启或环境变量。桌面 → 设置 → 服务器 → **手机配对**打开开关，桌面会拉起引擎听口（默认 `wss://<局域网IP>:1979/bridge`，token 是 `bridge.token`，指纹来自 `~/.fast/tls`），并直接打出配对二维码，手机扫码即可。关闭开关立即停听并断开手机连接。
+## ⚡ 极速上手：30 秒开启体验
 
-访客 Wi-Fi / 客户端隔离，或防火墙挡住 `1979`，都会连不上。
+### 1. 下载开箱即用的安装包
 
-#### 1.2.2 公网（远程 CLI）
+直接前往 [GitHub Releases](https://github.com/kai2002/fast-agent/releases) 获取各平台构建：
 
-手机直连远程 Linux / macOS 上的 `fast-cli`，不经过本机桌面。
+| 平台 | 安装包 | 安装方式 |
+| :--- | :--- | :--- |
+| **macOS（Apple Silicon）** | `Fast-*-mac-arm64.dmg` | 打开 DMG，运行 `Install Fast.pkg` |
+| **macOS（Intel）** | `Fast-*-mac-x64.dmg` | 打开 DMG，运行 `Install Fast.pkg` |
+| **Android 手机端** | `fast-mobile-*.apk` | 手机安装 APK，一键与桌面配对 |
+| **Linux（x64 / arm64）** | `Fast-*-linux-*.AppImage` | 赋予执行权限 `chmod +x` 后直接运行 |
+| **Windows（x64）** | `Fast-*-win-x64.exe` | 运行 NSIS 安装包 *(高频开发中)* |
 
-1. **先跑 fetch**，写出 `modules/engine/current/`。目录必须和服务器的 OS / 架构一致 — 不要随后把 Darwin 的 `current/` 拷到 Linux。`--clean` **会覆盖**本机 `current/`。
+### 2. 手机随身控制（两步配对）
 
-```bash
-pnpm fetch-engine                          # 当前主机 OS
-pnpm fetch-engine -- --clean linux-x64     # 打 Linux x64 包（或 linux-arm64）
-```
+1. **打开桌面端**：前往 `设置` → `服务器` → 开启 **手机配对**。
+2. **手机扫码**：打开 Fast 手机端，点击 **扫码配对** 扫描桌面上的二维码即可瞬间完成连接。
+3. *异地或蜂窝网络？* 桌面端一键切换到 **Cloudflare 隧道** Tab，无需公网 IP 和端口映射，手机即可全球随时随地直连工位电脑！
 
-2. **上传** `modules/engine/current/` 到服务器（内含 Temurin 17 JRE）。服务器不需要系统 JDK。
-3. **启动 CLI**，让它听公网口。非 loopback 走 `wss`（TLS；不写 `--wss-cert` / `--wss-key` 会自动签发）：
+---
 
-```bash
-./bin/fast-cli engine --mode bridge --transport unix --wss 0.0.0.0:1979
-```
+## 🛠️ 开发者与贡献指南
 
-4. **在服务器上取 token。** Token 进 `Hello.authToken`，不进 URL：
+Fast Agent 采用模块化 Monorepo 架构：包含基于 TypeScript/React 的跨端交互层，以及高并发的多 Agent 调度引擎。
 
-```bash
-cat ~/.fast/run/bridge.token
-```
-
-5. **手机连接。** 设置 → 手填服务器地址和 token。地址是 `wss://<host>:1979/bridge`。指纹由客户端自动确认。
-
-在主机防火墙 / 安全组放行 `1979`（或你改的端口）。自备证书用 `--wss-cert` / `--wss-key`。
-
-#### 1.2.3 Cloudflare 隧道（公网地址，免账号）
-
-手机在任意网络（蜂窝 / 异地 Wi-Fi）连本机桌面：不用账号、不用域名、手机不装任何组件，两端也不用在同一网段。桌面主进程出站拉起 `cloudflared`，拿到一个临时公网地址，手机用标准 `wss` 连过去。
-
-1. **先装桌面**（[1.1 直接下载](#11-直接下载)），本机引擎在跑。
-2. **先开局域网配对。** 桌面 → 设置 → 服务器 → **局域网** Tab 里的 **手机配对** 开关打开。引擎只在配对开启时下发 Token，隧道与局域网配对可以同时用。
-3. **再开隧道。** 同页切到 **Cloudflare 隧道** Tab → **开启 Cloudflare 隧道**。就绪后显示「公网地址」（形如 `https://<随机>.trycloudflare.com/bridge`，手机侧自动转成 `wss`）和二维码。
-4. **手机扫码。** 二维码就是配对载荷（`url` + `token` + `trust=public`，不带指纹）；也可手填地址和 token。
-5. **停隧道。** 点「停止隧道」公网地址立即失效、已连的手机断开；退出应用会兜底清理，不留 `cloudflared` 进程。
-
-链路：`手机 ──wss──▶ Cloudflare 边缘 ──隧道──▶ 桌面 cloudflared ──http──▶ 127.0.0.1:1981/bridge`。桌面启动引擎时会自动追加 `--ws 127.0.0.1:1981`（仅 loopback 的明文口，充当隧道 origin）。TLS 在 Cloudflare 边缘终止，手机校验的是公共 CA 证书，所以**本通道不做指纹 TOFU**：`token` 是唯一门禁。
-
-注意：
-
-- **公网可达**：拿到地址的人都能发起连接，没有 token 只能撞 `Hello` 失败。别把二维码 / 完整配对文本外发（「复制地址」不含 token）。
-- **地址会变**：quick tunnel 每次重启换域名，需要重新扫码；二维码卡片会标灰过期码。
-- **仅本机引擎**：隧道由桌面出，v1 只对本机引擎生效；选中远程引擎时「开启 Cloudflare 隧道」是禁用的，可按提示点「切换到本机引擎」。目标是远程引擎请走 [1.2.2 公网（远程 CLI）](#122-公网远程-cli)。
-- **保活**：Cloudflare 边缘约 72 秒回收空闲连接；App 前台 15 秒心跳保活，后台挂起后回前台自动重连。
-- **二进制**：安装包自带 `cloudflared`；源码运行时用 npm `cloudflared` 包（首次使用会下载）。
-
-连不上按序查：卡片是否已出现「公网地址」、地址是否已轮换、换热点排除企业网络拦截、重新扫码取最新 token。报「引擎 loopback 口不可达」时，先打开上方「局域网配对」开关再重试；二维码长时间未操作会虚化，点一下恢复。
-
-#### 1.2.4 连上之后
-
-对话 Tab 是最近会话；历史列出会话；会话里可发消息、审批、打断。主题和语言只存在手机上。
-
-配对 token 等于全部权限，不要截图或外传。手机丢了就当 token 泄露 — 换 token 再配对。详见 [SECURITY.md](SECURITY.md)。
-
-### 1.3 通过源码安装
-
-| 需要    | 版本                                     |
-| ------- | ---------------------------------------- |
-| Node.js | 20.19+ 或 22                             |
-| pnpm    | 9（`package.json` 里的 `packageManager`） |
-| JDK     | 17+ 只需 **打包机**（`fetch-engine` / Maven）。引擎自带 Temurin 17 JRE |
-| Maven   | 3.x（仅桌面 / TUI 引擎）                 |
-
-Linux 还需要编译 `node-pty` 的工具链（`build-essential`）、Electron 用的 GTK/NSS，以及 `lsof` / `procps`。手机额外依赖（Android SDK、Xcode）只在跑 App 时需要。
-
-```bash
-git clone https://github.com/kai2002/fast-agent.git
-cd fast-agent
-pnpm install
-pnpm fetch-engine          # Maven Central → modules/engine/current/
-pnpm pack                  # 桌面 + CLI + 手机，JS/引擎只 stage 一次
-```
-
-这是主路径。默认为增量：`.fast-os` 一致才复用 `current/`，不一致则失败 — 用 `--clean`。不要在机器之间拷贝 `current/`。引擎 native 与 Electron 二进制共用 `--os`。不是 universal。桌面和 CLI 包自带 JRE，安装后不需要系统 JDK。
-
-`pnpm pack` 的产物：
-
-- **macOS Apple Silicon** — 未签名 `Fast-*-mac-arm64.dmg`（`Install Fast.pkg` → `/Applications` + `/usr/local/bin` shim）
-- **macOS Intel** — 未签名 `Fast-*-mac-x64.dmg`（安装方式相同）。独立包
-- **Linux glibc x64** — `Fast-*-linux-x64.AppImage`（`--os linux-x64`；同时写出 `linux-unpacked`）。不支持 Alpine / musl。可在 macOS 上打，不要在那里跑 AppImage
-- **Linux glibc arm64** — `Fast-*-linux-arm64.AppImage`（`--os linux-arm64`；同时写出 `linux-arm64-unpacked`）。独立包
-- **Windows x64** — 未签名 NSIS `Fast-*-win-x64.exe`（`--os win32-x64`；同时写出 `win-unpacked`）。安装时写入用户 PATH shim。可在 macOS 上打，不要在那里跑安装包或 `Fast.exe`。开发中；日常请用 WSL2
-- **CLI** — `release/cli-darwin-arm64` / `cli-darwin-x64` / `cli-linux-x64` / `cli-linux-arm64` / `cli-win32-x64`（`fast-cli`，别名 `fast`）；`release/cli` → 最近一次产物
-- **Android** — `release/fast-mobile-*.apk`（`adb install`）。没有 SDK：跳过，exit 0
-- **iOS** — 没有 IPA。`pnpm --dir apps/mobile ios`（`expo run:ios`；Xcode，macOS）。日常：`./dev/mobile.sh --ios`
-
-只打一个产品，或干净重打：
-
-```bash
-pnpm pack:desktop                              # 只打本机安装包
-pnpm pack:desktop -- --clean --os darwin-arm64 # Apple Silicon
-pnpm pack:desktop -- --clean --os darwin-x64   # Intel
-pnpm pack:desktop -- --os darwin-both          # 两个 mac 包（每轮 --clean）
-pnpm pack:desktop -- --clean --os linux-x64    # Linux glibc x64（AppImage）
-pnpm pack:desktop -- --clean --os linux-arm64  # Linux glibc arm64（AppImage）
-pnpm pack:desktop -- --clean --os win32-x64    # Windows x64（NSIS）
-pnpm pack:cli -- --os darwin-arm64             # release/cli-darwin-arm64
-pnpm pack:cli -- --os darwin-x64               # release/cli-darwin-x64
-pnpm pack:cli -- --os linux-x64                # release/cli-linux-x64
-pnpm pack:cli -- --os linux-arm64              # release/cli-linux-arm64
-pnpm pack:cli -- --os win32-x64                # release/cli-win32-x64
-pnpm pack:mobile                               # 只打 APK
-pnpm --dir apps/mobile ios                     # iOS（Xcode；没有 IPA）
-pnpm pack -- --clean                           # 重新拉引擎并 restage
-```
-
-`./build/all.sh` 与 `pnpm pack` 等价（同样支持 `--os`）。每个 `build/*.sh` 都有 `--help`。跨架构打包的 smoke 只检查 `file` 和 `.fast-os`，不要启动另一架构的 `.app`、Linux dir 或 `Fast.exe`。日常 `dev/` 命令见 [2. 开发](#2-开发)。
-
-### 1.4 其他引擎（DSH）
-
-Fast 默认运行自带引擎，也能把外部引擎作为扩展挂载，DSH 是第一个。输入框的 **Engine** 选择器（Fast / DSH）按会话选择引擎。
-
-桌面端 —— **设置 → Engines**：
-
-1. **Install**（DSH 行）—— 在运行时根目录（`$FAST_RUNTIME_ROOT`，否则 `~/.fast`）执行 `npm install @deepseek-ai/dsh@0.1.2-rc.1`。需要 JVM `PATH` 上有 Node.js `^22.19 || >=24`；安装日志在该行内实时显示。
-2. **Enable** —— 注册适配器。
-3. **Start** —— 接管或启动 DSH 进程。
-4. 点击整行 **Set default**。默认引擎只影响新会话，已打开的会话仍用原引擎。
-
-每行有三条状态：**Adapter**（enabled / disabled / failed）、**Program**（bundled / installed / not installed）、**Process**（stopped / running）。被禁用、缺失或失败的引擎不会注册，新会话回落到 `fast`。
-
-无界面 / CLI：引擎来自 `conf/engines.yaml`（打包后用 `FAST_ENGINES_YAML`），叠加 `$FAST_RUNTIME_ROOT/conf/engines.overlay.yaml`；写上 `id: dsh, enabled: true` 即可，适配器从 `extensions/dsh-engine/` 加载。
-
-DSH 启动参数：
-
-| 环境变量 / YAML `config`              | 效果                                                          |
-| ------------------------------------- | ------------------------------------------------------------- |
-| `FAST_DSH_PORT` / `config.port`       | 接管 `http://127.0.0.1:<port>`，不启动进程                    |
-| `FAST_DSH_COMMAND` / `config.command` | 启动该命令；`npx --yes` 会被拒绝，请指向已安装的本地 bin       |
-| 两者都没有                            | 接管官方 **3080**（`npx @deepseek-ai/dsh web`）               |
-
-令牌（先命中先用）：`config.token` → `config.tokenFile` → `-Dfast.dsh.token` → `FAST_DSH_TOKEN` → `<运行时根目录>/engines/dsh/.token`。引擎内部细节见 [`extensions/dsh-engine/README.md`](extensions/dsh-engine/README.md)。
-
-## 2. 开发
-
-`pnpm` 脚本调用 `dev/` 和 `build/` 下的文件，两种写法等价。每个脚本都有 `--help`。
-
-### 2.1 快速开始
-
-`pnpm dev:*` 和 `./dev/*.sh` 是一回事。第 1 步做完后，只跑你正在改的那一层。
-
-1. **准备环境** — 克隆仓库、安装 JS 依赖，并把本机引擎下载到 `modules/engine/current/`。这份只能在当前系统用，不要从另一台机器拷过来。只改手机可以不做 `fetch-engine`。
-
-```bash
-git clone https://github.com/kai2002/fast-agent.git
-cd fast-agent
-pnpm install
-pnpm fetch-engine
-```
-
-2. **开发桌面** — 对 `current/` 启动 Electron。`--mock` 只起界面、不连引擎。缺 `current/` 时加 `--engine` 会先下载再启动。
-
-```bash
-pnpm dev:desktop
-pnpm dev:desktop:mock
-./dev/desktop.sh --engine
-```
-
-3. **开发 TUI** — 对同一份 `current/` 启动 `fast-cli`。
-
-```bash
-pnpm dev:tui
-./dev/tui.sh --engine
-```
-
-4. **开发手机** — 启动 Expo / Metro。加 `--android` 或 `--ios` 打开设备。
-
-```bash
-pnpm dev:mobile
-./dev/mobile.sh --android
-./dev/mobile.sh --ios
-```
-
-5. **刷新引擎** — 只在换了系统，或 `current/` 架构不对时做。
-
-```bash
-pnpm fetch-engine -- --clean
-```
-
-### 2.2 命令
-
-完整列表。打安装包走 [1.3 通过源码安装](#13-通过源码安装)；这里日常是 `dev:*`，然后跑测试。
-
-| 脚本                           | 作用                                                         |
-| ------------------------------ | ------------------------------------------------------------ |
-| `pnpm fetch-engine`            | Maven Central `ai.fastllm` 0.3.0 → `modules/engine/current/` |
-| `pnpm dev:desktop`             | `./dev/desktop.sh` — Electron 对 `current/`                  |
-| `pnpm dev:desktop:mock`        | `./dev/desktop.sh --mock` — 仅 UI                            |
-| `pnpm dev:tui`                 | `./dev/tui.sh` — `fast-cli` 对 `current/`                    |
-| `pnpm dev:mobile`              | `./dev/mobile.sh` — Expo（`--android` / `--ios`）            |
-| `pnpm pack`                    | CLI + 桌面 + 手机（`build/all.sh`）。`--os` 选架构           |
-| `pnpm pack:desktop`            | 本机或 `--os` 安装包。macOS：`Fast-*-mac-arm64.dmg` / `Fast-*-mac-x64.dmg`。Linux：`Fast-*-linux-x64.AppImage` / `Fast-*-linux-arm64.AppImage`。Windows：`Fast-*-win-x64.exe`（不是 universal） |
-| `pnpm pack:cli`                | 可挪走的 `cli-darwin-arm64` / `cli-darwin-x64` / `cli-linux-x64` / `cli-linux-arm64` / `cli-win32-x64`（`release/cli` → 最近一次） |
-| `pnpm pack:mobile`             | Android APK；缺 JDK/SDK 则跳过（exit 0）                     |
-| `pnpm build`                   | 编译 TypeScript 包 — 不是 `build/*.sh`                       |
-| `pnpm test` / `pnpm typecheck` | 工作区测试 / 类型检查                                        |
-
-提 PR 前跑测试和类型检查。TUI unix e2e 会向上查找 `current/bin/fast-cli`。Linux 上 TUI 出现豆腐块时设 `LANG=C.UTF-8`。
-
-```bash
-pnpm test
-pnpm typecheck
-```
-
-补丁与 PR：[CONTRIBUTING.md](CONTRIBUTING.md)。漏洞：[SECURITY.md](SECURITY.md)（私下 advisory，不要开公开 issue）。这两份目前是英文。
-
-### 2.3 代码结构
+### 仓库代码分层
 
 ```text
 fast/
-  apps/desktop          Electron → core + web/ui
-  apps/tui              fast-cli → core（无 DOM）
-  apps/mobile           Expo 配套 → core（不 import web/ui）
-  apps/web              预留；与桌面 renderer 同一套
-  packages/core         无 DOM — bridge、session-view、i18n
-    bridge/protocol     NDJSON schema
-    bridge/client       ensureDaemon / IPC
-    session-view        事件 → 视图模型
-    i18n                文案 + resolve
-  packages/web/ui       React 设计系统（桌面 + 以后的 web）
-  dev/                  desktop.sh  tui.sh  mobile.sh
-  build/                desktop.sh  cli.sh  mobile.sh  all.sh
-  scripts/              fetch-engine.sh  pack-common.sh  …
-  modules/engine        fetch-engine → current/bin/fast-cli（gitignore；别名 fast）
-  extensions/           Maven 多模块（Wave 2 引擎插件）
+  apps/desktop          Electron 桌面应用（Renderer + Bridge IPC 桥）
+  apps/tui              fast-cli 纯交互式终端应用
+  apps/mobile           Expo React Native 移动端（Android / iOS）
+  packages/core         核心协议库：Bridge 协议、Session 状态流与国际化
+  packages/web/ui       React 跨端设计系统与原子组件库
+  modules/engine        高性能 Agent 运行时核心（内置开箱即用 JRE）
+  extensions/           可扩展插件模块（如 DeepSeek DSH 引擎适配器）
 ```
 
-分层：
+### 环境要求
 
-- `packages/core` — 无界面。TUI 和手机只依赖这里。
-- `packages/web` — React token 与控件。不是产品入口。
-- `apps/*` — 可运行产品。桌面 renderer 是网页技术，宿主仍是 Electron。
-- 目录布局不是安装布局。`apps/` 下没有必须打进 engine jar 的东西。
+| 依赖 | 推荐版本 | 说明 |
+| :--- | :--- | :--- |
+| **Node.js** | 20.19+ 或 22 | 运行应用与前端构建 |
+| **pnpm** | 9 | 单仓包管理 |
+| **JDK** | 17+ | 仅本地组装引擎依赖时需要（`fetch-engine`） |
+| **Maven** | 3.x | 仅当需要编译引擎扩展插件时需要 |
 
-依赖：
+### 本地开发命令
 
-- `session-view` / `bridge-client` → `bridge-protocol`
-- `apps/tui` → core
-- `apps/desktop` → core + `web/ui`
-- `apps/mobile` → core（`i18n`、`session-view`）；不 import `web/ui`
+```bash
+# 1. 克隆代码并安装依赖
+git clone https://github.com/kai2002/fast-agent.git
+cd fast-agent
+pnpm install
 
-npm 名（暂不改）：`@fastllm/bridge-protocol`、`@fastllm/bridge-client`、`@fast-ide/session-view`、`@fast-ide/i18n`、`@fast-ide/ui`。
+# 2. 拉取预编译好的引擎二进制文件
+pnpm fetch-engine
 
-`all.sh` 只 source 一次 `pack-common`（引擎 + JS + stage），再打 CLI 和桌面。手机不读引擎树。桌面和 CLI 都 `--skip` 时不 source pack-common。
+# 3. 启动你想调试的客户端
+pnpm dev:desktop       # 启动桌面 Electron 应用
+pnpm dev:tui           # 启动 TUI 终端客户端
+pnpm dev:mobile        # 启动移动端（Expo / Metro）
+```
 
-更多：[doc/structure.md](doc/structure.md)、[modules/engine/README.md](modules/engine/README.md)。
+### 测试与类型检查
 
-## 3. 截图
+```bash
+pnpm test              # 执行单元测试与 E2E 测试套件
+pnpm typecheck         # 跨包执行 TypeScript 类型校验
+```
 
-![Desktop](docs/screenshots/desktop.png)
+<details>
+<summary><b>📦 生产打包构建命令（点击展开）</b></summary>
 
-桌面 — 项目、会话、本机引擎。
+```bash
+# 一键打包全平台产物
+pnpm pack
 
-![TUI](docs/screenshots/tui.png)
+# 分平台单独打包
+pnpm pack:desktop                              # 本机操作系统安装包
+pnpm pack:desktop -- --clean --os darwin-arm64 # Apple Silicon macOS
+pnpm pack:desktop -- --clean --os darwin-x64   # Intel macOS
+pnpm pack:desktop -- --clean --os linux-x64    # Linux AppImage
+pnpm pack:desktop -- --clean --os win32-x64    # Windows NSIS
+pnpm pack:cli                                  # 独立 fast-cli 压缩包
+pnpm pack:mobile                               # Android APK
+```
+</details>
 
-TUI（`fast-cli`）— 同一引擎，走 unix Bridge。
+---
 
-<p align="center">
-  <img src="docs/screenshots/mobile1.jpg" width="180" alt="手机会话">
-  <img src="docs/screenshots/mobile2.jpg" width="180" alt="手机设置，浅色">
-  <img src="docs/screenshots/mobile3.jpg" width="180" alt="手机设置，深色">
-  <img src="docs/screenshots/mobile4.jpg" width="180" alt="手机主题色板">
-</p>
+## 💬 社区与交流
 
-手机 — 配套客户端：会话、与桌面 Bridge 配对、主题。
-
-## 4. 社区
-
-选一个常用渠道讨论使用、开发和进展。
+欢迎加入我们的开源交流群，分享你的 Agent 工作流，或向维护团队直接反馈建议：
 
 <div align="center">
-
-| 微信群 |
-| :---: |
-| <img src="docs/community/weichat.jpg" width="180" alt="微信群二维码"> |
-
-Discord：[加入 Fast Agent](https://discord.gg/HXeK9QV57)
-
+  <table>
+    <tr>
+      <td align="center">
+        <b>官方微信交流群</b><br/><br/>
+        <img src="docs/community/weichat.jpg" width="180" alt="微信群二维码">
+      </td>
+      <td align="center" width="260">
+        <b>Discord 国际社区</b><br/><br/>
+        <a href="https://discord.gg/HXeK9QV57">
+          <img src="https://img.shields.io/badge/Discord-加入%20Fast%20Agent-5865F2?logo=discord&logoColor=white&style=for-the-badge" alt="加入 Discord">
+        </a>
+      </td>
+    </tr>
+  </table>
 </div>
 
-## 5. 许可证
+---
 
-[Apache License 2.0](LICENSE)
+## 📄 许可证与安全
+
+- **软件协议**：基于 [Apache License 2.0](LICENSE) 开源。
+- **参与贡献**：请参阅 [CONTRIBUTING.md](CONTRIBUTING.md)。
+- **安全报告**：如发现安全漏洞，请通过 [SECURITY.md](SECURITY.md) 约定渠道进行私下披露。

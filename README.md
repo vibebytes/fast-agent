@@ -1,365 +1,198 @@
-![Fast Agent — An enterprise-grade, self-improving AI agent with coding as a first-class citizen.](docs/hero.png?v=5)
+<div align="center">
+  <img src="docs/hero.png?v=5" alt="Fast Agent — Open-Source Muse & Grok with an Orchestrated Fleet of Coding Assistants" width="100%">
+  <h1>Fast Agent</h1>
+  <p><strong>The Open-Source Muse & Grok Companion with an Orchestrated Fleet of Coding Assistants.</strong></p>
 
-**An enterprise-grade, self-improving AI agent with coding as a first-class citizen.**
+  <p>
+    <a href="https://github.com/kai2002/fast-agent/releases"><img alt="Release" src="https://img.shields.io/badge/release-v0.3.1-blue"></a>
+    <a href="LICENSE"><img alt="License" src="https://img.shields.io/badge/license-Apache%202.0-brightgreen"></a>
+    <img alt="Platforms" src="https://img.shields.io/badge/platforms-macOS%20%7C%20Linux%20%7C%20Windows%20%7C%20Android%20%7C%20iOS-informational">
+    <a href="https://discord.gg/HXeK9QV57"><img alt="Discord" src="https://img.shields.io/badge/Discord-5865F2?logo=discord&logoColor=white"></a>
+  </p>
 
-![Release](https://img.shields.io/badge/release-v0.3.1-blue)![License](https://img.shields.io/badge/license-Apache%202.0-brightgreen)![Platforms](https://img.shields.io/badge/platforms-macOS%20%7C%20Linux%20%7C%20Windows%20%7C%20Android%20%7C%20iOS-informational)![Discord](https://img.shields.io/badge/Discord-5865F2?logo=discord&logoColor=white)
+  <p>
+    <a href="README.md">English</a> | <a href="README.zh-CN.md">简体中文</a>
+  </p>
+</div>
 
-[English](README.md) | [中文](README.zh-CN.md)
+---
 
-[1. Download](#1-download-and-install) · [1.1 Packs](#11-direct-download) · [1.2 Mobile](#12-how-to-use-the-mobile-client-experimental-under-active-development) · [1.3 Source](#13-install-from-source) · [1.4 Engines](#14-other-engines-dsh) · [2. Development](#2-development) · [2.1 Quick start](#21-quick-start) · [3. Screenshots](#3-screenshots) · [4. Community](#4-community) · [Contributing](CONTRIBUTING.md) · [Security](SECURITY.md) · [5. License](#5-license)
-
-Fast Agent's goal is to be an enterprise-grade, self-improving AI agent with coding as a first-class citizen.
-
-- **Enterprise-grade** – provides reviewable, manageable, and observable capabilities for code review, rollback, and tracing.
-- **Self-improving** – continuously learns from project experience, each task better than the last.
-- **Coding-first** – directly edits, runs, and lands code, not just talks about it.
-- **Cluster & Remote** – supports multi-agent collaboration and remote task orchestration with distributed execution.
-- **Agent-native** – all components are agents, autonomously collaborating and highly composable.
-- **Multi-engine** – the built-in Fast engine plus pluggable external engines (DSH today), selected per session.
+**Fast Agent** reimagines personal AI assistance and software engineering. It combines the seamless, proactive companion experience of **Muse / Cue**, the raw speed and direct action of **Grok**, and a full **multi-agent orchestration engine** that lets you command an entire fleet of specialized AI engineers right from your desktop, terminal, or phone.
 
 > [!IMPORTANT]
-> Fast Agent is **under active development** (v0.3.1). The local engine can edit your workspace and run shell. Review every approval, expect breaking changes, and do not treat unsigned packs as a production release. Software is provided as-is under [Apache 2.0](LICENSE).
+> Fast Agent is **under active development** (v0.3.1). The local engine directly interacts with your workspace and runs approved shell tasks. Review all approvals and enjoy the bleeding edge!
 
-## 1. Download and install
+---
 
-v0.3.1 pre-release. **macOS** is the primary host. **Windows** native is in development. Packs are unsigned.
+## 🚀 Highlights: Why Fast Agent?
 
-### 1.1 Direct download
+### 1. 👥 Command a Fleet of AI Assistants (Cluster & Multi-Agent)
+No single AI can master every domain. Fast Agent lets you recruit, organize, and orchestrate specialized AI roles:
+- **Team Leadership**: Spin up an architect, coder, tester, and reviewer in a single workspace.
+- **Autonomous Collaboration**: Agents plan, delegate sub-goals, run checks, and critique each other's deliverables.
+- **Scale Across Nodes**: Run tasks locally or orchestrate across your remote cluster servers seamlessly.
 
+### 2. 💻 Coding as a First-Class Citizen
+Not just chat answers or code snippets in markdown — Fast Agent lives inside the loop:
+- **Inspect, Edit, & Land**: Reads repos, plans diffs, applies precise syntax edits, and verifies builds.
+- **Enterprise-Grade Safety**: Full visual diff inspection, reviewable checkpoint ledger, and one-click rollback.
+- **Zero Hallucination Loop**: Runs tests, catches compiler errors, and self-improves until tasks pass acceptance criteria.
 
-| Type    | Platform              | Download                                                                           | Installation                                                                             | Test status | Build command                                    |
-| ------- | --------------------- | ---------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- | ----------- | ------------------------------------------------ |
-| Desktop | macOS (Apple Silicon) | [Download `Fast-*-mac-arm64.dmg`](https://github.com/kai2002/fast-agent/releases) | Open the DMG and run `Install Fast.pkg` → `/Applications` + `/usr/local/bin` shims       | Good        | `pnpm pack:desktop -- --clean --os darwin-arm64` |
-| Desktop | macOS (Intel)         | [Download `Fast-*-mac-x64.dmg`](https://github.com/kai2002/fast-agent/releases)   | Same as Apple Silicon. Separate pack — not universal                                     | Good        | `pnpm pack:desktop -- --clean --os darwin-x64`   |
-| Desktop | Linux (glibc x64)     | N/A (unverified)                                                                   | `chmod +x Fast-*-linux-x64.AppImage` and run. Alpine / musl is not supported             | Untested    | `pnpm pack:desktop -- --clean --os linux-x64`    |
-| Desktop | Linux (glibc arm64)   | N/A (unverified)                                                                   | Same as Linux x64 (`Fast-*-linux-arm64.AppImage`). Separate pack — not universal         | Untested    | `pnpm pack:desktop -- --clean --os linux-arm64`  |
-| Desktop | Windows (x64)         | N/A (unverified)                                                                   | Run `Fast-*-win-x64.exe` (NSIS) → Fast.exe + user PATH shims. Unsigned. In development   | Untested    | `pnpm pack:desktop -- --clean --os win32-x64`    |
-| Mobile  | Android               | [Download `fast-mobile-*.apk`](https://github.com/kai2002/fast-agent/releases)    | `adb install` the companion APK, then pair with desktop                                  | Good        | `pnpm pack:mobile`                               |
-| Mobile  | iOS                   | N/A (unverified)                                                                   | Companion via Expo / from source (Xcode, macOS). Pair with desktop. No IPA pack          | Untested    | `pnpm --dir apps/mobile ios`                     |
-| CLI     | macOS (Apple Silicon) | N/A (unverified)                                                                   | Unpack `fast-cli` (alias `fast`)                                                         | Partial     | `pnpm pack:cli -- --clean --os darwin-arm64`     |
-| CLI     | macOS (Intel)         | N/A (unverified)                                                                   | Same as Apple Silicon. Separate pack                                                     | Untested    | `pnpm pack:cli -- --clean --os darwin-x64`       |
-| CLI     | Linux (glibc x64)     | N/A (unverified)                                                                   | Unpack `fast-cli` (alias `fast`). Alpine / musl is not supported            | Untested    | `pnpm pack:cli -- --clean --os linux-x64`        |
-| CLI     | Linux (glibc arm64)   | N/A (unverified)                                                                   | Same as Linux x64. Separate pack                                                         | Untested    | `pnpm pack:cli -- --clean --os linux-arm64`      |
-| CLI     | Windows (x64)         | N/A (unverified)                                                                   | Unpack `cli-win32-x64` (`fast-cli.bat`, alias `fast.bat`). In development                | Untested    | `pnpm pack:cli -- --clean --os win32-x64`        |
+### 3. 📱 Anywhere Companion (Desktop, Mobile, & TUI)
+- **Workstation Powerhouse**: A full-featured desktop workbench with diff viewers, file explorer, session tabs, and agent graph tracking.
+- **Mobile Remote Controller**: On the go? Control your desktop or cloud engine right from your phone. Assign complex coding goals, monitor terminal live logs, and approve pull-requests anywhere.
+- **Hacker-Friendly TUI**: Ultra-responsive, low-latency command-line interface for SSH and minimalists.
 
+### 4. 🔌 Pluggable Multi-Engine Runtime
+Switch engines per session on the fly. Fast Agent ships with its high-performance native engine, while supporting external backends such as **DeepSeek DSH** and modular plugins.
 
-How packs are built: [1.3 Install from source](#13-install-from-source).
+---
 
-You can get help in the WeChat group or on Discord.
+## 📸 See It in Action
 
+<div align="center">
+  <h3>Desktop Workbench — Multi-Agent Collaboration & Visual Diff Review</h3>
+  <img src="docs/screenshots/desktop.png" width="90%" alt="Fast Desktop Workbench">
+</div>
 
+<br/>
 
+<div align="center">
+  <h3>Mobile Companion — Remote Command, Live Streams & One-Tap Approval</h3>
+  <p align="center">
+    <img src="docs/screenshots/mobile1.jpg" width="22%" alt="Mobile session">
+    <img src="docs/screenshots/mobile2.jpg" width="22%" alt="Mobile settings, light">
+    <img src="docs/screenshots/mobile3.jpg" width="22%" alt="Mobile settings, dark">
+    <img src="docs/screenshots/mobile4.jpg" width="22%" alt="Mobile theme palettes">
+  </p>
+</div>
 
-| WeChat | Discord |
-| :---: | :---: |
-| <img src="docs/community/weichat.jpg" width="180" alt="WeChat group"> | [Join Fast Agent](https://discord.gg/HXeK9QV57) |
+<br/>
 
+<div align="center">
+  <h3>TUI Terminal — Blazing Fast, Pure Unix Bridge</h3>
+  <img src="docs/screenshots/tui.png" width="90%" alt="Fast TUI">
+</div>
 
+---
 
+## ⚡ Quick Start: 30 Seconds to Launch
 
-### 1.2 How to use the mobile client (experimental, under active development)
+### 1. Download Pre-built Apps
 
-The phone is a companion. It does not start an engine or edit files on the phone. Install the app first (Android: `adb install` the APK from the same release; iOS: Expo / from source, untested). Then pick a mode.
+Get ready-to-run releases from [GitHub Releases](https://github.com/kai2002/fast-agent/releases):
 
-#### 1.2.1 LAN (desktop)
+| Platform | Package | How to Install |
+| :--- | :--- | :--- |
+| **macOS (Apple Silicon)** | `Fast-*-mac-arm64.dmg` | Open DMG → Run `Install Fast.pkg` |
+| **macOS (Intel)** | `Fast-*-mac-x64.dmg` | Open DMG → Run `Install Fast.pkg` |
+| **Android** | `fast-mobile-*.apk` | Install APK on phone → Pair with desktop |
+| **Linux (x64 / arm64)** | `Fast-*-linux-*.AppImage` | `chmod +x *.AppImage` and run (glibc) |
+| **Windows (x64)** | `Fast-*-win-x64.exe` | Run NSIS installer *(In active development)* |
 
-The phone talks to a desktop Fast that is already running, on the same LAN.
+### 2. Pair Your Mobile Companion in 2 Steps
 
-1. **Install desktop** on the computer ([1.1 Direct download](#11-direct-download)). macOS is the primary host.
-2. **Pair.** Desktop → Settings → Servers → Mobile pairing. On the phone: Settings → Scan to pair. You can paste the URL and token instead of scanning.
+1. **Open Desktop App**: Navigate to `Settings` → `Servers` → Turn on **Mobile pairing**.
+2. **Scan from Phone**: Open the Fast Mobile companion, tap **Scan to pair**, and point at the QR code.
+3. *Remote or on cellular?* Switch to the **Cloudflare Tunnel** tab on Desktop to generate a secure zero-config public link and pair from anywhere without public IPs or port forwarding!
 
-In Settings → Servers, toggle **Mobile pairing** on. The desktop sends the engine a host command (`SetLanPairing`) that binds `wss://0.0.0.0:1979/bridge` TLS at runtime — no env var, no restart. The listen exists only while the toggle is on, and resets to off after an IDE / engine restart. Port `1979` is reserved for LAN pairing and is bound on demand. The phone connects to the **engine** listen `wss://<lan-ip>:1979/bridge` with `bridge.token` and the TLS fingerprint from `~/.fast/tls`. Desktop does not open port 8787 and does not mint a second cert. Old QR codes that pointed at 8787 are invalid — scan again.
+---
 
-Guest Wi-Fi / client isolation, or a firewall blocking `1979`, will fail the connect.
+## 🛠️ Developer & Contributor Guide
 
-#### 1.2.2 Public network (remote CLI)
+Fast Agent is built with a modular monorepo: TypeScript/React frontend, Electron/Expo clients, and a high-throughput multi-agent engine kernel.
 
-The phone talks to `fast-cli` on a remote Linux or macOS server. No desktop in the path.
-
-1. **Fetch the engine** so `modules/engine/current/` exists. The tree must match the server OS and arch — do not later copy a Darwin `current/` onto Linux. `--clean` **replaces** local `current/`.
-
-```bash
-pnpm fetch-engine                          # host OS
-pnpm fetch-engine -- --clean linux-x64     # Linux x64 tree (or linux-arm64)
-```
-
-1. **Upload** `modules/engine/current/` to the server (includes a Temurin 17 JRE). The server does not need a system JDK.
-2. **Start the CLI** so it listens on the public interface. Non-loopback binds speak `wss` (TLS; auto-minted cert if you omit `--wss-cert` / `--wss-key`):
-
-```bash
-./bin/fast-cli engine --mode bridge --transport unix --wss 0.0.0.0:1979
-```
-
-1. **Read the token** on the server. Token goes in `Hello.authToken`, not in the URL:
-
-```bash
-cat ~/.fast/run/bridge.token
-```
-
-1. **Connect from the phone.** Settings → add server URL and token. URL is `wss://<host>:1979/bridge`. The client confirms the TLS fingerprint on its own.
-
-Open `1979` (or the port you chose) on the host firewall / security group. Optional: `--wss-cert` / `--wss-key` for your own cert.
-
-#### 1.2.3 Cloudflare Tunnel (public URL, no account)
-
-The phone reaches the local desktop from any network (cellular / remote Wi-Fi): no account, no domain, nothing to install on the phone, and both ends do not need to be on the same subnet. The desktop main process runs `cloudflared` outbound, gets a temporary public URL, and the phone connects to it over plain `wss`.
-
-1. **Install desktop** ([1.1 Direct download](#11-direct-download)) with the local engine running.
-2. **Turn on LAN pairing first.** Desktop → Settings → Servers → the **LAN** tab → switch **Mobile pairing** on. The engine only hands out the pairing token while pairing is enabled; the tunnel and LAN pairing can be used together.
-3. **Then start the tunnel.** On the same page switch to the **Cloudflare Tunnel** tab → **Start Cloudflare Tunnel**. Once ready it shows the public URL (`https://<random>.trycloudflare.com/bridge`; the phone turns it into `wss`) and a QR code.
-4. **Scan from the phone.** The QR is the pairing payload (`url` + `token` + `trust=public`, no fingerprint). You can paste the URL and token instead.
-5. **Stop it.** "Stop tunnel" kills the public URL and disconnects connected phones. Quitting the app also cleans up — no leftover `cloudflared` process.
-
-Path: `phone ──wss──▶ Cloudflare edge ──tunnel──▶ desktop cloudflared ──http──▶ 127.0.0.1:1981/bridge`. The desktop appends `--ws 127.0.0.1:1981` when it launches the engine (loopback-only plaintext, used as the tunnel origin). TLS terminates at the Cloudflare edge, so the phone validates a public CA cert and this channel **does no fingerprint TOFU** — the `token` is the only gate.
-
-Caveats:
-
-- **Publicly reachable**: anyone with the URL can attempt a connection; without the token they only fail `Hello`. Do not share the QR or the full pairing text (copy-address carries no token).
-- **The URL rotates**: a quick tunnel gets a new hostname on every restart — scan again; stale QR cards are greyed out.
-- **Local engine only**: the tunnel leaves from the desktop, so v1 targets the local engine only; with a remote engine selected, "Start Cloudflare Tunnel" is disabled — follow the prompt and click "Switch to local engine". For a remote engine use [1.2.2 Public network (remote CLI)](#122-public-network-remote-cli) instead.
-- **Keepalive**: the edge reclaims idle connections after ~72s; the app heartbeats every 15s in the foreground and reconnects with backoff after backgrounding.
-- **Binary**: packaged builds ship `cloudflared`; running from source uses the npm `cloudflared` package (downloads on first use).
-
-If it will not connect: check the tunnel card shows a public URL, whether the URL rotated, try a phone hotspot to rule out corporate filtering, and re-scan for the current token. On "engine loopback port unreachable", turn on the LAN pairing switch above and retry; the QR blurs after a while — tap it to restore.
-
-#### 1.2.4 After you are connected
-
-Chat is the latest session. History lists sessions. A session can send, approve, and interrupt. Theme and language stay on the phone.
-
-The pairing token is full access. Do not screenshot or share it. A lost phone is a leaked token — rotate the token and pair again. More: [SECURITY.md](SECURITY.md).
-
-### 1.3 Install from source
-
-
-| Need    | Version                                |
-| ------- | -------------------------------------- |
-| Node.js | 20.19+ or 22                           |
-| pnpm    | 9 (`packageManager` in `package.json`) |
-| JDK     | 17+ on the **pack** machine only (`fetch-engine` / Maven). The engine ships a Temurin 17 JRE |
-| Maven   | 3.x (desktop / TUI engine only)        |
-
-
-Linux also needs a compiler toolchain for `node-pty` (`build-essential`), GTK/NSS for Electron, and `lsof` / `procps`. Mobile extras (Android SDK, Xcode) only if you run the phone app.
-
-```bash
-git clone https://github.com/kai2002/fast-agent.git
-cd fast-agent
-pnpm install
-pnpm fetch-engine          # Maven Central → modules/engine/current/
-pnpm pack                  # desktop + CLI + mobile, one JS/engine stage
-```
-
-That is the main path. Incremental is the default: reuse `current/` if `.fast-os` matches. Mismatch fails — use `--clean`. Do not copy `current/` between machines. Engine natives and the Electron binary share `--os`. Not a universal binary. Desktop and CLI packs include the JRE; installing the app does not require a system JDK.
-
-What `pnpm pack` writes:
-
-- **macOS Apple Silicon** — unsigned `Fast-*-mac-arm64.dmg` (`Install Fast.pkg` → `/Applications` + `/usr/local/bin` shims)
-- **macOS Intel** — unsigned `Fast-*-mac-x64.dmg` (same install). Separate pack
-- **Linux glibc x64** — `Fast-*-linux-x64.AppImage` (`--os linux-x64`; also writes `linux-unpacked`). Alpine / musl is not supported. Can pack on macOS; do not run the AppImage there
-- **Linux glibc arm64** — `Fast-*-linux-arm64.AppImage` (`--os linux-arm64`; also writes `linux-arm64-unpacked`). Separate pack
-- **Windows x64** — unsigned NSIS `Fast-*-win-x64.exe` (`--os win32-x64`; also writes `win-unpacked`). Install adds user PATH shims. Can pack on macOS; do not run the installer or `Fast.exe` there. In development; WSL2 is the daily path
-- **CLI** — `release/cli-darwin-arm64` / `cli-darwin-x64` / `cli-linux-x64` / `cli-linux-arm64` / `cli-win32-x64` (`fast-cli`, alias `fast`); `release/cli` → last pack
-- **Android** — `release/fast-mobile-*.apk` (`adb install`). No SDK: skip, exit 0
-- **iOS** — no IPA. `pnpm --dir apps/mobile ios` (`expo run:ios`; Xcode, macOS). Daily: `./dev/mobile.sh --ios`
-
-One product, or a clean rebuild:
-
-```bash
-pnpm pack:desktop                              # host installer only
-pnpm pack:desktop -- --clean --os darwin-arm64 # Apple Silicon
-pnpm pack:desktop -- --clean --os darwin-x64   # Intel
-pnpm pack:desktop -- --os darwin-both          # both mac packs (each pass --clean)
-pnpm pack:desktop -- --clean --os linux-x64    # Linux glibc x64 (AppImage)
-pnpm pack:desktop -- --clean --os linux-arm64  # Linux glibc arm64 (AppImage)
-pnpm pack:desktop -- --clean --os win32-x64    # Windows x64 (NSIS)
-pnpm pack:cli -- --os darwin-arm64             # release/cli-darwin-arm64
-pnpm pack:cli -- --os darwin-x64               # release/cli-darwin-x64
-pnpm pack:cli -- --os linux-x64                # release/cli-linux-x64
-pnpm pack:cli -- --os linux-arm64              # release/cli-linux-arm64
-pnpm pack:cli -- --os win32-x64                # release/cli-win32-x64
-pnpm pack:mobile                               # APK only
-pnpm --dir apps/mobile ios                     # iOS (Xcode; no IPA)
-pnpm pack -- --clean                           # refetch engine and restage
-```
-
-`./build/all.sh` is the same as `pnpm pack` (`--os` works there too). Each `build/*.sh` has `--help`. Cross-arch smoke checks `file` and `.fast-os`; do not launch the foreign-arch `.app`, Linux dir, or `Fast.exe`. Daily `dev/` commands: [2. Development](#2-development).
-
-### 1.4 Other engines (DSH)
-
-Fast runs its own engine by default and can host external engines as extensions. DSH is the first one. The composer's **Engine** picker (Fast / DSH) selects the engine per session.
-
-Desktop — **Settings → Engines**:
-
-1. **Install** on the DSH row — `npm install @deepseek-ai/dsh@0.1.2-rc.1` into the runtime root (`$FAST_RUNTIME_ROOT`, else `~/.fast`). Needs Node.js `^22.19 || >=24` on the JVM `PATH`; the install log streams in the row.
-2. **Enable** — registers the adapter.
-3. **Start** — attaches to, or spawns, the DSH process.
-4. Click the row to **Set default**. The default applies to new sessions only; open sessions stay on their engine.
-
-Each row shows three lanes: **Adapter** (enabled / disabled / failed), **Program** (bundled / installed / not installed), **Process** (stopped / running). A disabled, missing, or failed engine is not registered — new sessions fall back to `fast`.
-
-Headless / CLI: engines come from `conf/engines.yaml` (`FAST_ENGINES_YAML` when packaged), merged with `$FAST_RUNTIME_ROOT/conf/engines.overlay.yaml`. `id: dsh, enabled: true` is enough; the adapter loads from `extensions/dsh-engine/`.
-
-DSH start parameters:
-
-| Env / YAML `config`                   | Effect                                                                       |
-| ------------------------------------- | ---------------------------------------------------------------------------- |
-| `FAST_DSH_PORT` / `config.port`       | Attach to `http://127.0.0.1:<port>` — no spawn                               |
-| `FAST_DSH_COMMAND` / `config.command` | Spawn that command. `npx --yes` is rejected; point it at the installed bin   |
-| neither                               | Attach the official **3080** (`npx @deepseek-ai/dsh web`)                    |
-
-Token, first hit wins: `config.token` → `config.tokenFile` → `-Dfast.dsh.token` → `FAST_DSH_TOKEN` → `<runtime root>/engines/dsh/.token`. Engine internals: [`extensions/dsh-engine/README.md`](extensions/dsh-engine/README.md).
-
-## 2. Development
-
-`pnpm` scripts call the files under `dev/` and `build/`. You can use either. Each script has `--help`.
-
-### 2.1 Quick start
-
-`pnpm dev:*` and `./dev/*.sh` are the same. After step 1, run only the step for the code you are changing.
-
-1. **Prepare the environment** — clone, install JS dependencies, download the local engine into `modules/engine/current/`. That engine only works on the OS you fetched it on; do not copy the folder from another machine. Skip `fetch-engine` if you only change mobile.
-
-```bash
-git clone https://github.com/kai2002/fast-agent.git
-cd fast-agent
-pnpm install
-pnpm fetch-engine
-```
-
-1. **Develop desktop** — start Electron against `current/`. `--mock` is the UI without the engine. `--engine` downloads `current/` first if it is missing.
-
-```bash
-pnpm dev:desktop
-pnpm dev:desktop:mock
-./dev/desktop.sh --engine
-```
-
-1. **Develop TUI** — start `fast-cli` against the same `current/`.
-
-```bash
-pnpm dev:tui
-./dev/tui.sh --engine
-```
-
-1. **Develop mobile** — start Expo / Metro. Add `--android` or `--ios` to open a device.
-
-```bash
-pnpm dev:mobile
-./dev/mobile.sh --android
-./dev/mobile.sh --ios
-```
-
-1. **Refresh the engine** — only after you switch OS, or if `current/` is the wrong architecture.
-
-```bash
-pnpm fetch-engine -- --clean
-```
-
-### 2.2 Commands
-
-Full list. Packing installers is [1.3 Install from source](#13-install-from-source); here you usually run `dev:*`, then tests.
-
-
-| Script                         | What it does                                                                                                                                                              |
-| ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `pnpm fetch-engine`            | Maven Central `ai.fastllm` 0.3.0 → `modules/engine/current/`                                                                                                              |
-| `pnpm dev:desktop`             | `./dev/desktop.sh` — Electron against `current/`                                                                                                                          |
-| `pnpm dev:desktop:mock`        | `./dev/desktop.sh --mock` — UI only                                                                                                                                       |
-| `pnpm dev:tui`                 | `./dev/tui.sh` — `fast-cli` against `current/`                                                                                                                            |
-| `pnpm dev:mobile`              | `./dev/mobile.sh` — Expo (`--android` / `--ios`)                                                                                                                          |
-| `pnpm pack`                    | CLI + desktop + mobile (`build/all.sh`). `--os` selects arch                                                                                                              |
-| `pnpm pack:desktop`            | Host or `--os` installer. macOS: `Fast-*-mac-arm64.dmg` / `Fast-*-mac-x64.dmg`. Linux: `Fast-*-linux-x64.AppImage` / `Fast-*-linux-arm64.AppImage`. Windows: `Fast-*-win-x64.exe` (not universal) |
-| `pnpm pack:cli`                | Relocatable `cli-darwin-arm64` / `cli-darwin-x64` / `cli-linux-x64` / `cli-linux-arm64` / `cli-win32-x64` (`release/cli` → last)                                          |
-| `pnpm pack:mobile`             | Android APK; skips (exit 0) if JDK/SDK missing                                                                                                                            |
-| `pnpm build`                   | Compile TypeScript packages — not `build/*.sh`                                                                                                                            |
-| `pnpm test` / `pnpm typecheck` | Workspace tests / types                                                                                                                                                   |
-
-
-Before a PR, run tests and types. TUI unix e2e walks up to `current/bin/fast-cli`. On Linux, set `LANG=C.UTF-8` if the TUI shows tofu instead of CJK.
-
-```bash
-pnpm test
-pnpm typecheck
-```
-
-Patches and PR rules: [CONTRIBUTING.md](CONTRIBUTING.md). Vulnerabilities: [SECURITY.md](SECURITY.md) (private advisory, not a public issue).
-
-### 2.3 Code structure
+### Repository Architecture
 
 ```text
 fast/
-  apps/desktop          Electron → core + web/ui
-  apps/tui              fast-cli → core (no DOM)
-  apps/mobile           Expo companion → core (no web/ui)
-  apps/web              reserved; same stack as desktop renderer
-  packages/core         no DOM — bridge, session-view, i18n
-    bridge/protocol     NDJSON schema
-    bridge/client       ensureDaemon / IPC
-    session-view        events → view model
-    i18n                strings + resolve
-  packages/web/ui       React design system (desktop + future web)
-  dev/                  desktop.sh  tui.sh  mobile.sh
-  build/                desktop.sh  cli.sh  mobile.sh  all.sh
-  scripts/              fetch-engine.sh  pack-common.sh  …
-  modules/engine        fetch-engine → current/bin/fast-cli (gitignored; alias fast)
-  extensions/           Maven multi-module (Wave 2 engine plugins)
+  apps/desktop          Electron desktop app (Renderer + Bridge IPC)
+  apps/tui              fast-cli interactive terminal client
+  apps/mobile           Expo React Native companion (Android / iOS)
+  packages/core         Headless bridge protocol, session-view & i18n
+  packages/web/ui       Shared React design system
+  modules/engine        High-performance agent engine & bundled JRE
+  extensions/           Pluggable engine plugins (e.g., DeepSeek DSH)
 ```
 
-Layers:
+### Environment Requirements
 
-- `packages/core` — headless. TUI and mobile only import here.
-- `packages/web` — React tokens and controls. Not a product entry.
-- `apps/*` — runnable products. Desktop renderer is web tech; the host is still Electron.
-- Directory layout is not the install layout. Nothing under `apps/` is required inside the engine jar.
+| Requirement | Version | Note |
+| :--- | :--- | :--- |
+| **Node.js** | 20.19+ or 22 | Runtime for apps & packages |
+| **pnpm** | 9 | Package manager |
+| **JDK** | 17+ | Only required on builder machine running `fetch-engine` |
+| **Maven** | 3.x | Only needed if building engine extensions |
 
-Depends:
+### Development Workflow
 
-- `session-view` / `bridge-client` → `bridge-protocol`
-- `apps/tui` → core
-- `apps/desktop` → core + `web/ui`
-- `apps/mobile` → core (`i18n`, `session-view`); does not import `web/ui`
+```bash
+# 1. Clone repository & install dependencies
+git clone https://github.com/kai2002/fast-agent.git
+cd fast-agent
+pnpm install
 
-npm names (unchanged for now): `@fastllm/bridge-protocol`, `@fastllm/bridge-client`, `@fast-ide/session-view`, `@fast-ide/i18n`, `@fast-ide/ui`.
+# 2. Fetch the pre-built engine binary
+pnpm fetch-engine
 
-`all.sh` sources `pack-common` once (engine + JS + stage), then packs CLI and desktop. Mobile does not read the engine tree. If both desktop and CLI are `--skip`, pack-common is not sourced.
+# 3. Start developing your target surface
+pnpm dev:desktop       # Run Desktop Electron app
+pnpm dev:tui           # Run TUI terminal app
+pnpm dev:mobile        # Run Mobile client (Expo / Metro)
+```
 
-More: [doc/structure.md](doc/structure.md), [modules/engine/README.md](modules/engine/README.md).
+### Running Tests
 
-## 3. Screenshots
+```bash
+pnpm test              # Run unit & e2e test suites
+pnpm typecheck         # Verify TypeScript types across packages
+```
 
-![Desktop](docs/screenshots/desktop.png)
+<details>
+<summary><b>📦 Production Packaging Commands (Click to expand)</b></summary>
 
-Desktop — projects, session, and the local engine.
+```bash
+# Full multi-target package
+pnpm pack
 
-![TUI](docs/screenshots/tui.png)
+# Individual target packaging
+pnpm pack:desktop                              # Host platform installer
+pnpm pack:desktop -- --clean --os darwin-arm64 # Apple Silicon
+pnpm pack:desktop -- --clean --os darwin-x64   # Intel macOS
+pnpm pack:desktop -- --clean --os linux-x64    # Linux AppImage
+pnpm pack:desktop -- --clean --os win32-x64    # Windows NSIS
+pnpm pack:cli                                  # Relocatable fast-cli
+pnpm pack:mobile                               # Android APK
+```
+</details>
 
-TUI (`fast-cli`) — same engine over a unix Bridge.
+---
 
-<p align="center">
-  <img src="docs/screenshots/mobile1.jpg" width="180" alt="Mobile session">
-  <img src="docs/screenshots/mobile2.jpg" width="180" alt="Mobile settings, light">
-  <img src="docs/screenshots/mobile3.jpg" width="180" alt="Mobile settings, dark">
-  <img src="docs/screenshots/mobile4.jpg" width="180" alt="Mobile theme palettes">
-</p>
+## 💬 Community & Support
 
-Mobile — companion client: session, desktop Bridge pairing, and themes.
+Join our growing community to exchange agent prompts, share custom workflows, or get direct support from the maintainers:
 
-## 4. Community
+<div align="center">
+  <table>
+    <tr>
+      <td align="center">
+        <b>WeChat Group (微信群)</b><br/><br/>
+        <img src="docs/community/weichat.jpg" width="180" alt="WeChat group">
+      </td>
+      <td align="center" width="260">
+        <b>Discord Community</b><br/><br/>
+        <a href="https://discord.gg/HXeK9QV57">
+          <img src="https://img.shields.io/badge/Discord-Join%20Fast%20Agent-5865F2?logo=discord&logoColor=white&style=for-the-badge" alt="Join Discord">
+        </a>
+      </td>
+    </tr>
+  </table>
+</div>
 
-Use whichever channel you prefer for usage questions, development, and project updates.
+---
 
+## 📄 License & Security
 
-
-
-| WeChat |
-| :---: |
-| <img src="docs/community/weichat.jpg" width="180" alt="WeChat group"> |
-
-
-Discord: [Join Fast Agent](https://discord.gg/HXeK9QV57)
-
-
-
-## 5. License
-
-[Apache License 2.0](LICENSE)
+- **License**: Released under the [Apache License 2.0](LICENSE).
+- **Contributing**: Check out [CONTRIBUTING.md](CONTRIBUTING.md) to get involved.
+- **Security**: Please report vulnerabilities privately via [SECURITY.md](SECURITY.md).
