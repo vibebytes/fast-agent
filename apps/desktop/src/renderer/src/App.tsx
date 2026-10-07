@@ -372,6 +372,20 @@ export function App({store}: {store: WorkspaceStore}) {
 	const clearPendingMention = useCallback(() => setPendingMentionInsert(null), []);
 	const clearPendingSlash = useCallback(() => setPendingSlashInsert(null), []);
 	const retryEngine = useCallback(() => void window.fastIde.retryEngine(), []);
+
+	const mainTask = useMemo(
+		() => defaultTasks.find(t => t.sessionType === 'main'),
+		[defaultTasks]
+	);
+	const nodeName = edges?.nodeName?.trim();
+	const mainSessionName = nodeName || t('shell.sidebar.mainSession', {defaultValue: '主会话'});
+	const isMainActive = centerMode === 'task' && (pressedTaskId ?? activeTaskId) === mainTask?.id;
+	const onOpenMainSession = useCallback(() => {
+		if (mainTask) {
+			void openTaskWithTab(mainTask.id);
+		}
+	}, [mainTask, openTaskWithTab]);
+
 	const openLivingSession = useCallback(
 		(sessionId: string, metaProjectId?: string) => {
 			void (async () => {
@@ -422,6 +436,9 @@ export function App({store}: {store: WorkspaceStore}) {
 				canCreateProjectTask,
 				onNewTask: () => void createNewTask(),
 				onOpenPalette: () => setCommandPaletteOpen(true),
+				mainSessionName,
+				isMainActive,
+				onOpenMainSession,
 				scheduledOpen: centerMode === 'scheduled',
 				onOpenScheduled: () => setCenterMode('scheduled'),
 				onOpenTeams: () => {

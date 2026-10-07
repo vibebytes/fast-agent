@@ -1202,6 +1202,7 @@
       "newBlankProject": "新建空白项目",
       "useExistingFolder": "使用现有文件夹",
       "remoteServers": "远程服务器",
+      "mainSession": "主会话",
       "localEdge": "本机",
       "connecting": "连接中…",
       "switchEdgeConfirm": "还有任务在运行。确定切换服务器？当前服务器上已打开的编辑器会被关闭。",

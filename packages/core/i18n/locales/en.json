@@ -1206,6 +1206,7 @@
       "newBlankProject": "New blank project",
       "useExistingFolder": "Use existing folder",
       "remoteServers": "Remote servers",
+      "mainSession": "Main chat",
       "localEdge": "This machine",
       "connecting": "Connecting…",
       "switchEdgeConfirm": "A task is still running. Switch servers anyway? Open editors on the current server will close.",

@@ -11,11 +11,12 @@ import {
 	SidebarMenuButton,
 	SidebarMenuItem,
 	SidebarProvider,
+	SidebarSeparator,
 	SidebarTrigger
 } from '@fast-ide/ui/components/sidebar';
 import {TooltipProvider} from '@fast-ide/ui/components/tooltip';
 import {cn} from '@fast-ide/ui/lib/utils';
-import {Clock, MessageSquarePlus, Puzzle, Search, Users} from 'lucide-react';
+import {Bot, ChevronRight, Clock, MessageSquarePlus, Puzzle, Search, Users} from 'lucide-react';
 import {lazy, Suspense, type CSSProperties, type ReactNode} from 'react';
 import {useTranslation} from 'react-i18next';
 import type {CommandPaletteProps} from '../CommandPalette';
@@ -74,6 +75,9 @@ export type AppSidebarProps = {
 	canCreateProjectTask: boolean;
 	onNewTask: () => void;
 	onOpenPalette: () => void;
+	mainSessionName?: string;
+	isMainActive?: boolean;
+	onOpenMainSession?: () => void;
 	scheduledOpen: boolean;
 	onOpenScheduled: () => void;
 	onOpenTeams: () => void;
@@ -100,6 +104,9 @@ function AppSidebar({
 	canCreateProjectTask,
 	onNewTask,
 	onOpenPalette,
+	mainSessionName,
+	isMainActive,
+	onOpenMainSession,
 	scheduledOpen,
 	onOpenScheduled,
 	onOpenTeams,
@@ -146,6 +153,34 @@ function AppSidebar({
 					</div>
 				</div>
 				<div className="px-2 pt-2 pb-1">
+				<SidebarMenu>
+					<SidebarMenuItem>
+						<SidebarMenuButton
+							size="lg"
+							isActive={isMainActive}
+							onClick={onOpenMainSession}
+							tooltip={mainSessionName || t('shell.sidebar.mainSession', {defaultValue: '主会话'})}
+							className="h-12 rounded-lg border border-sidebar-border bg-sidebar/50 shadow-xs hover:bg-sidebar-accent/80 hover:border-sidebar-ring/40 transition-all cursor-pointer data-[active=true]:border-primary/50 data-[active=true]:bg-sidebar-accent data-[active=true]:shadow-sm"
+						>
+							<div className="flex size-7 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary border border-primary/20">
+								<Bot className="size-4" />
+							</div>
+							<div className="flex flex-1 min-w-0 flex-col leading-tight group-data-[collapsible=icon]:hidden">
+								<div className="flex items-center gap-1.5">
+									<span className="truncate font-medium text-sm text-sidebar-foreground">
+										{mainSessionName || t('shell.sidebar.mainSession', {defaultValue: '主会话'})}
+									</span>
+									<span className="size-1.5 rounded-full bg-emerald-500 shrink-0" aria-hidden />
+								</div>
+								<span className="text-[11px] text-muted-foreground truncate">
+									{t('shell.sidebar.mainSession', {defaultValue: '主会话'})}
+								</span>
+							</div>
+							<ChevronRight className="size-3.5 text-muted-foreground/60 shrink-0 group-data-[collapsible=icon]:hidden transition-transform group-hover/menu-button:translate-x-0.5" />
+						</SidebarMenuButton>
+					</SidebarMenuItem>
+				</SidebarMenu>
+				<SidebarSeparator className="my-1.5 mx-0" />
 				<SidebarMenu>
 					<SidebarMenuItem>
 						<SidebarMenuButton
