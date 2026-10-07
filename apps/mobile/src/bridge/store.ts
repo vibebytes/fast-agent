@@ -4,7 +4,6 @@ import {
   applyLocalCancel,
   CANCEL_SETTLEMENT_TIMEOUT_MS,
   chromeAwaitingSettlement,
-  chromeRunId,
   composerGate,
   createLeaseWatch,
   createTranscriptState,
@@ -734,12 +733,9 @@ class BridgeStore {
     });
   }
 
-  cancelRun(sessionId: string, runId?: string): boolean {
+  cancelRun(sessionId: string): boolean {
     const record = this.ensureRecord(sessionId);
-    const id = (runId ?? chromeRunId(record.transcript.chrome))?.trim();
-    const sent = id
-      ? this.send({type: 'CancelRun', sessionId, runId: id, reason: 'user-cancel'})
-      : this.send({type: 'CancelAssociated', sessionId, reason: 'user-cancel'});
+    const sent = this.send({type: 'CancelAssociated', sessionId, reason: 'user-cancel'});
     if (!sent) return false;
     record.transcript = applyLocalCancel(record.transcript);
     this.leaseWatch.armCancelSettle(sessionId);

@@ -1,4 +1,4 @@
-import { chromeRunId, composerGate } from '@fast-ide/session-view';
+import { composerGate } from '@fast-ide/session-view';
 import { Pressable, Text } from 'react-native';
 import { overlayGoalGate, STOPPABLE_GOAL_PHASES } from '@/bridge/mobile-transcript';
 import { bridgeStore, type SessionRecord } from '@/bridge/store';
@@ -41,7 +41,7 @@ export function StopControl({
   return (
     <Pressable
       onPress={() => {
-        if (canStopRun) bridgeStore.cancelRun(sessionId, chromeRunId(record.transcript.chrome));
+        if (canStopRun) bridgeStore.cancelRun(sessionId);
         else bridgeStore.cancelGoal(sessionId, record.goalCard?.goalId);
       }}
       className={className}

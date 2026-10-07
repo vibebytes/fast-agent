@@ -12,7 +12,6 @@ test('testConnection awaits the probe so finally cannot steal the native socket'
 
 test('cancel and lease read RunChrome, not the removed parallel flags', () => {
 	const src = readFileSync(join(dirname(fileURLToPath(import.meta.url)), 'store.ts'), 'utf8');
-	assert.match(src, /chromeRunId/);
 	assert.match(src, /chromeAwaitingSettlement/);
 	assert.match(src, /hasLocalRun/);
 	assert.doesNotMatch(src, /transcript\.activeRunId/);
@@ -22,6 +21,12 @@ test('cancel and lease read RunChrome, not the removed parallel flags', () => {
 		readFileSync(join(chatDir, 'chat-view.tsx'), 'utf8'),
 		readFileSync(join(chatDir, 'chat/gate.tsx'), 'utf8')
 	].join('\n');
-	assert.match(chat, /chromeRunId/);
+	assert.match(chat, /composerGate/);
 	assert.doesNotMatch(chat, /transcript\.activeRunId/);
+});
+
+test('cancelRun dispatches the session fastlane CancelAssociated, not runId-scoped CancelRun', () => {
+	const src = readFileSync(join(dirname(fileURLToPath(import.meta.url)), 'store.ts'), 'utf8');
+	assert.match(src, /type: 'CancelAssociated', sessionId, reason: 'user-cancel'/);
+	assert.doesNotMatch(src, /'CancelRun'/);
 });
