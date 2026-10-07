@@ -1,7 +1,7 @@
 <div align="center">
-  <img src="docs/hero.png?v=5" alt="Fast Agent — 开源版 Muse 与 Grok，集成多智能体集群工程团队" width="100%">
+  <img src="docs/hero.png?v=5" alt="Fast Agent — 开源版 Muse 与 Grok Bot，集成多智能体集群工程团队" width="100%">
   <h1>Fast Agent</h1>
-  <p><strong>开源版 Muse / Grok 随身助理，更是你随时调遣的百人级多智能体编程与自动化工程团队。</strong></p>
+  <p><strong>开源版 Muse / Grok Bot 随身助理，更是你随时调遣的百人级多智能体编程与自动化工程团队。</strong></p>
 
   <p>
     <a href="https://github.com/kai2002/fast-agent/releases"><img alt="Release" src="https://img.shields.io/badge/release-v0.3.1-blue"></a>
@@ -17,7 +17,7 @@
 
 ---
 
-**Fast Agent** 重新定义了个人 AI 助理与软件工程范式。它既具备 **Muse / Cue** 般无缝陪伴、跨端随行的随身助理体验，又拥有 **Grok** 般硬核、迅捷与自主的执行力；更重要的是，它原生内置了**多智能体集群调度中心**，让你无论在桌面端、终端还是手机上，都能随时指挥一支训练有素的专属 AI 软件工程军团。
+**Fast Agent** 重新定义了个人 AI 助理与软件工程范式。它既具备 **Muse / Cue** 般无缝陪伴、跨端随行的随身助理体验，又拥有 **Grok Bot** 般硬核、迅捷与自主的执行力；更重要的是，它原生内置了**多智能体集群调度中心**，让你无论在桌面端、终端还是手机上，都能随时指挥一支训练有素的专属 AI 软件工程军团。
 
 > [!IMPORTANT]
 > Fast Agent 目前处于**高频活跃开发期**（v0.3.1）。本机引擎支持直接修改工作区并经审批执行 shell。请注意审阅每一项授权，体验最前沿的 Agentic Coding！

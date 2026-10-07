@@ -1,7 +1,7 @@
 <div align="center">
-  <img src="docs/hero.png?v=5" alt="Fast Agent — Open-Source Muse & Grok with an Orchestrated Fleet of Coding Assistants" width="100%">
+  <img src="docs/hero.png?v=5" alt="Fast Agent — Open-Source Muse & Grok Bot with an Orchestrated Fleet of Coding Assistants" width="100%">
   <h1>Fast Agent</h1>
-  <p><strong>The Open-Source Muse & Grok Companion with an Orchestrated Fleet of Coding Assistants.</strong></p>
+  <p><strong>The Open-Source Muse & Grok Bot Companion with an Orchestrated Fleet of Coding Assistants.</strong></p>
 
   <p>
     <a href="https://github.com/kai2002/fast-agent/releases"><img alt="Release" src="https://img.shields.io/badge/release-v0.3.1-blue"></a>
@@ -17,7 +17,7 @@
 
 ---
 
-**Fast Agent** reimagines personal AI assistance and software engineering. It combines the seamless, proactive companion experience of **Muse / Cue**, the raw speed and direct action of **Grok**, and a full **multi-agent orchestration engine** that lets you command an entire fleet of specialized AI engineers right from your desktop, terminal, or phone.
+**Fast Agent** reimagines personal AI assistance and software engineering. It combines the seamless, proactive companion experience of **Muse / Cue**, the raw speed and direct action of **Grok Bot**, and a full **multi-agent orchestration engine** that lets you command an entire fleet of specialized AI engineers right from your desktop, terminal, or phone.
 
 > [!IMPORTANT]
 > Fast Agent is **under active development** (v0.3.1). The local engine directly interacts with your workspace and runs approved shell tasks. Review all approvals and enjoy the bleeding edge!
