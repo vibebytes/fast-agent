@@ -15,6 +15,7 @@ import {
 } from '@fast-ide/session-view';
 import type {ComposerSampling, GoalCardView} from '@fast-ide/session-view';
 import type {AnswerBatchPayload, TaskRecord} from './sessionContracts.js';
+import {markCancelDispatch} from './cancelTrace.js';
 
 export interface SessionCommandsDeps {
 	getActiveTask(): TaskRecord | null;
@@ -197,6 +198,7 @@ export function createSessionCommands(deps: SessionCommandsDeps) {
 			return false;
 		}
 		stageLocalCancel(task);
+		if (task.sessionId) markCancelDispatch(task.sessionId);
 		return deps.send({type: 'CancelAssociated', sessionId: task.sessionId, reason});
 	};
 

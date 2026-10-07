@@ -123,6 +123,10 @@ async function main() {
 				FAST_E2E_TIMING_LLM: TIMING_LLM,
 				FAST_E2E_TIMING_LLM_DELAY_MS: TIMING_LLM_DELAY_MS,
 				ARTERY_PORT,
+				...(process.env.FAST_JOIN_PORT ? {FAST_JOIN_PORT: process.env.FAST_JOIN_PORT} : {}),
+				...(process.env.FAST_AGENT_PORT ? {FAST_AGENT_PORT: process.env.FAST_AGENT_PORT} : {}),
+				...(process.env.FAST_BRIDGE_WSS_PORT ? {FAST_BRIDGE_WSS_PORT: process.env.FAST_BRIDGE_WSS_PORT} : {}),
+				...(process.env.FAST_BRIDGE_WS_PORT ? {FAST_BRIDGE_WS_PORT: process.env.FAST_BRIDGE_WS_PORT} : {}),
 				...(MODEL ? {FAST_MODEL: MODEL} : {})
 			}
 		}

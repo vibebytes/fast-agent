@@ -30,14 +30,21 @@ function keepFault(
 /** Attach snapshot said the chat run is still live after a local idle settle. */
 function reviveChatRun(state: TranscriptState, runId: string, isChat: boolean): TranscriptState {
 	let revived = false;
+	let sealed = false;
 	const entries = state.entries.map(entry => {
 		if (entry.role !== 'assistant') return entry;
 		if (entry.turnId !== runId && entry.clientMessageId !== runId) return entry;
-		if (entry.status === 'cancelled' || entry.status === 'error') return entry;
+		if (entry.status === 'cancelled' || entry.status === 'error') {
+			sealed = true;
+			return entry;
+		}
 		revived = true;
 		if (entry.status === 'streaming') return entry;
 		return {...entry, status: 'streaming' as const};
 	});
+	// The run's own entry is cancelled/error: a late heartbeat is the ghost of a
+	// sealed run, not a revival — only a genuinely new run re-arms via its own turn.
+	if (sealed) return state;
 	// A chat run started elsewhere (e.g. mobile) may not be in the restored turns yet:
 	// its heartbeat carries `turnId`, so seed the chrome and keep Stop reachable.
 	if (!revived && !isChat) return state;

@@ -432,3 +432,144 @@ test('turn_finished resolves orphan running tools', () => {
 	assert.equal(tools[1]?.status, 'success', 'orphan running tool resolved to success');
 	assert.equal(state.entries[1]?.status, 'done');
 });
+
+test('run seal: late hitl prompts for the stopped run stay sealed after local cancel', () => {
+	let state = createTranscriptState();
+	state = applyBridgeEvent(state, {
+		type: 'turn_started',
+		turnId: 't1',
+		clientMessageId: 'm1',
+		text: 'stop me'
+	});
+	state = applyBridgeEvent(state, {
+		type: 'input_accepted',
+		clientMessageId: 'm1',
+		turnId: 'run-seal-1'
+	});
+	state = applyBridgeEvent(state, {type: 'assistant_delta', turnId: 't1', text: 'partial'});
+	state = applyLocalCancel(state);
+	const rowsBefore = state.entries.length;
+	assert.equal(chromeAwaitingSettlement(state.chrome), true);
+
+	state = applyBridgeEvent(state, {
+		type: 'approval_requested',
+		id: 'ghost-ap',
+		runId: 'run-seal-1',
+		tool: 'shell',
+		description: 'straggler approval'
+	});
+	state = applyBridgeEvent(state, {
+		type: 'question_requested',
+		id: 'ghost-q',
+		runId: 'run-seal-1',
+		question: 'straggler question?',
+		options: []
+	});
+	state = applyBridgeEvent(state, {
+		type: 'question_batch_requested',
+		rpcId: 'ghost-batch',
+		runId: 'run-seal-1',
+		questions: []
+	});
+	assert.equal(state.approvals.length, 0);
+	assert.equal(state.questions.length, 0);
+	assert.equal(state.questionBatches.length, 0);
+	assert.equal(state.entries.length, rowsBefore, 'no new rows after stop');
+	assert.equal(composerGate(state, true).composerLocked, false, 'no ghost prompt lock');
+	assert.equal(chromeAwaitingSettlement(state.chrome), true, 'seal never settles chrome');
+});
+
+test('run seal: id-less prompt inside the cancel-pending window is sealed, after settle it passes', () => {
+	let state = createTranscriptState();
+	state = applyBridgeEvent(state, {
+		type: 'turn_started',
+		turnId: 't1',
+		clientMessageId: 'm1',
+		text: 'q'
+	});
+	state = applyLocalCancel(state);
+	state = applyBridgeEvent(state, {
+		type: 'approval_requested',
+		id: 'idless-ap',
+		tool: 'shell',
+		description: 'no ids'
+	});
+	assert.equal(state.approvals.length, 0, 'serial runs: id-less prompt in cancel window is the sealed run');
+
+	state = applyBridgeEvent(state, {type: 'turn_cancelled', turnId: 't1', reason: 'stop'});
+	assert.equal(chromeAwaitingSettlement(state.chrome), false);
+	state = applyBridgeEvent(state, {
+		type: 'approval_requested',
+		id: 'late-ap',
+		tool: 'shell',
+		description: 'different run, no ids'
+	});
+	assert.equal(state.approvals.length, 1, 'after settle an id-less prompt must not be swallowed');
+});
+
+test('run seal: prompt for a different (new) run after settlement still passes', () => {
+	let state = createTranscriptState();
+	state = applyBridgeEvent(state, {
+		type: 'turn_started',
+		turnId: 't1',
+		clientMessageId: 'm1',
+		text: 'old'
+	});
+	state = applyLocalCancel(state);
+	state = applyBridgeEvent(state, {type: 'turn_cancelled', turnId: 't1', reason: 'stop'});
+	state = applyBridgeEvent(state, {
+		type: 'approval_requested',
+		id: 'new-run-ap',
+		runId: 'run-next',
+		tool: 'shell',
+		description: 'belongs to a live run'
+	});
+	assert.equal(state.approvals.length, 1);
+	assert.equal(state.approvals[0]?.runId, 'run-next');
+});
+
+test('run seal: late tool_started for the stopped run adds zero transcript rows', () => {
+	let state = createTranscriptState();
+	state = applyBridgeEvent(state, {
+		type: 'turn_started',
+		turnId: 't1',
+		clientMessageId: 'm1',
+		text: 'busy tool'
+	});
+	state = applyBridgeEvent(state, {
+		type: 'tool_started',
+		turnId: 't1',
+		id: 'slow-tool',
+		tool: 'shell',
+		args: {command: 'sleep 60'}
+	});
+	state = applyLocalCancel(state);
+	const rowsBefore = state.entries.length;
+	const toolsBefore = JSON.stringify(state.entries[1]?.tools);
+	state = applyBridgeEvent(state, {
+		type: 'tool_started',
+		turnId: 't1',
+		id: 'ghost-tool',
+		tool: 'shell',
+		args: {command: 'echo late'}
+	});
+	state = applyBridgeEvent(state, {
+		type: 'tool_output',
+		turnId: 't1',
+		id: 'slow-tool',
+		tool: 'shell',
+		stream: 'stdout',
+		text: 'late output'
+	});
+	state = applyBridgeEvent(state, {
+		type: 'tool_finished',
+		turnId: 't1',
+		id: 'slow-tool',
+		tool: 'shell',
+		success: true,
+		fields: {}
+	});
+	assert.equal(state.entries.length, rowsBefore);
+	assert.equal(JSON.stringify(state.entries[1]?.tools), toolsBefore, 'cancelled tool card untouched');
+	assert.equal(state.entries[1]?.status, 'cancelled');
+});

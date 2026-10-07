@@ -1,5 +1,5 @@
 import type {BridgeEvent} from '@fastllm/bridge-protocol';
-import {chromePostRun} from './runChrome.js';
+import {chromeAwaitingSettlement, chromePostRun, chromeRunId} from './runChrome.js';
 import {entryMatchesKey} from './turnIdentity.js';
 import {applyContextInjected} from './transcript/context.js';
 import {
@@ -98,8 +98,41 @@ const CONTENT_EVENTS = new Set([
 	'agent_call_started', 'agent_call_finished'
 ]);
 
+// Run seal: a stopped run must not re-arm hitl prompts for itself — the local
+// cancel already cleared them, and a ghost prompt would re-lock the composer.
+const PROMPT_EVENTS = new Set([
+	'approval_requested', 'question_requested', 'question_batch_requested'
+]);
+
+// Run-identity events that mutate L1 side views (context rows, usage footer,
+// tool cards): they follow the same targetsSealedRun rule as prompts instead
+// of being blanket-dropped, so a genuinely new run's rows still apply.
+const STATE_EVENTS = new Set(['context_injected', 'usage_reported', 'dsh_tool_card']);
+
+function sealedRunKey(event: BridgeEvent): string {
+	const runId = 'runId' in event ? event.runId : undefined;
+	const turnId = 'turnId' in event ? event.turnId : undefined;
+	return (typeof runId === 'string' ? runId : undefined) ??
+		(typeof turnId === 'string' ? turnId : undefined) ?? '';
+}
+
+function targetsSealedRun(state: TranscriptState, runKey: string): boolean {
+	if (!runKey) {
+		// Per-session serial runs: an id-less prompt inside the cancel-pending window
+		// can only belong to the run being stopped.
+		return chromeAwaitingSettlement(state.chrome) &&
+			state.entries.some(e => e.status === 'cancelled');
+	}
+	const pinned = chromeRunId(state.chrome);
+	if (pinned && runKey === pinned) return true;
+	return state.entries.some(e => e.status === 'cancelled' && entryMatchesKey(e, runKey));
+}
+
 export function applyBridgeEvent(state: TranscriptState, event: BridgeEvent): TranscriptState {
-	if (chromePostRun(state.chrome) && CONTENT_EVENTS.has(event.type)) {
+	if (
+		chromePostRun(state.chrome) &&
+		(CONTENT_EVENTS.has(event.type) || PROMPT_EVENTS.has(event.type) || STATE_EVENTS.has(event.type))
+	) {
 		// L1 Goal agent_call still updates chat status after the Chat turn sealed.
 		const gid = eventGoalId(event);
 		const goalCall =
@@ -118,7 +151,10 @@ export function applyBridgeEvent(state: TranscriptState, event: BridgeEvent): Tr
 		// Settle can race ahead of the document (held deltas / late final_answer).
 		// Fill empty prose without reopening the stream — restart restore already does this.
 		if (!goalCall && !goalSystemTurn && !fillsEmptyAssistant(state, event)) {
-			return state;
+			// Run seal: content is always dropped; a hitl prompt only when it belongs
+			// to the sealed run (a different/new run's prompt still passes).
+			if (CONTENT_EVENTS.has(event.type)) return state;
+			if (targetsSealedRun(state, sealedRunKey(event))) return state;
 		}
 	}
 

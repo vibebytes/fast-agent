@@ -25,6 +25,7 @@ import type {AgentReview} from '../review/useAgentReview';
 import {useUndoFlow} from '../review/useUndoFlow';
 import {QueuedMessagesSection} from './QueuedMessages';
 import {isEchoExpired, isEchoReflected, makeQueueEcho, type QueueEcho} from './queueEcho';
+import {markStopRequested, settleStopEcho} from './stopEcho';
 import {pruneDecisions} from './pendingDecisions';
 import {ReviewChangesStrip} from './ReviewChangesStrip';
 import {stablePlanBuildIds, stableReviewFiles, transcriptScrollKey} from './timelineDerived';
@@ -80,12 +81,19 @@ export function usePaneEffects(h: PaneEffectsHost) {
 			if (e.key !== 'Escape') return;
 			if (gate.canCancel) {
 				e.preventDefault();
+				markStopRequested(null);
 				void window.fastIde.cancelRun();
 			}
 		};
 		window.addEventListener('keydown', onKey);
 		return () => window.removeEventListener('keydown', onKey);
 	}, [gate.canCancel]);
+
+	// The terminal publish is gate.canCancel flipping false, not the cancel ack —
+	// retire the optimistic echo there so a settled stop can't linger.
+	useEffect(() => {
+		if (!gate.canCancel) settleStopEcho(activeTaskId ?? null);
+	}, [gate.canCancel, activeTaskId]);
 
 	// Per-task derived caches (keep-alive): single-slot useMemo recomputes on
 	// A→B→A and hands every row a fresh identity, defeating the row memos the
@@ -372,6 +380,7 @@ export function usePaneEffects(h: PaneEffectsHost) {
 	// Stable identities: onNearTop is an effect dep inside VirtualTranscript —
 	// a fresh closure per render re-attached the scroll listener every frame.
 	const onStopPlanBuild = useCallback(() => {
+		markStopRequested(null);
 		void window.fastIde.cancelRun();
 	}, []);
 	// Double-clicks fire a second RerunRun before the first is even routed; its

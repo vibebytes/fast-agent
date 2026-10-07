@@ -4,6 +4,7 @@ import {cn} from '@fast-ide/ui/lib/utils';
 import {Boxes, ChevronDown, ChevronUp, RefreshCw, Square} from 'lucide-react';
 import {parseUserSkillDisplay} from '../slashCatalog';
 import {MentionText} from '../MentionText';
+import {markStopRequested} from './stopEcho';
 
 /** Composer-matching skill pill chrome. */
 const SYSTEM_BLUE_CHIP =
@@ -18,6 +19,7 @@ function isLongBody(text: string): boolean {
 }
 
 function stopCurrentRun() {
+	markStopRequested(null);
 	void window.fastIde.cancelRun();
 }
 

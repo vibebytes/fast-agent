@@ -412,7 +412,9 @@ export function hostSession(input: {
 
 		'task:cancel': (reason?: string) => {
 			const ok = activeCommands(hub)?.cancelRun(reason) ?? false;
-			publisher.publishWorkspace();
+			// Stop critical path: chrome-only publish. Full refresh rides the
+			// run_cancelled/turn_cancelled event backlink.
+			publisher.publishTasksMeta();
 			return ok;
 		},
 

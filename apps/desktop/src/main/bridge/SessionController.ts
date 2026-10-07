@@ -41,6 +41,7 @@ import {
 } from './sessionContracts.js';
 import {goalBusyGatePatch, goalLeaseCleanup} from './sessionGoal.js';
 import {createSessionGlue, type SessionGlue} from './sessionGlue.js';
+import {markCancelTerminal} from './cancelTrace.js';
 
 export class SessionController implements TaskCommands, SessionLifecycle, TaskView {
 	private readonly clientId: string;
@@ -680,9 +681,14 @@ export class SessionController implements TaskCommands, SessionLifecycle, TaskVi
 		return this.eventHost.consumeCompletionCue();
 	}
 
-/** Single entry point: host branches (may stop short) then stream projection (K19). */
+	/** Single entry point: host branches (may stop short) then stream projection (K19). */
 	handleEvent(event: BridgeEvent): TaskRecord | null {
-		return this.eventHost.handleEvent(event);
+		const task = this.eventHost.handleEvent(event);
+		if (event.type === 'turn_cancelled' || event.type === 'run_cancelled') {
+			const sessionId = task?.sessionId ?? event.sessionId;
+			if (sessionId) markCancelTerminal(sessionId, event.type);
+		}
+		return task;
 	}
 
 	private taskBySessionId(sessionId: string): TaskRecord | null {

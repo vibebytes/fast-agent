@@ -5,6 +5,7 @@ import {
 } from '@fast-ide/ui/components/input-group';
 import {Popover, PopoverContent, PopoverTrigger} from '@fast-ide/ui/components/popover';
 import {cn} from '@fast-ide/ui/lib/utils';
+import {markStopRequested, useStopEcho} from '../session/stopEcho';
 import {
 	ArrowUp,
 	Brain,
@@ -83,6 +84,7 @@ export function ActionStrip(p: {
 		thinkingButtonLabel, effort, toggleThinking, pickEffort,
 		stopKind, canSteer, canSubmitNow, canSend, selectedSlash, richRef, draft, store
 	} = p;
+	const stopEchoBusy = useStopEcho(sessionId ?? null);
 	return (
 					<InputGroupAddon align="block-end" className="justify-between gap-2 px-3.5 pb-3 pt-1">
 						<div className="flex items-center gap-1.5 min-w-0">
@@ -271,6 +273,7 @@ export function ActionStrip(p: {
 								size="icon-sm"
 								variant="default"
 								className="relative size-7 cursor-pointer rounded-full bg-foreground text-background hover:bg-foreground/90 active:scale-95 transition-all shadow-sm"
+								aria-busy={stopEchoBusy}
 								aria-label={
 									stopKind === 'goal' ? t('shell.background.stopGoal') : t('shell.common.stop')
 								}
@@ -282,7 +285,7 @@ export function ActionStrip(p: {
 								onClick={() =>
 									stopKind === 'goal'
 										? void window.fastIde.cancelGoal()
-										: void window.fastIde.cancelRun()
+										: (markStopRequested(sessionId ?? null), void window.fastIde.cancelRun())
 								}
 							>
 								<Square className="size-2.5 fill-current" />
