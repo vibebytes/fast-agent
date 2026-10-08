@@ -68,6 +68,7 @@ export {
 export {
 	IDLE_RUN_CHROME,
 	SETTLED_RUN_CHROME,
+	canStopSession,
 	chromeAwaitingSettlement,
 	chromeFromServer,
 	chromePostRun,

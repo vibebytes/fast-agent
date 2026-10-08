@@ -5,7 +5,7 @@ import {
 } from '@fast-ide/ui/components/input-group';
 import {Popover, PopoverContent, PopoverTrigger} from '@fast-ide/ui/components/popover';
 import {cn} from '@fast-ide/ui/lib/utils';
-import {markStopRequested, useStopEcho} from '../session/stopEcho';
+import {requestStop, useStopEcho} from '../session/stopEcho';
 import {
 	ArrowUp,
 	Brain,
@@ -287,7 +287,7 @@ export function ActionStrip(p: {
 								onClick={() =>
 									stopKind === 'goal'
 										? void window.fastIde.cancelGoal()
-										: (markStopRequested(sessionId ?? null), void window.fastIde.cancelRun())
+										: void requestStop(sessionId ?? null, () => window.fastIde.cancelRun())
 								}
 							>
 								<Square className="size-2.5 fill-current" />

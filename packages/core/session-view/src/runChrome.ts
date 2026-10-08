@@ -55,6 +55,20 @@ export function chromeStopLit(chrome: RunChrome | undefined): boolean {
 	return chrome?.phase === 'active' || chrome?.phase === 'cancelPending';
 }
 
+/** Single source of truth for "can a stop be dispatched for this session". */
+export function canStopSession(input: {
+	chrome: RunChrome | undefined;
+	streaming: boolean;
+	goalBusy: boolean;
+}): boolean {
+	return (
+		chromeRunId(input.chrome) !== undefined ||
+		input.streaming ||
+		chromeAwaitingSettlement(input.chrome) ||
+		input.goalBusy
+	);
+}
+
 export type RunChromeStep = {
 	/** keep the pinned run id, clear it, or pin a new one (fromServer defaults to true). */
 	run?: 'keep' | 'clear' | {id: string; fromServer?: boolean};

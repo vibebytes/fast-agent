@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
+	canStopSession,
 	chromeAwaitingSettlement,
 	chromeFromServer,
 	chromePostRun,
@@ -139,4 +140,20 @@ test('revive arms the run from engine state', () => {
 		runChromeTransition(SETTLED_RUN_CHROME, {run: {id: 'r1', fromServer: true}, postRun: false, awaiting: false}),
 		{phase: 'active', runId: 'r1', fromServer: true}
 	);
+});
+
+test('canStopSession is false only when nothing can be cancelled', () => {
+	const idle = {chrome: IDLE_RUN_CHROME, streaming: false, goalBusy: false};
+	assert.equal(canStopSession(idle), false);
+	assert.equal(canStopSession({...idle, streaming: true}), true);
+	assert.equal(canStopSession({...idle, goalBusy: true}), true);
+	assert.equal(
+		canStopSession({...idle, chrome: {phase: 'active', runId: 'r1', fromServer: true}}),
+		true
+	);
+	assert.equal(
+		canStopSession({...idle, chrome: {phase: 'cancelPending', fromServer: true}}),
+		true
+	);
+	assert.equal(canStopSession({...idle, chrome: SETTLED_RUN_CHROME}), false);
 });

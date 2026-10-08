@@ -5,7 +5,7 @@ import {Boxes, ChevronDown, ChevronUp, RefreshCw, Square} from 'lucide-react';
 import {parseUserSkillDisplay} from '../slashCatalog';
 import {MentionText} from '../MentionText';
 import {ImageLightbox} from '../ImageLightbox';
-import {markStopRequested} from './stopEcho';
+import {requestStop} from './stopEcho';
 
 /** Composer-matching skill pill chrome. */
 const SYSTEM_BLUE_CHIP =
@@ -20,8 +20,7 @@ function isLongBody(text: string): boolean {
 }
 
 function stopCurrentRun() {
-	markStopRequested(null);
-	void window.fastIde.cancelRun();
+	void requestStop(null, () => window.fastIde.cancelRun());
 }
 
 /** Composer-matching skill pill (name kebab kept as Catalog id label). */

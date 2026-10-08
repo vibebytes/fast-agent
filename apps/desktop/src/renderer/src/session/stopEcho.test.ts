@@ -3,6 +3,7 @@ import test from 'node:test';
 import {
 	activeStopEcho,
 	markStopRequested,
+	requestStop,
 	settleStopEcho,
 	subscribeStopEcho,
 	STOP_ECHO_TTL_MS
@@ -115,5 +116,25 @@ test('stopping feedback paints in the same tick (≤1 frame)', () => {
 	markStopRequested('s1', 'r9', Date.now());
 	assert.ok(sameTickEcho, 'echo must already be active inside the mark handler itself');
 	unsubscribe();
+	settleStopEcho(null);
+});
+
+test('requestStop shows no echo when the main process guards the stop', async () => {
+	settleStopEcho(null);
+	const sent = await requestStop('s1', async () => false);
+	assert.equal(sent, false);
+	assert.equal(activeStopEcho('s1', Date.now()), null);
+});
+
+test('requestStop echoes only after the main process dispatches', async () => {
+	settleStopEcho(null);
+	let echoedBeforeAck: unknown = 'unread';
+	const sent = await requestStop('s1', async () => {
+		echoedBeforeAck = activeStopEcho('s1', Date.now());
+		return true;
+	});
+	assert.equal(echoedBeforeAck, null);
+	assert.equal(sent, true);
+	assert.ok(activeStopEcho('s1', Date.now()));
 	settleStopEcho(null);
 });

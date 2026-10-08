@@ -25,7 +25,7 @@ import type {AgentReview} from '../review/useAgentReview';
 import {useUndoFlow} from '../review/useUndoFlow';
 import {QueuedMessagesSection} from './QueuedMessages';
 import {isEchoExpired, isEchoReflected, makeQueueEcho, type QueueEcho} from './queueEcho';
-import {markStopRequested, settleStopEcho} from './stopEcho';
+import {requestStop, settleStopEcho} from './stopEcho';
 import {pruneDecisions} from './pendingDecisions';
 import {ReviewChangesStrip} from './ReviewChangesStrip';
 import {stablePlanBuildIds, stableReviewFiles, transcriptScrollKey} from './timelineDerived';
@@ -81,8 +81,7 @@ export function usePaneEffects(h: PaneEffectsHost) {
 			if (e.key !== 'Escape') return;
 			if (gate.canCancel) {
 				e.preventDefault();
-				markStopRequested(null);
-				void window.fastIde.cancelRun();
+				void requestStop(null, () => window.fastIde.cancelRun());
 			}
 		};
 		window.addEventListener('keydown', onKey);
@@ -380,8 +379,7 @@ export function usePaneEffects(h: PaneEffectsHost) {
 	// Stable identities: onNearTop is an effect dep inside VirtualTranscript —
 	// a fresh closure per render re-attached the scroll listener every frame.
 	const onStopPlanBuild = useCallback(() => {
-		markStopRequested(null);
-		void window.fastIde.cancelRun();
+		void requestStop(null, () => window.fastIde.cancelRun());
 	}, []);
 	// Double-clicks fire a second RerunRun before the first is even routed; its
 	// busy rejection is what users read as "regenerate is broken". One in-flight

@@ -44,6 +44,16 @@ export function markStopRequested(
 	return echo;
 }
 
+/** Echo only what the main process actually dispatched; a guarded no-op must not look like a stop in flight. */
+export async function requestStop(
+	sessionId: string | null,
+	dispatch: () => Promise<boolean>
+): Promise<boolean> {
+	const sent = await dispatch();
+	if (sent) markStopRequested(sessionId);
+	return sent;
+}
+
 export function activeStopEcho(sessionId: string | null, now = Date.now()): StopEcho | null {
 	if (!echo || now >= echo.expiresAt) return null;
 	if (echo.sessionId != null && sessionId != null && echo.sessionId !== sessionId) return null;

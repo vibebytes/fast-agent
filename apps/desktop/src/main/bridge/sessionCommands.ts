@@ -2,8 +2,7 @@ import type {BridgeCommand} from '@fastllm/bridge-protocol';
 import {
 	applyBridgeEvent,
 	applyLocalCancel,
-	chromeAwaitingSettlement,
-	chromeRunId,
+	canStopSession,
 	goalKeepsBusy,
 	oldestLoadedTurnId,
 	queueClearCommands,
@@ -174,8 +173,7 @@ export function createSessionCommands(deps: SessionCommandsDeps) {
 			return deps.send({type: 'QueueMessage', sessionId: active.sessionId, itemId, action: 'steer'});
 		}
 		const streaming = active.task.transcript.entries.some(e => e.status === 'streaming');
-		const runId = chromeRunId(active.task.transcript.chrome);
-		if (runId || streaming || chromeAwaitingSettlement(active.task.transcript.chrome) || goalKeepsBusy(active.task.goalCard)) {
+		if (canStopSession({chrome: active.task.transcript.chrome, streaming, goalBusy: goalKeepsBusy(active.task.goalCard)})) {
 			stageLocalCancel(active.task);
 		}
 		return deps.send({
@@ -193,8 +191,7 @@ export function createSessionCommands(deps: SessionCommandsDeps) {
 	const cancelRunForTask = (task: TaskRecord, reason: string): boolean => {
 		if (!task.sessionId || !deps.isAttached(task.sessionId)) return false;
 		const streaming = task.transcript.entries.some(e => e.status === 'streaming');
-		const runId = chromeRunId(task.transcript.chrome);
-		if (!runId && !streaming && !chromeAwaitingSettlement(task.transcript.chrome) && !goalKeepsBusy(task.goalCard)) {
+		if (!canStopSession({chrome: task.transcript.chrome, streaming, goalBusy: goalKeepsBusy(task.goalCard)})) {
 			return false;
 		}
 		stageLocalCancel(task);
