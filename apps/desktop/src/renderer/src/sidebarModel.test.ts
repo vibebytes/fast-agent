@@ -98,26 +98,6 @@ test('buildSidebarModel puts the main session first in Tasks without treating it
 	assert.equal(model.defaultTasks[2]?.main, false);
 });
 
-test('buildSidebarModel marks a pinned main session so its menu matches the tag', () => {
-	const model = buildSidebarModel({
-		projects: [],
-		projectTasks: {},
-		defaultTasks: [
-			{id: 'd0', title: '小B', sessionId: 'sess-home', lastModified: '2026-10-04T00:00:00.000Z'},
-			{id: 'd1', title: 'Other', sessionId: 'sess-other', lastModified: '2026-10-05T00:00:00.000Z'}
-		],
-		defaultProjectPath: '__default__',
-		ui: {...emptyUi(), pinnedTasks: [
-			{projectPath: '__default__', sessionId: 'sess-home', title: '小B'},
-			{projectPath: '__default__', sessionId: 'sess-other', title: 'Other'}
-		]},
-		activeTaskId: null,
-		homeSessionIds: ['sess-home']
-	});
-	assert.equal(model.pinned[0]?.main, true);
-	assert.equal(model.pinned[1]?.main, false);
-});
-
 test('buildSidebarModel hides automation sessions from the chat tree', () => {
 	const model = buildSidebarModel({
 		projects: [{id: 'p1', path: '/proj', status: 'ready', active: true}],

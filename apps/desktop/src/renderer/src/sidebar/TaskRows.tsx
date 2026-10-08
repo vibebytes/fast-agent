@@ -262,7 +262,7 @@ export const DefaultTaskRow = memo(
 		defaultProject: ProjectSnapshot;
 		actions: RowActions;
 	}) {
-		const {task, pinned, isActive, main} = row;
+		const {task, pinned, canMutate, isActive, main} = row;
 		const {t} = useTranslation();
 		return (
 			<ContextMenu>
@@ -288,14 +288,15 @@ export const DefaultTaskRow = memo(
 				<ContextMenuContent className="w-52">
 					<TaskMenuItems
 						menu={contextChrome}
+						canMutate={canMutate}
+						pinned={pinned}
 						main={main}
-						{...taskMenuPropsOf(
-							actions,
-							defaultProject,
-							task,
-							pinned,
-							() => void window.fastIde.showTaskProjectInFolder(task.id)
-						)}
+						onOpen={() => actions.openTask(task.id)}
+						onRename={() => actions.renameTask(defaultProject, task)}
+						onShowInFolder={() => void window.fastIde.showTaskProjectInFolder(task.id)}
+						onPin={() => actions.pinTask(defaultProject.path, task)}
+						onArchive={() => actions.requestArchiveTask(defaultProject, task)}
+						onDelete={() => actions.requestDeleteTask(defaultProject, task)}
 					/>
 				</ContextMenuContent>
 			</ContextMenu>
