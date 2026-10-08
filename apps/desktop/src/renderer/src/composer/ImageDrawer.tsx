@@ -1,8 +1,9 @@
-import {type Ref} from 'react';
+import {useState, type Ref} from 'react';
 import {cn} from '@fast-ide/ui/lib/utils';
 import {X} from 'lucide-react';
 import {useTranslation} from 'react-i18next';
 import {IMAGE_ACCEPT, type PendingImage} from '../imageAttachments';
+import {ImageLightbox} from '../ImageLightbox';
 
 export function ImageDrawer({
 	pendingImages,
@@ -18,6 +19,7 @@ export function ImageDrawer({
 	onPickFiles: (files: File[]) => void;
 }) {
 	const {t} = useTranslation();
+	const [zoomed, setZoomed] = useState<{src: string; alt?: string} | null>(null);
 	return (
 		<>
 			{pendingImages.length > 0 ? (
@@ -47,7 +49,7 @@ export function ImageDrawer({
 								src={img.previewUrl}
 								alt={img.name}
 								className="size-10 rounded object-cover cursor-zoom-in"
-								onClick={() => window.open(img.previewUrl, '_blank', 'noopener,noreferrer')}
+								onClick={() => setZoomed({src: img.previewUrl, alt: img.name})}
 							/>
 							<div className="min-w-0 max-w-[7rem]">
 								<div className="truncate text-[11px] font-medium">{img.name}</div>
@@ -81,6 +83,11 @@ export function ImageDrawer({
 					e.target.value = '';
 					if (files.length) onPickFiles(files);
 				}}
+			/>
+			<ImageLightbox
+				src={zoomed?.src ?? null}
+				alt={zoomed?.alt}
+				onClose={() => setZoomed(null)}
 			/>
 		</>
 	);

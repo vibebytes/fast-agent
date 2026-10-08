@@ -4,6 +4,7 @@ import {cn} from '@fast-ide/ui/lib/utils';
 import {Boxes, ChevronDown, ChevronUp, RefreshCw, Square} from 'lucide-react';
 import {parseUserSkillDisplay} from '../slashCatalog';
 import {MentionText} from '../MentionText';
+import {ImageLightbox} from '../ImageLightbox';
 import {markStopRequested} from './stopEcho';
 
 /** Composer-matching skill pill chrome. */
@@ -204,6 +205,7 @@ export function UserBubble({
 	images?: Array<{mediaType: string; name?: string; dataUrl: string}>;
 }) {
 	const badge = scheduled ? 'Scheduled' : wake ? 'Background task' : fromName ? `来自 ${fromName}` : null;
+	const [zoomed, setZoomed] = useState<{src: string; alt?: string} | null>(null);
 	return (
 		<UserMessageShell
 			canCancel={canCancel}
@@ -226,7 +228,7 @@ export function UserBubble({
 								alt={img.name ?? 'attachment'}
 								title={img.name}
 								className="max-h-40 max-w-[12rem] rounded-md object-cover border border-border/50 cursor-zoom-in"
-								onClick={() => window.open(img.dataUrl, '_blank', 'noopener,noreferrer')}
+								onClick={() => setZoomed({src: img.dataUrl, alt: img.name})}
 							/>
 						) : (
 							<span
@@ -244,6 +246,11 @@ export function UserBubble({
 					<MentionText text={text} />
 				</CollapsibleBody>
 			) : null}
+			<ImageLightbox
+				src={zoomed?.src ?? null}
+				alt={zoomed?.alt}
+				onClose={() => setZoomed(null)}
+			/>
 		</UserMessageShell>
 	);
 }
