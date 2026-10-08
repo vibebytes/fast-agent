@@ -6,6 +6,7 @@ import {
 	CANCEL_SETTLEMENT_TIMEOUT_MS,
 	composerGate,
 	createLeaseWatch,
+	createCodeChangesState,
 	createTranscriptState,
 	goalKeepsBusy,
 	hasLocalRun,
@@ -333,6 +334,33 @@ export class SessionController implements TaskCommands, SessionLifecycle, TaskVi
 	 */
 	acceptNewSession(sessionId: string, taskId: string, engineBoundHash?: string): TaskRecord | null {
 		return this.lifecycle.acceptNewSession(sessionId, taskId, engineBoundHash);
+	}
+
+	/**
+	 * Point an existing Task row at a different Engine session (main-session restart).
+	 * Unlike acceptNewSession (create-path only, no-op for bound rows), this swaps the
+	 * session of a bound row: per-session state resets, old session detaches, new attaches.
+	 */
+	rebindTaskSession(taskId: string, sessionId: string): TaskRecord | null {
+		const task = this.tasks.get(taskId);
+		if (!task) return null;
+		const old = task.sessionId;
+		if (old === sessionId) return task;
+		if (old) {
+			this.sendFn({type: 'DetachSession', sessionId: old, clientId: this.clientId});
+			this.attach.unbind(old);
+			this.attach.releaseLive(old);
+			this.seqBySession.delete(old);
+		}
+		task.sessionId = sessionId;
+		task.lastEventSeq = 0;
+		task.transcript = createTranscriptState();
+		task.codeChanges = createCodeChangesState();
+		task.queue = [];
+		task.queuePaused = false;
+		this.tasks.set(task.id, task);
+		this.requestAttach(task, sessionId, 0);
+		return task;
 	}
 
 	/** Drop unbound optimistic create; optionally by taskId, else the sole unbound pending. */

@@ -581,7 +581,7 @@ export type FastIdeApi = {
 	restartMainSession: (
 		taskId: string,
 		sessionId?: string | null
-	) => Promise<{ok: true; sessionId: string} | {ok: false; notice: string}>;
+	) => Promise<{ok: true; taskId: string; sessionId: string} | {ok: false; notice: string}>;
 	sendMessage: (
 		text: string,
 		mentions?: MentionChip[],

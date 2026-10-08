@@ -61,7 +61,7 @@ export type InvokeSession = {
 	/** Regenerate and bind a fresh main session; old chat is kept as a regular chat. */
 	'task:restartMain': {
 		args: [taskId: string, sessionId?: string | null];
-		result: {ok: true; sessionId: string} | {ok: false; notice: string};
+		result: {ok: true; taskId: string; sessionId: string} | {ok: false; notice: string};
 	};
 	'task:send': {
 		args: [

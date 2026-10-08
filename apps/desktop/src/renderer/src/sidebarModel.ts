@@ -45,6 +45,7 @@ export type PinnedRow = {
 	pin: PinnedTaskRef;
 	/** Resolved live task when still present in an open Project. */
 	taskId: string | null;
+	main: boolean;
 };
 
 export type SidebarModel = {
@@ -230,9 +231,11 @@ export function buildSidebarModel(input: {
 			const fromDefault = defaultTasks.find(
 				t => t.sessionId === pin.sessionId && pin.projectPath === defaultProjectPath
 			);
+			const task = fromFolder?.t ?? fromDefault;
 			return {
 				pin,
-				taskId: fromFolder?.t.id ?? fromDefault?.id ?? null
+				taskId: task?.id ?? null,
+				main: task ? isMainTask(task, homeIds) : false
 			};
 		});
 

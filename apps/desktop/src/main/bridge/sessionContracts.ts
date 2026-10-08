@@ -157,6 +157,8 @@ export type TaskCommands = {
 	deleteTask(taskId: string): Promise<{ok: boolean; notice?: string}>;
 	/** Regenerate and bind a fresh main session; resolves with the new Engine session id. */
 	restartMainSession(): Promise<{ok: boolean; sessionId?: string; notice?: string}>;
+	/** Point an existing Task row at a different Engine session (main restart): reset per-session state and re-Attach. */
+	rebindTaskSession(taskId: string, sessionId: string): TaskRecord | null;
 	sendMessage(
 		text: string,
 		mentions?: MentionChip[],

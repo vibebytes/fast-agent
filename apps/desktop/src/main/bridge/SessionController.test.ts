@@ -1,6 +1,7 @@
 /** SessionController tests — barrel. Domains live in sessionController/*. */
 import './sessionController/send.js';
 import './sessionController/attach.js';
+import './sessionController/rebind.js';
 import './sessionController/hydrate.js';
 import './sessionController/settle.js';
 import './sessionController/slash.js';

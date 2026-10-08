@@ -255,13 +255,14 @@ function ProjectsSidebarImpl({
 	async function confirmRestartMain(project: ProjectSnapshot, task: TaskSummary) {
 		const result = await window.fastIde.restartMainSession(task.id, task.sessionId);
 		if (!result.ok) {
-			if (result.notice) console.error('[restartMainSession]', result.notice);
+			window.alert(result.notice ?? 'Restart main session failed');
 			return;
 		}
 		if (task.sessionId) {
 			updateUi(prev => forgetSessionChrome(prev, project.path, task.sessionId!));
 		}
 		onDropOpenTabs([task.id]);
+		if (result.taskId) await onOpenTask(result.taskId);
 	}
 
 	const requestArchiveAll = useCallback((project: ProjectSnapshot) => {
@@ -398,7 +399,7 @@ function ProjectsSidebarImpl({
 					<SidebarGroupLabel>{t('shell.sidebar.pinned')}</SidebarGroupLabel>
 					<SidebarGroupContent>
 						<SidebarMenu>
-							{model.pinned.map(({pin, taskId}) => {
+							{model.pinned.map(({pin, taskId, main}) => {
 								const {project, task} = resolvePinnedTask(pin);
 								if (!project || !task) {
 									return (
@@ -451,7 +452,7 @@ function ProjectsSidebarImpl({
 										<ContextMenuContent className="w-52">
 											<TaskMenuItems
 												menu={contextChrome}
-												main={task.sessionType === 'main'}
+												main={main}
 												{...taskMenuPropsOf(
 													actions,
 													project,
