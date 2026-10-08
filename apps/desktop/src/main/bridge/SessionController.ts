@@ -78,6 +78,7 @@ export class SessionController implements TaskCommands, SessionLifecycle, TaskVi
 		return this.lifecycle.tasks;
 	}
 	private titleGenRequested = new Set<string>();
+	private pendingRestartMain: ((result: {ok: boolean; sessionId?: string; notice?: string}) => void) | null = null;
 
 	private get catalog() {
 		return this.modelSettings.catalog;
@@ -293,6 +294,31 @@ export class SessionController implements TaskCommands, SessionLifecycle, TaskVi
 	 */
 	deleteTask(taskId: string): Promise<{ok: boolean; notice?: string}> {
 		return this.lifecycle.deleteTask(taskId);
+	}
+
+	/** Ask Engine to regenerate and bind a fresh main session; resolves with the new session id. */
+	restartMainSession(): Promise<{ok: boolean; sessionId?: string; notice?: string}> {
+		if (this.pendingRestartMain) {
+			return Promise.resolve({ok: false, notice: 'Restart already in progress'});
+		}
+		return new Promise(resolve => {
+			this.pendingRestartMain = resolve;
+			if (!this.sendFn({type: 'RestartMainSession'})) {
+				this.pendingRestartMain = null;
+				resolve({ok: false, notice: 'Engine not connected'});
+			}
+		});
+	}
+
+	private settleRestartMain(result: {ok: boolean; sessionId?: string | null; notice?: string | null}): void {
+		const resolve = this.pendingRestartMain;
+		if (!resolve) return;
+		this.pendingRestartMain = null;
+		resolve(
+			result.ok
+				? {ok: true, sessionId: result.sessionId ?? undefined}
+				: {ok: false, notice: result.notice ?? 'Restart failed'}
+		);
 	}
 
 	/** Cancel a specific Task's Associated work (active Task optional). */
@@ -686,6 +712,13 @@ export class SessionController implements TaskCommands, SessionLifecycle, TaskVi
 
 	/** Single entry point: host branches (may stop short) then stream projection (K19). */
 	handleEvent(event: BridgeEvent): TaskRecord | null {
+		if (event.type === 'command_result' && event.name === 'RestartMainSession') {
+			this.settleRestartMain(
+				event.status === 'error'
+					? {ok: false, notice: event.message}
+					: {ok: true, sessionId: event.message}
+			);
+		}
 		const task = this.eventHost.handleEvent(event);
 		if (event.type === 'turn_cancelled' || event.type === 'run_cancelled') {
 			const sessionId = task?.sessionId ?? event.sessionId;

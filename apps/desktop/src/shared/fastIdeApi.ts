@@ -578,6 +578,10 @@ export type FastIdeApi = {
 	>;
 	renameTask: (taskId: string, title: string) => Promise<TaskMutationResult>;
 	deleteTask: (taskId: string, sessionId?: string | null) => Promise<TaskMutationResult>;
+	restartMainSession: (
+		taskId: string,
+		sessionId?: string | null
+	) => Promise<{ok: true; sessionId: string} | {ok: false; notice: string}>;
 	sendMessage: (
 		text: string,
 		mentions?: MentionChip[],

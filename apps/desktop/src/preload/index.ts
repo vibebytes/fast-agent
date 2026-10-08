@@ -202,6 +202,8 @@ const api = {
 	renameTask: (taskId: string, title: string) => invoke('task:rename', taskId, title),
 	deleteTask: (taskId: string, sessionId?: string | null) =>
 		invoke('task:delete', taskId, sessionId),
+	restartMainSession: (taskId: string, sessionId?: string | null) =>
+		invoke('task:restartMain', taskId, sessionId),
 	sendMessage: (text, mentions, expectedTaskId, images) =>
 		invoke('task:send', text, mentions, expectedTaskId, images),
 	buildPlan: (planId, name) => invoke('task:buildPlan', planId, name),

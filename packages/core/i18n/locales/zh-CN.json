@@ -1243,7 +1243,8 @@
       "pin": "置顶",
       "unpin": "取消置顶",
       "archive": "归档",
-      "delete": "删除"
+      "delete": "删除",
+      "restartMain": "重新开始主会话"
     },
     "filesMenu": {
       "open": "打开",
@@ -1265,6 +1266,9 @@
       "deleteTaskTitle": "删除「{{title}}」？",
       "deleteTaskDesc": "将从项目中移除，无法从侧栏恢复。进行中的运行将被取消。",
       "deleteAction": "删除",
+      "restartMainTitle": "重新开始主会话？",
+      "restartMainDesc": "将创建新的主会话替换当前主会话，当前对话会保留为普通会话。",
+      "restartMainAction": "重新开始",
       "removeProjectTitle": "移除「{{name}}」？",
       "removeProjectDesc": "项目文件夹不会被删除，仅从侧边栏关闭。",
       "removeAction": "移除",

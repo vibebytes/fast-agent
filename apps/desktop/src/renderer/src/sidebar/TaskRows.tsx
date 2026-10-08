@@ -35,6 +35,7 @@ export type RowActions = {
 	pinTask: (projectPath: string, task: TaskSummary) => void;
 	requestArchiveTask: (project: ProjectSnapshot, task: TaskSummary) => void;
 	requestDeleteTask: (project: ProjectSnapshot, task: TaskSummary) => void;
+	requestRestartMain: (project: ProjectSnapshot, task: TaskSummary) => void;
 	renameTask: (project: ProjectSnapshot, task: TaskSummary) => void;
 	renameProject: (project: ProjectSnapshot) => void;
 	requestArchiveAll: (project: ProjectSnapshot) => void;
@@ -60,7 +61,8 @@ export function taskMenuPropsOf(
 			showInFolder ?? (() => void window.fastIde.showProjectInFolder(project.id)),
 		onPin: () => actions.pinTask(project.path, task),
 		onArchive: () => actions.requestArchiveTask(project, task),
-		onDelete: () => actions.requestDeleteTask(project, task)
+		onDelete: () => actions.requestDeleteTask(project, task),
+		onRestartMain: () => actions.requestRestartMain(project, task)
 	};
 }
 

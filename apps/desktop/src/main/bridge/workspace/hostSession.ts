@@ -187,6 +187,25 @@ export function hostSession(input: {
 				: {ok: false as const, notice: 'Cannot rename until session is ready'};
 		},
 
+		'task:restartMain': async (taskId: string, sessionId?: string | null) => {
+			const resolved = hub.resolveTaskRef(taskId, sessionId);
+			if (!resolved) return {ok: false as const, notice: 'Task not found'};
+			const target = resolved.project.sessions
+				.listChats()
+				.find(t => t.id === resolved.taskId);
+			if (target?.sessionType !== 'main') {
+				return {ok: false as const, notice: 'Only the main session can be restarted'};
+			}
+			const sessions: TaskCommands = resolved.project.sessions;
+			const result = await sessions.restartMainSession();
+			publisher.publishWorkspace();
+			publisher.publishFocusChange();
+			if (!result.ok || !result.sessionId) {
+				return {ok: false as const, notice: result.notice ?? 'Restart failed'};
+			}
+			return {ok: true as const, sessionId: result.sessionId};
+		},
+
 		'task:delete': async (taskId: string, sessionId?: string | null) => {
 			const resolved = hub.resolveTaskRef(taskId, sessionId);
 			if (!resolved) {

@@ -155,6 +155,8 @@ export type TaskCommands = {
 	renameTask(taskId: string, title: string): boolean;
 	/** Soft-delete Session (`UpdateSessionStatus` deleted) or discard unbound optimistic create. */
 	deleteTask(taskId: string): Promise<{ok: boolean; notice?: string}>;
+	/** Regenerate and bind a fresh main session; resolves with the new Engine session id. */
+	restartMainSession(): Promise<{ok: boolean; sessionId?: string; notice?: string}>;
 	sendMessage(
 		text: string,
 		mentions?: MentionChip[],

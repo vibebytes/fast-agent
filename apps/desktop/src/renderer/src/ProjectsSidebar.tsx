@@ -248,6 +248,22 @@ function ProjectsSidebarImpl({
 		onDropOpenTabs([task.id]);
 	}
 
+	const requestRestartMain = useCallback((project: ProjectSnapshot, task: TaskSummary) => {
+		setDialog({kind: 'confirmRestartMain', project, task});
+	}, []);
+
+	async function confirmRestartMain(project: ProjectSnapshot, task: TaskSummary) {
+		const result = await window.fastIde.restartMainSession(task.id, task.sessionId);
+		if (!result.ok) {
+			if (result.notice) console.error('[restartMainSession]', result.notice);
+			return;
+		}
+		if (task.sessionId) {
+			updateUi(prev => forgetSessionChrome(prev, project.path, task.sessionId!));
+		}
+		onDropOpenTabs([task.id]);
+	}
+
 	const requestArchiveAll = useCallback((project: ProjectSnapshot) => {
 		const row = modelRef.current.projects.find(r => r.project.id === project.id);
 		const tasks = row?.tasks ?? [];
@@ -310,6 +326,7 @@ function ProjectsSidebarImpl({
 			pinTask,
 			requestArchiveTask,
 			requestDeleteTask,
+			requestRestartMain,
 			renameTask,
 			renameProject,
 			requestArchiveAll,
@@ -323,6 +340,7 @@ function ProjectsSidebarImpl({
 			pinTask,
 			requestArchiveTask,
 			requestDeleteTask,
+			requestRestartMain,
 			renameTask,
 			renameProject,
 			requestArchiveAll,
@@ -651,6 +669,7 @@ function ProjectsSidebarImpl({
 				onArchiveTask={confirmArchiveTask}
 				onArchiveAll={confirmArchiveAll}
 				onDeleteTask={confirmDeleteTask}
+				onRestartMainTask={confirmRestartMain}
 				onRemoveProject={p => void window.fastIde.closeProject(p.id)}
 			/>
 		</>

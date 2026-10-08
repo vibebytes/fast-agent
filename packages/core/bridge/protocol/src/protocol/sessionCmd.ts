@@ -113,6 +113,7 @@ export type SessionCmd =
 	| {type: 'SetSessionTitle'; sessionId: string; title: string; tenantId?: string; appId?: string}
 	| {type: 'SetSessionSummary'; sessionId: string; summary: string; tenantId?: string; appId?: string}
 	| {type: 'UpdateSessionStatus'; sessionId: string; status: string; tenantId?: string; appId?: string}
+	| {type: 'RestartMainSession'}
 	| {
 			type: 'CreateSession';
 			projectId: string;
@@ -340,6 +341,7 @@ export const sessionCmdSchemas = [
 		tenantId: z.string().optional(),
 		appId: z.string().optional()
 	}),
+	z.object({type: z.literal('RestartMainSession')}),
 	z.object({
 		type: z.literal('CreateSession'),
 		projectId: z.string(),

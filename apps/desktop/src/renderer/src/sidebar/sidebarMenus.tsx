@@ -15,6 +15,7 @@ import {
 	GitBranch,
 	Pencil,
 	Pin,
+	RotateCcw,
 	Trash2,
 	X
 } from 'lucide-react';
@@ -111,7 +112,8 @@ export function TaskMenuItems({
 	onShowInFolder,
 	onPin,
 	onArchive,
-	onDelete
+	onDelete,
+	onRestartMain
 }: {
 	menu: MenuChrome;
 	canMutate: boolean;
@@ -124,6 +126,7 @@ export function TaskMenuItems({
 	onPin: () => void;
 	onArchive: () => void;
 	onDelete: () => void;
+	onRestartMain?: () => void;
 }) {
 	const {t} = useTranslation();
 	const {Item, Separator} = menu;
@@ -145,7 +148,17 @@ export function TaskMenuItems({
 				<Pin className="size-4" />
 				{pinned ? t('shell.sidebarMenu.unpin') : t('shell.sidebarMenu.pin')}
 			</Item>
-			{main ? null : (
+			{main ? (
+				onRestartMain ? (
+					<>
+						<Separator />
+						<Item variant="destructive" onSelect={onRestartMain}>
+							<RotateCcw className="size-4" />
+							{t('shell.sidebarMenu.restartMain')}
+						</Item>
+					</>
+				) : null
+			) : (
 				<>
 					<Separator />
 					<Item disabled={!canMutate} onSelect={onArchive}>

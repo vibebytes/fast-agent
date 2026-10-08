@@ -1247,7 +1247,8 @@
       "pin": "Pin",
       "unpin": "Unpin",
       "archive": "Archive",
-      "delete": "Delete"
+      "delete": "Delete",
+      "restartMain": "Restart main session"
     },
     "filesMenu": {
       "open": "Open",
@@ -1269,6 +1270,9 @@
       "deleteTaskTitle": "Delete “{{title}}”?",
       "deleteTaskDesc": "It will be removed from the project and cannot be restored from the sidebar. Running work will be cancelled.",
       "deleteAction": "Delete",
+      "restartMainTitle": "Restart main session?",
+      "restartMainDesc": "A new main session will replace the current one. The current conversation will be kept as a regular chat.",
+      "restartMainAction": "Restart",
       "removeProjectTitle": "Remove “{{name}}”?",
       "removeProjectDesc": "The project folder will not be deleted; it is only closed in the sidebar.",
       "removeAction": "Remove",

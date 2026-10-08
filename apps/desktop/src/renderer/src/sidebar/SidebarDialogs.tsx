@@ -29,6 +29,7 @@ export type SidebarDialogState =
 	| {kind: 'confirmArchiveTask'; project: ProjectSnapshot; task: TaskSummary}
 	| {kind: 'confirmArchiveAll'; project: ProjectSnapshot; count: number; displayName: string}
 	| {kind: 'confirmDeleteTask'; project: ProjectSnapshot; task: TaskSummary}
+	| {kind: 'confirmRestartMain'; project: ProjectSnapshot; task: TaskSummary}
 	| {kind: 'confirmRemoveProject'; project: ProjectSnapshot; displayName: string};
 
 export const SIDEBAR_DIALOG_NONE: SidebarDialogState = {kind: 'none'};
@@ -41,6 +42,7 @@ export function SidebarDialogs({
 	onArchiveTask,
 	onArchiveAll,
 	onDeleteTask,
+	onRestartMainTask,
 	onRemoveProject
 }: {
 	dialog: SidebarDialogState;
@@ -50,6 +52,7 @@ export function SidebarDialogs({
 	onArchiveTask: (project: ProjectSnapshot, task: TaskSummary) => void;
 	onArchiveAll: (project: ProjectSnapshot) => void;
 	onDeleteTask: (project: ProjectSnapshot, task: TaskSummary) => void | Promise<void>;
+	onRestartMainTask: (project: ProjectSnapshot, task: TaskSummary) => void | Promise<void>;
 	onRemoveProject: (project: ProjectSnapshot) => void;
 }) {
 	const {t} = useTranslation();
@@ -130,6 +133,23 @@ export function SidebarDialogs({
 				onConfirm={() =>
 					confirm(current => {
 						if (current.kind === 'confirmArchiveAll') onArchiveAll(current.project);
+					})
+				}
+			/>
+
+			<ConfirmDialog
+				open={dialog.kind === 'confirmRestartMain'}
+				title={t('shell.sidebarDialog.restartMainTitle')}
+				description={t('shell.sidebarDialog.restartMainDesc')}
+				actionLabel={t('shell.sidebarDialog.restartMainAction')}
+				destructive
+				onOpenChange={open => {
+					if (!open) close();
+				}}
+				onConfirm={() =>
+					confirm(current => {
+						if (current.kind === 'confirmRestartMain')
+							void onRestartMainTask(current.project, current.task);
 					})
 				}
 			/>
