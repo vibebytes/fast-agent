@@ -34,6 +34,7 @@ test('rebindTaskSession swaps a bound row to a new session and resets per-sessio
 	const rebound = controller.rebindTaskSession(task.id, 'sess-new');
 	assert.equal(rebound, task);
 	assert.equal(task.sessionId, 'sess-new');
+	assert.equal(task.sessionType, 'main');
 	assert.equal(task.transcript.entries.length, 0);
 	assert.equal(task.lastEventSeq, 0);
 	const detach = sent.find(c => c.type === 'DetachSession');

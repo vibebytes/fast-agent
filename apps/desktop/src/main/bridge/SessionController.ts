@@ -353,6 +353,7 @@ export class SessionController implements TaskCommands, SessionLifecycle, TaskVi
 			this.seqBySession.delete(old);
 		}
 		task.sessionId = sessionId;
+		task.sessionType = 'main';
 		task.lastEventSeq = 0;
 		task.transcript = createTranscriptState();
 		task.codeChanges = createCodeChangesState();
