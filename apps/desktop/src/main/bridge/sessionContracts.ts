@@ -260,6 +260,8 @@ export type TaskView = {
 	effort?: string;
 	thinking?: boolean;
 	modelCatalog: ModelCatalogEntry[];
+	/** True after ListProviders has replaced the composer list (empty is a real answer). */
+	catalogFromProviders: boolean;
 	slashCatalog: SlashCatalogEntry[];
 	readonly slashCatalogHydrated: boolean;
 	listTasks(): TaskRecord[];

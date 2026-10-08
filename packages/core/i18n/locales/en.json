@@ -776,6 +776,8 @@
       "edit": "Edit",
       "reconnect": "Re-enable",
       "test": "Test connection",
+      "testing": "Testing",
+      "lastProbe": "Last probe",
       "enabledModels": "{{enabled}} of {{total}} models enabled",
       "authKind": "Auth",
       "keyLast4": "Key ···{{last4}}",

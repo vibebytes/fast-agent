@@ -206,6 +206,7 @@ export function createUiPublisher(deps: UiPublisherDeps) {
 			model,
 			modelDisplay: resolved || catalogCurrent?.display || catalogCurrent?.id || '',
 			modelCatalog: sessions?.modelCatalog ?? [],
+			modelCatalogReady: sessions?.catalogFromProviders ?? false,
 			runMode: sessions?.runMode ?? ('agent' as const),
 			engineKind: sessions?.engineKind ?? ('fast' as const),
 			availableEngineIds: sessions?.availableEngineIds() ?? ['fast'],
@@ -470,8 +471,7 @@ export function createUiPublisher(deps: UiPublisherDeps) {
 	 */
 	function publishWorkspace(): void {
 		contentPatchPublisher.cancel();
-		publishTranscriptPatch();
-
+		// Chrome before the transcript clone. The model list must not wait on a long session body.
 		const projects = hub.listProjects();
 		const activeProject = hub.getActive();
 		const engine = hub.getEngineStatus();
@@ -487,6 +487,7 @@ export function createUiPublisher(deps: UiPublisherDeps) {
 
 		send('project:changed', buildProjectState());
 		send('tasks:changed', buildTasksMeta());
+		publishTranscriptPatch();
 	}
 
 	/**

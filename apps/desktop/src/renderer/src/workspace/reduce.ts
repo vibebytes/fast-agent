@@ -34,6 +34,7 @@ export function reduceWorkspace(state: WorkspaceState, event: WorkspaceEvent): W
 			next = {
 				...next,
 				modelCatalog: snap.modelCatalog,
+				modelCatalogReady: snap.modelCatalogReady ?? next.modelCatalogReady,
 				model: snap.model,
 				modelDisplay: snap.modelDisplay,
 				...(snap.runMode ? {runMode: snap.runMode} : {}),
@@ -249,6 +250,7 @@ export function reduceWorkspace(state: WorkspaceState, event: WorkspaceEvent): W
 				model: p.model,
 				modelDisplay: p.modelDisplay,
 				modelCatalog: p.modelCatalog,
+				modelCatalogReady: p.modelCatalogReady,
 				runMode: p.runMode,
 				engineKind: p.engineKind,
 				availableEngineIds: p.availableEngineIds,

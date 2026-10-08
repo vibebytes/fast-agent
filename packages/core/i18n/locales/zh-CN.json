@@ -776,6 +776,8 @@
       "edit": "编辑",
       "reconnect": "重新启用",
       "test": "测连接",
+      "testing": "测试中",
+      "lastProbe": "测连结果",
       "enabledModels": "已启用 {{enabled}} 个模型（共 {{total}} 个）",
       "authKind": "接入方式",
       "keyLast4": "Key ···{{last4}}",

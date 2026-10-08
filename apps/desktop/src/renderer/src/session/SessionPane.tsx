@@ -78,6 +78,7 @@ export type SessionPaneProps = {
 	model: string;
 	modelDisplay: string;
 	modelCatalog: ModelCatalogEntry[];
+	modelCatalogReady?: boolean;
 	runMode?: 'agent' | 'plan' | 'ask' | 'yolo';
 	engineKind?: 'fast' | 'dsh';
 	availableEngineIds?: string[];
@@ -142,6 +143,7 @@ export const SessionPane = memo(function SessionPane({
 	model,
 	modelDisplay,
 	modelCatalog,
+	modelCatalogReady,
 	runMode = 'agent',
 	engineKind = 'fast',
 	availableEngineIds = ['fast'],
@@ -598,6 +600,7 @@ export const SessionPane = memo(function SessionPane({
 						model={model}
 						modelDisplay={modelDisplay}
 						modelCatalog={modelCatalog}
+						modelCatalogReady={modelCatalogReady}
 						stickyRunMode={runMode}
 						stickyEngineKind={engineKind}
 						availableEngineIds={availableEngineIds}

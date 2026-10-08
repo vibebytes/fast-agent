@@ -91,6 +91,9 @@ export class SessionController implements TaskCommands, SessionLifecycle, TaskVi
 	get modelCatalog(): ModelCatalogEntry[] {
 		return this.catalog.modelCatalog;
 	}
+	get catalogFromProviders(): boolean {
+		return this.catalog.catalogFromProviders;
+	}
 	get runMode(): RunMode {
 		return this.catalog.runMode;
 	}

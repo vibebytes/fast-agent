@@ -80,6 +80,7 @@ export type DialogueComposerProps = {
 	model: string;
 	modelDisplay: string;
 	modelCatalog: ModelCatalogEntry[];
+	modelCatalogReady?: boolean;
 	/** Sticky Mode / sampling restored from Task chrome. */
 	stickyRunMode?: RunModeName;
 	stickyEngineKind?: EngineKindName;
@@ -117,6 +118,7 @@ export const DialogueComposer = memo(function DialogueComposer({
 	model,
 	modelDisplay,
 	modelCatalog,
+	modelCatalogReady = false,
 	stickyRunMode = 'agent',
 	stickyEngineKind = 'fast',
 	availableEngineIds = ['fast'],
@@ -761,7 +763,7 @@ export const DialogueComposer = memo(function DialogueComposer({
 							enginePopOpen, setEnginePopOpen, engineKind, availableEngineIds, pickEngine,
 							modePopOpen, setModePopOpen, runMode, pickMode, sessionId,
 							modelPopOpen, setModelPopOpen, modelButtonFull, modelButtonLabel, activeBrand,
-							composerLocked, canChat, setModelSearch, modelCatalog, modelSearch,
+							composerLocked, canChat, setModelSearch, modelCatalog, modelCatalogReady, modelSearch,
 							effectiveModel, pickModel, thinkingPopOpen, setThinkingPopOpen,
 							supportsThinking, supportedEfforts, thinking, thinkingButtonLabel, effort,
 							toggleThinking, pickEffort, stopKind, canSteer, canSubmitNow, canSend,

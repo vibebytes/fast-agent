@@ -96,7 +96,10 @@ function persistCommittedEdge(id: string): void {
 }
 
 /** Cloudflare Tunnel 专用 loopback origin 口（§cloudflare-tunnel-pairing.md §4.6.3，不与 1979 冲突）。 */
-const CLOUDFLARE_ORIGIN_PORT = 1981;
+const CLOUDFLARE_ORIGIN_PORT = (() => {
+	const n = Number(process.env.FAST_BRIDGE_WS_PORT?.trim());
+	return Number.isFinite(n) && n > 0 ? n : 1981;
+})();
 const CLOUDFLARE_ORIGIN_URL = `http://127.0.0.1:${CLOUDFLARE_ORIGIN_PORT}/bridge`;
 
 const hub = new WorkspaceHub({
@@ -260,9 +263,12 @@ function runRestoreCommands(commands: WorkspaceRestoreCommand[]): void {
 				};
 				publish();
 				sendToRenderer('workspace:restored', {});
-				// Hello ListProviders often lands after this first paint. Await it so
-				// Composer chrome is not stuck empty until the user opens the picker.
-				void hub.refreshComposerCatalog().then(publish);
+				// Hello ListProviders often lands after this first paint. Publish chrome
+				// only — a second full transcript clone kept the model list empty.
+				void hub.refreshComposerCatalog().then(() => {
+					publisher.publishTasksMeta();
+					publisher.publishFocusChange();
+				});
 				break;
 			}
 			case 'publishFailed': {

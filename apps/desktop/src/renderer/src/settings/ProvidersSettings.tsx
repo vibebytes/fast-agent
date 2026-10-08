@@ -19,6 +19,7 @@ import {
 	MonoTag
 } from './SettingsPrimitives';
 import {EditProviderDialog} from './EditProviderDialog';
+import {editTestUpsert, providerStatusNote, type EditDraft} from './providerProbe';
 import {useProviders, type Provider, type SeedModel, type UpsertInput} from './useProviders';
 import {
 	PRESET_GROUPS,
@@ -146,6 +147,20 @@ export function ProvidersSettings({engineReady, onOpenModels}: Props) {
 		}
 	};
 
+	const handleEditTest = async (id: string, current: Provider, draft: EditDraft) => {
+		setTestingId(id);
+		try {
+			const upsert = editTestUpsert(id, current, draft);
+			if (upsert) {
+				const updated = await providers.upsert(upsert);
+				if (!updated) return false;
+			}
+			return await providers.test(id);
+		} finally {
+			setTestingId(null);
+		}
+	};
+
 	return (
 		<div className="space-y-4">
 			{providers.notice ? (
@@ -231,6 +246,8 @@ export function ProvidersSettings({engineReady, onOpenModels}: Props) {
 				<EditProviderDialog
 					provider={editing}
 					open={Boolean(editId)}
+					isTesting={testingId === editing.id}
+					notice={providers.notice}
 					onOpenChange={open => {
 						if (!open) setEditId(null);
 					}}
@@ -246,7 +263,7 @@ export function ProvidersSettings({engineReady, onOpenModels}: Props) {
 						}
 						return Boolean(updated);
 					}}
-					onTest={() => void handleTest(editing.id)}
+					onTest={draft => handleEditTest(editing.id, editing, draft)}
 					onDelete={async () => {
 						const ok = await providers.remove(editing.id);
 						if (ok) setEditId(null);
@@ -256,13 +273,6 @@ export function ProvidersSettings({engineReady, onOpenModels}: Props) {
 			) : null}
 		</div>
 	);
-}
-
-function providerStatusNote(detail: string | null | undefined): string | null {
-	const text = detail?.trim();
-	if (!text) return null;
-	if (/^HTTP\s+\d+/i.test(text)) return null;
-	return text;
 }
 
 function ProviderCard({
@@ -378,7 +388,7 @@ function ProviderCard({
 						{isTesting ? (
 							<>
 								<LoaderCircle className="mr-1 size-3 animate-spin" />
-								测试中
+								{t('settings.providers.testing')}
 							</>
 						) : (
 							t('settings.providers.test')

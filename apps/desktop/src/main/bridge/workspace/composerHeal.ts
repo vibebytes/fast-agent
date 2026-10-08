@@ -54,31 +54,30 @@ export function createComposerHeal(deps: {
 		return null;
 	};
 
+	const activeCatalogEmpty = (): boolean => (deps.active()?.sessions.modelCatalog.length ?? 0) === 0;
+
 	const loadComposerCatalogFromProviders = async (): Promise<boolean> => {
 		const res = await deps.catalog.listProviders();
 		if (!res.ok) return false;
-		if (res.providers.length > 0) {
-			const current = deps.active()?.sessions.model ?? '';
-			const catalog = catalogFromProviders(res.providers, current);
-			for (const project of deps.projects()) {
-				project.sessions.applyProviderCatalog(catalog);
-			}
-			return true;
-		}
+		if (res.providers.length === 0) return false;
+		const current = deps.active()?.sessions.model ?? '';
+		const catalog = catalogFromProviders(res.providers, current);
 		for (const project of deps.projects()) {
-			project.sessions.requestModelList();
+			project.sessions.applyProviderCatalog(catalog);
 		}
-		return true;
+		return catalog.length > 0;
 	};
 
 	const syncComposerCatalogFromProviders = (force = false): Promise<void> => {
-		if (!force && Date.now() < catalogFreshUntil) return Promise.resolve();
+		// An empty active catalog is not fresh — a session opened after the last
+		// paint, or a failed read, must not sit on the 60s TTL.
+		if (!force && !activeCatalogEmpty() && Date.now() < catalogFreshUntil) return Promise.resolve();
 		if (!force && composerCatalogSync) return composerCatalogSync;
 		if (!deps.ready()) return Promise.resolve();
 		const run = loadComposerCatalogFromProviders();
 		const wrapped = run
 			.then(ok => {
-				if (ok) catalogFreshUntil = Date.now() + catalogTtlMs;
+				if (ok && !activeCatalogEmpty()) catalogFreshUntil = Date.now() + catalogTtlMs;
 			})
 			.finally(() => {
 				if (composerCatalogSync === wrapped) composerCatalogSync = null;

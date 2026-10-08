@@ -52,6 +52,7 @@ export function ActionStrip(p: {
 	canChat: boolean;
 	setModelSearch: (q: string) => void;
 	modelCatalog: ModelCatalogEntry[];
+	modelCatalogReady?: boolean;
 	modelSearch: string;
 	effectiveModel: string;
 	pickModel: (id: string) => void;
@@ -79,7 +80,7 @@ export function ActionStrip(p: {
 		enginePopOpen, setEnginePopOpen, engineKind, availableEngineIds, pickEngine,
 		modePopOpen, setModePopOpen, runMode, pickMode, sessionId,
 		modelPopOpen, setModelPopOpen, modelButtonFull, modelButtonLabel, activeBrand,
-		composerLocked, canChat, setModelSearch, modelCatalog, modelSearch, effectiveModel, pickModel,
+		composerLocked, canChat, setModelSearch, modelCatalog, modelCatalogReady, modelSearch, effectiveModel, pickModel,
 		thinkingPopOpen, setThinkingPopOpen, supportsThinking, supportedEfforts, thinking,
 		thinkingButtonLabel, effort, toggleThinking, pickEffort,
 		stopKind, canSteer, canSubmitNow, canSend, selectedSlash, richRef, draft, store
@@ -213,6 +214,7 @@ export function ActionStrip(p: {
 								</PopoverTrigger>
 								<ModelCatalogContent
 									modelCatalog={modelCatalog}
+									catalogReady={modelCatalogReady}
 									modelSearch={modelSearch}
 									setModelSearch={setModelSearch}
 									setModelPopOpen={setModelPopOpen}

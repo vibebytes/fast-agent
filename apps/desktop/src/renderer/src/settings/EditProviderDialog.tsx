@@ -10,12 +10,18 @@ import {
 	DialogHeader,
 	DialogTitle
 } from '@fast-ide/ui/components/dialog';
-import {SettingsButton} from './SettingsPrimitives';
+import {PulseStatusBadge, SettingsButton} from './SettingsPrimitives';
+import {statusLabelKey} from './providerPresets';
+import {providerStatusNote, type EditDraft} from './providerProbe';
 import type {Provider} from './useProviders';
+
+export type {EditDraft};
 
 export function EditProviderDialog({
 	provider,
 	open,
+	isTesting,
+	notice,
 	onOpenChange,
 	onSave,
 	onTest,
@@ -23,9 +29,11 @@ export function EditProviderDialog({
 }: {
 	provider: Provider;
 	open: boolean;
+	isTesting: boolean;
+	notice?: string | null;
 	onOpenChange: (open: boolean) => void;
 	onSave: (input: {name?: string; baseUrl?: string; credential?: string}) => Promise<boolean>;
-	onTest: () => void;
+	onTest: (draft: EditDraft) => Promise<boolean>;
 	onDelete: () => Promise<boolean>;
 }) {
 	const {t} = useTranslation();
@@ -38,8 +46,11 @@ export function EditProviderDialog({
 	useEffect(() => {
 		setName(provider.name);
 		setBaseUrl(provider.baseUrl ?? '');
+	}, [provider.id, provider.name, provider.baseUrl]);
+
+	useEffect(() => {
 		setCredential('');
-	}, [provider]);
+	}, [provider.id]);
 
 	const save = async () => {
 		setSaving(true);
@@ -63,6 +74,20 @@ export function EditProviderDialog({
 			setDeleting(false);
 		}
 	};
+
+	const test = async () => {
+		const ok = await onTest({
+			name: name.trim(),
+			baseUrl: baseUrl.trim(),
+			credential: credential.trim()
+		});
+		if (ok && credential.trim()) setCredential('');
+	};
+
+	const statusKey = statusLabelKey(provider.status);
+	const isError = statusKey === 'authFailed' || statusKey === 'unreachable';
+	const isHealthy = statusKey === 'ok';
+	const detail = providerStatusNote(provider.statusDetail);
 
 	return (
 		<Dialog open={open} onOpenChange={onOpenChange}>
@@ -99,6 +124,20 @@ export function EditProviderDialog({
 							onChange={e => setCredential(e.target.value)}
 						/>
 					</label>
+
+					<div className="rounded-lg border border-border/70 px-3 py-2">
+						<div className="flex items-center gap-2">
+							<span className="text-xs text-muted-foreground">
+								{t('settings.providers.lastProbe')}
+							</span>
+							<PulseStatusBadge
+								status={isHealthy ? 'healthy' : isError ? 'error' : 'neutral'}
+								label={t(`settings.providers.status.${statusKey}`)}
+							/>
+						</div>
+						{detail ? <p className="mt-1 text-[11px] text-muted-foreground">{detail}</p> : null}
+						{notice ? <p className="mt-1 text-[11px] text-destructive">{notice}</p> : null}
+					</div>
 				</div>
 
 				<DialogFooter className="flex flex-row items-center justify-between">
@@ -112,8 +151,19 @@ export function EditProviderDialog({
 					</SettingsButton>
 
 					<div className="flex items-center gap-2">
-						<SettingsButton variant="outline" onClick={onTest}>
-							{t('settings.providers.test')}
+						<SettingsButton
+							variant="outline"
+							disabled={saving || deleting || isTesting}
+							onClick={() => void test()}
+						>
+							{isTesting ? (
+								<>
+									<LoaderCircle className="mr-1.5 size-3.5 animate-spin" />
+									{t('settings.providers.testing')}
+								</>
+							) : (
+								t('settings.providers.test')
+							)}
 						</SettingsButton>
 						<SettingsButton
 							disabled={saving || deleting || !name.trim()}

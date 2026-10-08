@@ -107,6 +107,7 @@ export function App({store}: {store: WorkspaceStore}) {
 	const model = workspace.model;
 	const modelDisplay = workspace.modelDisplay;
 	const modelCatalog = workspace.modelCatalog;
+	const modelCatalogReady = workspace.modelCatalogReady;
 	const runMode = workspace.runMode;
 	const engineKind = workspace.engineKind;
 	const availableEngineIds = workspace.availableEngineIds;
@@ -651,6 +652,7 @@ export function App({store}: {store: WorkspaceStore}) {
 							model={model}
 							modelDisplay={modelDisplay}
 							modelCatalog={modelCatalog}
+							modelCatalogReady={modelCatalogReady}
 							runMode={runMode}
 							engineKind={engineKind}
 							availableEngineIds={availableEngineIds}

@@ -31,6 +31,7 @@ const EFFORT_LABEL: Record<string, string> = {
 
 export function ModelCatalogContent({
 	modelCatalog,
+	catalogReady = false,
 	modelSearch,
 	setModelSearch,
 	setModelPopOpen,
@@ -38,6 +39,8 @@ export function ModelCatalogContent({
 	pickModel
 }: {
 	modelCatalog: ModelCatalogEntry[];
+	/** ListProviders has answered. Empty is "no models", not an in-flight load. */
+	catalogReady?: boolean;
 	modelSearch: string;
 	setModelSearch: (q: string) => void;
 	setModelPopOpen: (open: boolean) => void;
@@ -108,9 +111,13 @@ export function ModelCatalogContent({
 						</div>
 						<p className="text-xs font-semibold text-foreground mb-1">
 							{modelCatalog.length === 0
-								? t('shell.composer.loadingModels', {
-										defaultValue: '正在加载模型…'
-									})
+								? catalogReady
+									? t('shell.composer.noModels', {
+											defaultValue: '没有可用模型'
+										})
+									: t('shell.composer.loadingModels', {
+											defaultValue: '正在加载模型…'
+										})
 								: t('shell.composer.noModelMatch', {
 										defaultValue: '未找到匹配的模型'
 									})}

@@ -31,7 +31,7 @@ function fakeBridge(commands: BridgeCommand[]) {
 	} as unknown as BridgeClient;
 }
 
-test('publishWorkspace: channel order cancel coalesce → patch → projects → project → tasks(meta)', () => {
+test('publishWorkspace: channel order projects → project → tasks(meta) → patch', () => {
 	const home = tempDir('home');
 	const projectRoot = tempDir('proj');
 	const commands: BridgeCommand[] = [];
@@ -62,10 +62,10 @@ test('publishWorkspace: channel order cancel coalesce → patch → projects →
 
 	const channels = sent.map(s => s.channel);
 	assert.deepEqual(channels.slice(0, 4), [
-		'transcript:patched',
 		'projects:changed',
 		'project:changed',
-		'tasks:changed'
+		'tasks:changed',
+		'transcript:patched'
 	]);
 	const tasks = sent.find(s => s.channel === 'tasks:changed')?.payload as {
 		gate: unknown;
@@ -493,10 +493,10 @@ test('whitelisted events forward bridge:event; snapshot publish coalesces per mi
 	await new Promise<void>(resolve => queueMicrotask(resolve));
 	const snapshotChannels = sent.slice(2).map(s => s.channel);
 	assert.deepEqual(snapshotChannels, [
-		'transcript:patched',
 		'projects:changed',
 		'project:changed',
-		'tasks:changed'
+		'tasks:changed',
+		'transcript:patched'
 	]);
 });
 

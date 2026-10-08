@@ -99,6 +99,8 @@ export type WorkspaceState = {
 	model: string;
 	modelDisplay: string;
 	modelCatalog: ModelCatalogEntry[];
+	/** ListProviders has answered. An empty catalog is then "no models", not "loading". */
+	modelCatalogReady: boolean;
 	runMode: 'agent' | 'plan' | 'ask' | 'yolo';
 	engineKind: 'fast' | 'dsh';
 	availableEngineIds: string[];
@@ -179,6 +181,7 @@ export function initialWorkspaceState(): WorkspaceState {
 		model: 'default',
 		modelDisplay: '',
 		modelCatalog: [],
+		modelCatalogReady: false,
 		runMode: 'agent',
 		engineKind: 'fast',
 		availableEngineIds: ['fast'],

@@ -123,6 +123,7 @@ export function applyTasksMeta(state: WorkspaceState, meta: TasksMeta): Workspac
 		model: meta.model,
 		modelDisplay: meta.modelDisplay,
 		modelCatalog: meta.modelCatalog,
+		modelCatalogReady: meta.modelCatalogReady ?? state.modelCatalogReady,
 		runMode: meta.runMode ?? 'agent',
 		engineKind: meta.engineKind ?? state.engineKind ?? 'fast',
 		availableEngineIds: meta.availableEngineIds ?? state.availableEngineIds ?? ['fast'],
@@ -175,6 +176,7 @@ export function applyTasksStructure(state: WorkspaceState, meta: TasksMeta): Wor
 				? meta.defaultTasksHydrated
 				: state.defaultTasksHydrated,
 		modelCatalog: meta.modelCatalog ?? state.modelCatalog,
+		modelCatalogReady: meta.modelCatalogReady ?? state.modelCatalogReady,
 		slashCatalog: meta.slashCatalog ?? state.slashCatalog,
 		slashCatalogHydrated:
 			meta.slashCatalogHydrated !== undefined

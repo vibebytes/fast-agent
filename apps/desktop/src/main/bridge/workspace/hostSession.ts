@@ -249,7 +249,8 @@ export function hostSession(input: {
 
 		'model:list': async () => {
 			await hub.refreshComposerCatalog();
-			publisher.publishWorkspace();
+			// Catalog only. publishWorkspace clones the whole transcript first.
+			publisher.publishTasksMeta();
 			return true;
 		},
 

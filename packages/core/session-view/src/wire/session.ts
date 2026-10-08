@@ -151,6 +151,8 @@ export type TasksMeta = {
 	model: string;
 	modelDisplay: string;
 	modelCatalog: ModelCatalogEntry[];
+	/** True once ListProviders has painted the composer list. Empty then means no enabled models. */
+	modelCatalogReady?: boolean;
 	/** Sticky Composer RunMode for the active Task (survives tab switches). */
 	runMode?: 'agent' | 'plan' | 'ask' | 'yolo';
 	/** Conversation engine Fast | DSH. */
@@ -366,6 +368,7 @@ export type WorkspaceFocus = {
 	model: string;
 	modelDisplay: string;
 	modelCatalog: ModelCatalogEntry[];
+	modelCatalogReady?: boolean;
 	runMode?: 'agent' | 'plan' | 'ask' | 'yolo';
 	engineKind?: 'fast' | 'dsh';
 	/** Registry-available engine ids for the Composer picker. */
