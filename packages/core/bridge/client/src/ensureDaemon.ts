@@ -630,6 +630,12 @@ export async function ensureDaemon(deps: EnsureDaemonDeps = {}): Promise<EnsureD
 	const bundledEngine = deps.bundledEngine ?? env.FAST_BUNDLED_ENGINE;
 	const lockPath = lockPathOf(env);
 	const liveBridge = (pid: number) => isLiveBridgeHost(pid, {alive, commandLine, runtimeRoots: roots});
+	const held = () => aliveLockHolders(lockPath, lockHoldersOf, alive);
+	const ownPids = () => slotEnginePids(paths.runDir, readPid);
+	const foreignOf = (holders: number[]) => {
+		const ours = new Set(ownPids());
+		return holders.filter(pid => !ours.has(pid));
+	};
 	const deadline = now() + startupTimeoutMs;
 
 	ensureDir(paths.runDir);
@@ -748,10 +754,9 @@ export async function ensureDaemon(deps: EnsureDaemonDeps = {}): Promise<EnsureD
 		// Rocks held ⇒ another JVM owns the slot. Unless the holder is *our* engine
 		// still booting (its cmdline is invisible to ps/pgrep, so liveBridgePids missed
 		// it): then wait for its socket instead of refusing.
-		const holders = aliveLockHolders(lockPath, lockHoldersOf, alive);
+		const holders = held();
 		if (holders.length > 0) {
-			const ours = slotEnginePids(paths.runDir, readPid);
-			const foreign = holders.filter(pid => !ours.includes(pid));
+			const foreign = foreignOf(holders);
 			if (foreign.length === 0) {
 				staleAliveSince ??= now();
 				if (now() - staleAliveSince >= startupTimeoutMs || now() >= deadline) {
@@ -793,6 +798,9 @@ export async function ensureDaemon(deps: EnsureDaemonDeps = {}): Promise<EnsureD
 
 		// Wait for sock. If the JVM never appears (or dies), stop after grace — do not
 		// burn the full STARTUP_TIMEOUT with a dead "starting" claim.
+		// Fast.app's java cmdline is invisible to ps. The JVM writes instance.lock
+		// before it opens Rocks, so that pid means "our engine is booting" and a cold
+		// boot longer than STARTING_CLAIM_GRACE_MS must keep waiting for the socket.
 		let sawJvm = false;
 		let missingJvmSince: number | undefined = now();
 		while (now() < deadline) {
@@ -805,7 +813,8 @@ export async function ensureDaemon(deps: EnsureDaemonDeps = {}): Promise<EnsureD
 				};
 			}
 			const mid = bridgePidsOf().filter(liveBridge);
-			if (mid.length > 0) {
+			const slot = ownPids().filter(alive);
+			if (mid.length > 0 || slot.length > 0) {
 				sawJvm = true;
 				missingJvmSince = undefined;
 				continue;
@@ -814,11 +823,16 @@ export async function ensureDaemon(deps: EnsureDaemonDeps = {}): Promise<EnsureD
 			const grace = sawJvm ? CONNECT_TIMEOUT_MS : STARTING_CLAIM_GRACE_MS;
 			if (now() - missingJvmSince >= grace) break;
 		}
-		const afterHolders = aliveLockHolders(lockPath, lockHoldersOf, alive);
-		if (afterHolders.length > 0) {
+		const afterHolders = held();
+		const foreignAfter = foreignOf(afterHolders);
+		if (foreignAfter.length > 0) {
 			throw new Error(
-				`ENGINE_BUSY: Rocks LOCK held by pid(s) ${afterHolders.join(',')} at ${lockPath}; refuse another JVM`
+				`ENGINE_BUSY: Rocks LOCK held by pid(s) ${foreignAfter.join(',')} at ${lockPath}; refuse another JVM`
 			);
+		}
+		if (afterHolders.length > 0) {
+			await sleep(100);
+			continue;
 		}
 		const still = bridgePidsOf().filter(liveBridge);
 		if (still.length > 0) {
@@ -837,10 +851,16 @@ export async function ensureDaemon(deps: EnsureDaemonDeps = {}): Promise<EnsureD
 			`ENGINE_BUSY: Bridge host pid(s) ${leftover.join(',')} alive but socket ${paths.socketPath} not accepting`
 		);
 	}
-	const leftoverHolders = aliveLockHolders(lockPath, lockHoldersOf, alive);
+	const leftoverHolders = held();
+	const foreignLeft = foreignOf(leftoverHolders);
+	if (foreignLeft.length > 0) {
+		throw new Error(
+			`ENGINE_BUSY: Rocks LOCK held by pid(s) ${foreignLeft.join(',')} at ${lockPath}; refuse another JVM`
+		);
+	}
 	if (leftoverHolders.length > 0) {
 		throw new Error(
-			`ENGINE_BUSY: Rocks LOCK held by pid(s) ${leftoverHolders.join(',')} at ${lockPath}; refuse another JVM`
+			`ENGINE_BUSY: Bridge host pid(s) ${leftoverHolders.join(',')} alive but socket ${paths.socketPath} not accepting`
 		);
 	}
 	throw new Error('ENGINE_START_FAILED: Bridge host did not become ready in time');

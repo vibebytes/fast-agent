@@ -741,6 +741,53 @@ test('ensureDaemon stops spawn storm when Rocks LOCK remains after failed sock w
 	assert.equal(sockUnlinksAfterSpawn, 0);
 });
 
+test('ensureDaemon waits out a slow boot when the spawned JVM is only visible via instance.lock', async () => {
+	let ticks = 0;
+	let spawns = 0;
+	let claimed = false;
+	const result = await ensureDaemon({
+		...noLiveBridges,
+		env: {
+			HOME: '/tmp/bridge-client-test-home-slow-own',
+			FAST_RUN_DIR: '/tmp/bridge-client-test-run-slow-own'
+		},
+		startupTimeoutMs: 90_000,
+		connectTimeoutMs: 200,
+		sleep: async () => {},
+		now: (() => {
+			let t = 0;
+			return () => (t += 1_000);
+		})(),
+		tryConnect: async () => {
+			ticks += 1;
+			return ticks > 20;
+		},
+		isPidAlive: pid => pid === 77690,
+		readPid: p => (String(p).includes('instance.lock') && spawns > 0 ? 77690 : undefined),
+		unlink: () => {
+			claimed = false;
+		},
+		claimPidExclusive: () => {
+			if (claimed) throw new Error('EEXIST');
+			claimed = true;
+		},
+		spawnDaemon: () => {
+			spawns += 1;
+			return undefined;
+		},
+		rocksLockHolders: () => (spawns > 0 ? [77690] : []),
+		readToken: () => 'slow-token',
+		exists: p =>
+			p.includes('bridge.pid') ? claimed : p.includes('bridge.token') ? ticks > 20 : false,
+		ensureDir: () => {},
+		engineLaunch: sock => ({command: 'mock', args: ['--socket', sock]})
+	});
+	assert.equal(spawns, 1);
+	assert.equal(result.spawned, true);
+	assert.equal(result.token, 'slow-token');
+	assert.ok(ticks > 15);
+});
+
 test('ensureDaemon clears dead starting claim when no Bridge JVM appears', async () => {
 	let ready = false;
 	let claimed = false;
