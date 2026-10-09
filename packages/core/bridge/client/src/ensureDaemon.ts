@@ -467,6 +467,9 @@ function resolveDaemonLaunchBase(
 	const socketArgs = ['--transport', 'unix', '--socket', socketPath];
 	const withSession = (args: string[]) =>
 		hasSessionFlag(args) ? args : [...args, '--continue'];
+	const runtimeRoot = env.FAST_RUNTIME_ROOT?.trim();
+	const withRoot = (args: string[]) =>
+		runtimeRoot ? [`-Dfast.runtime.root=${runtimeRoot}`, ...args] : args;
 	const agentRoot = env.FAST_AGENT_ROOT?.trim();
 	const withExtensions = (cli: string) => {
 		const dir = engineExtensionsDir(env, cli);
@@ -482,7 +485,7 @@ function resolveDaemonLaunchBase(
 		const withoutTransport = stripTransportArgs(base);
 		return {
 			command: withExtensions(env.FAST_ENGINE_COMMAND.trim()),
-			args: withSession([...withoutTransport, ...socketArgs]),
+			args: withRoot(withSession([...withoutTransport, ...socketArgs])),
 			cwd: agentRoot
 		};
 	}
@@ -492,7 +495,7 @@ function resolveDaemonLaunchBase(
 	if (bundled && existsSync(bundled)) {
 		return {
 			command: withExtensions(bundled),
-			args: withSession(['engine', '--mode', 'bridge', ...socketArgs]),
+			args: withRoot(withSession(['engine', '--mode', 'bridge', ...socketArgs])),
 			cwd: agentRoot
 		};
 	}
@@ -500,7 +503,7 @@ function resolveDaemonLaunchBase(
 	if (fromResources) {
 		return {
 			command: withExtensions(fromResources),
-			args: withSession(['engine', '--mode', 'bridge', ...socketArgs]),
+			args: withRoot(withSession(['engine', '--mode', 'bridge', ...socketArgs])),
 			cwd: agentRoot
 		};
 	}
@@ -508,7 +511,7 @@ function resolveDaemonLaunchBase(
 	if (placed) {
 		return {
 			command: withExtensions(placed),
-			args: withSession(['engine', '--mode', 'bridge', ...socketArgs]),
+			args: withRoot(withSession(['engine', '--mode', 'bridge', ...socketArgs])),
 			cwd: path.dirname(path.dirname(placed))
 		};
 	}
@@ -517,7 +520,7 @@ function resolveDaemonLaunchBase(
 	if (classpath) {
 		return {
 			command: env.JAVA_COMMAND?.trim() || 'java',
-			args: withSession([
+			args: withRoot(withSession([
 				'--add-opens=java.base/java.nio=ALL-UNNAMED',
 				'-cp',
 				classpath,
@@ -526,13 +529,13 @@ function resolveDaemonLaunchBase(
 				'--mode',
 				'bridge',
 				...socketArgs
-			]),
+			])),
 			cwd: agentRoot
 		};
 	}
 	return {
 		command: engineBinName(),
-		args: withSession(['engine', '--mode', 'bridge', ...socketArgs]),
+		args: withRoot(withSession(['engine', '--mode', 'bridge', ...socketArgs])),
 		cwd: agentRoot
 	};
 }

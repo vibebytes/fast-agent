@@ -32,6 +32,16 @@ test('resolveDaemonLaunch appends loopback --ws only when port given', () => {
 	assert.equal(withPort.command, base.command);
 });
 
+test('resolveDaemonLaunch injects -Dfast.runtime.root from FAST_RUNTIME_ROOT', () => {
+	const launch = resolveDaemonLaunch('/tmp/b.sock', {
+		FAST_ENGINE_COMMAND: 'fast-cli',
+		FAST_RUNTIME_ROOT: '/data/desktop/runtime'
+	});
+	assert.equal(launch.args[0], '-Dfast.runtime.root=/data/desktop/runtime');
+	const noRoot = resolveDaemonLaunch('/tmp/b.sock', {FAST_ENGINE_COMMAND: 'fast-cli'});
+	assert.ok(!noRoot.args.some(a => a.startsWith('-Dfast.runtime.root=')));
+});
+
 test('resolveDaemonLaunch forces unix transport + socket', () => {
 	const launch = resolveDaemonLaunch('/tmp/b.sock', {
 		FAST_ENGINE_COMMAND: 'fast-cli',
