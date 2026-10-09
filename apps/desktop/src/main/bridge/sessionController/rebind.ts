@@ -44,6 +44,43 @@ test('rebindTaskSession swaps a bound row to a new session and resets per-sessio
 	assert.equal(attach.lastEventSeq, 0);
 });
 
+test('restartMainSession settles with a timeout notice when the engine never replies', async () => {
+	const controller = new SessionController({
+		clientId: 'cli-test',
+		send: () => true,
+		now: () => 1000,
+		createId: () => 'fixed-id'
+	});
+	(controller as unknown as {restartMainTimeoutMs: number}).restartMainTimeoutMs = 10;
+	const result = await controller.restartMainSession();
+	assert.equal(result.ok, false);
+	assert.equal(result.notice, 'Restart timed out');
+});
+
+test('restartMainSession settles on engine reset so the sidebar is not stuck', async () => {
+	const controller = new SessionController({
+		clientId: 'cli-test',
+		send: () => true,
+		now: () => 1000,
+		createId: () => 'fixed-id'
+	});
+	const pending = controller.restartMainSession();
+	controller.reset();
+	const result = await pending;
+	assert.equal(result.ok, false);
+	assert.equal(result.notice, 'Engine reset');
+});
+
+test('rebindTaskSession returns null when the task is unknown', () => {
+	const controller = new SessionController({
+		clientId: 'cli-test',
+		send: () => true,
+		now: () => 1000,
+		createId: () => 'fixed-id'
+	});
+	assert.equal(controller.rebindTaskSession('missing-task', 'sess-new'), null);
+});
+
 test('acceptNewSession stays a no-op for an already bound row (rebind is the restart path)', () => {
 	const controller = new SessionController({
 		clientId: 'cli-test',

@@ -255,7 +255,7 @@ function ProjectsSidebarImpl({
 	async function confirmRestartMain(project: ProjectSnapshot, task: TaskSummary) {
 		const result = await window.fastIde.restartMainSession(task.id, task.sessionId);
 		if (!result.ok) {
-			if (result.notice) console.error('[restartMainSession]', result.notice);
+			setDialog({kind: 'restartMainFailed', notice: result.notice ?? ''});
 			return;
 		}
 		if (task.sessionId) {

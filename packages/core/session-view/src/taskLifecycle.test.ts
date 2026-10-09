@@ -348,6 +348,42 @@ test('hydrateSessions upserts stubs, selects isCurrent and restores chrome', () 
 	assert.equal(deps.taskBySessionId('sess-a')!.lastModified, iso(1_600_000_003_000));
 });
 
+test('hydrateSessions demotes a stale main row when meta reports chat', () => {
+	const {deps} = makeDeps();
+	const lc = createTaskLifecycle(deps);
+	deps.taskBySessionId = sid => {
+		for (const t of lc.tasks.values()) if (t.sessionId === sid) return t;
+		return null;
+	};
+	const opts = {
+		model: () => 'm-1',
+		modelDisplay: () => 'Model One',
+		applyStickyChrome: () => undefined,
+		buildStub: (id: string, info: SessionMetaInfo, listOrder: number, model: string) => ({
+			id,
+			title: info.title?.trim() || info.id.slice(0, 8),
+			kind: 'task' as const,
+			sessionId: info.id,
+			listOrder,
+			pendingNew: false,
+			model,
+			sessionType: info.sessionType
+		}),
+		restoreChrome: () => undefined
+	};
+	lc.hydrateSessions(
+		[{id: 'sess-old', title: 'Old', lastModified: iso(1_600_000_001_000), sessionType: 'main'}],
+		opts
+	);
+	assert.equal(deps.taskBySessionId('sess-old')!.sessionType, 'main');
+
+	lc.hydrateSessions(
+		[{id: 'sess-old', title: 'Old', lastModified: iso(1_600_000_002_000), sessionType: 'chat'}],
+		opts
+	);
+	assert.equal(deps.taskBySessionId('sess-old')!.sessionType, 'chat');
+});
+
 test('hydrateSessions drops deleted sessions and never claims unbound pending rows', () => {
 	const {deps} = makeDeps();
 	const lc = createTaskLifecycle(deps);

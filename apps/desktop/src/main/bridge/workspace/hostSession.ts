@@ -197,7 +197,8 @@ export function hostSession(input: {
 				resolved.project.sessions
 					.listChats()
 					.find(t => t.id === resolved.taskId);
-			if (target?.sessionType !== 'main') {
+			if (!target) return {ok: false as const, notice: 'Task not found'};
+			if (target.sessionType !== 'main') {
 				return {ok: false as const, notice: 'Only the main session can be restarted'};
 			}
 			const sessions: TaskCommands = resolved.project.sessions;
@@ -207,9 +208,12 @@ export function hostSession(input: {
 			if (!result.ok || !result.sessionId) {
 				return {ok: false as const, notice: result.notice ?? 'Restart failed'};
 			}
-			sessions.rebindTaskSession(resolved.taskId, result.sessionId);
+			const rebound = sessions.rebindTaskSession(resolved.taskId, result.sessionId);
 			publisher.publishWorkspace();
 			publisher.publishFocusChange();
+			if (!rebound) {
+				return {ok: false as const, notice: 'Main session restarted but task rebind failed'};
+			}
 			return {ok: true as const, taskId: resolved.taskId, sessionId: result.sessionId};
 		},
 

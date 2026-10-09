@@ -30,6 +30,7 @@ export type SidebarDialogState =
 	| {kind: 'confirmArchiveAll'; project: ProjectSnapshot; count: number; displayName: string}
 	| {kind: 'confirmDeleteTask'; project: ProjectSnapshot; task: TaskSummary}
 	| {kind: 'confirmRestartMain'; project: ProjectSnapshot; task: TaskSummary}
+	| {kind: 'restartMainFailed'; notice: string}
 	| {kind: 'confirmRemoveProject'; project: ProjectSnapshot; displayName: string};
 
 export const SIDEBAR_DIALOG_NONE: SidebarDialogState = {kind: 'none'};
@@ -152,6 +153,17 @@ export function SidebarDialogs({
 							void onRestartMainTask(current.project, current.task);
 					})
 				}
+			/>
+
+			<ConfirmDialog
+				open={dialog.kind === 'restartMainFailed'}
+				title={t('shell.sidebarDialog.restartMainFailedTitle')}
+				description={dialog.kind === 'restartMainFailed' ? dialog.notice : ''}
+				actionLabel={t('shell.sidebarDialog.restartMainFailedAction')}
+				onOpenChange={open => {
+					if (!open) close();
+				}}
+				onConfirm={close}
 			/>
 
 			<ConfirmDialog

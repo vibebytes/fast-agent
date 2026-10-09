@@ -51,6 +51,7 @@ export class SessionController implements TaskCommands, SessionLifecycle, TaskVi
 	private readonly createId: () => string;
 	private readonly onChange?: () => void;
 	private readonly cancelSettlementTimeoutMs: number;
+	private readonly restartMainTimeoutMs = 30_000;
 	private readonly leaseScanIntervalMs: number;
 	private readonly workspaceId?: () => string | undefined;
 	private readonly projectId?: () => string | undefined;
@@ -80,6 +81,7 @@ export class SessionController implements TaskCommands, SessionLifecycle, TaskVi
 	}
 	private titleGenRequested = new Set<string>();
 	private pendingRestartMain: ((result: {ok: boolean; sessionId?: string; notice?: string}) => void) | null = null;
+	private restartMainTimer: ReturnType<typeof setTimeout> | null = null;
 
 	private get catalog() {
 		return this.modelSettings.catalog;
@@ -304,9 +306,12 @@ export class SessionController implements TaskCommands, SessionLifecycle, TaskVi
 		}
 		return new Promise(resolve => {
 			this.pendingRestartMain = resolve;
+			this.restartMainTimer = setTimeout(
+				() => this.settleRestartMain({ok: false, notice: 'Restart timed out'}),
+				this.restartMainTimeoutMs
+			);
 			if (!this.sendFn({type: 'RestartMainSession'})) {
-				this.pendingRestartMain = null;
-				resolve({ok: false, notice: 'Engine not connected'});
+				this.settleRestartMain({ok: false, notice: 'Engine not connected'});
 			}
 		});
 	}
@@ -315,6 +320,8 @@ export class SessionController implements TaskCommands, SessionLifecycle, TaskVi
 		const resolve = this.pendingRestartMain;
 		if (!resolve) return;
 		this.pendingRestartMain = null;
+		if (this.restartMainTimer) clearTimeout(this.restartMainTimer);
+		this.restartMainTimer = null;
 		resolve(
 			result.ok
 				? {ok: true, sessionId: result.sessionId ?? undefined}
@@ -828,6 +835,7 @@ export class SessionController implements TaskCommands, SessionLifecycle, TaskVi
 	}
 
 	reset(): void {
+		this.settleRestartMain({ok: false, notice: 'Engine reset'});
 		this.rejectPendingDeletes('Engine reset');
 		this.leaseWatch.dispose();
 		this.lifecycle.reset();

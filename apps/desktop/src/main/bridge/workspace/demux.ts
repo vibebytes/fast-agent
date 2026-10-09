@@ -212,6 +212,11 @@ export function createDemux(h: DemuxHost): WorkspaceDemux {
 				h.fanoutSessionChrome(event, handlers);
 				return true;
 			}
+			if (event.name === 'RestartMainSession') {
+				for (const project of h.projects.values()) project.sessions.handleEvent(event);
+				handlers.onEvent('engine', event);
+				return true;
+			}
 			return false;
 		},
 		dispatchTypedEvent(event: BridgeEvent, handlers: WorkspaceProjectHandlers): boolean {

@@ -414,9 +414,7 @@ export function createTaskLifecycle<T extends LifecycleTask>(deps: TaskLifecycle
 			const existing = bySessionId.get(info.id);
 			if (existing) {
 				if (named) existing.title = named;
-				if (info.sessionType && existing.sessionType !== 'main') {
-					existing.sessionType = info.sessionType;
-				}
+				if (info.sessionType) existing.sessionType = info.sessionType;
 				if (existing.kind !== 'task') existing.kind = 'task';
 				if (
 					info.lastModified &&
