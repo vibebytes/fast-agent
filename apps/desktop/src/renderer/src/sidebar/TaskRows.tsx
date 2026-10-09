@@ -297,6 +297,7 @@ export const DefaultTaskRow = memo(
 						onPin={() => actions.pinTask(defaultProject.path, task)}
 						onArchive={() => actions.requestArchiveTask(defaultProject, task)}
 						onDelete={() => actions.requestDeleteTask(defaultProject, task)}
+						onRestartMain={() => actions.requestRestartMain(defaultProject, task)}
 					/>
 				</ContextMenuContent>
 			</ContextMenu>
