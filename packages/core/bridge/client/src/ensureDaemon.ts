@@ -147,6 +147,21 @@ function aliveLockHolders(
 	return holders(lockPath).filter(alive);
 }
 
+/**
+ * PIDs this slot's own engine has claimed for itself: `instance.lock` (written by the
+ * JVM at startup) and `bridge.pid`. The bundled Fast.app engine's command line is not
+ * visible to `ps`/`pgrep`, so `liveBridgePids` cannot see it; these files are the only
+ * reliable way to tell "our engine is booting" from "a foreign JVM holds Rocks".
+ */
+function slotEnginePids(runDir: string, readPid: (p: string) => number | undefined): number[] {
+	const pids: number[] = [];
+	for (const name of ['instance.lock', 'bridge.pid']) {
+		const pid = readPid(path.join(runDir, name));
+		if (pid !== undefined) pids.push(pid);
+	}
+	return pids;
+}
+
 export function engineCommandLine(pid: number): string | undefined {
 	try {
 		if (process.platform === 'win32') {
@@ -730,11 +745,25 @@ export async function ensureDaemon(deps: EnsureDaemonDeps = {}): Promise<EnsureD
 			startingClaimSince = undefined;
 		}
 
-		// Rocks held ⇒ another JVM owns the slot.
+		// Rocks held ⇒ another JVM owns the slot. Unless the holder is *our* engine
+		// still booting (its cmdline is invisible to ps/pgrep, so liveBridgePids missed
+		// it): then wait for its socket instead of refusing.
 		const holders = aliveLockHolders(lockPath, lockHoldersOf, alive);
 		if (holders.length > 0) {
+			const ours = slotEnginePids(paths.runDir, readPid);
+			const foreign = holders.filter(pid => !ours.includes(pid));
+			if (foreign.length === 0) {
+				staleAliveSince ??= now();
+				if (now() - staleAliveSince >= startupTimeoutMs || now() >= deadline) {
+					throw new Error(
+						`ENGINE_BUSY: Bridge host pid(s) ${holders.join(',')} alive but socket ${paths.socketPath} not accepting`
+					);
+				}
+				await sleep(100);
+				continue;
+			}
 			throw new Error(
-				`ENGINE_BUSY: Rocks LOCK held by pid(s) ${holders.join(',')} at ${lockPath}; refuse another JVM`
+				`ENGINE_BUSY: Rocks LOCK held by pid(s) ${foreign.join(',')} at ${lockPath}; refuse another JVM`
 			);
 		}
 

@@ -627,6 +627,40 @@ test('ensureDaemon clears stale pidfile on PID reuse then spawns', async () => {
 	assert.equal(unlinkedPid, true);
 });
 
+test('ensureDaemon waits when Rocks LOCK is held by this slot engine (invisible cmdline)', async () => {
+	let ticks = 0;
+	const result = await ensureDaemon({
+		...noLiveBridges,
+		env: {HOME: '/tmp/bridge-client-test-home-ownlock', FAST_RUN_DIR: '/tmp/bridge-client-test-run-ownlock'},
+		startupTimeoutMs: 3_000,
+		connectTimeoutMs: 200,
+		sleep: async () => {},
+		now: (() => {
+			let t = 0;
+			return () => (t += 100);
+		})(),
+		tryConnect: async () => {
+			ticks += 1;
+			return ticks > 3;
+		},
+		isPidAlive: pid => pid === 93156,
+		readPid: p => (String(p).includes('instance.lock') ? 93156 : undefined),
+		unlink: () => {},
+		claimPidExclusive: () => {
+			assert.fail('must not claim while our own engine boots');
+		},
+		spawnDaemon: () => {
+			assert.fail('must not spawn while our own engine boots');
+		},
+		rocksLockHolders: () => [93156],
+		readToken: () => 'own-token',
+		exists: p => (p.includes('bridge.token') ? ticks > 3 : false),
+		ensureDir: () => {}
+	});
+	assert.equal(result.spawned, false);
+	assert.equal(result.token, 'own-token');
+});
+
 test('ensureDaemon ENGINE_BUSY when Rocks LOCK held — never kill or spawn', async () => {
 	await assert.rejects(
 		() =>
