@@ -411,11 +411,20 @@ export type SkillRow = {
 };
 
 /** Settings-center configurable tool (ListConfigurableTools / PutConfigurableTool). */
+export type ModelToolCandidate = {
+	key: string;
+	display: string;
+	platform: string;
+	tokenPresent: boolean;
+};
+
 export type ConfigurableToolField = {
 	key: string;
-	type: 'secret' | 'text' | 'number' | 'toggle' | 'choice';
+	type: 'secret' | 'text' | 'number' | 'toggle' | 'choice' | 'model-ref';
 	required: boolean;
 	options?: string[];
+	capability?: string;
+	candidates?: ModelToolCandidate[];
 };
 
 export type ConfigurableToolSecret = {
@@ -428,6 +437,10 @@ export type ConfigurableTool = {
 	titleKey: string;
 	summaryKey: string;
 	status: string;
+	/** Engine-declared group (general/image/video/speech/other); absent = client heuristic. */
+	group?: string;
+	/** Effective session scope computed by the engine; absent = stored values decide. */
+	sessionScope?: string;
 	fields: ConfigurableToolField[];
 	values: Record<string, unknown>;
 	secrets: Record<string, ConfigurableToolSecret>;
