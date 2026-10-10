@@ -187,6 +187,7 @@
       "thinkingSupportedWithEfforts": "Supports thinking ({{efforts}})",
       "thinkingBadge": "Thinking",
       "toggleImage": "Toggle image input",
+      "toggleImageGeneration": "Alternar generación de imágenes",
       "imageBadge": "Image",
       "imageSupported": "Supports image input",
       "supportsImage": "Supports image input",
@@ -524,25 +525,38 @@
         "extensions": "Extensions"
       },
       "tools": {
+        "cancel": "Cancel",
+        "configure": "Configure",
         "deepseek": {
           "title": "DeepSeek Search",
           "summary": "Search the web with DeepSeek."
         },
+        "emptyTitle": "No configurable tools",
+        "field": {
+          "apiKey": "API key"
+        },
+        "group": {
+          "general": "General",
+          "image": "Imagen",
+          "video": "Vídeo",
+          "speech": "Voz",
+          "other": "Otros"
+        },
+        "groupEmpty": "No hay herramientas en esta categoría",
+        "loadFailed": "Could not load tools",
+        "loadFailedDescription": "The engine did not return the tool list.",
         "perplexity": {
           "title": "Perplexity Search",
           "summary": "Search the web with Perplexity."
         },
-        "field": {
-          "apiKey": "API key"
-        },
-        "configure": "Configure",
         "save": "Save",
-        "cancel": "Cancel",
-        "emptyTitle": "No configurable tools",
-        "loadFailed": "Could not load tools",
-        "loadFailedDescription": "The engine did not return the tool list.",
-        "secretKeep": "Leave blank to keep the key ending in {{last4}}",
+        "scope": {
+          "all_sessions": "Todas las sesiones",
+          "main_only": "Solo sesión principal"
+        },
+        "scopeSaveFailed": "No se pudo guardar el ámbito de sesión",
         "secretClear": "Clear key",
+        "secretKeep": "Leave blank to keep the key ending in {{last4}}",
         "secretRequired": "An API key is required to enable this tool."
       },
       "searchSkills": "Search skills…",

@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import type {ConfigurableTool} from '@fast-ide/session-view';
 import {visiblePluginTabs} from './pluginTabs.js';
-import {draftsFrom, submitToolForm, toolsSurface} from './toolForm.js';
+import {draftsFrom, modelRefOptions, submitToolForm, toolsSurface} from './toolForm.js';
 
 function tool(patch: Partial<ConfigurableTool> = {}): ConfigurableTool {
 	return {
@@ -80,5 +80,68 @@ test('a replacement secret after clear is sent and enable stays requested', () =
 		assert.equal(submitted.input.enabled, true);
 		assert.deepEqual(submitted.input.secrets, {apiKey: 'sk-new-9999'});
 		assert.deepEqual(submitted.input.clearSecrets, []);
+	}
+});
+
+function imageTool(patch: Partial<ConfigurableTool> = {}): ConfigurableTool {
+	return tool({
+		name: 'generate_image',
+		fields: [
+			{key: 'apiKey', type: 'secret', required: true},
+			{
+				key: 'model',
+				type: 'model-ref',
+				required: true,
+				candidates: [
+					{key: 'openrouter/openai/gpt-image-2', display: 'GPT Image 2', platform: 'openrouter', tokenPresent: true},
+					{key: 'dashscope/wanx-v1', display: 'Wanx v1', platform: 'dashscope', tokenPresent: false}
+				]
+			},
+			{key: 'size', type: 'choice', required: false, options: ['1024x1024', '1536x1024']},
+			{key: 'sessionScope', type: 'choice', required: false, options: ['main_only', 'all_sessions']}
+		],
+		values: {model: 'openrouter/openai/gpt-image-2', size: '1024x1024', sessionScope: 'main_only'},
+		secrets: {apiKey: {present: true, last4: '1234'}},
+		...patch
+	});
+}
+
+test('model-ref drafts carry the stored model key', () => {
+	assert.equal(draftsFrom(imageTool()).model, 'openrouter/openai/gpt-image-2');
+	assert.equal(draftsFrom(imageTool({values: {}})).model, '');
+});
+
+test('model-ref select offers candidates and disables rows without a token', () => {
+	const options = modelRefOptions(imageTool().fields.find((field) => field.key === 'model')!);
+	assert.deepEqual(
+		options.map((option) => option.value),
+		['openrouter/openai/gpt-image-2', 'dashscope/wanx-v1']
+	);
+	assert.equal(options[0].disabled, false);
+	assert.equal(options[1].disabled, true);
+	assert.match(options[1].label, /Wanx v1/);
+});
+
+test('submitting the image form keeps the model value and omits sessionScope from values', () => {
+	const submitted = submitToolForm(imageTool(), draftsFrom(imageTool()), {});
+	assert.equal(submitted.kind, 'save');
+	if (submitted.kind === 'save') {
+		assert.deepEqual(submitted.input.values, {model: 'openrouter/openai/gpt-image-2', size: '1024x1024'});
+		assert.equal(submitted.input.enabled, true);
+	}
+});
+
+test('a blank required model-ref holds the save', () => {
+	const drafts = {...draftsFrom(imageTool()), model: ''};
+	const submitted = submitToolForm(imageTool(), drafts, {});
+	assert.equal(submitted.kind, 'hold');
+});
+
+test('unknown model-ref candidate still passes validation when a raw model key is allowed', () => {
+	const drafts = {...draftsFrom(imageTool()), model: 'ollama/llava'};
+	const submitted = submitToolForm(imageTool(), drafts, {});
+	assert.equal(submitted.kind, 'save');
+	if (submitted.kind === 'save') {
+		assert.equal(submitted.input.values.model, 'ollama/llava');
 	}
 });

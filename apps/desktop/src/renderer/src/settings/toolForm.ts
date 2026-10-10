@@ -1,4 +1,5 @@
 import type {ConfigurableTool, ConfigurableToolField, PutConfigurableToolInput} from '@fast-ide/session-view';
+import {SESSION_SCOPE_KEY} from './toolScope.js';
 
 export type ToolsSurface = 'disabled' | 'loading' | 'error' | 'empty' | 'list';
 
@@ -15,9 +16,11 @@ export function toolsSurface(tools: {engineReady: boolean; status: string; tools
 export function draftsFrom(tool: ConfigurableTool): Record<string, string> {
 	const drafts: Record<string, string> = {};
 	for (const field of tool.fields) {
+		if (field.key === SESSION_SCOPE_KEY) continue;
 		const value = tool.values[field.key];
 		if (field.type === 'toggle' && typeof value === 'boolean') drafts[field.key] = value ? 'true' : 'false';
 		else if (field.type === 'number' && typeof value === 'number' && Number.isFinite(value)) drafts[field.key] = String(value);
+		else if (field.type === 'model-ref') drafts[field.key] = typeof value === 'string' ? value : '';
 		else if ((field.type === 'text' || field.type === 'choice') && typeof value === 'string') drafts[field.key] = value;
 	}
 	return drafts;
@@ -40,6 +43,7 @@ export function submitToolForm(
 	const values: Record<string, unknown> = {};
 	let missingRequired = false;
 	for (const field of tool.fields) {
+		if (field.key === SESSION_SCOPE_KEY) continue;
 		const draft = (drafts[field.key] ?? '').trim();
 		if (field.type === 'secret') collectSecret(tool, field, draft, Boolean(cleared[field.key]), secrets, clearSecrets, () => {
 			missingRequired = true;
@@ -98,4 +102,13 @@ function collectValue(
 	if (draft) values[field.key] = draft;
 	else if (field.required) missing();
 	else if (touched) values[field.key] = '';
+}
+
+/** model-ref dropdown options: stored candidates, greyed out when the platform token is missing. */
+export function modelRefOptions(field: ConfigurableToolField): {value: string; label: string; disabled: boolean}[] {
+	return (field.candidates ?? []).map(candidate => ({
+		value: candidate.key,
+		label: candidate.display === candidate.key ? candidate.key : `${candidate.display} (${candidate.key})`,
+		disabled: !candidate.tokenPresent
+	}));
 }

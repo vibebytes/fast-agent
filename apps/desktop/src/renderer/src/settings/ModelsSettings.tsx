@@ -411,6 +411,13 @@ export function ModelsSettings({engineReady, focusProviderId}: Props) {
 										}
 									]);
 								}}
+								onToggleCapability={(model, capability, on) => {
+									const prev = model.capabilities ?? [];
+									const next = on ? [...new Set([...prev, capability])] : prev.filter(c => c !== capability);
+									void providers.patchModels(provider.id, [
+										{op: 'enable', modelId: model.modelId, capabilities: next}
+									]);
+								}}
 								onAdd={() => setAddFor(provider.id)}
 								onSearch={() => setSearchFor(provider.id)}
 								onRemove={model =>

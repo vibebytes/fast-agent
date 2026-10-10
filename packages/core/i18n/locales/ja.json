@@ -187,6 +187,7 @@
       "thinkingSupportedWithEfforts": "Supports thinking ({{efforts}})",
       "thinkingBadge": "Thinking",
       "toggleImage": "Toggle image input",
+      "toggleImageGeneration": "画像生成を切り替え",
       "imageBadge": "Image",
       "imageSupported": "Supports image input",
       "supportsImage": "Supports image input",
@@ -524,25 +525,38 @@
         "extensions": "Extensions"
       },
       "tools": {
+        "cancel": "Cancel",
+        "configure": "Configure",
         "deepseek": {
           "title": "DeepSeek Search",
           "summary": "Search the web with DeepSeek."
         },
+        "emptyTitle": "No configurable tools",
+        "field": {
+          "apiKey": "API key"
+        },
+        "group": {
+          "general": "一般",
+          "image": "画像",
+          "video": "動画",
+          "speech": "音声",
+          "other": "その他"
+        },
+        "groupEmpty": "このカテゴリーにツールはありません",
+        "loadFailed": "Could not load tools",
+        "loadFailedDescription": "The engine did not return the tool list.",
         "perplexity": {
           "title": "Perplexity Search",
           "summary": "Search the web with Perplexity."
         },
-        "field": {
-          "apiKey": "API key"
-        },
-        "configure": "Configure",
         "save": "Save",
-        "cancel": "Cancel",
-        "emptyTitle": "No configurable tools",
-        "loadFailed": "Could not load tools",
-        "loadFailedDescription": "The engine did not return the tool list.",
-        "secretKeep": "Leave blank to keep the key ending in {{last4}}",
+        "scope": {
+          "all_sessions": "すべてのセッション",
+          "main_only": "メインセッションのみ"
+        },
+        "scopeSaveFailed": "セッションスコープを保存できませんでした",
         "secretClear": "Clear key",
+        "secretKeep": "Leave blank to keep the key ending in {{last4}}",
         "secretRequired": "An API key is required to enable this tool."
       },
       "searchSkills": "Search skills…",

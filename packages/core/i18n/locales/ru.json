@@ -187,6 +187,7 @@
       "thinkingSupportedWithEfforts": "Supports thinking ({{efforts}})",
       "thinkingBadge": "Thinking",
       "toggleImage": "Toggle image input",
+      "toggleImageGeneration": "Генерация изображений",
       "imageBadge": "Image",
       "imageSupported": "Supports image input",
       "supportsImage": "Supports image input",
@@ -524,25 +525,38 @@
         "extensions": "Extensions"
       },
       "tools": {
+        "cancel": "Cancel",
+        "configure": "Configure",
         "deepseek": {
           "title": "DeepSeek Search",
           "summary": "Search the web with DeepSeek."
         },
+        "emptyTitle": "No configurable tools",
+        "field": {
+          "apiKey": "API key"
+        },
+        "group": {
+          "general": "Общие",
+          "image": "Изображения",
+          "video": "Видео",
+          "speech": "Речь",
+          "other": "Другие"
+        },
+        "groupEmpty": "В этой категории нет инструментов",
+        "loadFailed": "Could not load tools",
+        "loadFailedDescription": "The engine did not return the tool list.",
         "perplexity": {
           "title": "Perplexity Search",
           "summary": "Search the web with Perplexity."
         },
-        "field": {
-          "apiKey": "API key"
-        },
-        "configure": "Configure",
         "save": "Save",
-        "cancel": "Cancel",
-        "emptyTitle": "No configurable tools",
-        "loadFailed": "Could not load tools",
-        "loadFailedDescription": "The engine did not return the tool list.",
-        "secretKeep": "Leave blank to keep the key ending in {{last4}}",
+        "scope": {
+          "all_sessions": "Все сеансы",
+          "main_only": "Только главный сеанс"
+        },
+        "scopeSaveFailed": "Не удалось сохранить область сеансов",
         "secretClear": "Clear key",
+        "secretKeep": "Leave blank to keep the key ending in {{last4}}",
         "secretRequired": "An API key is required to enable this tool."
       },
       "searchSkills": "Search skills…",

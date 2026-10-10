@@ -187,6 +187,7 @@
       "thinkingSupportedWithEfforts": "Supports thinking ({{efforts}})",
       "thinkingBadge": "Thinking",
       "toggleImage": "Toggle image input",
+      "toggleImageGeneration": "이미지 생성 전환",
       "imageBadge": "Image",
       "imageSupported": "Supports image input",
       "supportsImage": "Supports image input",
@@ -524,25 +525,38 @@
         "extensions": "Extensions"
       },
       "tools": {
+        "cancel": "Cancel",
+        "configure": "Configure",
         "deepseek": {
           "title": "DeepSeek Search",
           "summary": "Search the web with DeepSeek."
         },
+        "emptyTitle": "No configurable tools",
+        "field": {
+          "apiKey": "API key"
+        },
+        "group": {
+          "general": "일반",
+          "image": "이미지",
+          "video": "동영상",
+          "speech": "음성",
+          "other": "기타"
+        },
+        "groupEmpty": "이 카테고리에 도구가 없습니다",
+        "loadFailed": "Could not load tools",
+        "loadFailedDescription": "The engine did not return the tool list.",
         "perplexity": {
           "title": "Perplexity Search",
           "summary": "Search the web with Perplexity."
         },
-        "field": {
-          "apiKey": "API key"
-        },
-        "configure": "Configure",
         "save": "Save",
-        "cancel": "Cancel",
-        "emptyTitle": "No configurable tools",
-        "loadFailed": "Could not load tools",
-        "loadFailedDescription": "The engine did not return the tool list.",
-        "secretKeep": "Leave blank to keep the key ending in {{last4}}",
+        "scope": {
+          "all_sessions": "모든 세션",
+          "main_only": "메인 세션만"
+        },
+        "scopeSaveFailed": "세션 범위를 저장하지 못했습니다",
         "secretClear": "Clear key",
+        "secretKeep": "Leave blank to keep the key ending in {{last4}}",
         "secretRequired": "An API key is required to enable this tool."
       },
       "searchSkills": "Search skills…",

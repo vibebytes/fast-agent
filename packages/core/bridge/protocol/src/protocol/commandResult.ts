@@ -157,12 +157,25 @@ export const commandResultSchema = z.object({
 					titleKey: z.string(),
 					summaryKey: z.string(),
 					status: z.string(),
+					group: z.string().optional(),
+					sessionScope: z.string().optional(),
 					fields: z.array(
 						z.object({
 							key: z.string(),
-							type: z.enum(['secret', 'text', 'number', 'toggle', 'choice']),
+							type: z.enum(['secret', 'text', 'number', 'toggle', 'choice', 'model-ref']),
 							required: z.boolean(),
-							options: z.array(z.string()).optional()
+							options: z.array(z.string()).optional(),
+							capability: z.string().optional(),
+							candidates: z
+								.array(
+									z.object({
+										key: z.string(),
+										display: z.string(),
+										platform: z.string(),
+										tokenPresent: z.boolean()
+									})
+								)
+								.optional()
 						})
 					),
 					values: z.record(z.string(), z.unknown()),

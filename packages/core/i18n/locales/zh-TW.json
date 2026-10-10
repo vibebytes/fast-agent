@@ -133,8 +133,12 @@
       "engineUnavailable": "Engine is not ready",
       "engineUnavailableDescription": "Model defaults need a running Engine.",
       "capabilities": {
-        "thinking": "Thinking",
-        "effort": "Effort: {{value}}"
+        "image_generation": "圖像生成",
+        "video_generation": "影片生成",
+        "tts": "語音合成",
+        "asr": "語音識別",
+        "ocr": "文字識別",
+        "video_caption": "影片字幕"
       },
       "sessionDefault": "New session default",
       "sessionDefaultDescription": "Pinned model for new tasks.",
@@ -187,6 +191,7 @@
       "thinkingSupportedWithEfforts": "Supports thinking ({{efforts}})",
       "thinkingBadge": "Thinking",
       "toggleImage": "Toggle image input",
+      "toggleImageGeneration": "切換圖像生成能力",
       "imageBadge": "Image",
       "imageSupported": "Supports image input",
       "supportsImage": "Supports image input",
@@ -533,7 +538,9 @@
           "summary": "Search the web with Perplexity."
         },
         "field": {
-          "apiKey": "API key"
+          "apiKey": "API key",
+          "model": "模型",
+          "sessionScope": "會話作用域"
         },
         "configure": "Configure",
         "save": "Save",
@@ -543,7 +550,25 @@
         "loadFailedDescription": "The engine did not return the tool list.",
         "secretKeep": "Leave blank to keep the key ending in {{last4}}",
         "secretClear": "Clear key",
-        "secretRequired": "An API key is required to enable this tool."
+        "secretRequired": "An API key is required to enable this tool.",
+        "imageGenerate": {
+          "title": "圖像生成",
+          "summary": "根據文字提示生成一張圖片。"
+        },
+        "group": {
+          "general": "通用",
+          "image": "圖像",
+          "video": "影片",
+          "speech": "語音",
+          "other": "其他"
+        },
+        "groupEmpty": "該分類暫無工具",
+        "scope": {
+          "all_sessions": "全部會話",
+          "main_only": "僅主會話"
+        },
+        "scopeSaveFailed": "會話作用域儲存失敗",
+        "modelNoToken": "缺少憑據"
       },
       "searchSkills": "Search skills…",
       "createSkill": "New skill",

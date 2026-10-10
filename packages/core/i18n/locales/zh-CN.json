@@ -208,8 +208,12 @@
       "engineUnavailableDescription": "模型默认值需要引擎运行。",
       "context": "{{value}} 个上下文",
       "capabilities": {
-        "thinking": "Thinking",
-        "effort": "Effort: {{value}}"
+        "image_generation": "图像生成",
+        "video_generation": "视频生成",
+        "tts": "语音合成",
+        "asr": "语音识别",
+        "ocr": "文字识别",
+        "video_caption": "视频字幕"
       },
       "sessionDefault": "新会话默认",
       "sessionDefaultDescription": "新任务使用的默认模型。",
@@ -262,6 +266,7 @@
       "thinkingSupportedWithEfforts": "支持深度思考 ({{efforts}})",
       "thinkingBadge": "思考",
       "toggleImage": "切换图片输入",
+      "toggleImageGeneration": "切换图像生成能力",
       "imageBadge": "图片",
       "imageSupported": "支持图片输入",
       "supportsImage": "支持图片输入",
@@ -608,7 +613,9 @@
           "summary": "用 Perplexity 搜索网页。"
         },
         "field": {
-          "apiKey": "API 密钥"
+          "apiKey": "API 密钥",
+          "model": "模型",
+          "sessionScope": "会话作用域"
         },
         "configure": "配置",
         "save": "保存",
@@ -618,7 +625,25 @@
         "loadFailedDescription": "无法从引擎读取工具列表。",
         "secretKeep": "留空则保留尾号 {{last4}} 的密钥",
         "secretClear": "清除密钥",
-        "secretRequired": "启用前需要填写 API 密钥。"
+        "secretRequired": "启用前需要填写 API 密钥。",
+        "imageGenerate": {
+          "title": "图像生成",
+          "summary": "根据文本提示生成一张图片。"
+        },
+        "group": {
+          "general": "通用",
+          "image": "图像",
+          "video": "视频",
+          "speech": "语音",
+          "other": "其他"
+        },
+        "groupEmpty": "该分类暂无工具",
+        "scope": {
+          "all_sessions": "全部会话",
+          "main_only": "仅主会话"
+        },
+        "scopeSaveFailed": "会话作用域保存失败",
+        "modelNoToken": "缺少凭据"
       },
       "ext": {
         "engineUnavailable": "引擎未就绪",

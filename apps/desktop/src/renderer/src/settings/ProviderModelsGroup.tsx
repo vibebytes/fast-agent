@@ -1,5 +1,5 @@
 import {useTranslation} from 'react-i18next';
-import {BrainCircuit, Image as ImageIcon, Pin, Plus, Trash2} from 'lucide-react';
+import {BrainCircuit, Image as ImageIcon, Pin, Plus, Sparkles, Trash2} from 'lucide-react';
 import {Badge} from '@fast-ide/ui/components/badge';
 import {Switch} from '@fast-ide/ui/components/switch';
 import {cn} from '@fast-ide/ui/lib/utils';
@@ -14,6 +14,7 @@ export function ProviderModelsGroup({
 	onPin,
 	onToggle,
 	onToggleImage,
+	onToggleCapability,
 	onAdd,
 	onSearch,
 	onRemove
@@ -23,6 +24,7 @@ export function ProviderModelsGroup({
 	onPin: (model: SeedModel) => void;
 	onToggle: (model: SeedModel, enabled: boolean) => void;
 	onToggleImage: (model: SeedModel, image: boolean) => void;
+	onToggleCapability: (model: SeedModel, capability: string, on: boolean) => void;
 	onAdd: () => void;
 	onSearch: () => void;
 	onRemove: (model: SeedModel) => void;
@@ -154,6 +156,28 @@ export function ProviderModelsGroup({
 									title={t('settings.models.toggleImage')}
 								>
 									<ImageIcon className="size-3.5" />
+								</SettingsButton>
+
+								<SettingsButton
+									size="icon-xs"
+									variant="ghost"
+									className={cn(
+										'cursor-pointer transition-opacity duration-150',
+										model.capabilities?.includes('image_generation')
+											? 'text-primary opacity-100'
+											: 'opacity-0 group-hover:opacity-100 focus-visible:opacity-100 text-muted-foreground hover:text-foreground'
+									)}
+									disabled={disconnected}
+									onClick={() =>
+										onToggleCapability(
+											model,
+											'image_generation',
+											!model.capabilities?.includes('image_generation')
+										)
+									}
+									title={t('settings.models.toggleImageGeneration')}
+								>
+									<Sparkles className="size-3.5" />
 								</SettingsButton>
 
 								<SettingsButton

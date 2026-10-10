@@ -208,8 +208,12 @@
       "engineUnavailableDescription": "Model defaults need a running Engine.",
       "context": "{{value}} context",
       "capabilities": {
-        "thinking": "Thinking",
-        "effort": "Effort: {{value}}"
+        "image_generation": "Image generation",
+        "video_generation": "Video generation",
+        "tts": "Text to speech",
+        "asr": "Speech recognition",
+        "ocr": "OCR",
+        "video_caption": "Video captioning"
       },
       "sessionDefault": "New session default",
       "sessionDefaultDescription": "Pinned model for new tasks.",
@@ -262,6 +266,7 @@
       "thinkingSupportedWithEfforts": "Supports thinking ({{efforts}})",
       "thinkingBadge": "Thinking",
       "toggleImage": "Toggle image input",
+      "toggleImageGeneration": "Toggle image generation",
       "imageBadge": "Image",
       "imageSupported": "Supports image input",
       "supportsImage": "Supports image input",
@@ -608,7 +613,9 @@
           "summary": "Search the web with Perplexity."
         },
         "field": {
-          "apiKey": "API key"
+          "apiKey": "API key",
+          "model": "Model",
+          "sessionScope": "Session scope"
         },
         "configure": "Configure",
         "save": "Save",
@@ -618,7 +625,25 @@
         "loadFailedDescription": "The engine did not return the tool list.",
         "secretKeep": "Leave blank to keep the key ending in {{last4}}",
         "secretClear": "Clear key",
-        "secretRequired": "An API key is required to enable this tool."
+        "secretRequired": "An API key is required to enable this tool.",
+        "imageGenerate": {
+          "title": "Image Generation",
+          "summary": "Generate an image from a text prompt."
+        },
+        "group": {
+          "general": "General",
+          "image": "Image",
+          "video": "Video",
+          "speech": "Speech",
+          "other": "Other"
+        },
+        "groupEmpty": "No tools in this category",
+        "scope": {
+          "all_sessions": "All sessions",
+          "main_only": "Main session only"
+        },
+        "scopeSaveFailed": "Could not save the session scope",
+        "modelNoToken": "token missing"
       },
       "ext": {
         "engineUnavailable": "Engine is not ready",

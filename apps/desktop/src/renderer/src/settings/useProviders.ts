@@ -6,6 +6,7 @@ import type {
 	SearchModelRow,
 	UpsertProviderInput
 } from '@fast-ide/session-view';
+import {applyModelPatch} from './modelPatch';
 
 export type ProvidersStatus = 'loading' | 'ready' | 'error' | 'disabled';
 
@@ -78,65 +79,6 @@ function upsertLocal(list: Provider[], provider: Provider): Provider[] {
 
 function removeLocal(list: Provider[], id: string): Provider[] {
 	return list.filter(p => p.id !== id);
-}
-
-/** Optimistic model updates so Switches and additions stay put without waiting on IPC. */
-function applyModelPatchLocal(
-	list: Provider[],
-	providerId: string,
-	patch: ModelPatch[]
-): Provider[] | null {
-	const idx = list.findIndex(p => p.id === providerId);
-	if (idx < 0) return null;
-	const provider = list[idx]!;
-	const models = provider.models ? [...provider.models] : [];
-	let changed = false;
-	for (const op of patch) {
-		if (op.op === 'enable' && typeof op.enabled === 'boolean') {
-			const mi = models.findIndex(m => m.modelId === op.modelId);
-			if (mi >= 0) {
-				models[mi] = {...models[mi]!, enabled: op.enabled};
-				changed = true;
-			}
-		} else if (op.op === 'add') {
-			const mi = models.findIndex(m => m.modelId === op.modelId);
-			if (mi < 0) {
-				models.push({
-					modelId: op.modelId,
-					displayName: op.displayName || op.modelId,
-					aliases: op.aliases ?? [],
-					supportsThinking: op.supportsThinking ?? false,
-					supportedEfforts: op.supportedEfforts ?? [],
-					defaultEffort: op.defaultEffort,
-					enabled: op.enabled ?? true,
-					source: 'manual'
-				});
-				changed = true;
-			}
-		} else if (op.op === 'remove') {
-			const mi = models.findIndex(m => m.modelId === op.modelId);
-			if (mi >= 0) {
-				models.splice(mi, 1);
-				changed = true;
-			}
-		} else if (op.op === 'rename') {
-			const mi = models.findIndex(m => m.modelId === op.modelId);
-			if (mi >= 0 && op.displayName) {
-				models[mi] = {...models[mi]!, displayName: op.displayName};
-				changed = true;
-			}
-		}
-	}
-	if (!changed) return null;
-	const enabledModelCount = models.filter(m => m.enabled).length;
-	const next = [...list];
-	next[idx] = {
-		...provider,
-		models,
-		enabledModelCount,
-		modelCount: models.length
-	};
-	return next;
 }
 
 class ProvidersStore {
@@ -272,7 +214,7 @@ class ProvidersStore {
 	patchModels = async (id: string, patch: ModelPatch[]): Promise<boolean> => {
 		if (!this.view.engineReady || this.view.status === 'disabled') return false;
 		const prev = this.view;
-		const optimistic = applyModelPatchLocal(prev.providers, id, patch);
+		const optimistic = applyModelPatch(prev.providers, id, patch);
 		if (optimistic) {
 			this.setView(viewOf(optimistic, 'ready', null, true));
 		}

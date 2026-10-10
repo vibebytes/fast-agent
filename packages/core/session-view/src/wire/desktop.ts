@@ -343,6 +343,8 @@ export type ProviderModel = {
 	maxTokens?: number;
 	/** Wire lowercase (e.g. ["text","image"]); absent = text-only. */
 	inputModalities?: string[];
+	/** Media capability tags (e.g. ["image_generation"]); absent = none declared. */
+	capabilities?: string[];
 	enabled: boolean;
 	source: string;
 };
@@ -396,6 +398,8 @@ export type ProviderModelPatch = {
 	supportedEfforts?: string[];
 	defaultEffort?: string;
 	inputModalities?: string[];
+	/** Present = replace the model's capability tags (empty list clears them). */
+	capabilities?: string[];
 };
 
 /** Settings-center installed skill row (List/Create/SetSkillEnabled). */
