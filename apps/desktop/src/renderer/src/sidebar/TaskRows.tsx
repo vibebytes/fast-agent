@@ -71,7 +71,7 @@ function RowTime({iso}: {iso?: string}) {
 	const label = relativeLabel(iso, Date.now(), i18n.language);
 	if (!label) return null;
 	return (
-		<span className="pointer-events-none absolute right-2 max-w-[42%] truncate text-xs text-sidebar-muted-foreground group-hover/task:opacity-0">
+		<span className="pointer-events-none absolute top-1/2 right-2 max-w-[42%] -translate-y-1/2 truncate text-xs text-sidebar-muted-foreground group-hover/task:opacity-0">
 			{label}
 		</span>
 	);

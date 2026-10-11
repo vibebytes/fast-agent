@@ -14,6 +14,7 @@ import {useSettings} from './useSettings';
 import {useProviders, type Provider, type SeedModel} from './useProviders';
 import {clampEffort} from '../effortClamp';
 import {AddModelDialog} from './AddModelDialog';
+import {addModelOp, capabilityOp, imageInputOp, visibilityOp} from './modelPatch';
 import {ChooseDefaultDialog} from './ChooseDefaultDialog';
 import {ProviderModelsGroup} from './ProviderModelsGroup';
 import {SearchAddDialog} from './SearchAddDialog';
@@ -398,24 +399,14 @@ export function ModelsSettings({engineReady, focusProviderId}: Props) {
 									if ((filter === 'enabled' && !enabled) || (filter === 'hidden' && enabled)) {
 										setFilter('all');
 									}
-									void providers.patchModels(provider.id, [
-										{op: 'enable', modelId: model.modelId, enabled}
-									]);
+									void providers.patchModels(provider.id, [visibilityOp(model.modelId, enabled)]);
 								}}
 								onToggleImage={(model, image) => {
-									void providers.patchModels(provider.id, [
-										{
-											op: 'enable',
-											modelId: model.modelId,
-											inputModalities: image ? ['text', 'image'] : ['text']
-										}
-									]);
+									void providers.patchModels(provider.id, [imageInputOp(model.modelId, image)]);
 								}}
 								onToggleCapability={(model, capability, on) => {
-									const prev = model.capabilities ?? [];
-									const next = on ? [...new Set([...prev, capability])] : prev.filter(c => c !== capability);
 									void providers.patchModels(provider.id, [
-										{op: 'enable', modelId: model.modelId, capabilities: next}
+										capabilityOp(model.modelId, model.capabilities ?? [], capability, on)
 									]);
 								}}
 								onAdd={() => setAddFor(provider.id)}
@@ -438,26 +429,8 @@ export function ModelsSettings({engineReady, focusProviderId}: Props) {
 					onOpenChange={open => {
 						if (!open) setAddFor(null);
 					}}
-					onSubmit={async (
-						modelId,
-						displayName,
-						supportsThinking,
-						supportedEfforts,
-						supportsImage,
-						defaultEffort
-					) => {
-						const ok = await providers.patchModels(addFor, [
-							{
-								op: 'add',
-								modelId,
-								displayName: displayName || modelId,
-								supportsThinking,
-								supportedEfforts: supportsThinking ? supportedEfforts : [],
-								defaultEffort: supportsThinking ? defaultEffort : undefined,
-								inputModalities: supportsImage ? ['text', 'image'] : undefined,
-								enabled: true
-							}
-						]);
+					onSubmit={async input => {
+						const ok = await providers.patchModels(addFor, [addModelOp(input)]);
 						if (ok) setAddFor(null);
 						return ok;
 					}}

@@ -191,7 +191,17 @@
       "thinkingSupportedWithEfforts": "Supports thinking ({{efforts}})",
       "thinkingBadge": "Thinking",
       "toggleImage": "Toggle image input",
-      "toggleImageGeneration": "切換圖像生成能力",
+      "outputCapabilities": "輸出能力",
+      "cap": {
+        "image_generation": "圖像",
+        "video_generation": "影片",
+        "speech": "語音",
+        "transcription": "轉寫",
+        "audio": "音訊",
+        "embeddings": "向量",
+        "rerank": "重新排序",
+        "decisions": "決策"
+      },
       "imageBadge": "Image",
       "imageSupported": "Supports image input",
       "supportsImage": "Supports image input",

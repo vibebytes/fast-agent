@@ -1,6 +1,7 @@
 import {useState} from 'react';
 import {useTranslation} from 'react-i18next';
 import {BrainCircuit, Check, Image as ImageIcon} from 'lucide-react';
+import {OUTPUT_CAPABILITIES, orderedCapabilities} from './modelPatch';
 import {Input} from '@fast-ide/ui/components/input';
 import {Switch} from '@fast-ide/ui/components/switch';
 import {cn} from '@fast-ide/ui/lib/utils';
@@ -23,20 +24,22 @@ export function AddModelDialog({
 	open: boolean;
 	providerName?: string;
 	onOpenChange: (open: boolean) => void;
-	onSubmit: (
-		modelId: string,
-		displayName: string,
-		supportsThinking: boolean,
-		supportedEfforts: string[],
-		supportsImage: boolean,
-		defaultEffort?: string
-	) => Promise<boolean>;
+	onSubmit: (input: {
+		modelId: string;
+		displayName: string;
+		supportsThinking: boolean;
+		supportedEfforts: string[];
+		supportsImage: boolean;
+		defaultEffort?: string;
+		capabilities: string[];
+	}) => Promise<boolean>;
 }) {
 	const {t} = useTranslation();
 	const [modelId, setModelId] = useState('');
 	const [displayName, setDisplayName] = useState('');
 	const [supportsThinking, setSupportsThinking] = useState(false);
 	const [supportsImage, setSupportsImage] = useState(false);
+	const [capabilities, setCapabilities] = useState<string[]>([]);
 	const [supportedEfforts, setSupportedEfforts] = useState<string[]>(['low', 'medium', 'high', 'max']);
 	const [defaultEffort, setDefaultEffort] = useState('medium');
 	const [userToggledThinking, setUserToggledThinking] = useState(false);
@@ -221,6 +224,34 @@ export function AddModelDialog({
 						</div>
 						<Switch size="sm" checked={supportsImage} onCheckedChange={setSupportsImage} />
 					</div>
+
+					<div className="rounded-xl border border-border/70 bg-muted/25 dark:bg-muted/15 p-3.5 space-y-2">
+						<div className="text-xs font-semibold text-foreground">{t('settings.models.outputCapabilities')}</div>
+						<div className="flex flex-wrap gap-1.5">
+							{OUTPUT_CAPABILITIES.map(tag => {
+								const checked = capabilities.includes(tag);
+								return (
+									<button
+										key={tag}
+										type="button"
+										onClick={() =>
+											setCapabilities(prev =>
+												orderedCapabilities(prev.includes(tag) ? prev.filter(item => item !== tag) : [...prev, tag])
+											)
+										}
+										className={cn(
+											'h-6 px-2.5 rounded-lg text-[11px] font-medium transition-all cursor-pointer border',
+											checked
+												? 'bg-primary/15 text-primary border-primary/30 font-semibold'
+												: 'bg-background/80 text-muted-foreground border-border/60 hover:text-foreground'
+										)}
+									>
+										{t(`settings.models.cap.${tag}`)}
+									</button>
+								);
+							})}
+						</div>
+					</div>
 				</div>
 
 				<DialogFooter className="gap-2">
@@ -231,14 +262,15 @@ export function AddModelDialog({
 						disabled={saving || !modelId.trim()}
 						onClick={() => {
 							setSaving(true);
-							void onSubmit(
-								modelId.trim(),
-								displayName.trim(),
+							void onSubmit({
+								modelId: modelId.trim(),
+								displayName: displayName.trim(),
 								supportsThinking,
-								supportsThinking ? supportedEfforts : [],
+								supportedEfforts,
 								supportsImage,
-								supportsThinking ? defaultEffort : undefined
-							).finally(() => setSaving(false));
+								defaultEffort: supportsThinking ? defaultEffort : undefined,
+								capabilities
+							}).finally(() => setSaving(false));
 						}}
 					>
 						{saving ? t('shell.common.saving') : t('shell.common.save')}

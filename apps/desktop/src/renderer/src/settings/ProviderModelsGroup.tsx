@@ -1,7 +1,9 @@
 import {useTranslation} from 'react-i18next';
 import {BrainCircuit, Image as ImageIcon, Pin, Plus, Sparkles, Trash2} from 'lucide-react';
 import {Badge} from '@fast-ide/ui/components/badge';
+import {Popover, PopoverContent, PopoverTrigger} from '@fast-ide/ui/components/popover';
 import {Switch} from '@fast-ide/ui/components/switch';
+import {OUTPUT_CAPABILITIES} from './modelPatch';
 import {cn} from '@fast-ide/ui/lib/utils';
 import {MonoTag, SettingsButton} from './SettingsPrimitives';
 import {type ModelsDoc} from './useSettings';
@@ -119,6 +121,15 @@ export function ProviderModelsGroup({
 										{t('settings.models.thinkingBadge')}
 									</Badge>
 								) : null}
+								{model.capabilities?.map(tag => (
+									<Badge
+										key={tag}
+										variant="secondary"
+										className="text-[10px] px-1.5 py-0 font-medium shrink-0"
+									>
+										{t(`settings.models.cap.${tag}`)}
+									</Badge>
+								))}
 								{model.inputModalities?.includes('image') ? (
 									<Badge
 										variant="secondary"
@@ -158,27 +169,34 @@ export function ProviderModelsGroup({
 									<ImageIcon className="size-3.5" />
 								</SettingsButton>
 
-								<SettingsButton
-									size="icon-xs"
-									variant="ghost"
-									className={cn(
-										'cursor-pointer transition-opacity duration-150',
-										model.capabilities?.includes('image_generation')
-											? 'text-primary opacity-100'
-											: 'opacity-0 group-hover:opacity-100 focus-visible:opacity-100 text-muted-foreground hover:text-foreground'
-									)}
-									disabled={disconnected}
-									onClick={() =>
-										onToggleCapability(
-											model,
-											'image_generation',
-											!model.capabilities?.includes('image_generation')
-										)
-									}
-									title={t('settings.models.toggleImageGeneration')}
-								>
-									<Sparkles className="size-3.5" />
-								</SettingsButton>
+								<Popover>
+									<PopoverTrigger
+										disabled={disconnected}
+										title={t('settings.models.outputCapabilities')}
+										className={cn(
+											'inline-flex size-6 cursor-pointer items-center justify-center rounded-lg text-muted-foreground transition-colors duration-150 hover:bg-accent hover:text-foreground',
+											model.capabilities?.length && 'text-primary'
+										)}
+									>
+										<Sparkles className="size-3.5" />
+									</PopoverTrigger>
+									<PopoverContent align="end" className="w-56 p-3">
+										<div className="mb-2 text-[12px] font-medium">{t('settings.models.outputCapabilities')}</div>
+										<div className="space-y-1.5">
+											{OUTPUT_CAPABILITIES.map(tag => (
+												<label key={tag} className="flex items-center justify-between gap-2 text-[12px]">
+													<span>{t(`settings.models.cap.${tag}`)}</span>
+													<Switch
+														size="sm"
+														checked={model.capabilities?.includes(tag) ?? false}
+														disabled={disconnected}
+														onCheckedChange={on => onToggleCapability(model, tag, on)}
+													/>
+												</label>
+											))}
+										</div>
+									</PopoverContent>
+								</Popover>
 
 								<SettingsButton
 									size="icon-xs"

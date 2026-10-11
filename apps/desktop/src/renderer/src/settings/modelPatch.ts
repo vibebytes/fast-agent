@@ -18,6 +18,73 @@ export type ModelPatchOp = {
 	capabilities?: string[];
 };
 
+export const OUTPUT_CAPABILITIES = [
+	'image_generation',
+	'video_generation',
+	'speech',
+	'transcription',
+	'audio',
+	'embeddings',
+	'rerank',
+	'decisions'
+] as const;
+
+export function addModelOp(input: {
+	modelId: string;
+	displayName: string;
+	supportsThinking: boolean;
+	supportedEfforts: string[];
+	supportsImage: boolean;
+	defaultEffort?: string;
+	capabilities: readonly string[];
+}): ModelPatchOp {
+	return {
+		op: 'add',
+		modelId: input.modelId,
+		displayName: input.displayName || input.modelId,
+		supportsThinking: input.supportsThinking,
+		supportedEfforts: input.supportsThinking ? input.supportedEfforts : [],
+		defaultEffort: input.supportsThinking ? input.defaultEffort : undefined,
+		...(input.supportsImage ? {inputModalities: ['text', 'image']} : {}),
+		capabilities: orderedCapabilities(input.capabilities),
+		enabled: true
+	};
+}
+
+export function visibilityOp(modelId: string, enabled: boolean): ModelPatchOp {
+	return {op: 'enable', modelId, enabled};
+}
+
+export function imageInputOp(modelId: string, image: boolean): ModelPatchOp {
+	return {op: 'enable', modelId, inputModalities: image ? ['text', 'image'] : ['text']};
+}
+
+export function capabilityOp(
+	modelId: string,
+	effective: readonly string[],
+	capability: string,
+	on: boolean
+): ModelPatchOp {
+	const next = new Set(effective);
+	if (on) next.add(capability);
+	else next.delete(capability);
+	return {op: 'enable', modelId, capabilities: orderedCapabilities([...next])};
+}
+
+export function orderedCapabilities(tags: readonly string[]): string[] {
+	const present = new Set(tags);
+	return OUTPUT_CAPABILITIES.filter(tag => present.has(tag));
+}
+
+export function searchAddOps(
+	hits: readonly {modelId: string; displayName: string}[],
+	selected: ReadonlySet<string>
+): ModelPatchOp[] {
+	return hits
+		.filter(hit => selected.has(hit.modelId))
+		.map(hit => ({op: 'add', modelId: hit.modelId, displayName: hit.displayName, enabled: true}));
+}
+
 type ProviderLike = {id: string; models?: PatchModelRow[]};
 
 /** Optimistic model patch shared by the providers store: enable/rename/add/remove with media fields. */

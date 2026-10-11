@@ -266,7 +266,17 @@
       "thinkingSupportedWithEfforts": "支持深度思考 ({{efforts}})",
       "thinkingBadge": "思考",
       "toggleImage": "切换图片输入",
-      "toggleImageGeneration": "切换图像生成能力",
+      "outputCapabilities": "输出能力",
+      "cap": {
+        "image_generation": "图像",
+        "video_generation": "视频",
+        "speech": "语音",
+        "transcription": "转写",
+        "audio": "音频",
+        "embeddings": "向量",
+        "rerank": "重排序",
+        "decisions": "决策"
+      },
       "imageBadge": "图片",
       "imageSupported": "支持图片输入",
       "supportsImage": "支持图片输入",

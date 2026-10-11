@@ -187,7 +187,17 @@
       "thinkingSupportedWithEfforts": "Supports thinking ({{efforts}})",
       "thinkingBadge": "Thinking",
       "toggleImage": "Toggle image input",
-      "toggleImageGeneration": "画像生成を切り替え",
+      "outputCapabilities": "出力能力",
+      "cap": {
+        "image_generation": "画像",
+        "video_generation": "動画",
+        "speech": "音声",
+        "transcription": "文字起こし",
+        "audio": "オーディオ",
+        "embeddings": "埋め込み",
+        "rerank": "再ランク",
+        "decisions": "判断"
+      },
       "imageBadge": "Image",
       "imageSupported": "Supports image input",
       "supportsImage": "Supports image input",

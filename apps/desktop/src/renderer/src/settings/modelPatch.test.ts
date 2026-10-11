@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import {applyModelPatch} from './modelPatch.js';
+import {addModelOp, applyModelPatch, capabilityOp, imageInputOp, searchAddOps, visibilityOp} from './modelPatch.js';
 
 type Row = {modelId: string; [k: string]: unknown};
 type P = {id: string; models?: Row[]; enabledModelCount?: number; modelCount?: number};
@@ -83,6 +83,61 @@ test('unknown provider id returns null', () => {
 test('no effective change returns null', () => {
 	const list: P[] = [mkProvider([{modelId: 'm1', enabled: true, source: 'engine'}])];
 	assert.equal(applyModelPatch(list, 'p1', [{op: 'enable', modelId: 'missing', enabled: true}]), null);
+});
+
+test('add model op always sends capabilities and omits image input when off', () => {
+	const none = addModelOp({
+		modelId: 'm',
+		displayName: '',
+		supportsThinking: false,
+		supportedEfforts: [],
+		supportsImage: false,
+		capabilities: []
+	});
+	assert.equal(none.op, 'add');
+	assert.deepEqual(none.capabilities, []);
+	assert.equal(none.inputModalities, undefined);
+	assert.equal(none.displayName, 'm');
+
+	const tagged = addModelOp({
+		modelId: 'm',
+		displayName: 'M',
+		supportsThinking: false,
+		supportedEfforts: [],
+		supportsImage: true,
+		capabilities: ['embeddings', 'decisions']
+	});
+	assert.deepEqual(tagged.capabilities, ['embeddings', 'decisions']);
+	assert.deepEqual(tagged.inputModalities, ['text', 'image']);
+});
+
+test('visibility and image input ops do not send capabilities', () => {
+	assert.equal('capabilities' in visibilityOp('m', false), false);
+	assert.equal('capabilities' in imageInputOp('m', true), false);
+	assert.deepEqual(imageInputOp('m', false).inputModalities, ['text']);
+});
+
+test('capability edit keeps the effective list and adds the new tag', () => {
+	const op = capabilityOp('openai/gpt-image-2', ['image_generation'], 'embeddings', true);
+	assert.equal(op.op, 'enable');
+	assert.deepEqual(op.capabilities, ['image_generation', 'embeddings']);
+	const cleared = capabilityOp('openai/gpt-image-2', ['image_generation', 'embeddings'], 'image_generation', false);
+	assert.deepEqual(cleared.capabilities, ['embeddings']);
+});
+
+test('search add ops do not send capabilities', () => {
+	const ops = searchAddOps(
+		[
+			{modelId: 'a', displayName: 'A'},
+			{modelId: 'b', displayName: 'B'}
+		],
+		new Set(['b'])
+	);
+	assert.equal(ops.length, 1);
+	assert.equal(ops[0].modelId, 'b');
+	assert.equal(ops[0].op, 'add');
+	assert.equal(ops[0].enabled, true);
+	assert.equal('capabilities' in ops[0], false);
 });
 
 test('remove and rename keep old behaviour and recount', () => {

@@ -187,7 +187,17 @@
       "thinkingSupportedWithEfforts": "Supports thinking ({{efforts}})",
       "thinkingBadge": "Thinking",
       "toggleImage": "Toggle image input",
-      "toggleImageGeneration": "Alternar generación de imágenes",
+      "outputCapabilities": "Capacidades de salida",
+      "cap": {
+        "image_generation": "Imagen",
+        "video_generation": "Vídeo",
+        "speech": "Voz",
+        "transcription": "Transcripción",
+        "audio": "Audio",
+        "embeddings": "Embeddings",
+        "rerank": "Reordenación",
+        "decisions": "Decisiones"
+      },
       "imageBadge": "Image",
       "imageSupported": "Supports image input",
       "supportsImage": "Supports image input",

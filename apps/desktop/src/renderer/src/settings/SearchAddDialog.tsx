@@ -10,6 +10,7 @@ import {
 	DialogTitle
 } from '@fast-ide/ui/components/dialog';
 import {SettingsButton} from './SettingsPrimitives';
+import {searchAddOps} from './modelPatch';
 
 type SearchHit = {
 	modelId: string;
@@ -91,14 +92,7 @@ export function SearchAddDialog({
 		if (selected.size === 0) return;
 		setSaving(true);
 		try {
-			const patch = hits
-				.filter(h => selected.has(h.modelId))
-				.map(h => ({
-					op: 'add',
-					modelId: h.modelId,
-					displayName: h.displayName,
-					enabled: true
-				}));
+			const patch = searchAddOps(hits, selected);
 			const ok = await patchModels(providerId, patch);
 			if (ok) onOpenChange(false);
 		} finally {
