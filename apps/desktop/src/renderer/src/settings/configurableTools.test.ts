@@ -154,6 +154,20 @@ test('a model form dialog is only the model dropdown', () => {
 	}
 });
 
+test('an output form dialog is the same model dropdown', () => {
+	const row = tool({
+		form: 'output',
+		capability: 'image_generation',
+		fields: [
+			{key: 'modelRef', type: 'model-ref', required: false, capability: 'image_generation', candidates: []},
+			{key: 'size', type: 'text', required: false}
+		]
+	});
+	const dialog = dialogControls(row);
+	assert.equal(dialog.kind, 'model');
+	if (dialog.kind === 'model') assert.equal(dialog.field.key, 'modelRef');
+});
+
 test('a fields form dialog lists fields and skips session scope', () => {
 	const row = tool({
 		form: 'fields',
