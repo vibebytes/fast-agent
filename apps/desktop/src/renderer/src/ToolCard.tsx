@@ -5,11 +5,9 @@ import {cn} from '@fast-ide/ui/lib/utils';
 import type {TimelineItem} from '@fast-ide/session-view';
 import {Boxes, Check, ChevronDown, Copy, FileText, LoaderCircle, X} from 'lucide-react';
 import {highlightCode} from './highlightCode';
-import {
-	extractImagePath,
-	ProjectImage,
-	StreamingMarkdownMessage
-} from './MarkdownMessage';
+import {StreamingMarkdownMessage} from './MarkdownMessage';
+import {MediaStage} from './MediaStage';
+import {extractMediaArtifact} from './toolMedia';
 import {shouldThresholdFoldTool} from './thresholdFold';
 import {
 	displayToolOutput,
@@ -305,10 +303,6 @@ function ProcEnvelopeView({env}: {env: ShellEnvelopeMeta}) {
 	);
 }
 
-function isImageTool(tool: string): boolean {
-	return /image|img|nano.?banana|dall|flux|midjourney/i.test(tool);
-}
-
 function SkillViewCard({item}: {item: ToolItem}) {
 	const output = displayToolOutput(item.output);
 	const {meta, body} = parseSkillEnvelope(output);
@@ -506,17 +500,14 @@ export function ToolCard({item}: {item: ToolItem}) {
 	const output = displayToolOutput(item.output);
 	const shellEnv = parseShellEnvelope(output);
 	const displayItem = output === (item.output ?? '') ? item : {...item, output};
-	const imagePath =
-		extractImagePath(output) ??
-		extractImagePath(item.summary) ??
-		(isImageTool(item.tool) ? extractImagePath(item.title) : null);
+	const media = extractMediaArtifact(output, item.summary, item.title);
 	const thresholdFold = shouldThresholdFoldTool(displayItem);
 	// Successful tool cards settle to their one-line header (shell commands and
 	// non-command tools like goal). Running / failed keep evidence visible.
 	const isAgentOp =
 		item.tool === 'define_agent' || item.tool === 'update_agent' || item.tool === 'delete_agent';
 	const collapsible = isAgentOp || thresholdFold || item.status === 'success' || item.status === 'error';
-	const defaultOpen = isAgentOp ? false : item.status === 'running';
+	const defaultOpen = media != null || (isAgentOp ? false : item.status === 'running');
 
 	// Envelope cards (no preview text) would otherwise surface their JSON blob as
 	// the "diagnostic" — show the preview line instead, or nothing.
@@ -549,9 +540,9 @@ export function ToolCard({item}: {item: ToolItem}) {
 			className="w-full"
 		>
 			{item.command ? <CommandLine command={item.command} /> : null}
-			{imagePath ? (
-				<div className="border-b border-border px-2 py-2">
-					<ProjectImage src={imagePath} alt={item.title} className="my-0" />
+			{media ? (
+				<div className="border-b border-border">
+					<MediaStage artifact={media} alt={item.title} />
 				</div>
 			) : null}
 			{shellEnv ? (
@@ -568,7 +559,7 @@ export function ToolCard({item}: {item: ToolItem}) {
 				>
 					{item.summary}
 				</pre>
-			) : item.status === 'running' && !item.output && !imagePath ? (
+			) : item.status === 'running' && !item.output && !media ? (
 				<div className="px-3 py-2 text-xs text-muted-foreground">Running…</div>
 			) : null}
 		</WindowFrame>

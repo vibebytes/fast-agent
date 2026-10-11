@@ -62,6 +62,19 @@ const IMAGE_MIME: Record<string, string> = {
 	'.ico': 'image/x-icon'
 };
 
+const MEDIA_MIME: Record<string, string> = {
+	...IMAGE_MIME,
+	'.mp4': 'video/mp4',
+	'.webm': 'video/webm',
+	'.mov': 'video/quicktime',
+	'.mp3': 'audio/mpeg',
+	'.wav': 'audio/wav',
+	'.m4a': 'audio/mp4',
+	'.ogg': 'audio/ogg',
+	'.flac': 'audio/flac',
+	'.aac': 'audio/aac'
+};
+
 function toPosix(p: string): string {
 	return p.split(path.sep).join('/');
 }
@@ -193,6 +206,35 @@ export async function readProjectFile(
 export function mimeTypeForImagePath(filePath: string): string | undefined {
 	const ext = path.extname(filePath).toLowerCase();
 	return IMAGE_MIME[ext];
+}
+
+/** Image, video, and audio types the tool player can stream. */
+export function mimeTypeForMediaPath(filePath: string): string | undefined {
+	const ext = path.extname(filePath).toLowerCase();
+	return MEDIA_MIME[ext];
+}
+
+/** `Range: bytes=` against a known file size. `null` means send the whole file. */
+export function parseByteRange(
+	header: string | null,
+	size: number
+): {start: number; end: number} | 'invalid' | null {
+	if (!header?.trim()) return null;
+	const match = /^bytes=(\d*)-(\d*)$/.exec(header.trim());
+	if (!match || size <= 0) return 'invalid';
+	const [, startRaw, endRaw] = match;
+	if (startRaw === '' && endRaw === '') return 'invalid';
+	if (startRaw === '') {
+		const tail = Number(endRaw);
+		if (!Number.isFinite(tail) || tail <= 0) return 'invalid';
+		const start = Math.max(0, size - tail);
+		return {start, end: size - 1};
+	}
+	const start = Number(startRaw);
+	const end = endRaw === '' ? size - 1 : Number(endRaw);
+	if (!Number.isFinite(start) || !Number.isFinite(end)) return 'invalid';
+	if (start < 0 || start >= size || end < start) return 'invalid';
+	return {start, end: Math.min(end, size - 1)};
 }
 
 /** Read an image under the project root as a data URL for the renderer. */

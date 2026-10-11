@@ -4,7 +4,13 @@ import os from 'node:os';
 import path from 'node:path';
 import {pathToFileURL} from 'node:url';
 import {describe, it} from 'node:test';
-import {isPathInsideRoot, listProjectDir, readProjectFile} from './listProjectDir.js';
+import {
+	isPathInsideRoot,
+	listProjectDir,
+	mimeTypeForMediaPath,
+	parseByteRange,
+	readProjectFile
+} from './listProjectDir.js';
 
 describe('listProjectDir', () => {
 	it('rejects paths outside the project root', () => {
@@ -35,6 +41,18 @@ describe('listProjectDir', () => {
 		if (!result.ok) return;
 		assert.equal(result.content, 'hello world');
 		assert.equal(result.relativePath, 'hello.txt');
+	});
+
+	it('names video and audio types and parses byte ranges', () => {
+		assert.equal(mimeTypeForMediaPath('videos/clip.mp4'), 'video/mp4');
+		assert.equal(mimeTypeForMediaPath('audio/hello.mp3'), 'audio/mpeg');
+		assert.equal(mimeTypeForMediaPath('images/dot.png'), 'image/png');
+		assert.equal(mimeTypeForMediaPath('note.txt'), undefined);
+		assert.equal(parseByteRange(null, 100), null);
+		assert.deepEqual(parseByteRange('bytes=0-', 100), {start: 0, end: 99});
+		assert.deepEqual(parseByteRange('bytes=10-20', 100), {start: 10, end: 20});
+		assert.deepEqual(parseByteRange('bytes=-10', 100), {start: 90, end: 99});
+		assert.equal(parseByteRange('bytes=100-', 100), 'invalid');
 	});
 
 	it('reads an image as a data URL', async () => {

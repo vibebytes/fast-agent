@@ -1,7 +1,8 @@
 import {app, BrowserWindow, dialog, ipcMain, Menu, nativeTheme, net, protocol, safeStorage, shell} from 'electron';
-import {existsSync, mkdirSync, readFileSync, writeFileSync} from 'node:fs';
+import {createReadStream, existsSync, mkdirSync, readFileSync, writeFileSync} from 'node:fs';
+import {stat} from 'node:fs/promises';
+import {Readable} from 'node:stream';
 import {join} from 'node:path';
-import {pathToFileURL} from 'node:url';
 import type {BridgeEvent} from '@fastllm/bridge-protocol';
 import type {
 	CloudflareTunnelStatus,
@@ -48,7 +49,8 @@ import {
 	setPetVisible
 } from './petWindow';
 import {
-	mimeTypeForImagePath,
+	mimeTypeForMediaPath,
+	parseByteRange,
 	readProjectMedia,
 	resolveInsideProject
 } from './fs/listProjectDir';
@@ -64,7 +66,7 @@ import {
 	type TokenVault
 } from './remoteEdges';
 
-/** Serve project images without shipping multi‑MB base64 over IPC. */
+/** Serve project images, video, and audio without shipping the bytes over IPC. */
 protocol.registerSchemesAsPrivileged([
 	{
 		scheme: 'fast-ide-media',
@@ -551,6 +553,31 @@ function bindCommittedFromDisk(): void {
 	}
 }
 
+function streamMedia(target: string, mime: string, rangeHeader: string | null, size: number): Response {
+	const base = {
+		'Content-Type': mime,
+		'Accept-Ranges': 'bytes',
+		'Cache-Control': 'no-cache'
+	};
+	if (size <= 0) {
+		return new Response(null, {status: 200, headers: {...base, 'Content-Length': '0'}});
+	}
+	const range = parseByteRange(rangeHeader, size);
+	if (range === 'invalid') {
+		return new Response(null, {status: 416, headers: {'Content-Range': `bytes */${size}`}});
+	}
+	const start = range?.start ?? 0;
+	const end = range?.end ?? size - 1;
+	const node = createReadStream(target, {start, end});
+	node.on('error', () => node.destroy());
+	const headers = new Headers({...base, 'Content-Length': String(end - start + 1)});
+	if (range) headers.set('Content-Range', `bytes ${start}-${end}/${size}`);
+	return new Response(Readable.toWeb(node) as ReadableStream, {
+		status: range ? 206 : 200,
+		headers
+	});
+}
+
 activateTask = (taskId: string) => {
 	showMainWindow();
 	void productInvokes['task:select'](taskId);
@@ -588,16 +615,15 @@ app.whenReady().then(async () => {
 			if (!resolved.ok) {
 				return new Response(resolved.error, {status: 403});
 			}
-			const mime = mimeTypeForImagePath(resolved.target);
+			const mime = mimeTypeForMediaPath(resolved.target);
 			if (!mime) {
-				return new Response('Unsupported image type', {status: 415});
+				return new Response('Unsupported media type', {status: 415});
 			}
-			const response = await net.fetch(pathToFileURL(resolved.target).href);
-			if (!response.ok) return response;
-			const headers = new Headers(response.headers);
-			headers.set('Content-Type', mime);
-			headers.set('Cache-Control', 'no-cache');
-			return new Response(response.body, {status: response.status, headers});
+			const info = await stat(resolved.target);
+			if (!info.isFile()) {
+				return new Response('Not a file', {status: 404});
+			}
+			return streamMedia(resolved.target, mime, request.headers.get('range'), info.size);
 		} catch (err) {
 			const message = err instanceof Error ? err.message : String(err);
 			return new Response(message, {status: 500});
