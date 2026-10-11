@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import type {ConfigurableTool} from '@fast-ide/session-view';
 import {visiblePluginTabs} from './pluginTabs.js';
-import {draftsFrom, modelRefOptions, submitToolForm, toolsSurface} from './toolForm.js';
+import {dialogControls, draftsFrom, modelRefOptions, submitToolForm, toolsSurface} from './toolForm.js';
 
 function tool(patch: Partial<ConfigurableTool> = {}): ConfigurableTool {
 	return {
@@ -135,6 +135,62 @@ test('a blank required model-ref holds the save', () => {
 	const drafts = {...draftsFrom(imageTool()), model: ''};
 	const submitted = submitToolForm(imageTool(), drafts, {});
 	assert.equal(submitted.kind, 'hold');
+});
+
+test('a model form dialog is only the model dropdown', () => {
+	const row = tool({
+		form: 'model',
+		capability: 'image_generation',
+		fields: [
+			{key: 'modelRef', type: 'model-ref', required: false, capability: 'image_generation', candidates: []},
+			{key: 'size', type: 'text', required: false}
+		]
+	});
+	const dialog = dialogControls(row);
+	assert.equal(dialog.kind, 'model');
+	if (dialog.kind === 'model') {
+		assert.equal(dialog.field.key, 'modelRef');
+		assert.equal(dialog.field.type, 'model-ref');
+	}
+});
+
+test('a fields form dialog lists fields and skips session scope', () => {
+	const row = tool({
+		form: 'fields',
+		fields: [
+			{key: 'apiKey', type: 'secret', required: true},
+			{key: 'sessionScope', type: 'choice', required: false, options: ['main_only', 'all_sessions']}
+		]
+	});
+	const dialog = dialogControls(row);
+	assert.equal(dialog.kind, 'fields');
+	if (dialog.kind === 'fields') assert.deepEqual(dialog.fields.map(field => field.key), ['apiKey']);
+});
+
+test('a fields form that includes a model ref is a declaration error', () => {
+	const row = tool({
+		form: 'fields',
+		fields: [
+			{key: 'apiKey', type: 'secret', required: true},
+			{key: 'modelRef', type: 'model-ref', required: false, candidates: []}
+		]
+	});
+	assert.equal(dialogControls(row).kind, 'invalid');
+});
+
+test('a tool without a form still renders its fields', () => {
+	const dialog = dialogControls(tool());
+	assert.equal(dialog.kind, 'fields');
+	if (dialog.kind === 'fields') {
+		assert.deepEqual(dialog.fields.map(field => field.key), ['apiKey', 'region', 'limit', 'fresh', 'mode']);
+	}
+});
+
+test('a model ref without a form still offers a dropdown', () => {
+	const dialog = dialogControls(imageTool());
+	assert.notEqual(dialog.kind, 'invalid');
+	const fields = dialog.kind === 'model' ? [dialog.field] : dialog.kind === 'fields' ? dialog.fields : [];
+	assert.equal(fields.some(field => field.type === 'model-ref'), true);
 });
 
 test('unknown model-ref candidate still passes validation when a raw model key is allowed', () => {

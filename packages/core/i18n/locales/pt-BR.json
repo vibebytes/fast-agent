@@ -567,7 +567,8 @@
         "scopeSaveFailed": "Falha ao salvar o escopo da sessão",
         "secretClear": "Clear key",
         "secretKeep": "Leave blank to keep the key ending in {{last4}}",
-        "secretRequired": "An API key is required to enable this tool."
+        "secretRequired": "An API key is required to enable this tool.",
+        "declarationInvalid": "This tool declaration cannot be shown."
       },
       "searchSkills": "Search skills…",
       "createSkill": "New skill",

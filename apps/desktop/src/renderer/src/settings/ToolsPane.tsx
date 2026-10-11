@@ -12,8 +12,8 @@ import {
 } from '@fast-ide/ui/components/dialog';
 import {Switch} from '@fast-ide/ui/components/switch';
 import {SettingsButton, SettingsSection, SettingsState} from './SettingsPrimitives';
-import {draftsFrom, modelRefOptions, submitToolForm, toolsSurface} from './toolForm';
-import {formFields, scopeSaveInput, SESSION_SCOPE_OPTIONS, toolScope, type SessionScopeChoice} from './toolScope';
+import {dialogControls, draftsFrom, modelRefOptions, submitToolForm, toolsSurface} from './toolForm';
+import {scopeSaveInput, SESSION_SCOPE_OPTIONS, toolScope, type SessionScopeChoice} from './toolScope';
 import {groupRows, type ToolGroupKey} from './toolGroups';
 import type {useConfigurableTools} from './useConfigurableTools';
 
@@ -236,20 +236,16 @@ function ToolForm({
 							<DialogDescription>{t(tool.summaryKey)}</DialogDescription>
 						</DialogHeader>
 						<div className="space-y-3">
-							{formFields(tool).map(field => (
-								<FieldControl
-									key={field.key}
-									field={field}
-									tool={tool}
-									draft={drafts[field.key] ?? ''}
-									cleared={Boolean(cleared[field.key])}
-									onDraft={value => {
-										setDrafts(prev => ({...prev, [field.key]: value}));
-										if (value.trim()) setCleared(prev => ({...prev, [field.key]: false}));
-									}}
-									onClear={() => setCleared(prev => ({...prev, [field.key]: true}))}
-								/>
-							))}
+							<ToolDialogFields
+								tool={tool}
+								drafts={drafts}
+								cleared={cleared}
+								onDraft={(key, value) => {
+									setDrafts(prev => ({...prev, [key]: value}));
+									if (value.trim()) setCleared(prev => ({...prev, [key]: false}));
+								}}
+								onClear={key => setCleared(prev => ({...prev, [key]: true}))}
+							/>
 							{blocked ? (
 								<p className="text-[12px] text-destructive">{t('settings.plugins.tools.secretRequired')}</p>
 							) : null}
@@ -277,6 +273,42 @@ function ToolForm({
 				) : null}
 			</DialogContent>
 		</Dialog>
+	);
+}
+
+function ToolDialogFields({
+	tool,
+	drafts,
+	cleared,
+	onDraft,
+	onClear
+}: {
+	tool: ConfigurableTool;
+	drafts: Record<string, string>;
+	cleared: Record<string, boolean>;
+	onDraft: (key: string, value: string) => void;
+	onClear: (key: string) => void;
+}) {
+	const {t} = useTranslation();
+	const dialog = dialogControls(tool);
+	if (dialog.kind === 'invalid') {
+		return <p className="text-[12px] text-destructive">{t('settings.plugins.tools.declarationInvalid')}</p>;
+	}
+	const fields = dialog.kind === 'model' ? [dialog.field] : dialog.fields;
+	return (
+		<>
+			{fields.map(field => (
+				<FieldControl
+					key={field.key}
+					field={field}
+					tool={tool}
+					draft={drafts[field.key] ?? ''}
+					cleared={Boolean(cleared[field.key])}
+					onDraft={value => onDraft(field.key, value)}
+					onClear={() => onClear(field.key)}
+				/>
+			))}
+		</>
 	);
 }
 

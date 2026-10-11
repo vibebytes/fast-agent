@@ -636,6 +636,7 @@
         "secretKeep": "留空则保留尾号 {{last4}} 的密钥",
         "secretClear": "清除密钥",
         "secretRequired": "启用前需要填写 API 密钥。",
+        "declarationInvalid": "这份工具声明不能显示。",
         "imageGenerate": {
           "title": "图像生成",
           "summary": "根据文本提示生成一张图片。"

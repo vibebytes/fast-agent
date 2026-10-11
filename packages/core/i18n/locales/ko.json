@@ -567,7 +567,8 @@
         "scopeSaveFailed": "세션 범위를 저장하지 못했습니다",
         "secretClear": "Clear key",
         "secretKeep": "Leave blank to keep the key ending in {{last4}}",
-        "secretRequired": "An API key is required to enable this tool."
+        "secretRequired": "An API key is required to enable this tool.",
+        "declarationInvalid": "This tool declaration cannot be shown."
       },
       "searchSkills": "Search skills…",
       "createSkill": "New skill",

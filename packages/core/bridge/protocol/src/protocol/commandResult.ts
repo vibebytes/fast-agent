@@ -157,6 +157,8 @@ export const commandResultSchema = z.object({
 					titleKey: z.string(),
 					summaryKey: z.string(),
 					status: z.string(),
+					form: z.enum(['model', 'fields']).optional(),
+					capability: z.string().optional(),
 					group: z.string().optional(),
 					sessionScope: z.string().optional(),
 					fields: z.array(

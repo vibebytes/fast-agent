@@ -1,5 +1,21 @@
 import type {ConfigurableTool, ConfigurableToolField, PutConfigurableToolInput} from '@fast-ide/session-view';
-import {SESSION_SCOPE_KEY} from './toolScope.js';
+import {formFields, SESSION_SCOPE_KEY} from './toolScope.js';
+
+export type DialogControls =
+	| {kind: 'model'; field: ConfigurableToolField}
+	| {kind: 'fields'; fields: ConfigurableToolField[]}
+	| {kind: 'invalid'};
+
+/** Settings dialog. `form` picks the shape; a missing form keeps the previous per-field rendering. */
+export function dialogControls(tool: ConfigurableTool): DialogControls {
+	const fields = formFields(tool);
+	if (tool.form === 'model') {
+		const field = fields.find(item => item.type === 'model-ref');
+		return field ? {kind: 'model', field} : {kind: 'invalid'};
+	}
+	if (tool.form === 'fields' && fields.some(item => item.type === 'model-ref')) return {kind: 'invalid'};
+	return {kind: 'fields', fields};
+}
 
 export type ToolsSurface = 'disabled' | 'loading' | 'error' | 'empty' | 'list';
 

@@ -561,6 +561,7 @@
         "secretKeep": "Leave blank to keep the key ending in {{last4}}",
         "secretClear": "Clear key",
         "secretRequired": "An API key is required to enable this tool.",
+        "declarationInvalid": "This tool declaration cannot be shown.",
         "imageGenerate": {
           "title": "圖像生成",
           "summary": "根據文字提示生成一張圖片。"

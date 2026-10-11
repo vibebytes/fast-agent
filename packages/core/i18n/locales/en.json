@@ -636,6 +636,7 @@
         "secretKeep": "Leave blank to keep the key ending in {{last4}}",
         "secretClear": "Clear key",
         "secretRequired": "An API key is required to enable this tool.",
+        "declarationInvalid": "This tool declaration cannot be shown.",
         "imageGenerate": {
           "title": "Image Generation",
           "summary": "Generate an image from a text prompt."
