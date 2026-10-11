@@ -9,7 +9,7 @@ export type DialogControls =
 /** Settings dialog. `form` picks the shape; a missing form keeps the previous per-field rendering. */
 export function dialogControls(tool: ConfigurableTool): DialogControls {
 	const fields = formFields(tool);
-	if (tool.form === 'model' || tool.form === 'output') {
+	if (tool.form === 'model' || tool.form === 'output' || tool.form === 'receive') {
 		const field = fields.find(item => item.type === 'model-ref');
 		return field ? {kind: 'model', field} : {kind: 'invalid'};
 	}

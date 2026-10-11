@@ -157,8 +157,9 @@ export const commandResultSchema = z.object({
 					titleKey: z.string(),
 					summaryKey: z.string(),
 					status: z.string(),
-					form: z.enum(['model', 'output', 'fields']).optional(),
+					form: z.enum(['model', 'output', 'receive', 'fields']).optional(),
 					capability: z.string().optional(),
+					modality: z.string().optional(),
 					group: z.string().optional(),
 					sessionScope: z.string().optional(),
 					fields: z.array(
@@ -168,6 +169,7 @@ export const commandResultSchema = z.object({
 							required: z.boolean(),
 							options: z.array(z.string()).optional(),
 							capability: z.string().optional(),
+							modality: z.string().optional(),
 							candidates: z
 								.array(
 									z.object({

@@ -428,6 +428,8 @@ export type ConfigurableToolField = {
 	required: boolean;
 	options?: string[];
 	capability?: string;
+	/** Present on a receive-form model-ref: the input modality the candidates were filtered by. */
+	modality?: string;
 	candidates?: ModelToolCandidate[];
 };
 
@@ -442,8 +444,10 @@ export type ConfigurableTool = {
 	summaryKey: string;
 	status: string;
 	/** Engine form. Absent on an older engine: render each field as before. `model` is the legacy name of `output`. */
-	form?: 'model' | 'output' | 'fields';
+	form?: 'model' | 'output' | 'receive' | 'fields';
 	capability?: string;
+	/** Present when form is receive: the input modality candidates were filtered by. */
+	modality?: string;
 	/** Engine-declared group (general/image/video/speech/other); absent = client heuristic. */
 	group?: string;
 	/** Effective session scope computed by the engine; absent = stored values decide. */
