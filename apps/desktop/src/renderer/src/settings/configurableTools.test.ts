@@ -154,6 +154,22 @@ test('a model form dialog is only the model dropdown', () => {
 	}
 });
 
+test('a receive form dialog is the same model dropdown', () => {
+	const row = tool({
+		form: 'receive',
+		fields: [
+			{key: 'modelRef', type: 'model-ref', required: false, modality: 'image', candidates: []},
+			{key: 'size', type: 'text', required: false}
+		]
+	});
+	const dialog = dialogControls(row);
+	assert.equal(dialog.kind, 'model');
+	if (dialog.kind === 'model') {
+		assert.equal(dialog.field.key, 'modelRef');
+		assert.equal(dialog.field.modality, 'image');
+	}
+});
+
 test('an output form dialog is the same model dropdown', () => {
 	const row = tool({
 		form: 'output',
