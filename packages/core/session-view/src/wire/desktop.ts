@@ -441,8 +441,8 @@ export type ConfigurableTool = {
 	titleKey: string;
 	summaryKey: string;
 	status: string;
-	/** Engine form. Absent on an older engine: render each field as before. */
-	form?: 'model' | 'fields';
+	/** Engine form. Absent on an older engine: render each field as before. `model` is the legacy name of `output`. */
+	form?: 'model' | 'output' | 'fields';
 	capability?: string;
 	/** Engine-declared group (general/image/video/speech/other); absent = client heuristic. */
 	group?: string;
