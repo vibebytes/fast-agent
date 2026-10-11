@@ -69,15 +69,22 @@ pnpm fetch-engine
 pnpm dev:desktop          # or ./dev/desktop.sh
 ```
 
-`pnpm` scripts call `dev/` and `build/`. Engine output is only `modules/engine/current/` (gitignored). Do not commit it or copy it between OS families. Refresh or change OS:
+`pnpm` scripts call `dev/` and `build/`. Engine output is only `modules/engine/current/` (gitignored). Do not commit it or copy it between OS families. Flags go after `--`: `--incremental` (default), `--clean`, `--os <os>` (`darwin-arm64` / `darwin-x64` / `linux-x64` / `linux-arm64` / `win32-x64` / `all`), `-h`. Incremental mode does not check the OS already in `current/`. Refresh or change OS:
 
 ```bash
 pnpm fetch-engine -- --clean
+pnpm fetch-engine -- --os darwin-arm64
 ```
 
-UI without an engine: `pnpm dev:desktop:mock` / `./dev/desktop.sh --mock`.
+Dev flags also go after `--`. `pnpm dev:desktop`: `--mock` (UI only; same as `pnpm dev:desktop:mock`), `--engine` (incremental fetch before start; also runs when `current/bin/fast-cli` is missing), `--stage` (local `sbt cli/Universal/stage` instead of Maven `current/`). Remaining args go to electron-vite. `pnpm dev:tui`: `--engine`, remaining args go to the TUI. `pnpm dev:mobile`: `--android` or `--ios` (only one), remaining args go to Expo; it does not read the engine tree. Unknown dev args are forwarded. `fetch-engine` and `build/*.sh` print help and exit 1 on an unknown arg. `-h` prints usage.
 
-Each `dev/*.sh` and `build/*.sh` lists implemented flags on `--help`. Unknown args print help on stderr and exit 1.
+```bash
+pnpm dev:desktop -- --mock
+pnpm dev:desktop -- --engine
+pnpm dev:desktop -- --stage
+pnpm dev:tui -- --engine
+pnpm dev:mobile -- --ios
+```
 
 ### Checks
 
@@ -89,7 +96,7 @@ pnpm check:i18n
 
 TUI unix e2e walks up to `modules/engine/current/bin/fast-cli`. Linux: `LANG=C.UTF-8` if the TUI shows tofu instead of CJK.
 
-`pnpm build` compiles TypeScript packages. It is not `build/*.sh`. Packing: `pnpm pack:cli -- --incremental` (default is incremental). Incremental reuses `current/` only when `.fast-os` matches; mismatch fails — use `--clean`. Desktop and CLI are single-arch packs, not universal: `--os darwin-arm64` / `darwin-x64` / `linux-x64` / `linux-arm64` / `win32-x64`. CLI writes `release/cli-<os>` (`cli-darwin-arm64` / `cli-darwin-x64` / `cli-linux-x64` / `cli-linux-arm64` / `cli-win32-x64`); `release/cli` → last pack. `--os darwin-both` runs both mac packs (each pass `--clean`). Linux desktop is AppImage (`Fast-*-linux-x64.AppImage` / `Fast-*-linux-arm64.AppImage`; also writes `linux-unpacked` / `linux-arm64-unpacked`). Windows desktop is NSIS (`Fast-*-win-x64.exe`; also writes `win-unpacked`). Alpine / musl is not supported. Windows native is in development; a Mac can emit the installer but must not run it or `Fast.exe`.
+`pnpm build` compiles TypeScript packages. It is not `build/*.sh`. Pack flags go after `--`. `pnpm pack` / `pack:desktop` / `pack:cli`: `--incremental` (default; reuse `current/` only when `.fast-os` matches — mismatch fails, use `--clean`), `--clean`, `--os` (`darwin-arm64` / `darwin-x64` / `darwin-both` / `linux-x64` / `linux-arm64` / `win32-x64`, plus `darwin` / `linux` / `windows`). `darwin-both` runs both mac packs (each pass `--clean`). `pnpm pack` also takes repeatable `--skip desktop|cli|mobile`. `pnpm pack:desktop` also takes `--smoke` (check an existing `--os` output; no fetch, no rebuild). CLI writes `release/cli-<os>` (`cli-darwin-arm64` / `cli-darwin-x64` / `cli-linux-x64` / `cli-linux-arm64` / `cli-win32-x64`); `release/cli` → last pack. `pnpm pack:mobile` does not read the engine: `--incremental`, `--clean`, `--prebuild`, `--debug`, `--arch` (`armeabi-v7a` / `arm64-v8a` / `x86` / `x86_64` / `all`), `--os android`. Desktop and CLI are single-arch packs, not universal. Linux desktop is AppImage (`Fast-*-linux-x64.AppImage` / `Fast-*-linux-arm64.AppImage`; also writes `linux-unpacked` / `linux-arm64-unpacked`). Windows desktop is NSIS (`Fast-*-win-x64.exe`; also writes `win-unpacked`). Alpine / musl is not supported. Windows native is in development; a Mac can emit the installer but must not run it or `Fast.exe`.
 
 ---
 

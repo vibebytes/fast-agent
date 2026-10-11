@@ -163,7 +163,7 @@ git clone https://github.com/kai2002/fast-agent.git
 cd fast-agent
 pnpm install
 
-# 2. 拉取预编译好的引擎二进制文件
+# 2. 拉取预编译好的引擎二进制文件（增量，本机 OS）
 pnpm fetch-engine
 
 # 3. 启动你想调试的客户端
@@ -171,6 +171,71 @@ pnpm dev:desktop       # 启动桌面 Electron 应用
 pnpm dev:tui           # 启动 TUI 终端客户端
 pnpm dev:mobile        # 启动移动端（Expo / Metro）
 ```
+
+pnpm 会吞掉脚本名后面的参数，额外参数要写在 `--` 后面。
+
+#### `pnpm fetch-engine`
+
+```bash
+pnpm fetch-engine -- --clean
+pnpm fetch-engine -- --os darwin-arm64
+pnpm fetch-engine -- --help
+```
+
+| 参数 | 作用 |
+| :--- | :--- |
+| `--incremental` | 默认。`modules/engine/current/bin/fast-cli` 已存在就跳过 Maven，仍会补齐 `current/jre/` 下的 Temurin 17 JRE |
+| `--clean` | `mvn clean package`，然后重写 `current/` 和 JRE。刷新引擎或切换 OS 用这个 |
+| `--os <os>` | 目标 OS。与位置参数 `os` 相同：`darwin-arm64`、`darwin-x64`、`linux-x64`、`linux-arm64`、`win32-x64`、`all` |
+| `-h`、`--help` | 打印用法 |
+
+不带参数时按本机 OS 做增量拉取。增量模式不核对 `current/` 里已有的 OS；目录是别的系统打出来的，要用 `--clean`。
+
+#### `pnpm dev:desktop`
+
+`pnpm dev:desktop:mock` 就是 `./dev/desktop.sh --mock`。
+
+```bash
+pnpm dev:desktop -- --mock
+pnpm dev:desktop -- --engine
+pnpm dev:desktop -- --stage
+```
+
+| 参数 | 作用 |
+| :--- | :--- |
+| `--mock` | 只跑 UI（`apps/desktop/scripts/dev/mock-engine.mjs`），不启动引擎 |
+| `--engine` | 启动前做一次增量 `fetch-engine`。`current/bin/fast-cli` 不存在时也会自动拉 |
+| `--stage` | 用本地 agent stage（`sbt cli/Universal/stage`），经 `dev/fast-cli-stage.sh` 启动，不用 Maven 的 `current/` |
+| `-h`、`--help` | 打印用法 |
+| 其余参数 | 转给 electron-vite。`--` 后面开始算这份列表 |
+
+#### `pnpm dev:tui`
+
+```bash
+pnpm dev:tui -- --engine
+```
+
+| 参数 | 作用 |
+| :--- | :--- |
+| `--engine` | 启动前做一次增量 `fetch-engine`。`current/bin/fast-cli` 不存在时也会自动拉 |
+| `-h`、`--help` | 打印用法 |
+| 其余参数 | 转给 TUI。`--` 后面开始算这份列表 |
+
+#### `pnpm dev:mobile`
+
+不拉取、也不读取 `modules/engine/current`。
+
+```bash
+pnpm dev:mobile -- --android
+pnpm dev:mobile -- --ios
+```
+
+| 参数 | 作用 |
+| :--- | :--- |
+| `--android` | `expo start --android` |
+| `--ios` | `expo start --ios`。`--android` 和 `--ios` 只能选一个 |
+| `-h`、`--help` | 打印用法 |
+| 其余参数 | 转给 Expo。`--` 后面开始算这份列表 |
 
 ### 测试与类型检查
 
@@ -199,7 +264,48 @@ pnpm pack:cli -- --incremental                 # .fast-os 匹配时复用 curren
 pnpm pack:mobile                               # Android APK
 ```
 
-`pnpm build` 只编译 TypeScript 包，与 `build/*.sh` 不是一回事。桌面端与 CLI 均为单架构打包（非 universal）；`--os darwin-both` 会依次执行两个 macOS 打包。
+`pnpm build` 只编译 TypeScript 包，与 `build/*.sh` 不是一回事。桌面端与 CLI 都是单架构打包（非 universal）。打包的增量模式只在 `.fast-os` 匹配时复用 `current/`，不匹配会失败，换 OS 要用 `--clean`。这比 `fetch-engine --incremental` 更严：后者不核对 OS。
+
+**`pnpm pack`**（`./build/all.sh`）用同一次 stage 打 CLI 和桌面端，再打移动端。
+
+| 参数 | 作用 |
+| :--- | :--- |
+| `--incremental` | 默认。`.fast-os` 匹配时复用 `current/`。移动端收到 `--incremental` |
+| `--clean` | `fetch-engine --clean`、重新 stage，并把 `--clean` 传给移动端 |
+| `--os <id>` | `darwin-arm64`、`darwin-x64`、`darwin-both`、`linux-x64`、`linux-arm64`、`win32-x64`、`darwin`、`linux`、`windows`。`darwin-both` 会打两份 macOS 包，每次都带 `--clean` |
+| `--skip desktop\|cli\|mobile` | 可重复。跳过对应目标。桌面端和 CLI 都跳过时，不会做引擎 stage |
+| `-h`、`--help` | 打印用法 |
+
+**`pnpm pack:desktop`**
+
+| 参数 | 作用 |
+| :--- | :--- |
+| `--incremental` | 默认。`.fast-os` 匹配时复用 `current/`。安装包每次都会重打 |
+| `--clean` | `fetch-engine --clean` 并重新 stage |
+| `--smoke` | 只检查已有的 `--os` 产物，不拉取、不重打 |
+| `--os <id>` | 与 `pnpm pack` 相同，含 `darwin-both` |
+| `-h`、`--help` | 打印用法 |
+
+**`pnpm pack:cli`** 写到 `release/cli-<os>`（`release/cli` 指向最近一次打包）。
+
+| 参数 | 作用 |
+| :--- | :--- |
+| `--incremental` | 默认。`.fast-os` 匹配时复用 `current/` |
+| `--clean` | `fetch-engine --clean` 并重新 stage |
+| `--os <id>` | 与 `pnpm pack` 相同，含 `darwin-both` |
+| `-h`、`--help` | 打印用法 |
+
+**`pnpm pack:mobile`** 打 Android APK，不读引擎目录。没有 Android SDK 或 JDK 时跳过（退出码 0）。
+
+| 参数 | 作用 |
+| :--- | :--- |
+| `--incremental` | 默认。不做 `expo --clean`，也不做 `gradlew clean` |
+| `--clean` | `gradlew clean` 后再 assemble |
+| `--prebuild` | 重新生成 `android/`（`expo prebuild --clean`） |
+| `--debug` | debug APK（需要 Metro） |
+| `--arch <abi>` | `armeabi-v7a`、`arm64-v8a`（默认）、`x86`、`x86_64`、`all` |
+| `--os android` | 只支持 `android` |
+| `-h`、`--help` | 打印用法 |
 </details>
 
 ---

@@ -163,7 +163,7 @@ git clone https://github.com/kai2002/fast-agent.git
 cd fast-agent
 pnpm install
 
-# 2. Fetch the pre-built engine binary
+# 2. Fetch the pre-built engine binary (incremental, host OS)
 pnpm fetch-engine
 
 # 3. Start developing your target surface
@@ -171,6 +171,71 @@ pnpm dev:desktop       # Run Desktop Electron app
 pnpm dev:tui           # Run TUI terminal app
 pnpm dev:mobile        # Run Mobile client (Expo / Metro)
 ```
+
+pnpm swallows extra script arguments, so flags go after `--`.
+
+#### `pnpm fetch-engine`
+
+```bash
+pnpm fetch-engine -- --clean
+pnpm fetch-engine -- --os darwin-arm64
+pnpm fetch-engine -- --help
+```
+
+| Flag | Effect |
+| :--- | :--- |
+| `--incremental` | Default. Skip Maven when `modules/engine/current/bin/fast-cli` exists. Still ensures the Temurin 17 JRE under `current/jre/` |
+| `--clean` | `mvn clean package`, then rewrite `current/` and the JRE. Refresh the engine or switch OS with this |
+| `--os <os>` | Target OS. Same as a positional `os`: `darwin-arm64`, `darwin-x64`, `linux-x64`, `linux-arm64`, `win32-x64`, `all` |
+| `-h`, `--help` | Print usage |
+
+No flags means an incremental fetch for the host OS. Incremental mode does not compare the OS already stamped in `current/`; a tree built for another OS needs `--clean`.
+
+#### `pnpm dev:desktop`
+
+`pnpm dev:desktop:mock` is `./dev/desktop.sh --mock`.
+
+```bash
+pnpm dev:desktop -- --mock
+pnpm dev:desktop -- --engine
+pnpm dev:desktop -- --stage
+```
+
+| Flag | Effect |
+| :--- | :--- |
+| `--mock` | UI only (`apps/desktop/scripts/dev/mock-engine.mjs`). Does not start the engine |
+| `--engine` | Incremental `fetch-engine` before start. The same fetch also runs when `current/bin/fast-cli` is missing |
+| `--stage` | Use a local agent stage (`sbt cli/Universal/stage`) through `dev/fast-cli-stage.sh` instead of Maven `current/` |
+| `-h`, `--help` | Print usage |
+| other args | Forwarded to electron-vite. `--` starts that list |
+
+#### `pnpm dev:tui`
+
+```bash
+pnpm dev:tui -- --engine
+```
+
+| Flag | Effect |
+| :--- | :--- |
+| `--engine` | Incremental `fetch-engine` before start. The same fetch also runs when `current/bin/fast-cli` is missing |
+| `-h`, `--help` | Print usage |
+| other args | Forwarded to the TUI. `--` starts that list |
+
+#### `pnpm dev:mobile`
+
+Does not fetch or read `modules/engine/current`.
+
+```bash
+pnpm dev:mobile -- --android
+pnpm dev:mobile -- --ios
+```
+
+| Flag | Effect |
+| :--- | :--- |
+| `--android` | `expo start --android` |
+| `--ios` | `expo start --ios`. Pass only one of `--android` and `--ios` |
+| `-h`, `--help` | Print usage |
+| other args | Forwarded to Expo. `--` starts that list |
 
 ### Running Tests
 
@@ -199,7 +264,48 @@ pnpm pack:cli -- --incremental                 # Reuse current/ when .fast-os ma
 pnpm pack:mobile                               # Android APK
 ```
 
-`pnpm build` compiles the TypeScript packages only — it is not `build/*.sh`. Desktop and CLI packs are single-arch, not universal; `--os darwin-both` runs both mac packs.
+`pnpm build` compiles the TypeScript packages only — it is not `build/*.sh`. Desktop and CLI packs are single-arch, not universal. Incremental pack reuses `current/` only when `.fast-os` matches; a mismatch fails, so switch OS with `--clean`. That check is stricter than `fetch-engine --incremental`, which does not compare OS.
+
+**`pnpm pack`** (`./build/all.sh`) packs CLI and desktop from one stage, then mobile.
+
+| Flag | Effect |
+| :--- | :--- |
+| `--incremental` | Default. Reuse `current/` when `.fast-os` matches. Mobile gets `--incremental` |
+| `--clean` | `fetch-engine --clean`, restage, and pass `--clean` to mobile |
+| `--os <id>` | `darwin-arm64`, `darwin-x64`, `darwin-both`, `linux-x64`, `linux-arm64`, `win32-x64`, `darwin`, `linux`, `windows`. `darwin-both` runs both mac packs, each with `--clean` |
+| `--skip desktop\|cli\|mobile` | Repeatable. Skip that target. Skipping both desktop and CLI skips the engine stage |
+| `-h`, `--help` | Print usage |
+
+**`pnpm pack:desktop`**
+
+| Flag | Effect |
+| :--- | :--- |
+| `--incremental` | Default. Reuse `current/` when `.fast-os` matches. The installer is always rebuilt |
+| `--clean` | `fetch-engine --clean` and restage |
+| `--smoke` | Check an existing `--os` output only. No fetch and no rebuild |
+| `--os <id>` | Same ids as `pnpm pack`, including `darwin-both` |
+| `-h`, `--help` | Print usage |
+
+**`pnpm pack:cli`** writes `release/cli-<os>` (`release/cli` points at the last pack).
+
+| Flag | Effect |
+| :--- | :--- |
+| `--incremental` | Default. Reuse `current/` when `.fast-os` matches |
+| `--clean` | `fetch-engine --clean` and restage |
+| `--os <id>` | Same ids as `pnpm pack`, including `darwin-both` |
+| `-h`, `--help` | Print usage |
+
+**`pnpm pack:mobile`** builds an Android APK. It does not read the engine tree. Missing Android SDK or JDK skips the pack (exit 0).
+
+| Flag | Effect |
+| :--- | :--- |
+| `--incremental` | Default. No `expo --clean` and no `gradlew clean` |
+| `--clean` | `gradlew clean`, then assemble |
+| `--prebuild` | Regenerate `android/` (`expo prebuild --clean`) |
+| `--debug` | Debug APK (needs Metro) |
+| `--arch <abi>` | `armeabi-v7a`, `arm64-v8a` (default), `x86`, `x86_64`, `all` |
+| `--os android` | Only `android` is supported |
+| `-h`, `--help` | Print usage |
 </details>
 
 ---
