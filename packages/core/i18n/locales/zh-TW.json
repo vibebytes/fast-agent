@@ -579,7 +579,39 @@
           "main_only": "僅主會話"
         },
         "scopeSaveFailed": "會話作用域儲存失敗",
-        "modelNoToken": "缺少憑據"
+        "modelNoToken": "缺少憑據",
+        "imageToImage": {
+          "title": "圖生圖",
+          "summary": "根據提示詞和參考圖生成一張新圖片。"
+        },
+        "editImage": {
+          "title": "影像編輯",
+          "summary": "按說明修改一張圖片。"
+        },
+        "textToSpeech": {
+          "title": "文字轉語音",
+          "summary": "把文字合成為 MP3。"
+        },
+        "transcribeAudio": {
+          "title": "語音轉寫",
+          "summary": "把音訊檔轉成文字。"
+        },
+        "generateVideo": {
+          "title": "文生影片",
+          "summary": "根據文字描述生成影片。"
+        },
+        "imageToVideo": {
+          "title": "圖生影片",
+          "summary": "用一張圖片作為首幀生成影片。"
+        },
+        "ocr": {
+          "title": "文字識別",
+          "summary": "從圖片中提取可見文字。"
+        },
+        "videoCaption": {
+          "title": "影片字幕",
+          "summary": "為影片寫出字幕文本。"
+        }
       },
       "searchSkills": "Search skills…",
       "createSkill": "New skill",

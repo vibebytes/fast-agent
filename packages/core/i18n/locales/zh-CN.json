@@ -654,7 +654,39 @@
           "main_only": "仅主会话"
         },
         "scopeSaveFailed": "会话作用域保存失败",
-        "modelNoToken": "缺少凭据"
+        "modelNoToken": "缺少凭据",
+        "imageToImage": {
+          "title": "图生图",
+          "summary": "根据提示词和参考图生成一张新图片。"
+        },
+        "editImage": {
+          "title": "图像编辑",
+          "summary": "按说明修改一张图片。"
+        },
+        "textToSpeech": {
+          "title": "文本转语音",
+          "summary": "把文字合成为 MP3。"
+        },
+        "transcribeAudio": {
+          "title": "语音转写",
+          "summary": "把音频文件转成文字。"
+        },
+        "generateVideo": {
+          "title": "文生视频",
+          "summary": "根据文字描述生成视频。"
+        },
+        "imageToVideo": {
+          "title": "图生视频",
+          "summary": "用一张图片作为首帧生成视频。"
+        },
+        "ocr": {
+          "title": "文字识别",
+          "summary": "从图片中提取可见文字。"
+        },
+        "videoCaption": {
+          "title": "视频字幕",
+          "summary": "为视频写出字幕文本。"
+        }
       },
       "ext": {
         "engineUnavailable": "引擎未就绪",

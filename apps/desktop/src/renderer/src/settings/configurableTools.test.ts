@@ -1,4 +1,6 @@
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import path from 'node:path';
 import test from 'node:test';
 import type {ConfigurableTool} from '@fast-ide/session-view';
 import {visiblePluginTabs} from './pluginTabs.js';
@@ -221,6 +223,21 @@ test('a model ref without a form still offers a dropdown', () => {
 	assert.notEqual(dialog.kind, 'invalid');
 	const fields = dialog.kind === 'model' ? [dialog.field] : dialog.kind === 'fields' ? dialog.fields : [];
 	assert.equal(fields.some(field => field.type === 'model-ref'), true);
+});
+
+test('media tool titles exist in every locale', () => {
+	const names = ['imageToImage', 'editImage', 'textToSpeech', 'transcribeAudio', 'generateVideo', 'imageToVideo', 'ocr', 'videoCaption'];
+	const locales = ['en', 'zh-CN', 'zh-TW', 'ja', 'ko', 'de', 'fr', 'es', 'pt-BR', 'ru'];
+	const dir = path.resolve(import.meta.dirname, '../../../../../../packages/core/i18n/locales');
+	for (const locale of locales) {
+		const tools = JSON.parse(fs.readFileSync(path.join(dir, `${locale}.json`), 'utf8')).settings.plugins.tools;
+		for (const name of names) {
+			assert.equal(typeof tools[name]?.title, 'string', `${locale} ${name}.title`);
+			assert.equal(typeof tools[name]?.summary, 'string', `${locale} ${name}.summary`);
+			assert.ok(tools[name].title.length > 0);
+			assert.ok(tools[name].summary.length > 0);
+		}
+	}
 });
 
 test('unknown model-ref candidate still passes validation when a raw model key is allowed', () => {

@@ -568,7 +568,39 @@
         "secretClear": "Clear key",
         "secretKeep": "Leave blank to keep the key ending in {{last4}}",
         "secretRequired": "An API key is required to enable this tool.",
-        "declarationInvalid": "This tool declaration cannot be shown."
+        "declarationInvalid": "This tool declaration cannot be shown.",
+        "imageToImage": {
+          "title": "Bild zu Bild",
+          "summary": "Erzeugt ein neues Bild aus Prompt und Referenzbildern."
+        },
+        "editImage": {
+          "title": "Bild bearbeiten",
+          "summary": "Ändert ein Bild anhand einer Anweisung."
+        },
+        "textToSpeech": {
+          "title": "Text zu Sprache",
+          "summary": "Wandelt Text in eine MP3-Datei um."
+        },
+        "transcribeAudio": {
+          "title": "Audio transkribieren",
+          "summary": "Wandelt eine Audiodatei in Text um."
+        },
+        "generateVideo": {
+          "title": "Video erzeugen",
+          "summary": "Erzeugt ein Video aus einem Text."
+        },
+        "imageToVideo": {
+          "title": "Bild zu Video",
+          "summary": "Animiert ein Bild zu einem Video."
+        },
+        "ocr": {
+          "title": "Texterkennung",
+          "summary": "Liest sichtbaren Text aus einem Bild."
+        },
+        "videoCaption": {
+          "title": "Videountertitel",
+          "summary": "Schreibt Untertitel zu einem Video."
+        }
       },
       "searchSkills": "Search skills…",
       "createSkill": "New skill",

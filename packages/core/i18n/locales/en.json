@@ -654,7 +654,39 @@
           "main_only": "Main session only"
         },
         "scopeSaveFailed": "Could not save the session scope",
-        "modelNoToken": "token missing"
+        "modelNoToken": "token missing",
+        "imageToImage": {
+          "title": "Image to Image",
+          "summary": "Generate a new image from a prompt and reference images."
+        },
+        "editImage": {
+          "title": "Edit Image",
+          "summary": "Change one image from an instruction."
+        },
+        "textToSpeech": {
+          "title": "Text to Speech",
+          "summary": "Turn text into an MP3 file."
+        },
+        "transcribeAudio": {
+          "title": "Transcribe Audio",
+          "summary": "Turn an audio file into text."
+        },
+        "generateVideo": {
+          "title": "Generate Video",
+          "summary": "Generate a video from a text prompt."
+        },
+        "imageToVideo": {
+          "title": "Image to Video",
+          "summary": "Animate an image into a video."
+        },
+        "ocr": {
+          "title": "Text Recognition",
+          "summary": "Extract visible text from an image."
+        },
+        "videoCaption": {
+          "title": "Video Captions",
+          "summary": "Write captions for a video."
+        }
       },
       "ext": {
         "engineUnavailable": "Engine is not ready",

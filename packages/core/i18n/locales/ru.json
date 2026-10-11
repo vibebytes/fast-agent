@@ -568,7 +568,39 @@
         "secretClear": "Clear key",
         "secretKeep": "Leave blank to keep the key ending in {{last4}}",
         "secretRequired": "An API key is required to enable this tool.",
-        "declarationInvalid": "This tool declaration cannot be shown."
+        "declarationInvalid": "This tool declaration cannot be shown.",
+        "imageToImage": {
+          "title": "Изображение из изображения",
+          "summary": "Создаёт изображение по тексту и референсам."
+        },
+        "editImage": {
+          "title": "Правка изображения",
+          "summary": "Меняет изображение по инструкции."
+        },
+        "textToSpeech": {
+          "title": "Синтез речи",
+          "summary": "Превращает текст в MP3."
+        },
+        "transcribeAudio": {
+          "title": "Расшифровка аудио",
+          "summary": "Превращает аудиофайл в текст."
+        },
+        "generateVideo": {
+          "title": "Создание видео",
+          "summary": "Создаёт видео по текстовому описанию."
+        },
+        "imageToVideo": {
+          "title": "Видео из изображения",
+          "summary": "Анимирует изображение в видео."
+        },
+        "ocr": {
+          "title": "Распознавание текста",
+          "summary": "Извлекает видимый текст с изображения."
+        },
+        "videoCaption": {
+          "title": "Субтитры видео",
+          "summary": "Пишет текст субтитров к видео."
+        }
       },
       "searchSkills": "Search skills…",
       "createSkill": "New skill",
