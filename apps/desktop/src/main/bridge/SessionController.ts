@@ -318,7 +318,10 @@ export class SessionController implements TaskCommands, SessionLifecycle, TaskVi
 
 	private settleRestartMain(result: {ok: boolean; sessionId?: string | null; notice?: string | null}): void {
 		const resolve = this.pendingRestartMain;
-		if (!resolve) return;
+		if (!resolve) {
+			if (result.ok && result.sessionId) this.adoptLateRestart(result.sessionId);
+			return;
+		}
 		this.pendingRestartMain = null;
 		if (this.restartMainTimer) clearTimeout(this.restartMainTimer);
 		this.restartMainTimer = null;
@@ -327,6 +330,17 @@ export class SessionController implements TaskCommands, SessionLifecycle, TaskVi
 				? {ok: true, sessionId: result.sessionId ?? undefined}
 				: {ok: false, notice: result.notice ?? 'Restart failed'}
 		);
+	}
+
+	/**
+	 * RestartMainSession success that lands after the caller gave up (timeout / engine reset)
+	 * or was triggered elsewhere: the engine already swapped the main session, so rebind the
+	 * main task row instead of leaving it on the demoted old session.
+	 */
+	private adoptLateRestart(sessionId: string): void {
+		const main = [...this.tasks.values()].find(t => t.sessionType === 'main');
+		if (!main || main.sessionId === sessionId) return;
+		if (this.rebindTaskSession(main.id, sessionId)) this.noteHelp('notice.restartMain.adopted');
 	}
 
 	/** Cancel a specific Task's Associated work (active Task optional). */

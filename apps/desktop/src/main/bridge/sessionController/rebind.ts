@@ -118,3 +118,80 @@ test('acceptNewSession stays a no-op for an already bound row (rebind is the res
 	assert.equal(controller.acceptNewSession('sess-other', task.id, 'ws-hash'), null);
 	assert.equal(task.sessionId, 'sess-old');
 });
+
+test('late RestartMainSession success after a timeout rebinds the main task row', async () => {
+	const sent: BridgeCommand[] = [];
+	const controller = new SessionController({
+		clientId: 'cli-test',
+		send: cmd => {
+			sent.push(cmd);
+			return true;
+		},
+		now: () => 1000,
+		createId: () => 'fixed-id'
+	});
+	const task = controller.createTask('Main');
+	controller.acceptNewSession('sess-old', task.id, 'ws-hash');
+	controller.handleEvent({type: 'Attached', sessionId: 'sess-old', clientId: 'cli-test'});
+	task.sessionType = 'main';
+
+	(controller as unknown as {restartMainTimeoutMs: number}).restartMainTimeoutMs = 10;
+	assert.equal((await controller.restartMainSession()).ok, false);
+
+	sent.length = 0;
+	controller.handleEvent({type: 'command_result', name: 'RestartMainSession', message: 'sess-new'});
+	assert.equal(task.sessionId, 'sess-new');
+	assert.ok(sent.some(c => c.type === 'DetachSession' && c.sessionId === 'sess-old'));
+	const attach = sent.find(c => c.type === 'AttachSession');
+	assert.ok(attach && attach.type === 'AttachSession' && attach.sessionId === 'sess-new');
+	assert.equal(controller.consumeHelpNotice(), 'notice.restartMain.adopted');
+});
+
+test('duplicate late RestartMainSession success for the already-bound session is a no-op', async () => {
+	const sent: BridgeCommand[] = [];
+	const controller = new SessionController({
+		clientId: 'cli-test',
+		send: cmd => {
+			sent.push(cmd);
+			return true;
+		},
+		now: () => 1000,
+		createId: () => 'fixed-id'
+	});
+	const task = controller.createTask('Main');
+	controller.acceptNewSession('sess-old', task.id, 'ws-hash');
+	task.sessionType = 'main';
+	(controller as unknown as {restartMainTimeoutMs: number}).restartMainTimeoutMs = 10;
+	await controller.restartMainSession();
+
+	controller.handleEvent({type: 'command_result', name: 'RestartMainSession', message: 'sess-new'});
+	assert.equal(controller.consumeHelpNotice(), 'notice.restartMain.adopted');
+	sent.length = 0;
+	controller.handleEvent({type: 'command_result', name: 'RestartMainSession', message: 'sess-new'});
+	assert.equal(task.sessionId, 'sess-new');
+	assert.equal(sent.length, 0);
+	assert.equal(controller.consumeHelpNotice(), null);
+});
+
+test('late RestartMainSession error result does not rebind the main task row', async () => {
+	const controller = new SessionController({
+		clientId: 'cli-test',
+		send: () => true,
+		now: () => 1000,
+		createId: () => 'fixed-id'
+	});
+	const task = controller.createTask('Main');
+	controller.acceptNewSession('sess-old', task.id, 'ws-hash');
+	task.sessionType = 'main';
+	(controller as unknown as {restartMainTimeoutMs: number}).restartMainTimeoutMs = 10;
+	await controller.restartMainSession();
+
+	controller.handleEvent({
+		type: 'command_result',
+		name: 'RestartMainSession',
+		status: 'error',
+		message: 'engine refused'
+	});
+	assert.equal(task.sessionId, 'sess-old');
+	assert.equal(controller.consumeHelpNotice(), null);
+});
