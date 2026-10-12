@@ -71,6 +71,31 @@ test('restartMainSession settles on engine reset so the sidebar is not stuck', a
 	assert.equal(result.notice, 'Engine reset');
 });
 
+test('rebindTaskSession binds the new main session to the open workspace before attach', () => {
+	const sent: BridgeCommand[] = [];
+	const controller = new SessionController({
+		clientId: 'cli-test',
+		workspaceId: () => 'ws-hash',
+		send: cmd => {
+			sent.push(cmd);
+			return true;
+		},
+		now: () => 1000,
+		createId: () => 'fixed-id'
+	});
+	const task = controller.createTask('Main');
+	controller.acceptNewSession('sess-old', task.id, 'ws-hash');
+	sent.length = 0;
+	controller.rebindTaskSession(task.id, 'sess-new');
+	const bindAt = sent.findIndex(c => c.type === 'BindSessionWorkspace');
+	const attachAt = sent.findIndex(c => c.type === 'AttachSession' && c.sessionId === 'sess-new');
+	const bind = sent[bindAt];
+	assert.ok(bind && bind.type === 'BindSessionWorkspace');
+	assert.equal(bind.sessionId, 'sess-new');
+	assert.equal(bind.workspaceId, 'ws-hash');
+	assert.ok(bindAt >= 0 && attachAt > bindAt);
+});
+
 test('rebindTaskSession returns null when the task is unknown', () => {
 	const controller = new SessionController({
 		clientId: 'cli-test',

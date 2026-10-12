@@ -367,6 +367,11 @@ export class SessionController implements TaskCommands, SessionLifecycle, TaskVi
 		task.queue = [];
 		task.queuePaused = false;
 		this.tasks.set(task.id, task);
+		const workspaceId = this.workspaceId?.();
+		if (workspaceId) {
+			this.attach.armBind(sessionId, this.now());
+			this.sendFn({type: 'BindSessionWorkspace', sessionId, workspaceId});
+		}
 		this.requestAttach(task, sessionId, 0);
 		return task;
 	}
