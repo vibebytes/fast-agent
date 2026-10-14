@@ -450,6 +450,13 @@ export type ConfigurableTool = {
 	modality?: string;
 	/** Engine-declared group (general/image/video/speech/other); absent = client heuristic. */
 	group?: string;
+	/** builtin or external. Absent on an older engine. */
+	origin?: 'builtin' | 'external';
+	/** Owning extension id. Null for engine-core tools. */
+	extension?: string | null;
+	/** Display text when the tool has no i18n key. */
+	title?: string;
+	summary?: string;
 	/** Effective session scope computed by the engine; absent = stored values decide. */
 	sessionScope?: string;
 	fields: ConfigurableToolField[];

@@ -162,6 +162,10 @@ export const commandResultSchema = z.object({
 					modality: z.string().optional(),
 					group: z.string().optional(),
 					sessionScope: z.string().optional(),
+					origin: z.enum(['builtin', 'external']).optional(),
+					extension: z.string().nullable().optional(),
+					title: z.string().optional(),
+					summary: z.string().optional(),
 					fields: z.array(
 						z.object({
 							key: z.string(),

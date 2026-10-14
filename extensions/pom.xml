@@ -38,6 +38,7 @@
     <module>example-engine</module>
     <module>dsh-engine</module>
     <module>jev-context</module>
+    <module>tools</module>
     <module>dist</module>
   </modules>
   <dependencyManagement>

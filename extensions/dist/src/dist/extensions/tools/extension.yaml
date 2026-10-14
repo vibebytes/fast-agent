@@ -1,0 +1,5 @@
+id: tools
+apiVersion: "1"
+hotUnload: true
+provides:
+  tools: [clock_now, config_probe]

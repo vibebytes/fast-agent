@@ -545,6 +545,10 @@
         "field": {
           "apiKey": "API key"
         },
+        "origin": {
+          "builtin": "Integrada",
+          "external": "Externa"
+        },
         "group": {
           "general": "Geral",
           "image": "Imagem",

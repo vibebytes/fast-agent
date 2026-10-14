@@ -641,6 +641,10 @@
           "title": "图像生成",
           "summary": "根据文本提示生成一张图片。"
         },
+        "origin": {
+          "builtin": "内置",
+          "external": "外部"
+        },
         "group": {
           "general": "通用",
           "image": "图像",

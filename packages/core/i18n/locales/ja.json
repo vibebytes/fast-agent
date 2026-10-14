@@ -545,6 +545,10 @@
         "field": {
           "apiKey": "API key"
         },
+        "origin": {
+          "builtin": "組み込み",
+          "external": "外部"
+        },
         "group": {
           "general": "一般",
           "image": "画像",

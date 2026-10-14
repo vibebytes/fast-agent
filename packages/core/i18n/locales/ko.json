@@ -545,6 +545,10 @@
         "field": {
           "apiKey": "API key"
         },
+        "origin": {
+          "builtin": "내장",
+          "external": "외부"
+        },
         "group": {
           "general": "일반",
           "image": "이미지",

@@ -545,6 +545,10 @@
         "field": {
           "apiKey": "API key"
         },
+        "origin": {
+          "builtin": "Встроенный",
+          "external": "Внешний"
+        },
         "group": {
           "general": "Общие",
           "image": "Изображения",

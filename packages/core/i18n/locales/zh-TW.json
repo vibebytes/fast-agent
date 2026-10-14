@@ -566,6 +566,10 @@
           "title": "圖像生成",
           "summary": "根據文字提示生成一張圖片。"
         },
+        "origin": {
+          "builtin": "內建",
+          "external": "外部"
+        },
         "group": {
           "general": "通用",
           "image": "圖像",

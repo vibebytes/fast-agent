@@ -641,6 +641,10 @@
           "title": "Image Generation",
           "summary": "Generate an image from a text prompt."
         },
+        "origin": {
+          "builtin": "Built-in",
+          "external": "External"
+        },
         "group": {
           "general": "General",
           "image": "Image",

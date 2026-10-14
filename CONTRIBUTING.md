@@ -14,7 +14,7 @@ Security reports go to [SECURITY.md](SECURITY.md), not public issues.
 4. **Tests and typecheck** — especially `packages/core` and unix Bridge e2e.
 5. **Documentation** — README, `doc/structure.md`, script `--help` that matches implemented flags.
 
-Features that belong in the engine (tools, skills, agent loop) land in the `agent` repo, not here.
+Features that belong in the engine (core tools, skills, agent loop) land in the `agent` repo, not here. Product-only JVM tools live in `extensions/<id>` as an external jar — see `agent/docs/features/tool/extension-tools.md`.
 
 ---
 
@@ -43,6 +43,7 @@ For larger work, comment on the issue first.
 | Terminal UI | `apps/tui` |
 | Phone companion | `apps/mobile` |
 | Dev / pack entry | `dev/*.sh`, `build/*.sh`, `scripts/` |
+| Product JVM tools (quotes, search, …) | `extensions/<id>` |
 
 `packages/core` must not import `packages/web`. Mobile does not read `modules/engine/current/`.
 

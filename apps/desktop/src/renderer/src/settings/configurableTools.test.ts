@@ -225,6 +225,21 @@ test('a model ref without a form still offers a dropdown', () => {
 	assert.equal(fields.some(field => field.type === 'model-ref'), true);
 });
 
+test('origin labels exist in every locale', () => {
+	const locales = ['en', 'zh-CN', 'zh-TW', 'ja', 'ko', 'de', 'fr', 'es', 'pt-BR', 'ru'];
+	const dir = path.resolve(import.meta.dirname, '../../../../../../packages/core/i18n/locales');
+	for (const locale of locales) {
+		const origin = JSON.parse(fs.readFileSync(path.join(dir, `${locale}.json`), 'utf8')).settings.plugins.tools.origin;
+		assert.equal(typeof origin?.builtin, 'string', `${locale} origin.builtin`);
+		assert.equal(typeof origin?.external, 'string', `${locale} origin.external`);
+		assert.ok(origin.builtin.length > 0);
+		assert.ok(origin.external.length > 0);
+	}
+	const zh = JSON.parse(fs.readFileSync(path.join(dir, 'zh-CN.json'), 'utf8')).settings.plugins.tools.origin;
+	assert.equal(zh.builtin, '内置');
+	assert.equal(zh.external, '外部');
+});
+
 test('media tool titles exist in every locale', () => {
 	const names = ['imageToImage', 'editImage', 'textToSpeech', 'transcribeAudio', 'generateVideo', 'imageToVideo', 'ocr', 'videoCaption'];
 	const locales = ['en', 'zh-CN', 'zh-TW', 'ja', 'ko', 'de', 'fr', 'es', 'pt-BR', 'ru'];

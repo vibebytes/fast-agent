@@ -2,6 +2,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {bridgeEventSchema, bridgeCommandSchema, isLiveChrome, parseBridgeCommand, pickIdList, wireIdList} from '../protocol.js';
+import {commandResultSchema} from '../protocol/commandResult.js';
 
 test('bridgeEventSchema accepts command_result with all route statuses from SessionEntity', () => {
 	const routeStatuses = ['decided', 'answered', 'accepted', 'rejected', 'cancelled', 'paused', 'resumed', 'triggered'] as const;
@@ -195,4 +196,47 @@ test('command_result accepts structured title for SetSessionTitle', () => {
 		assert.equal(parsed.title, 'Fix auth login');
 		assert.equal(parsed.sessionId, 's1');
 	}
+});
+
+function configurableToolResult(extra: Record<string, unknown> = {}) {
+	return {
+		type: 'command_result',
+		name: 'ListConfigurableTools',
+		message: 'ok',
+		status: 'success',
+		configurableTools: [{
+			name: 'clock_now',
+			titleKey: '',
+			summaryKey: '',
+			status: 'active',
+			fields: [],
+			values: {},
+			secrets: {},
+			...extra,
+		}],
+	};
+}
+
+test('command result keeps tool origin and display text', () => {
+	const parsed = commandResultSchema.parse(configurableToolResult({
+		origin: 'external',
+		extension: 'tools',
+		title: 'Clock now',
+		summary: 'Current UTC time.',
+	}));
+	const tool = parsed.configurableTools?.[0];
+	assert.equal(tool?.origin, 'external');
+	assert.equal(tool?.extension, 'tools');
+	assert.equal(tool?.title, 'Clock now');
+	assert.equal(tool?.summary, 'Current UTC time.');
+});
+
+test('command result accepts a configurable tool without origin fields', () => {
+	const parsed = commandResultSchema.parse(configurableToolResult());
+	assert.equal(parsed.configurableTools?.[0]?.name, 'clock_now');
+	assert.equal(parsed.configurableTools?.[0]?.origin, undefined);
+});
+
+test('command result rejects an unknown tool origin', () => {
+	assert.throws(() => commandResultSchema.parse(configurableToolResult({origin: 'other'})));
 });

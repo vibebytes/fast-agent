@@ -15,6 +15,7 @@ import {SettingsButton, SettingsSection, SettingsState} from './SettingsPrimitiv
 import {dialogControls, draftsFrom, modelRefOptions, submitToolForm, toolsSurface} from './toolForm';
 import {scopeSaveInput, SESSION_SCOPE_OPTIONS, toolScope, type SessionScopeChoice} from './toolScope';
 import {groupRows, type ToolGroupKey} from './toolGroups';
+import {byOrigin, needsForm, originLabelKey, toggleSave, toolSummary, toolTitle} from './toolOrigin';
 import type {useConfigurableTools} from './useConfigurableTools';
 
 type ToolsModel = ReturnType<typeof useConfigurableTools>;
@@ -87,16 +88,19 @@ export function ToolsPane({tools}: {tools: ToolsModel}) {
 					<div className="px-4 py-6 text-[12px] text-muted-foreground">{t('settings.plugins.tools.groupEmpty')}</div>
 				) : (
 					<div className="divide-y divide-border/40">
-						{active.tools.map(tool => (
+						{byOrigin(active.tools).map(tool => (
 							<ToolCard
 								key={tool.name}
 								tool={tool}
 								save={tools.save}
-								onEnable={() => setEditing(tool)}
-								onDisable={() =>
-									void tools.save({name: tool.name, enabled: false, values: {}, secrets: {}, clearSecrets: []})
-								}
-								onConfigure={() => setEditing(tool)}
+								onEnable={async () => {
+									if (needsForm(tool)) setEditing(tool);
+									else await tools.save(toggleSave(tool, true));
+								}}
+								onDisable={async () => {
+									await tools.save(toggleSave(tool, false));
+								}}
+								onConfigure={needsForm(tool) ? () => setEditing(tool) : undefined}
 							/>
 						))}
 					</div>
@@ -126,9 +130,9 @@ function ToolCard({
 }: {
 	tool: ConfigurableTool;
 	save: (input: PutConfigurableToolInput) => Promise<boolean>;
-	onEnable: () => void;
-	onDisable: () => void;
-	onConfigure: () => void;
+	onEnable: () => void | Promise<void>;
+	onDisable: () => void | Promise<void>;
+	onConfigure?: () => void;
 }) {
 	const {t} = useTranslation();
 	const enabled = tool.status === 'active';
@@ -150,14 +154,21 @@ function ToolCard({
 			}
 		});
 	};
+	const title = toolTitle(tool, t);
+	const summary = toolSummary(tool, t);
+	const origin = t(originLabelKey(tool));
+	const originTip = tool.extension ? `${origin} · ${tool.extension}` : undefined;
 	return (
 		<div className="px-4 py-3">
 			<div className="flex items-center gap-3">
 				<div className="min-w-0 flex-1">
-					<div className="text-[13px] font-medium">{t(tool.titleKey)}</div>
-					<div className="truncate text-[12px] text-muted-foreground">{t(tool.summaryKey)}</div>
+					<div className="text-[13px] font-medium">
+						{title}
+						<span className="ml-2 text-[11px] font-normal text-muted-foreground" title={originTip}>{origin}</span>
+					</div>
+					<div className="truncate text-[12px] text-muted-foreground">{summary}</div>
 				</div>
-				{enabled ? (
+				{enabled && onConfigure ? (
 					<SettingsButton variant="outline" className="h-7 px-2 text-[12px]" onClick={onConfigure}>
 						{t('settings.plugins.tools.configure')}
 					</SettingsButton>
@@ -168,10 +179,10 @@ function ToolCard({
 						if (next) onEnable();
 						else onDisable();
 					}}
-					aria-label={t(tool.titleKey)}
+					aria-label={title}
 				/>
 			</div>
-			{enabled ? (
+			{enabled && needsForm(tool) ? (
 				<div className="mt-2 flex items-center gap-2">
 					<div className="inline-flex rounded-md border border-border/70 p-0.5">
 						{SESSION_SCOPE_OPTIONS.map(option => (
@@ -232,8 +243,8 @@ function ToolForm({
 				{tool ? (
 					<>
 						<DialogHeader>
-							<DialogTitle>{t(tool.titleKey)}</DialogTitle>
-							<DialogDescription>{t(tool.summaryKey)}</DialogDescription>
+							<DialogTitle>{toolTitle(tool, t)}</DialogTitle>
+							<DialogDescription>{toolSummary(tool, t)}</DialogDescription>
 						</DialogHeader>
 						<div className="space-y-3">
 							<ToolDialogFields
