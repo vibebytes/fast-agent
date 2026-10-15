@@ -8,7 +8,7 @@ Fast does not operate a bug bounty.
 
 ## 1. Reporting a vulnerability
 
-Report privately via [GitHub Security Advisories](https://github.com/kai2002/fast/security/advisories/new). Do not open public issues for security vulnerabilities.
+Report privately via [GitHub Security Advisories](https://github.com/vibebytes/fast-agent/security/advisories/new). Do not open public issues for security vulnerabilities.
 
 A useful report includes:
 

@@ -4,7 +4,7 @@
   <p><strong>开源版 Muse / Cue / Grok Bot / Dots 随身助理，更是你随时调遣的百人级多智能体编程与自动化工程团队。</strong></p>
 
   <p>
-    <a href="https://github.com/kai2002/fast-agent/releases"><img alt="Release" src="https://img.shields.io/github/v/release/kai2002/fast-agent?label=release&color=blue"></a>
+    <a href="https://github.com/vibebytes/fast-agent/releases"><img alt="Release" src="https://img.shields.io/github/v/release/vibebytes/fast-agent?label=release&color=blue"></a>
     <a href="LICENSE"><img alt="License" src="https://img.shields.io/badge/license-Apache%202.0-brightgreen"></a>
     <img alt="Platforms" src="https://img.shields.io/badge/platforms-macOS%20%7C%20Linux%20%7C%20Windows%20%7C%20Android%20%7C%20iOS-informational">
     <a href="https://discord.gg/HXeK9QV57"><img alt="Discord" src="https://img.shields.io/badge/Discord-5865F2?logo=discord&logoColor=white"></a>
@@ -91,7 +91,7 @@
 
 ### 1. 下载开箱即用的安装包
 
-直接前往 [GitHub Releases](https://github.com/kai2002/fast-agent/releases) 获取各平台构建：
+直接前往 [GitHub Releases](https://github.com/vibebytes/fast-agent/releases) 获取各平台构建：
 
 | 平台 | 安装包 | 安装方式 |
 | :--- | :--- | :--- |
@@ -159,7 +159,7 @@ fast/
 
 ```bash
 # 1. 克隆代码并安装依赖
-git clone https://github.com/kai2002/fast-agent.git
+git clone https://github.com/vibebytes/fast-agent.git
 cd fast-agent
 pnpm install
 

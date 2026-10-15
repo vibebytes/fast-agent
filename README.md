@@ -4,7 +4,7 @@
   <p><strong>The Open-Source Muse, Cue, Grok Bot & Dots Companion with an Orchestrated Fleet of Coding Assistants.</strong></p>
 
   <p>
-    <a href="https://github.com/kai2002/fast-agent/releases"><img alt="Release" src="https://img.shields.io/github/v/release/kai2002/fast-agent?label=release&color=blue"></a>
+    <a href="https://github.com/vibebytes/fast-agent/releases"><img alt="Release" src="https://img.shields.io/github/v/release/vibebytes/fast-agent?label=release&color=blue"></a>
     <a href="LICENSE"><img alt="License" src="https://img.shields.io/badge/license-Apache%202.0-brightgreen"></a>
     <img alt="Platforms" src="https://img.shields.io/badge/platforms-macOS%20%7C%20Linux%20%7C%20Windows%20%7C%20Android%20%7C%20iOS-informational">
     <a href="https://discord.gg/HXeK9QV57"><img alt="Discord" src="https://img.shields.io/badge/Discord-5865F2?logo=discord&logoColor=white"></a>
@@ -91,7 +91,7 @@ Switch engines per session on the fly. Fast Agent ships with its high-performanc
 
 ### 1. Download Pre-built Apps
 
-Get ready-to-run releases from [GitHub Releases](https://github.com/kai2002/fast-agent/releases):
+Get ready-to-run releases from [GitHub Releases](https://github.com/vibebytes/fast-agent/releases):
 
 | Platform | Package | How to Install |
 | :--- | :--- | :--- |
@@ -159,7 +159,7 @@ Official hosts are **macOS** and **glibc Linux**. Alpine / musl is not supported
 
 ```bash
 # 1. Clone repository & install dependencies
-git clone https://github.com/kai2002/fast-agent.git
+git clone https://github.com/vibebytes/fast-agent.git
 cd fast-agent
 pnpm install
 

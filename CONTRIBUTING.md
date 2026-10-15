@@ -23,8 +23,8 @@ Features that belong in the engine (core tools, skills, agent loop) land in the 
 Search open and merged issues/PRs, then the source. The tracker can lag the tree.
 
 ```bash
-gh search issues --repo kai2002/fast "<terms>"
-gh search prs --repo kai2002/fast --state all "<terms>"
+gh search issues --repo vibebytes/fast-agent "<terms>"
+gh search prs --repo vibebytes/fast-agent --state all "<terms>"
 ```
 
 For larger work, comment on the issue first.
