@@ -687,6 +687,10 @@
           "title": "文字识别",
           "summary": "从图片中提取可见文字。"
         },
+        "understandImage": {
+          "title": "图片理解",
+          "summary": "用视觉模型看图并回答问题。"
+        },
         "videoCaption": {
           "title": "视频字幕",
           "summary": "为视频写出字幕文本。"

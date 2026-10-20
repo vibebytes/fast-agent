@@ -683,6 +683,10 @@
           "title": "Image to Video",
           "summary": "Animate an image into a video."
         },
+        "understandImage": {
+          "title": "Image understanding",
+          "summary": "Look at an image with a vision model and answer a question."
+        },
         "ocr": {
           "title": "Text Recognition",
           "summary": "Extract visible text from an image."
