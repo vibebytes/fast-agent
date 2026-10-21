@@ -566,7 +566,8 @@ export const DialogueComposer = memo(function DialogueComposer({
 			text,
 			mentions && mentions.length > 0 ? mentions : undefined,
 			taskId,
-			imagesWire.length > 0 ? imagesWire : undefined
+			imagesWire.length > 0 ? imagesWire : undefined,
+			runMode
 		);
 		if (!result.ok) {
 			setPendingImages(restoreImages);

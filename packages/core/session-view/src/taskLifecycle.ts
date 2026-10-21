@@ -7,6 +7,16 @@ export function parseEngineKind(raw?: string | null): EngineKind {
 	return (raw ?? '').trim().toLowerCase() === 'dsh' ? 'dsh' : 'fast';
 }
 
+type WireRunMode = 'agent' | 'plan' | 'ask' | 'yolo';
+
+/** Only the four composer modes travel: anything else would be parsed as agent. */
+function visibleRunMode(raw?: string | null): WireRunMode | undefined {
+	const mode = (raw ?? '').trim().toLowerCase();
+	return mode === 'agent' || mode === 'plan' || mode === 'ask' || mode === 'yolo'
+		? mode
+		: undefined;
+}
+
 /** Structural view of a Host Task row — enough for lifecycle, no TaskRecord leak. */
 export type LifecycleTask = {
 	id: string;
@@ -19,6 +29,10 @@ export type LifecycleTask = {
 	autoTitlePending?: boolean;
 	lastModified?: string | null;
 	engineKind?: EngineKind;
+	/** Composer-visible mode: CreateSession persists it as the session sticky mode. */
+	runMode?: string;
+	/** Mode actually sent with CreateSession, so a later pick can be reconciled on bind. */
+	createdRunMode?: WireRunMode;
 	sessionType?: string;
 };
 
@@ -280,17 +294,26 @@ export function createTaskLifecycle<T extends LifecycleTask>(deps: TaskLifecycle
 	 * default (`EngineIds.newSession(None, default = engines.defaultId)`), which is
 	 * `dsh` in deployments that override the YAML default. Omitting it for `fast`
 	 * silently created dsh sessions behind a `fast` picker.
+	 *
+	 * `runMode` carries the composer-visible mode so the Engine persists it as
+	 * `session.run_mode`. Without it every new session starts on `agent`, and the
+	 * first sessions_list / reattach flips the composer away from what the user picked.
+	 * (`startupMode` is a different column — project `default_startup_mode` — never reuse it.)
 	 */
 	const sendCreateSession = (projectId: string, title: string, taskId: string): boolean => {
 		const workspaceId = deps.workspaceId()?.replace(/^workspace:/, '').trim();
-		const engineKind = tasks.get(taskId)?.engineKind ?? 'fast';
+		const task = tasks.get(taskId);
+		const engineKind = task?.engineKind ?? 'fast';
+		const runMode = visibleRunMode(task?.runMode);
+		if (task) task.createdRunMode = runMode;
 		return deps.send({
 			type: 'CreateSession',
 			projectId,
 			title,
 			taskId,
 			...(workspaceId ? {workspaceId} : {}),
-			engineKind
+			engineKind,
+			...(runMode ? {runMode} : {})
 		});
 	};
 
@@ -318,6 +341,11 @@ export function createTaskLifecycle<T extends LifecycleTask>(deps: TaskLifecycle
 			deps.requestRegister();
 		}
 		deps.requestAttach(pending, sessionId, 0);
+		const picked = visibleRunMode(pending.runMode);
+		if (picked && picked !== pending.createdRunMode) {
+			deps.send({type: 'SetMode', sessionId, mode: picked});
+			pending.createdRunMode = picked;
+		}
 		return pending;
 	};
 

@@ -163,7 +163,8 @@ export type TaskCommands = {
 		text: string,
 		mentions?: MentionChip[],
 		expectedTaskId?: string | null,
-		images?: Array<{mediaType: string; data: string; name?: string}>
+		images?: Array<{mediaType: string; data: string; name?: string}>,
+		runMode?: string
 	): boolean;
 	/** UI Build → PlanBuild Submit (`message_type=plan_build`). */
 	buildPlan(planId: string, name?: string): boolean;

@@ -124,8 +124,10 @@ export type SessionCmd =
 			appId?: string;
 			/** Local optimistic Task id; Engine echoes on command_result (not stored in Meta). */
 			taskId?: string;
-		/** Optional engine kind. Omit stores the host Registry/YAML default, which is `fast` only when that default was not overridden. Mobile always sends `fast`. */
+			/** Optional engine kind. Omit stores the host Registry/YAML default, which is `fast` only when that default was not overridden. Mobile always sends `fast`. */
 		engineKind?: string;
+		/** Composer-visible RunMode (`agent|plan|ask|yolo`); the Engine persists it as `session.run_mode`. */
+		runMode?: string;
 	  }
 	| {type: 'FollowUpRemove'; sessionId: string; itemId: string}
 	| {type: 'FollowUpUpdate'; sessionId: string; itemId: string; text: string}
@@ -351,7 +353,8 @@ export const sessionCmdSchemas = [
 		tenantId: z.string().optional(),
 		appId: z.string().optional(),
 		taskId: z.string().optional(),
-		engineKind: z.string().optional()
+		engineKind: z.string().optional(),
+		runMode: z.string().optional()
 	})
 ] as const
 

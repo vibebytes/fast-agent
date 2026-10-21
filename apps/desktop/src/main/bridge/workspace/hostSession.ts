@@ -244,10 +244,10 @@ export function hostSession(input: {
 				: {ok: false as const, notice: result.notice ?? 'Delete failed'};
 		},
 
-		'task:send': (text: string, mentions?, expectedTaskId?: string | null, images?) => {
+		'task:send': (text: string, mentions?, expectedTaskId?: string | null, images?, runMode?: string) => {
 			const sessions = activeCommands(hub);
 			if (!sessions) return {ok: false, notice: 'errors.send.no_active_task'};
-			const ok = sessions.sendMessage(text, mentions, expectedTaskId, images);
+			const ok = sessions.sendMessage(text, mentions, expectedTaskId, images, runMode);
 			const notice = sessions.consumeHelpNotice();
 			const openModelPicker = sessions.consumeOpenModelPicker();
 			// Chrome only (queue/gate) + local transcript mutations (/clear).

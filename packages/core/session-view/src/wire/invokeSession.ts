@@ -68,7 +68,8 @@ export type InvokeSession = {
 			text: string,
 			mentions?: MentionChip[],
 			expectedTaskId?: string | null,
-			images?: Array<{mediaType: string; data: string; name?: string}>
+			images?: Array<{mediaType: string; data: string; name?: string}>,
+			runMode?: string
 		];
 		result: SendMessageResult;
 	};

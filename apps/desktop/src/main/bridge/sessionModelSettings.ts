@@ -63,7 +63,7 @@ export function createSessionModelSettings(deps: SessionModelSettingsDeps) {
 		}
 		const m = mode.trim().toLowerCase();
 		if (!['agent', 'plan', 'ask', 'yolo'].includes(m)) return false;
-		const sessionId = deps.commandSessionId();
+		const sessionId = active ? active.sessionId : deps.commandSessionId();
 		if (sessionId) deps.send({type: 'SetMode', sessionId, mode: m});
 		catalog.applyRunMode(m as TaskRecord['runMode']);
 		return true;

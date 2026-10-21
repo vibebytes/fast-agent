@@ -126,6 +126,42 @@ test('retryPendingNew resends the same engineKind as the original create', () =>
 	assert.equal(create.engineKind, 'fast');
 });
 
+test('CreateSession carries the composer-visible runMode so the session never opens on agent', () => {
+	const {deps, sent} = makeDeps();
+	const base = deps.buildEntry;
+	deps.buildEntry = (id, kind, title, listOrder) => ({
+		...base(id, kind, title, listOrder),
+		runMode: 'yolo'
+	});
+	const lc = createTaskLifecycle(deps);
+	lc.createTask('Yolo please');
+	const create = sent.find(c => c.type === 'CreateSession') as {runMode?: string};
+	assert.equal(create.runMode, 'yolo');
+});
+
+test('acceptNewSession re-sends the mode picked while CreateSession was in flight', () => {
+	const {deps, sent} = makeDeps();
+	const lc = createTaskLifecycle(deps);
+	const task = lc.createTask('Late pick');
+	assert.equal((sent.find(c => c.type === 'CreateSession') as {runMode?: string}).runMode, undefined);
+	task.runMode = 'plan';
+	lc.acceptNewSession('sess-late', task.id);
+	const setMode = sent.find(c => c.type === 'SetMode') as {sessionId?: string; mode?: string} | undefined;
+	assert.equal(setMode?.sessionId, 'sess-late');
+	assert.equal(setMode?.mode, 'plan');
+	assert.equal(task.createdRunMode, 'plan');
+});
+
+test('acceptNewSession does not re-send a mode CreateSession already carried', () => {
+	const {deps, sent} = makeDeps();
+	const base = deps.buildEntry;
+	deps.buildEntry = (id, kind, title, listOrder) => ({...base(id, kind, title, listOrder), runMode: 'ask'});
+	const lc = createTaskLifecycle(deps);
+	const task = lc.createTask('Ask please');
+	lc.acceptNewSession('sess-ask', task.id);
+	assert.equal(sent.some(c => c.type === 'SetMode'), false);
+});
+
 test('createTask without projectId defers to requestRegister instead of sending', () => {
 	const {deps, sent} = makeDeps({projectId: () => undefined});
 	let registered = 0;
@@ -367,7 +403,7 @@ test('hydrateSessions demotes a stale main row when meta reports chat', () => {
 			listOrder,
 			pendingNew: false,
 			model,
-			sessionType: info.sessionType
+			sessionType: info.sessionType ?? undefined
 		}),
 		restoreChrome: () => undefined
 	};

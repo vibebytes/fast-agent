@@ -41,7 +41,8 @@ export type SessionGlue = {
 		text: string,
 		mentions?: MentionChip[],
 		expectedTaskId?: string | null,
-		images?: Array<{mediaType: string; data: string; name?: string}>
+		images?: Array<{mediaType: string; data: string; name?: string}>,
+		runMode?: string
 	) => boolean;
 	hydrateFromMeta: (sessions: SessionMetaInfo[]) => void;
 	describeSendBlocker: () => string;
@@ -348,7 +349,8 @@ export function createSessionGlue(h: SessionGlueHost): SessionGlue {
 			text: string,
 			mentions?: MentionChip[],
 			expectedTaskId?: string | null,
-			images?: Array<{mediaType: string; data: string; name?: string}>
+			images?: Array<{mediaType: string; data: string; name?: string}>,
+			runMode?: string
 		): boolean {
 			const active = h.getActiveTask();
 			if (expectedTaskId && active?.id !== expectedTaskId && active?.sessionId !== expectedTaskId) {
@@ -375,7 +377,7 @@ export function createSessionGlue(h: SessionGlueHost): SessionGlue {
 			// S2/E4: busy (Chat or Goal) → SubmitUserMessage; Session Follow-up queues.
 			// SteerGoal is Goal-drawer「捎话」only — never main Enter.
 			if (busyFollowUp) {
-				const cid = h.composer.submitUserText(routed.text, chips, undefined, images);
+				const cid = h.composer.submitUserText(routed.text, chips, undefined, images, runMode ? {runMode} : undefined);
 				if (cid) h.stashPendingUserImages(cid, images);
 				return Boolean(cid);
 			}
@@ -384,7 +386,7 @@ export function createSessionGlue(h: SessionGlueHost): SessionGlue {
 				h.helpNotice = describeSendBlocker();
 				return false;
 			}
-			const cid = h.composer.submitUserText(routed.text, chips, undefined, images);
+			const cid = h.composer.submitUserText(routed.text, chips, undefined, images, runMode ? {runMode} : undefined);
 			if (cid) h.stashPendingUserImages(cid, images);
 			return Boolean(cid);
 		},

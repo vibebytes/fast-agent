@@ -15,6 +15,12 @@ export type ComposerTaskLike = {
 
 export type ComposerSampling = {useModel?: string; effort?: string; thinking?: boolean};
 
+const VISIBLE_RUN_MODES = ['agent', 'plan', 'ask', 'yolo'] as const;
+type VisibleRunMode = (typeof VISIBLE_RUN_MODES)[number];
+
+const asRunMode = (raw: string | undefined): VisibleRunMode | undefined =>
+	raw && (VISIBLE_RUN_MODES as readonly string[]).includes(raw) ? (raw as VisibleRunMode) : undefined;
+
 export type ComposerSendDeps<T extends ComposerTaskLike> = {
 	createId: () => string;
 	now: () => number;
@@ -74,7 +80,8 @@ export function createComposerSend<T extends ComposerTaskLike>(deps: ComposerSen
 		trimmed: string,
 		mentions?: MentionChip[],
 		planBuild?: {planId: string; name?: string},
-		images?: Array<{mediaType: string; data: string; name?: string}>
+		images?: Array<{mediaType: string; data: string; name?: string}>,
+		opts?: {runMode?: string}
 	): string | false => {
 		const task = deps.getActiveTask();
 		if (!task?.sessionId) {
@@ -83,6 +90,8 @@ export function createComposerSend<T extends ComposerTaskLike>(deps: ComposerSen
 		}
 		const generateTitle = task.autoTitlePending;
 		const sessionId = task.sessionId;
+		const visibleMode = planBuild ? undefined : asRunMode(opts?.runMode);
+		const runMode = planBuild ? 'agent' : (visibleMode ?? task.runMode);
 		const sampling = composerSampling();
 		const engineKind = deps.engineKind();
 		const clientMessageId = deps.createId();
@@ -95,7 +104,7 @@ export function createComposerSend<T extends ComposerTaskLike>(deps: ComposerSen
 				(planBuild ? planBuildDisplayContent(planBuild.name ?? '', planBuild.planId) : ''),
 			...sampling,
 			...(engineKind ? {engineKind} : {}),
-			...(planBuild ? {mode: 'agent'} : task.runMode ? {mode: task.runMode} : {}),
+			...(planBuild ? {mode: 'agent'} : runMode ? {mode: runMode} : {}),
 			...(generateTitle ? {generateTitle: true} : {}),
 			...(mentions && mentions.length > 0 ? {mentions} : {}),
 			...(images && images.length > 0 ? {images} : {}),
@@ -107,6 +116,7 @@ export function createComposerSend<T extends ComposerTaskLike>(deps: ComposerSen
 			deps.setHelpNotice('errors.send.bridge_not_ready');
 			return false;
 		}
+		if (visibleMode) deps.applyRunMode(visibleMode);
 		if (generateTitle) deps.titleGenRequested.add(sessionId);
 		if (planBuild) pendingPlanBuildPlanId = planBuild.planId;
 		deps.touchLastModified(task);

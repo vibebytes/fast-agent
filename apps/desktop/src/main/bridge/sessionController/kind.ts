@@ -451,3 +451,25 @@ test('SubmitUserMessage defaults thinking=true when catalog supportsThinking and
 		assert.equal(submit.thinking, true);
 	}
 });
+
+test('CreateSession stamps the mode the composer shows at New Task time', () => {
+	const sent: BridgeCommand[] = [];
+	let n = 0;
+	const controller = new SessionController({
+		clientId: 'cli',
+		projectId: () => 'proj-1',
+		workspaceId: () => 'ws-1',
+		send: cmd => {
+			sent.push(cmd);
+			return true;
+		},
+		createId: () => `id-${++n}`
+	});
+	assert.equal(controller.setRunMode('yolo'), true);
+	sent.length = 0;
+	const task = controller.createTask('Yolo first');
+	assert.equal(task.runMode, 'yolo');
+	const create = sent.find(c => c.type === 'CreateSession');
+	assert.ok(create?.type === 'CreateSession');
+	if (create?.type === 'CreateSession') assert.equal(create.runMode, 'yolo');
+});

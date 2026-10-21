@@ -421,9 +421,10 @@ export class SessionController implements TaskCommands, SessionLifecycle, TaskVi
 		text: string,
 		mentions?: MentionChip[],
 		expectedTaskId?: string | null,
-		images?: Array<{mediaType: string; data: string; name?: string}>
+		images?: Array<{mediaType: string; data: string; name?: string}>,
+		runMode?: string
 	): boolean {
-		return this.glue.sendMessage(text, mentions, expectedTaskId, images);
+		return this.glue.sendMessage(text, mentions, expectedTaskId, images, runMode);
 	}
 
 	private stashPendingUserImages(
@@ -558,7 +559,7 @@ export class SessionController implements TaskCommands, SessionLifecycle, TaskVi
 		}
 		const m = mode.trim().toLowerCase();
 		if (!['agent', 'plan', 'ask', 'yolo'].includes(m)) return false;
-		const sessionId = this.commandSessionId();
+		const sessionId = active ? active.sessionId : this.commandSessionId();
 		if (sessionId) {
 			this.sendFn({type: 'SetMode', sessionId, mode: m});
 		}

@@ -194,3 +194,57 @@ test('an omitted run mode stays off the wire (engine sticky wins)', () => {
 	assert.equal(composer.submitUserText('hi'), 'cid');
 	assert.equal('mode' in (sent[0] as object), false);
 });
+
+test('submitUserText sends the composer-visible runMode and keeps plan builds in agent', () => {
+	const sent: Array<Record<string, unknown>> = [];
+	const applied: string[] = [];
+	const task: ComposerTaskLike = {
+		id: 't1',
+		sessionId: 's1',
+		autoTitlePending: false,
+		model: null,
+		modelDisplay: null
+	};
+	const composer = createComposerSend({
+		createId: () => 'cid',
+		now: () => 0,
+		send: cmd => {
+			sent.push(cmd as unknown as Record<string, unknown>);
+			return true;
+		},
+		getActiveTask: () => task,
+		commandSessionId: () => 's1',
+		canSubmitNow: () => true,
+		canSubmitCommand: () => true,
+		describeSendBlocker: () => '',
+		engineKind: () => 'fast' as const,
+		promptLine: (n, a) => `/${n} ${a ?? ''}`.trim(),
+		selectModel: () => true,
+		requestModelList: () => true,
+		setHelpNotice: () => {},
+		applyRunMode: mode => {
+			applied.push(mode);
+		},
+		effort: () => undefined,
+		onClearSlash: () => true,
+		touchLastModified: () => {},
+		useModelOf: () => undefined,
+		catalogHas: () => false,
+		submitThinking: () => undefined,
+		titleGenRequested: new Set(),
+		seedHostSlashCatalog: () => true,
+		slashCatalogLive: () => true,
+		applyEmptySlashCatalog: () => {},
+		markSlashCatalogHydrated: () => {},
+		appendSkillsTranscript: () => {}
+	});
+
+	composer.submitUserText('hi', undefined, undefined, undefined, {runMode: 'yolo'});
+	assert.equal(sent[0]?.mode, 'yolo');
+	assert.deepEqual(applied, ['yolo']);
+
+	sent.length = 0;
+	composer.submitUserText('ship it', undefined, {planId: 'p1'}, undefined, {runMode: 'yolo'});
+	assert.equal(sent[0]?.mode, 'agent');
+	assert.deepEqual(applied, ['yolo']);
+});

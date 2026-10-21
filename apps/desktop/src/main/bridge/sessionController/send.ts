@@ -253,6 +253,37 @@ test('send and implicit mode changes reject a stale expected Task', () => {
 	assert.equal(controller.sendMessage('belongs to A', undefined, a.id), true);
 	assert.equal(sent.some(c => c.type === 'SubmitUserMessage'), true);
 });
+test('first submit carries the composer-visible mode onto the wire', () => {
+	const sent: BridgeCommand[] = [];
+	const controller = new SessionController({
+		clientId: 'cli',
+		send: cmd => {
+			sent.push(cmd);
+			return true;
+		},
+		createId: (() => {
+			let n = 0;
+			return () => `id-visible-${++n}`;
+		})()
+	});
+	const task = controller.createTask('T');
+	controller.acceptNewSession('sess-visible', task.id);
+	controller.handleEvent({type: 'Attached', sessionId: 'sess-visible', clientId: 'cli'});
+	assert.equal(controller.runMode, 'agent');
+	assert.equal(controller.getActiveTask()?.runMode, 'agent');
+	sent.length = 0;
+
+	assert.equal(controller.sendMessage('hi', undefined, task.id, undefined, 'yolo'), true);
+	const submit = sent.find(c => c.type === 'SubmitUserMessage');
+	assert.ok(submit && submit.type === 'SubmitUserMessage');
+	if (submit?.type === 'SubmitUserMessage') assert.equal(submit.mode, 'yolo');
+	assert.equal(sent.some(c => c.type === 'SetMode'), false);
+	assert.equal(controller.runMode, 'yolo');
+	assert.equal(controller.getActiveTask()?.runMode, 'yolo');
+	const next = controller.createTask('Next');
+	assert.equal(controller.getActiveTask()?.id, next.id);
+	assert.equal(next.runMode, 'yolo');
+});
 test('SubmitUserMessage passthrough mentions; busy submit keeps chips', () => {
 	const sent: BridgeCommand[] = [];
 	const controller = new SessionController({
