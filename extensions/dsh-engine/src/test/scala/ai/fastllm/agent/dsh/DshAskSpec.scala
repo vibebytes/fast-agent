@@ -112,6 +112,89 @@ trait DshAskSpec:
     payloadString(asked, "description") should include("outside")
     payloadString(asked, "note") should include("outside")
 
+  test("yolo answers engine approvals itself: external path allowed once, no card"):
+    val remote = FakeClient()
+    val loop = DshLoop(remote, _ => Cwd)
+    await(loop.submit(submitAs("c1", "hi", "yolo")))
+    remote.emit(
+      Sid,
+      ev(
+        "tool/call",
+        1,
+        """{"turn":1,"callId":"call-y","name":"read","arguments":"{\"file_path\":\"/tmp/other/notes.md\"}"}"""
+      )
+    )
+    remote.emitAsked(
+      Sid,
+      "rpc-y",
+      "ap-y",
+      "read",
+      Some("escalate sandbox to danger-full-access: absolute path outside the session workspace"),
+      Some("call-y")
+    )
+    remote.replies.map(_._1) shouldBe Vector("rpc-y")
+    remote.replies.head._2.hcursor.get[String]("outcome").toOption.get shouldBe "allowed-once"
+    payloadTypes(await(loop.events(Sid, 0))) should not contain "ApprovalRequested"
+    loop.busy(Sid) shouldBe true
+    loop.bindingDebug(Sid) should not include "ap-y"
+    remote.emitDone(Sid, "ap-y", "allowed-once")
+    payloadTypes(await(loop.events(Sid, 0))).last shouldBe "ApprovalResolved"
+
+  test("yolo refuses blacklisted shell commands itself"):
+    val remote = FakeClient()
+    val loop = DshLoop(remote, _ => Cwd)
+    await(loop.submit(submitAs("c1", "hi", "yolo")))
+    remote.emit(
+      Sid,
+      ev(
+        "tool/call",
+        1,
+        """{"turn":1,"callId":"call-z","name":"shell","arguments":"{\"command\":\"sudo rm -rf /tmp/x\"}"}"""
+      )
+    )
+    remote.emitAsked(Sid, "rpc-z", "ap-z", "shell", Some("shell"), Some("call-z"))
+    remote.replies.map(_._1) shouldBe Vector("rpc-z")
+    remote.replies.head._2.hcursor.get[String]("outcome").toOption.get shouldBe "rejected"
+    payloadTypes(await(loop.events(Sid, 0))) should not contain "ApprovalRequested"
+
+  test("yolo refuses credential roots even when the path is just a read"):
+    val remote = FakeClient()
+    val loop = DshLoop(remote, _ => Cwd)
+    val secret = s"${System.getProperty("user.home")}/.aws/credentials"
+    await(loop.submit(submitAs("c1", "hi", "yolo")))
+    remote.emit(
+      Sid,
+      ev(
+        "tool/call",
+        1,
+        s"""{"turn":1,"callId":"call-s","name":"read","arguments":"{\\"file_path\\":\\"$secret\\"}"}"""
+      )
+    )
+    remote.emitAsked(Sid, "rpc-s", "ap-s", "read", Some("outside"), Some("call-s"))
+    remote.replies.map(_._1) shouldBe Vector("rpc-s")
+    remote.replies.head._2.hcursor.get[String]("outcome").toOption.get shouldBe "rejected"
+    payloadTypes(await(loop.events(Sid, 0))) should not contain "ApprovalRequested"
+
+  test("agent mode still asks: yolo does not leak across turns"):
+    val remote = FakeClient()
+    val loop = DshLoop(remote, _ => Cwd)
+    await(loop.submit(submitAs("c1", "hi", "yolo")))
+    remote.emit(Sid, ev("turn/end", 2, """{"turn":1,"reason":{"kind":"completed"}}"""))
+    await(loop.submit(submitAs("c2", "again", "agent"))) shouldBe Admit.Accepted(s"$Sid:c2")
+    remote.emitAsked(Sid, "rpc-a", "ap-a", "write", Some("write a file"), Some("call-a"))
+    remote.replies.isEmpty shouldBe true
+    payloadTypes(await(loop.events(Sid, 0))) should contain("ApprovalRequested")
+
+  test("omitted mode keeps the last resolved mode (sticky yolo)"):
+    val remote = FakeClient()
+    val loop = DshLoop(remote, _ => Cwd)
+    await(loop.submit(submitAs("c1", "hi", "yolo")))
+    remote.emit(Sid, ev("turn/end", 2, """{"turn":1,"reason":{"kind":"completed"}}"""))
+    await(loop.submit(submit("c2", "again"))) shouldBe Admit.Accepted(s"$Sid:c2")
+    remote.emitAsked(Sid, "rpc-s", "ap-s", "write", Some("write a file"), Some("call-s"))
+    remote.replies.map(_._2.hcursor.get[String]("outcome").toOption.get) shouldBe Vector("allowed-once")
+    payloadTypes(await(loop.events(Sid, 0))) should not contain "ApprovalRequested"
+
   test("write without escalate is workspace_write; missing tool/call leaves context empty"):
     val remote = FakeClient()
     val loop = DshLoop(remote, _ => Cwd)

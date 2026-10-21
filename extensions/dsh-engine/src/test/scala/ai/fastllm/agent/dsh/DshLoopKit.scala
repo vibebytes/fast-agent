@@ -50,6 +50,9 @@ trait DshLoopKit:
   def submit(clientId: String, text: String) =
     AgentAttachProtocol.Command.SubmitUserMessage(Sid, clientId, text)
 
+  def submitAs(clientId: String, text: String, mode: String) =
+    AgentAttachProtocol.Command.SubmitUserMessage(Sid, clientId, text, mode = Some(mode))
+
   def await[A](f: Future[A]): A = Await.result(f, 2.seconds)
 
   def methods(remote: FakeClient): List[String] = remote.calls.map(_._1).toList

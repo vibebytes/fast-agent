@@ -8,7 +8,7 @@ import ai.fastllm.agent.channel.AgentAttachProtocol.Event.{
   SubagentStarted, SubagentUpdated, TaskUpdated, ToolStarted
 }
 import ai.fastllm.agent.channel.{
-  Admit, AgentAttachProtocol, AgentEvent, EventRow, IngressOffer, RouteResult, payloadJson
+  Admit, AgentAttachProtocol, AgentEvent, EventRow, IngressOffer, RouteResult, RunMode, payloadJson
 }
 import io.circe.Json
 import io.circe.syntax.*
@@ -91,7 +91,8 @@ trait DshSubmit:
           case Left(e)  => Admit.Rejected(e)
       case None =>
         val runId = s"${cmd.sessionId}:${cmd.clientMessageId}"
-        if !claimLive(cmd.sessionId, runId) then
+        val mode = RunMode.resolve(cmd.mode, snapshot(cmd.sessionId).map(_.mode))
+        if !claimLive(cmd.sessionId, runId, mode) then
           liveOf(cmd.sessionId) match
             case Some(live) =>
               prompt(cmd.sessionId, "queue", cmd.text, cmd.images, cmd.clientMessageId).map:
@@ -158,7 +159,7 @@ trait DshSubmit:
         if cur.ending.exists(_.isCompleted) then
           bindings = bindings.updated(sessionId, cur.copy(ending = None))
 
-  private[dsh] def claimLive(sessionId: String, runId: String): Boolean =
+  private[dsh] def claimLive(sessionId: String, runId: String, mode: RunMode): Boolean =
     lock.synchronized:
       bindings.get(sessionId) match
         case Some(b) if b.liveRunId.isDefined => false
@@ -167,13 +168,14 @@ trait DshSubmit:
             sessionId,
             b.copy(
               liveRunId = Some(runId),
+              mode = mode,
               toolCallIds = Vector.empty,
               toolArgs = Map.empty,
               liveSinceMs = nowMs(),
               lastEventMs = nowMs()
             )
           )
-          log.info(s"dsh run claimed sid=$sessionId run=$runId")
+          log.info(s"dsh run claimed sid=$sessionId run=$runId mode=${RunMode.text(mode)}")
           true
         case None => false
 

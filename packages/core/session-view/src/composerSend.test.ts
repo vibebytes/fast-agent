@@ -103,3 +103,94 @@ test('submitUserText allows images-only (empty text)', () => {
 	assert.equal(cmd.text, '');
 	assert.equal(cmd.images.length, 1);
 });
+
+test('submitUserText forwards the task run mode so the engine sees yolo', () => {
+	const sent: unknown[] = [];
+	const task: ComposerTaskLike = {
+		id: 't1',
+		sessionId: 's1',
+		autoTitlePending: false,
+		model: null,
+		modelDisplay: null,
+		runMode: 'yolo'
+	};
+	const composer = createComposerSend({
+		createId: () => 'cid',
+		now: () => 0,
+		send: cmd => {
+			sent.push(cmd);
+			return true;
+		},
+		getActiveTask: () => task,
+		commandSessionId: () => 's1',
+		canSubmitNow: () => true,
+		canSubmitCommand: () => true,
+		describeSendBlocker: () => '',
+		engineKind: () => 'dsh' as const,
+		promptLine: (n, a) => `/${n} ${a ?? ''}`.trim(),
+		selectModel: () => true,
+		requestModelList: () => true,
+		setHelpNotice: () => {},
+		applyRunMode: () => {},
+		effort: () => undefined,
+		onClearSlash: () => true,
+		touchLastModified: () => {},
+		useModelOf: () => undefined,
+		catalogHas: () => false,
+		submitThinking: () => undefined,
+		titleGenRequested: new Set(),
+		seedHostSlashCatalog: () => true,
+		slashCatalogLive: () => true,
+		applyEmptySlashCatalog: () => {},
+		markSlashCatalogHydrated: () => {},
+		appendSkillsTranscript: () => {}
+	});
+
+	assert.equal(composer.submitUserText('hi'), 'cid');
+	assert.equal((sent[0] as {mode?: string}).mode, 'yolo');
+});
+
+test('an omitted run mode stays off the wire (engine sticky wins)', () => {
+	const sent: unknown[] = [];
+	const task: ComposerTaskLike = {
+		id: 't1',
+		sessionId: 's1',
+		autoTitlePending: false,
+		model: null,
+		modelDisplay: null
+	};
+	const composer = createComposerSend({
+		createId: () => 'cid',
+		now: () => 0,
+		send: cmd => {
+			sent.push(cmd);
+			return true;
+		},
+		getActiveTask: () => task,
+		commandSessionId: () => 's1',
+		canSubmitNow: () => true,
+		canSubmitCommand: () => true,
+		describeSendBlocker: () => '',
+		engineKind: () => 'dsh' as const,
+		promptLine: (n, a) => `/${n} ${a ?? ''}`.trim(),
+		selectModel: () => true,
+		requestModelList: () => true,
+		setHelpNotice: () => {},
+		applyRunMode: () => {},
+		effort: () => undefined,
+		onClearSlash: () => true,
+		touchLastModified: () => {},
+		useModelOf: () => undefined,
+		catalogHas: () => false,
+		submitThinking: () => undefined,
+		titleGenRequested: new Set(),
+		seedHostSlashCatalog: () => true,
+		slashCatalogLive: () => true,
+		applyEmptySlashCatalog: () => {},
+		markSlashCatalogHydrated: () => {},
+		appendSkillsTranscript: () => {}
+	});
+
+	assert.equal(composer.submitUserText('hi'), 'cid');
+	assert.equal('mode' in (sent[0] as object), false);
+});

@@ -9,6 +9,8 @@ export type ComposerTaskLike = {
 	autoTitlePending: boolean;
 	model: string | null;
 	modelDisplay: string | null;
+	/** Per-Run mode sent with each SubmitUserMessage; omit → engine sticky. */
+	runMode?: string;
 };
 
 export type ComposerSampling = {useModel?: string; effort?: string; thinking?: boolean};
@@ -93,7 +95,7 @@ export function createComposerSend<T extends ComposerTaskLike>(deps: ComposerSen
 				(planBuild ? planBuildDisplayContent(planBuild.name ?? '', planBuild.planId) : ''),
 			...sampling,
 			...(engineKind ? {engineKind} : {}),
-			...(planBuild ? {mode: 'agent'} : {}),
+			...(planBuild ? {mode: 'agent'} : task.runMode ? {mode: task.runMode} : {}),
 			...(generateTitle ? {generateTitle: true} : {}),
 			...(mentions && mentions.length > 0 ? {mentions} : {}),
 			...(images && images.length > 0 ? {images} : {}),

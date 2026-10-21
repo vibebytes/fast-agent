@@ -8,8 +8,9 @@ import ai.fastllm.agent.channel.AgentAttachProtocol.Event.{
   SubagentStarted, SubagentUpdated, TaskUpdated, ToolStarted
 }
 import ai.fastllm.agent.channel.{
-  Admit, AgentAttachProtocol, AgentEvent, EventRow, IngressOffer, RouteResult, payloadJson
+  Admit, AgentAttachProtocol, AgentEvent, EventRow, IngressOffer, RouteResult, RunMode, payloadJson
 }
+import ai.fastllm.agent.guardrail.{DangerousCommands, ExternalDirs}
 import io.circe.Json
 import io.circe.syntax.*
 import scala.concurrent.{ExecutionContext, Future}
@@ -56,10 +57,50 @@ trait DshAsk:
             case NonFatal(e) =>
               RouteResult("rejected", "", Option(e.getMessage).filter(_.nonEmpty).getOrElse("respond"))
 
+  /** Yolo is unattended: answer the engine's ask here instead of surfacing a card.
+    * The deny list is the whole policy: blacklisted shell commands and credential
+    * roots stay refused; everything else is allowed once.
+    * The river still settles on the engine's `approval/done`, exactly as a manual answer.
+    */
+  private def yoloApproval(parent: String, b: Binding, asked: Mux.ApprovalAsked): Unit =
+    val context = asked.callId.flatMap(b.toolArgs.get).getOrElse("")
+    val blocked = yoloRefusal(dshTool(asked.tool), context)
+    val outcome = if blocked.isDefined then "rejected" else "allowed-once"
+    if blocked.isDefined then log.warn(s"[yolo] refused ${asked.tool} sid=$parent: ${blocked.get}")
+    else log.info(s"[yolo] approved ${asked.tool} sid=$parent context=${context.take(120)}")
+    remote
+      .reply(
+        asked.rpcId,
+        Json.obj(
+          "sessionId" -> asked.sessionId.asJson,
+          "approvalId" -> asked.approvalId.asJson,
+          "outcome" -> outcome.asJson
+        )
+      )
+      .failed
+      .foreach(e => log.error(s"[yolo] approval reply failed sid=$parent: ${e.getMessage}"))
+
+  /** Deny-list only: the reason a yolo ask is refused, or None to allow it once.
+    * `context` is already the tool's path or command ([[dshContext]]), not the args JSON. */
+  private def yoloRefusal(tool: String, context: String): Option[String] =
+    val raw = context.trim
+    if raw.isEmpty then None
+    else if tool == "shell" then
+      val words = raw.split("\\s+").toList.map(bareWord)
+      DangerousCommands.denyReason(raw).orElse(credentialPath(words))
+    else credentialPath(List(bareWord(raw)))
+
+  private def credentialPath(candidates: List[String]): Option[String] =
+    candidates.find(p => p.nonEmpty && ExternalDirs.isSensitive(p)).map(p => s"credential path $p")
+
+  private def bareWord(word: String): String = word.replaceAll("^[\"'`(]+|[\"'`);,]+$", "")
+
   private[dsh] def onAsked(asked: Mux.ApprovalAsked): Unit =
     resolveHost(asked.sessionId): parent =>
       lock.synchronized:
-        bindings.get(parent).foreach: b =>
+        val yolo = bindings.get(parent).exists(_.mode == RunMode.Yolo)
+        if yolo then bindings.get(parent).foreach(b => yoloApproval(parent, b, asked))
+        else bindings.get(parent).foreach: b =>
           val runId = if asked.sessionId == parent then b.liveRunId.getOrElse("") else ""
           val pending = PendingApproval(asked.approvalId, asked.rpcId, asked.sessionId)
           val next = b.copy(approvals = b.approvals.updated(asked.approvalId, pending))

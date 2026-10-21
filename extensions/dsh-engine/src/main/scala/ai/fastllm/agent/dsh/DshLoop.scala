@@ -35,6 +35,7 @@ import ai.fastllm.agent.channel.{
   IngressOffer,
   OrderedEventIngress,
   RouteResult,
+  RunMode,
   payloadJson
 }
 import ai.fastllm.agent.remote.Client
@@ -93,7 +94,9 @@ final case class Binding(
     wantsChildren: Boolean = false,
     spawnWatchSince: Option[Long] = None,
     /** Owning session: the river addresses rows by session, not by binding. */
-    sessionId: String = ""
+    sessionId: String = "",
+    /** Sticky run mode: yolo auto-answers engine approvals instead of prompting the user. */
+    mode: RunMode = RunMode.Agent
 )
 
 private case class DshBatch(sessionId: String, events: List[AgentEvent])
