@@ -254,6 +254,7 @@ class SettingsStore {
 	private listeners = new Set<() => void>();
 	private inflight: Promise<void> | null = null;
 	private generation = 0;
+	private patchEpoch = new Map<string, number>();
 	private api: SettingsApi = liveApi();
 
 	/** Test seam — swap IPC for an in-memory double. */
@@ -264,6 +265,7 @@ class SettingsStore {
 	/** Test seam — clear cached view between cases. */
 	resetForTest(): void {
 		this.generation += 1;
+		this.patchEpoch.clear();
 		this.inflight = null;
 		this.view = viewFromDocs([], 'loading', null, false);
 		this.publish();
@@ -332,10 +334,14 @@ class SettingsStore {
 
 	patch = async (namespace: string, patch: Record<string, unknown>): Promise<boolean> => {
 		if (!this.view.engineReady || this.view.status === 'disabled') return false;
+		const epoch = (this.patchEpoch.get(namespace) ?? 0) + 1;
+		this.patchEpoch.set(namespace, epoch);
+		const current = (): boolean => this.patchEpoch.get(namespace) === epoch;
 		const prev = this.view;
 		const optimisticDocs = upsertDoc(prev.docs, namespace, patch);
 		this.setView(viewFromDocs(optimisticDocs, 'ready', null, true));
 		const res = await this.api.patchSettings('global', namespace, patch);
+		if (!current()) return true;
 		if (!res.ok) {
 			this.setView({...prev, notice: res.notice, status: 'ready'});
 			return false;
@@ -406,6 +412,7 @@ function ensurePush(): void {
 /** Global settings documents (Engine DB) — General / Models / Agents. */
 export function useSettings(engineReady: boolean): SettingsView & {
 	retry: () => void;
+	patch: (namespace: string, patch: Record<string, unknown>) => Promise<boolean>;
 	patchGeneral: (patch: Partial<GeneralDoc>) => Promise<boolean>;
 	patchModels: (patch: Record<string, unknown>) => Promise<boolean>;
 	patchAgents: (patch: Partial<AgentsDoc>) => Promise<boolean>;
@@ -424,6 +431,7 @@ export function useSettings(engineReady: boolean): SettingsView & {
 	return {
 		...view,
 		retry: settingsStore.retry,
+		patch: settingsStore.patch,
 		patchGeneral: settingsStore.patchGeneral,
 		patchModels: settingsStore.patchModels,
 		patchAgents: settingsStore.patchAgents

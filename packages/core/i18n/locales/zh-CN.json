@@ -47,7 +47,9 @@
       "saved": "已保存，后四位 {{last4}}",
       "clear": "清除密钥",
       "save": "保存",
-      "needKey": "打开开关需要填写密钥"
+      "needKey": "打开开关需要填写密钥",
+      "contextOffload": "启动 context offload",
+      "contextOffloadDescription": "上下文压缩时，把窗口外的大段工具结果换成磁盘预览"
     },
     "cluster": {
       "aloneTitle": "本机",

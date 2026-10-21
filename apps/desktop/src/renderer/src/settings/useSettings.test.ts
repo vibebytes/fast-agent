@@ -169,6 +169,47 @@ describe('settingsStore optimistic patch', () => {
 		assert.equal(settingsStore.getSnapshot().notice, null);
 	});
 
+	it('a slower earlier patch does not overwrite a newer one', async () => {
+		const docs: SettingsDoc[] = [
+			{
+				scope: 'global',
+				scopeId: 'default',
+				namespace: 'context',
+				payload: {contextOffload: false},
+				schemaVersion: 1
+			}
+		];
+		let releaseFirst!: (value: {ok: true; setting: SettingsDoc}) => void;
+		let first = true;
+		settingsStore.bindApi({
+			getSettings: async () => ({ok: true, settings: docs}),
+			patchSettings: async (_scope, _ns, patch) => {
+				const payload = {...(docs[0]!.payload as Record<string, unknown>), ...(patch as Record<string, unknown>)};
+				const setting = {...docs[0]!, payload};
+				docs[0] = setting;
+				if (first) {
+					first = false;
+					return new Promise(resolve => {
+						releaseFirst = resolve;
+					});
+				}
+				return {ok: true, setting};
+			}
+		});
+		settingsStore.setEngineReady(true);
+		await settingsStore.load();
+		const older = settingsStore.patch('context', {contextOffload: true});
+		const newer = await settingsStore.patch('context', {contextOffload: false});
+		assert.equal(newer, true);
+		releaseFirst({ok: true, setting: {...docs[0]!, payload: {contextOffload: true}}});
+		await older;
+		assert.equal(
+			(settingsStore.getSnapshot().docs.find(d => d.namespace === 'context')?.payload as {contextOffload: boolean})
+				.contextOffload,
+			false
+		);
+	});
+
 	it('quiet reload keeps ready status while fetching', async () => {
 		const docs: SettingsDoc[] = [
 			{

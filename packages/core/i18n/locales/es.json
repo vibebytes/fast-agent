@@ -47,7 +47,9 @@
       "saved": "Saved, last four {{last4}}",
       "clear": "Clear key",
       "save": "Save",
-      "needKey": "A key is required to turn this on"
+      "needKey": "A key is required to turn this on",
+      "contextOffload": "Enable context offload",
+      "contextOffloadDescription": "During context compaction, replace large tool results outside the window with a disk preview."
     },
     "common": {
       "all": "All",

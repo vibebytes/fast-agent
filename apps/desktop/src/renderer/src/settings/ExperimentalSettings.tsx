@@ -10,6 +10,7 @@ import {
 } from './SettingsPrimitives';
 import {useExtensions} from './useExtensions';
 import {useSettings} from './useSettings';
+import {contextOffloadChecked, contextOffloadPatch} from './contextOffloadForm';
 import {experimentalForm, type ExperimentalDoc, type ExperimentalSave} from './experimentalForm';
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -92,8 +93,28 @@ export function ExperimentalSettings({engineReady}: {engineReady: boolean}) {
 		}
 	}
 
+	const contextOn = contextOffloadChecked(
+		settings.docs.find(item => item.namespace === 'context')?.payload
+	);
+
 	return (
 		<SettingsSection title={t('settings.navigation.experimental')}>
+			<SettingsSwitchRow
+				title={t('settings.experimental.contextOffload')}
+				description={t('settings.experimental.contextOffloadDescription')}
+				checked={contextOn}
+				disabled={busy}
+				onCheckedChange={checked => {
+					const body = contextOffloadPatch(checked);
+					setBusy(true);
+					void settings
+						.patch(body.namespace, body.patch)
+						.then(ok => {
+							if (ok) setNotice(null);
+						})
+						.finally(() => setBusy(false));
+				}}
+			/>
 			{view.showSwitch ? (
 				<SettingsSwitchRow
 					title={t('settings.experimental.useJev')}
@@ -167,8 +188,10 @@ export function ExperimentalSettings({engineReady}: {engineReady: boolean}) {
 					</SettingsButton>
 				</div>
 			) : null}
-			{notice ? (
-				<div className="px-4 py-2 text-xs text-destructive bg-destructive/10">{notice}</div>
+			{notice ?? settings.notice ? (
+				<div className="px-4 py-2 text-xs text-destructive bg-destructive/10">
+					{notice ?? settings.notice}
+				</div>
 			) : null}
 		</SettingsSection>
 	);
