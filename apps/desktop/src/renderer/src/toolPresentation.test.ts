@@ -3,13 +3,14 @@ import {homedir} from 'node:os';
 import {join} from 'node:path';
 import {test} from 'node:test';
 import {
+	classifyToolOutcome,
 	displayToolOutput,
-	extractErrorDiagnostic,
 	isSkillView,
 	isSubagentTool,
 	parseShellEnvelope,
 	parseSkillEnvelope,
 	parseSubagentPayload,
+	previewToolOutput,
 	shouldHideToolItem,
 	shortProcLogPath,
 	skillViewBody,
@@ -161,24 +162,55 @@ test('renderer extracts outputPreview from truncated unclosed JSON envelope', ()
 	);
 });
 
-test('extractErrorDiagnostic finds explicit error line in output', () => {
-	const raw = `git status exit=128
-致命错误: 不是 git 仓库 (或者任何父目录): .git`;
-	assert.equal(
-		extractErrorDiagnostic(raw),
-		'致命错误: 不是 git 仓库 (或者任何父目录): .git'
-	);
+test('classifyToolOutcome keeps user abandonment out of the red error surface', () => {
+	assert.deepEqual(classifyToolOutcome({status: 'error', output: 'User cancelled or no answer provided'}), {
+		tone: 'muted',
+		label: 'cancelled',
+		exitCode: null
+	});
+	assert.deepEqual(classifyToolOutcome({status: 'error', summary: 'Question declined by user'}), {
+		tone: 'muted',
+		label: 'cancelled',
+		exitCode: null
+	});
+	assert.deepEqual(classifyToolOutcome({status: 'cancelled', exitCode: '130'}), {
+		tone: 'muted',
+		label: 'cancelled',
+		exitCode: null
+	});
+	assert.deepEqual(classifyToolOutcome({status: 'error', exitCode: '1', output: 'boom'}), {
+		tone: 'error',
+		label: 'failed',
+		exitCode: '1'
+	});
+	assert.deepEqual(classifyToolOutcome({status: 'error', output: 'zsh: command not found: rg'}), {
+		tone: 'error',
+		label: 'failed',
+		exitCode: null
+	});
+	assert.deepEqual(classifyToolOutcome({status: 'success', exitCode: 0}), {
+		tone: 'success',
+		label: null,
+		exitCode: '0'
+	});
+	assert.deepEqual(classifyToolOutcome({status: 'running'}), {
+		tone: 'running',
+		label: null,
+		exitCode: null
+	});
 });
 
-test('extractErrorDiagnostic prefers fatal over git usage help', () => {
-	const raw = `git diff exit=129
-警告: 不是 git 仓库。使用 --no-index 比较工作区之外的两个路径
-用法: git diff --no-index [<选项>] <路径> <路径>
+test('classifyToolOutcome never mistakes a real transport failure for a cancellation', () => {
+	assert.equal(classifyToolOutcome({status: 'error', output: 'connection aborted'}).tone, 'error');
+	assert.equal(classifyToolOutcome({status: 'error', output: 'request interrupted by server'}).tone, 'error');
+	assert.equal(classifyToolOutcome({status: 'error', output: 'tool execution interrupted: timeout'}).tone, 'error');
+});
 
-差异输出格式化选项
-    -p, --patch           生成补丁`;
-	assert.equal(
-		extractErrorDiagnostic(raw),
-		'警告: 不是 git 仓库。使用 --no-index 比较工作区之外的两个路径'
-	);
+test('previewToolOutput keeps the tail three lines and counts the hidden ones', () => {
+	assert.deepEqual(previewToolOutput('a\nb\nc\nd\ne'), {lines: ['c', 'd', 'e'], hidden: 2});
+	assert.deepEqual(previewToolOutput('a\nb\nc\nd\n'), {lines: ['b', 'c', 'd'], hidden: 1});
+	assert.deepEqual(previewToolOutput('a\nb'), {lines: ['a', 'b'], hidden: 0});
+	assert.deepEqual(previewToolOutput(' '), {lines: [' '], hidden: 0});
+	assert.deepEqual(previewToolOutput(''), {lines: [], hidden: 0});
+	assert.deepEqual(previewToolOutput(null), {lines: [], hidden: 0});
 });

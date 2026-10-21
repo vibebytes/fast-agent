@@ -68,7 +68,7 @@ export function ErrorCardRow({
 
 	return (
 		<div
-			className="rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2.5"
+			className="rounded-lg border border-border/60 bg-muted/10 px-3 py-2.5"
 			data-testid={`error-card-${runId}`}
 		>
 			<div className="flex items-center gap-2">

@@ -1,5 +1,7 @@
 import {WindowFrame} from '@fast-ide/ui/components/window-frame';
-import {extractErrorDiagnostic} from '../../toolPresentation';
+import {shellT as t} from '../../i18n/t';
+import {ToolOutputPreview} from '../../ToolOutputPreview';
+import {classifyToolOutcome} from '../../toolPresentation';
 
 export type DshToolCardView = {
 	name: string;
@@ -13,25 +15,32 @@ export function DshToolCard({card}: {card: DshToolCardView}) {
 	const args = Object.entries(card.args)
 		.map(([k, v]) => `${k}: ${v}`)
 		.join('\n');
-	const errorDiagnostic = card.status === 'error' ? extractErrorDiagnostic(card.result) : null;
+	const outcome = classifyToolOutcome({status: card.status ?? 'success', output: card.result});
 	const baseTitle = card.title || card.name;
-	const titleNode = errorDiagnostic ? (
-		<span className="flex min-w-0 max-w-full items-baseline gap-2 truncate">
-			<span className="truncate">{baseTitle}</span>
-			<span className="hidden sm:inline truncate text-[11px] font-normal text-muted-foreground/85">
-				— {errorDiagnostic}
-			</span>
-		</span>
-	) : (
-		baseTitle
-	);
 
 	return (
 		<WindowFrame
 			variant="terminal"
-			tone={card.status === 'error' ? 'error' : undefined}
-			title={titleNode}
+			title={baseTitle}
+			preview={
+				card.status !== 'success' && card.result ? (
+					<ToolOutputPreview output={card.result} />
+				) : undefined
+			}
 			titleShimmer={card.status === 'running'}
+			trailing={
+				outcome.tone === 'error' ? (
+					<span className="inline-flex items-center gap-1.5 text-[11px] font-medium text-red-600/90 dark:text-red-400/90">
+						<span aria-hidden className="size-1.5 shrink-0 rounded-full bg-red-500/80" />
+						{t('shell.toolCard.failed')}
+					</span>
+				) : outcome.label === 'cancelled' ? (
+					<span className="inline-flex items-center gap-1.5 text-[11px] text-muted-foreground/70">
+						<span aria-hidden className="size-1.5 shrink-0 rounded-full bg-muted-foreground/40" />
+						{t('shell.toolCard.cancelled')}
+					</span>
+				) : undefined
+			}
 			collapsible
 			defaultOpen={card.status === 'running'}
 			className="w-full"

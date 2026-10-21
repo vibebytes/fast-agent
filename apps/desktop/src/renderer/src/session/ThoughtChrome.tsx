@@ -11,6 +11,7 @@ import {ChevronRight} from 'lucide-react';
 import type {TFunction} from 'i18next';
 import {useTranslation} from 'react-i18next';
 import {ToolCard} from '../ToolCard';
+import {classifyToolOutcome} from '../toolPresentation';
 import {formatThoughtChrome} from './formatChrome';
 import {LiveTicker} from './LiveTicker';
 import {
@@ -212,6 +213,12 @@ export function ProcessStackView({item}: {item: Extract<TimelineItem, {kind: 'pr
 	const [open, setOpen] = useState(false);
 	const scrollRef = useRef<HTMLDivElement>(null);
 	const running = item.open;
+	// One quiet aggregate instead of N red rows; user abandonment is not a failure.
+	const failedCount = item.steps.reduce(
+		(count, step) =>
+			count + (step.kind === 'tool' && classifyToolOutcome(step).tone === 'error' ? 1 : 0),
+		0
+	);
 	// Collapsed + running → latest folded line with shimmer (not a static "N steps").
 	const triggerLabel =
 		!open && running
@@ -241,6 +248,11 @@ export function ProcessStackView({item}: {item: Extract<TimelineItem, {kind: 'pr
 				) : (
 					<span className="inline-block min-w-0 max-w-full truncate">{triggerLabel}</span>
 				)}
+				{!open && failedCount > 0 ? (
+					<span className="shrink-0 font-mono text-[10px] font-normal tabular-nums text-red-600/75 dark:text-red-400/75">
+						{t('shell.process.failed', {count: failedCount})}
+					</span>
+				) : null}
 				{item.cancelled ? (
 					<span className="shrink-0 text-[10px] font-normal tracking-wide text-muted-foreground/45">
 						{t('shell.process.cancelled')}

@@ -1143,7 +1143,8 @@
       "copyProcId": "프로세스 ID 복사",
       "copyLogPath": "로그 경로 복사",
       "showOutput": "출력 펼치기",
-      "hideOutput": "출력 접기"
+      "hideOutput": "출력 접기",
+      "moreLines": "+{{count}} 줄"
     },
     "planCard": {
       "completed": "completed",
@@ -1583,7 +1584,8 @@
     },
     "process": {
       "steps": "{{count}} steps",
-      "cancelled": "Cancelled"
+      "cancelled": "Cancelled",
+      "failed": "{{count}} 개 실패"
     },
     "goal": {
       "verdictPass": "Check passed",

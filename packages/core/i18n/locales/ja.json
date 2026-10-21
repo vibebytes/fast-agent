@@ -1143,7 +1143,8 @@
       "copyProcId": "プロセスIDをコピー",
       "copyLogPath": "ログパスをコピー",
       "showOutput": "出力を表示",
-      "hideOutput": "出力を隠す"
+      "hideOutput": "出力を隠す",
+      "moreLines": "+{{count}} 行"
     },
     "planCard": {
       "completed": "completed",
@@ -1583,7 +1584,8 @@
     },
     "process": {
       "steps": "{{count}} steps",
-      "cancelled": "Cancelled"
+      "cancelled": "Cancelled",
+      "failed": "{{count}} 件失敗"
     },
     "goal": {
       "verdictPass": "Check passed",

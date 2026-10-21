@@ -1143,7 +1143,8 @@
       "copyProcId": "Copiar ID do processo",
       "copyLogPath": "Copiar caminho do log",
       "showOutput": "Mostrar saída",
-      "hideOutput": "Ocultar saída"
+      "hideOutput": "Ocultar saída",
+      "moreLines": "+{{count}} linhas"
     },
     "planCard": {
       "completed": "completed",
@@ -1583,7 +1584,8 @@
     },
     "process": {
       "steps": "{{count}} steps",
-      "cancelled": "Cancelled"
+      "cancelled": "Cancelled",
+      "failed": "{{count}} falhas"
     },
     "goal": {
       "verdictPass": "Check passed",

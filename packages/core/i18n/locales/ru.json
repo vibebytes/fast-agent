@@ -1143,7 +1143,8 @@
       "copyProcId": "Копировать ID процесса",
       "copyLogPath": "Копировать путь к логу",
       "showOutput": "Показать вывод",
-      "hideOutput": "Скрыть вывод"
+      "hideOutput": "Скрыть вывод",
+      "moreLines": "+{{count}} строк"
     },
     "planCard": {
       "completed": "completed",
@@ -1583,7 +1584,8 @@
     },
     "process": {
       "steps": "{{count}} steps",
-      "cancelled": "Cancelled"
+      "cancelled": "Cancelled",
+      "failed": "{{count}} сбоев"
     },
     "goal": {
       "verdictPass": "Check passed",

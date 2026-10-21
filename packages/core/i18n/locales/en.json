@@ -1061,7 +1061,8 @@
     },
     "process": {
       "steps": "{{count}} steps",
-      "cancelled": "Cancelled"
+      "cancelled": "Cancelled",
+      "failed": "{{count}} failed"
     },
     "queue": {
       "interrupting": "Interrupting…",
@@ -1194,7 +1195,8 @@
       "copyProcId": "Copy process ID",
       "copyLogPath": "Copy log path",
       "showOutput": "Show output",
-      "hideOutput": "Hide output"
+      "hideOutput": "Hide output",
+      "moreLines": "+{{count}} lines"
     },
     "planCard": {
       "completed": "completed",

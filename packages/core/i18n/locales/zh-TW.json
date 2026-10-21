@@ -1154,7 +1154,8 @@
       "copyProcId": "複製程序 ID",
       "copyLogPath": "複製日誌路徑",
       "showOutput": "展開輸出",
-      "hideOutput": "收起輸出"
+      "hideOutput": "收起輸出",
+      "moreLines": "+{{count}} 行"
     },
     "planCard": {
       "completed": "completed",
@@ -1616,7 +1617,8 @@
     },
     "process": {
       "steps": "{{count}} steps",
-      "cancelled": "Cancelled"
+      "cancelled": "Cancelled",
+      "failed": "{{count}} 個失敗"
     },
     "goal": {
       "flowTitle": "Goal",

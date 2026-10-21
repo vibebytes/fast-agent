@@ -9,18 +9,17 @@ import {cn} from '@fast-ide/ui/lib/utils';
 import {ChevronRight, FileCode2, Terminal} from 'lucide-react';
 
 export type WindowFrameVariant = 'terminal' | 'editor';
-export type WindowFrameTone = 'default' | 'error' | 'success';
 
 type WindowFrameProps = {
 	variant: WindowFrameVariant;
-	/** Optional status tone (error highlights frame in subtle red). */
-	tone?: WindowFrameTone;
 	/** Optional semantic icon; defaults to the variant's terminal/editor glyph. */
 	leading?: ReactNode;
 	/** Center / primary title (tool name, filename, shell). */
 	title: ReactNode;
 	/** Optional right-side meta (e.g. +N -M, status). */
 	trailing?: ReactNode;
+	/** Optional compact preview rendered under the header while collapsed. */
+	preview?: ReactNode;
 	children: ReactNode;
 	className?: string;
 	bodyClassName?: string;
@@ -42,10 +41,10 @@ type WindowFrameProps = {
  */
 export function WindowFrame({
 	variant,
-	tone = 'default',
 	leading,
 	title,
 	trailing,
+	preview,
 	children,
 	className,
 	bodyClassName,
@@ -58,31 +57,19 @@ export function WindowFrame({
 	const [internalOpen, setInternalOpen] = useState(defaultOpen);
 	const open = controlledOpen ?? internalOpen;
 	const isTerminal = variant === 'terminal';
-	const isError = tone === 'error';
 	const Icon = isTerminal ? Terminal : FileCode2;
 
 	const headerInner = (
 		<>
 			{leading ?? (
-				<Icon
-					className={cn(
-						'relative z-[1] size-3.5 shrink-0',
-						isError ? 'text-red-600/90 dark:text-red-400/90' : 'text-muted-foreground'
-					)}
-					aria-hidden
-				/>
+				<Icon className="relative z-[1] size-3.5 shrink-0 text-muted-foreground" aria-hidden />
 			)}
 			{titleShimmer && typeof title === 'string' ? (
 				<TextShimmer className="relative z-[1] min-w-0 flex-1 text-left text-xs font-medium tracking-[-0.01em]">
 					{title}
 				</TextShimmer>
 			) : (
-				<div
-					className={cn(
-						'relative z-[1] min-w-0 flex-1 truncate text-left text-xs font-medium tracking-[-0.01em]',
-						isError ? 'text-foreground/90' : 'text-foreground/85'
-					)}
-				>
+				<div className="relative z-[1] min-w-0 flex-1 truncate text-left text-xs font-medium tracking-[-0.01em] text-foreground/85">
 					{title}
 				</div>
 			)}
@@ -105,26 +92,16 @@ export function WindowFrame({
 
 	const frameClass = cn(
 		'w-full min-w-0 overflow-hidden rounded-md text-foreground shadow-none transition-all duration-150',
-		isError
-			? collapsible && !open
-				? 'border border-red-500/20 bg-muted/5 hover:border-red-500/35 hover:bg-muted/15'
-				: 'border border-red-500/25 bg-background dark:border-red-500/30'
-			: collapsible && !open
-				? 'border border-border/30 bg-muted/10 hover:border-border/50 hover:bg-muted/20'
-				: 'border border-border/50 bg-background',
+		collapsible && !open
+			? 'border border-border/30 bg-muted/10 hover:border-border/50 hover:bg-muted/20'
+			: 'border border-border/50 bg-background',
 		className
 	);
 
 	const headerClass = cn(
 		'relative flex h-8 w-full shrink-0 items-center gap-2 overflow-hidden px-2.5 text-left outline-none transition-colors',
-		isError
-			? collapsible && !open
-				? 'bg-transparent hover:bg-muted/20'
-				: 'bg-muted/15 hover:bg-muted/25'
-			: collapsible && !open
-				? 'bg-transparent hover:bg-muted/20'
-				: 'bg-muted/15 hover:bg-muted/30',
-		(!collapsible || open) && (isError ? 'border-b border-red-500/15' : 'border-b border-border/50'),
+		collapsible && !open ? 'bg-transparent hover:bg-muted/20' : 'bg-muted/15 hover:bg-muted/30',
+		(!collapsible || open) && 'border-b border-border/50',
 		collapsible && 'cursor-pointer select-none',
 		titleShimmer && 'ai-shimmer-header'
 	);
@@ -168,7 +145,12 @@ export function WindowFrame({
 			data-state={open ? 'open' : 'closed'}
 		>
 			<div className={frameClass}>
-				<CollapsibleTrigger className={headerClass}>{headerInner}</CollapsibleTrigger>
+				<CollapsibleTrigger className="w-full min-w-0 text-left">
+					<div className={headerClass}>{headerInner}</div>
+					{!open && preview ? (
+						<div className="border-t border-border/30 px-3 py-1.5">{preview}</div>
+					) : null}
+				</CollapsibleTrigger>
 				<CollapsibleContent>{body}</CollapsibleContent>
 			</div>
 		</Collapsible>

@@ -175,38 +175,24 @@ export function skillViewBody(output: string): string {
 	return parseSkillEnvelope(output).body;
 }
 
-/** Extract a short one-line diagnosis from raw tool error output / stderr. */
-export function extractErrorDiagnostic(output: string | null | undefined): string | null {
-	if (!output?.trim()) return null;
-	const lines = output
-		.split(/\r?\n/)
-		.map(line => line.trim())
-		.filter(line => line.length > 0);
-
-	// 1. First look for an explicit fatal/error/exception line
-	const explicit = lines.find(line =>
-		/^(?:fatal|error|exception|errno|command failed|failed|exit code|exit=\d+)/i.test(line) ||
-		/^(?:致命错误|错误|异常|失败)[:：]/i.test(line) ||
-		/\b(?:fatal error|command not found|no such file|permission denied)\b/i.test(line) ||
-		/不是\s*git\s*仓库/i.test(line)
-	);
-	if (explicit) {
-		return explicit.length > 120 ? `${explicit.slice(0, 117)}…` : explicit;
-	}
-
-	// 2. Otherwise find the first non-boilerplate line (skipping command echo or empty usage)
-	const candidate = lines.find(line => !/^usage:/i.test(line) && !line.startsWith('$ '));
-	if (candidate) {
-		return candidate.length > 120 ? `${candidate.slice(0, 117)}…` : candidate;
-	}
-
-	const fallback = lines[0] ?? null;
-	return fallback && fallback.length > 120 ? `${fallback.slice(0, 117)}…` : fallback;
-}
-
 /** Idempotent renderer seam: also fixes cached pre-normalization TimelineItems after HMR. */
 export function displayToolOutput(output: string | null): string {
 	return normalizeToolOutput(output);
+}
+
+export const TOOL_PREVIEW_LINES = 3;
+
+export type ToolOutputPreview = {lines: string[]; hidden: number};
+
+/** Collapsed cards keep the tail: the last lines of a run carry its verdict. */
+export function previewToolOutput(
+	output: string | null | undefined,
+	maxLines = TOOL_PREVIEW_LINES
+): ToolOutputPreview {
+	if (!output) return {lines: [], hidden: 0};
+	const lines = output.replace(/\n$/, '').split('\n');
+	if (lines.length <= maxLines) return {lines, hidden: 0};
+	return {lines: lines.slice(-maxLines), hidden: lines.length - maxLines};
 }
 
 export type ShellEnvelopeMeta = {
@@ -288,4 +274,36 @@ export function shortProcLogPath(path: string): string {
 	const segments = path.split('/').filter(Boolean);
 	if (segments.length <= 1) return path;
 	return `…/${segments.slice(-2).join('/')}`;
+}
+
+export type ToolOutcome = {
+	tone: 'running' | 'success' | 'error' | 'muted';
+	label: 'failed' | 'cancelled' | null;
+	exitCode: string | null;
+};
+
+// Abandonment is a user action, not a fault: engines report it as `Failed(...)`
+// but it must not paint the transcript red. Kept narrow so transport faults
+// ("connection aborted") still classify as errors.
+const USER_ABANDONMENT =
+	/user\s+(?:cancel+ed|abort(?:ed)?|declined|rejected)|(?:cancel+ed|abort(?:ed)?|declined|rejected)\s+by\s+user|no answer (?:was )?provided|用户(?:取消|拒绝|中止)|未回答/i;
+
+function toolExitCode(exitCode: string | number | null | undefined): string | null {
+	if (exitCode == null || exitCode === '') return null;
+	return String(exitCode);
+}
+
+export function classifyToolOutcome(input: {
+	status: 'running' | 'success' | 'error' | 'cancelled';
+	exitCode?: string | number | null;
+	output?: string | null;
+	summary?: string | null;
+}): ToolOutcome {
+	const exitCode = toolExitCode(input.exitCode);
+	if (input.status === 'running') return {tone: 'running', label: null, exitCode};
+	if (input.status === 'cancelled') return {tone: 'muted', label: 'cancelled', exitCode: null};
+	if (input.status === 'success') return {tone: 'success', label: null, exitCode};
+	const text = `${input.output ?? ''}\n${input.summary ?? ''}`;
+	if (USER_ABANDONMENT.test(text)) return {tone: 'muted', label: 'cancelled', exitCode: null};
+	return {tone: 'error', label: 'failed', exitCode};
 }

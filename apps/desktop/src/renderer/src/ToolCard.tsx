@@ -3,15 +3,17 @@ import {useEffect, useState, type ReactNode} from 'react';
 import {WindowFrame} from '@fast-ide/ui/components/window-frame';
 import {cn} from '@fast-ide/ui/lib/utils';
 import type {TimelineItem} from '@fast-ide/session-view';
-import {Boxes, Check, ChevronDown, Copy, FileText, LoaderCircle, X} from 'lucide-react';
+import {Boxes, Check, ChevronDown, Copy, FileText, LoaderCircle} from 'lucide-react';
 import {highlightCode} from './highlightCode';
+import {tintOutputLine} from './outputTint';
+import {ToolOutputPreview} from './ToolOutputPreview';
 import {StreamingMarkdownMessage} from './MarkdownMessage';
 import {MediaStage} from './MediaStage';
 import {extractMediaArtifact} from './toolMedia';
 import {shouldThresholdFoldTool} from './thresholdFold';
 import {
+	classifyToolOutcome,
 	displayToolOutput,
-	extractErrorDiagnostic,
 	isSkillView,
 	isSubagentTool,
 	parseShellEnvelope,
@@ -27,12 +29,17 @@ type ToolItem = Extract<TimelineItem, {kind: 'tool'}>;
 function StatusIcon({
 	status,
 	exitCode,
+	output,
+	summary,
 	note
 }: {
 	status: ToolItem['status'];
 	exitCode?: string | null;
+	output?: string | null;
+	summary?: string | null;
 	note?: string;
 }) {
+	const outcome = classifyToolOutcome({status, exitCode, output, summary});
 	if (status === 'running') {
 		const label = note?.trim() || 'Running…';
 		return (
@@ -48,28 +55,34 @@ function StatusIcon({
 			</span>
 		);
 	}
-	if (status === 'error') {
+	if (outcome.tone === 'error') {
 		return (
-			<span className="inline-flex items-center gap-1 rounded-full border border-red-500/20 bg-red-500/10 px-2 py-0.5 text-[11px] font-medium text-red-600 dark:text-red-400">
-				{exitCode != null && exitCode !== '' ? (
-					<span className="font-mono tabular-nums">exit {exitCode}</span>
-				) : (
-					<span>failed</span>
-				)}
+			<span
+				className="inline-flex items-center gap-1.5 text-[11px] font-medium text-red-600/90 dark:text-red-400/90"
+				title={outcome.exitCode ? `exit ${outcome.exitCode}` : t('shell.toolCard.failed')}
+			>
+				<span aria-hidden className="size-1.5 shrink-0 rounded-full bg-red-500/80" />
+				<span className="font-mono tabular-nums">
+					{outcome.exitCode ? `exit ${outcome.exitCode}` : t('shell.toolCard.failed')}
+				</span>
 			</span>
 		);
 	}
-	if (status === 'cancelled') {
+	if (outcome.label === 'cancelled') {
 		return (
-			<span className="inline-flex items-center gap-1 rounded-full bg-muted/60 px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
-				<X className="size-3" aria-label={t('shell.toolCard.cancelled')} strokeWidth={2.5} />
+			<span
+				className="inline-flex items-center gap-1.5 text-[11px] text-muted-foreground/70"
+				title={t('shell.toolCard.cancelled')}
+			>
+				<span aria-hidden className="size-1.5 shrink-0 rounded-full bg-muted-foreground/40" />
+				<span className="truncate">{t('shell.toolCard.cancelled')}</span>
 			</span>
 		);
 	}
 	return (
-		<span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[11px] font-medium text-emerald-600 dark:text-emerald-400">
-			{exitCode != null && exitCode !== '' ? (
-				<span className="font-mono tabular-nums">exit {exitCode}</span>
+		<span className="inline-flex items-center gap-1 text-[11px] text-emerald-600/80 dark:text-emerald-400/80">
+			{outcome.exitCode ? (
+				<span className="font-mono tabular-nums">exit {outcome.exitCode}</span>
 			) : null}
 			<Check className="size-3" aria-label={t('shell.toolCard.success')} strokeWidth={2.5} />
 		</span>
@@ -130,38 +143,6 @@ function CommandLine({command}: {command: string}) {
 			</button>
 		</div>
 	);
-}
-
-/** Lightweight keyword tint for common shell log lines (WARN / error / Done) & file path links. */
-function tintOutputLine(line: string): ReactNode {
-	if (!line || line.trim() === '') return ' ';
-
-	const fileMatch = /^(\s*)([a-zA-Z0-9_.\-\/\\]+\.[a-zA-Z0-9]+)(:\d+(?::\d+)?:?)(.*)$/.exec(line);
-	if (fileMatch) {
-		const [, indent, filePath, lineCol, rest] = fileMatch;
-		return (
-			<>
-				{indent}
-				<span className="font-medium text-foreground/90">{filePath}</span>
-				<span className="font-mono text-primary/80">{lineCol}</span>
-				{rest ? tintOutputLine(rest) : null}
-			</>
-		);
-	}
-
-	if (/^\s*WARN(?:ING)?\b/i.test(line) || /\bWARN\b/.test(line)) {
-		return <span className="text-amber-700 dark:text-amber-400">{line}</span>;
-	}
-	if (/^\s*(?:ERROR|ERR|FAIL(?:ED)?)\b/i.test(line) || (/\berror\b/i.test(line) && /failed/i.test(line))) {
-		return <span className="text-red-600 dark:text-red-400">{line}</span>;
-	}
-	if (/^\s*Done\b/i.test(line) || /\bsuccess\b/i.test(line)) {
-		return <span className="text-emerald-700 dark:text-emerald-400">{line}</span>;
-	}
-	if (/^\s*\+\d+/.test(line) || /\+\+$/.test(line.trim())) {
-		return <span className="text-emerald-600 dark:text-emerald-400">{line}</span>;
-	}
-	return line;
 }
 
 function ToolOutput({output}: {output: string}) {
@@ -321,7 +302,6 @@ function SkillViewCard({item}: {item: ToolItem}) {
 	return (
 		<WindowFrame
 			variant="editor"
-			tone={item.status === 'error' ? 'error' : undefined}
 			leading={
 				<Boxes
 					className="relative z-[1] size-3.5 shrink-0 text-muted-foreground"
@@ -340,7 +320,14 @@ function SkillViewCard({item}: {item: ToolItem}) {
 				</span>
 			}
 			titleShimmer={item.status === 'running'}
-			trailing={<StatusIcon status={item.status} exitCode={item.exitCode} />}
+			trailing={
+				<StatusIcon
+					status={item.status}
+					exitCode={item.exitCode}
+					output={item.output}
+					summary={item.summary}
+				/>
+			}
 			collapsible
 			defaultOpen={item.status === 'running'}
 			bodyClassName="bg-background"
@@ -412,7 +399,6 @@ function SubagentCard({item}: {item: ToolItem}) {
 	return (
 		<WindowFrame
 			variant="editor"
-			tone={item.status === 'error' ? 'error' : undefined}
 			leading={
 				<Boxes
 					className="relative z-[1] size-3.5 shrink-0 text-muted-foreground"
@@ -428,7 +414,13 @@ function SubagentCard({item}: {item: ToolItem}) {
 			}
 			titleShimmer={item.status === 'running'}
 			trailing={
-				<StatusIcon status={item.status} exitCode={item.exitCode} note={item.statusNote} />
+				<StatusIcon
+					status={item.status}
+					exitCode={item.exitCode}
+					output={item.output}
+					summary={item.summary}
+					note={item.statusNote}
+				/>
 			}
 			collapsible
 			defaultOpen={false}
@@ -508,33 +500,24 @@ export function ToolCard({item}: {item: ToolItem}) {
 		item.tool === 'define_agent' || item.tool === 'update_agent' || item.tool === 'delete_agent';
 	const collapsible = isAgentOp || thresholdFold || item.status === 'success' || item.status === 'error';
 	const defaultOpen = media != null || (isAgentOp ? false : item.status === 'running');
-
-	// Envelope cards (no preview text) would otherwise surface their JSON blob as
-	// the "diagnostic" — show the preview line instead, or nothing.
-	const errorDiagnostic =
-		item.status !== 'error'
-			? null
-			: shellEnv
-				? (shellEnv.outputPreview?.split('\n').find(l => l.trim())?.slice(0, 120) ?? null)
-				: extractErrorDiagnostic(output || item.summary);
-	const titleNode = errorDiagnostic ? (
-		<span className="flex min-w-0 max-w-full items-baseline gap-2 truncate">
-			<span className="truncate">{item.title}</span>
-			<span className="hidden sm:inline truncate text-[11px] font-normal text-muted-foreground/85">
-				— {errorDiagnostic}
-			</span>
-		</span>
-	) : (
-		item.title
-	);
+	// Only problem or verbose cards owe a preview: quiet successes stay one line.
+	const wantsPreview = shellEnv != null || (!isAgentOp && (item.status === 'error' || thresholdFold));
+	const previewSource = wantsPreview ? (shellEnv?.outputPreview ?? output) : '';
 
 	return (
 		<WindowFrame
 			variant="terminal"
-			tone={item.status === 'error' ? 'error' : undefined}
-			title={titleNode}
+			title={item.title}
+			preview={previewSource ? <ToolOutputPreview output={previewSource} /> : undefined}
 			titleShimmer={item.status === 'running'}
-			trailing={<StatusIcon status={item.status} exitCode={item.exitCode} />}
+			trailing={
+				<StatusIcon
+					status={item.status}
+					exitCode={item.exitCode}
+					output={item.output}
+					summary={item.summary}
+				/>
+			}
 			collapsible={collapsible}
 			defaultOpen={defaultOpen}
 			className="w-full"
