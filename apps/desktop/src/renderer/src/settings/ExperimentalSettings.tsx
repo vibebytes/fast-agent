@@ -10,12 +10,10 @@ import {
 } from './SettingsPrimitives';
 import {useExtensions} from './useExtensions';
 import {useSettings} from './useSettings';
+import {isRecord} from './formShared';
 import {contextOffloadChecked, contextOffloadPatch} from './contextOffloadForm';
+import {reviewDiffChecked, reviewDiffDocPayload, reviewDiffPatch} from './reviewDiffForm';
 import {experimentalForm, type ExperimentalDoc, type ExperimentalSave} from './experimentalForm';
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-	return typeof value === 'object' && value !== null && !Array.isArray(value);
-}
 
 function docOf(docs: SettingsDoc[]): ExperimentalDoc | null {
 	const row = docs.find(item => item.namespace === 'jev-context');
@@ -96,6 +94,7 @@ export function ExperimentalSettings({engineReady}: {engineReady: boolean}) {
 	const contextOn = contextOffloadChecked(
 		settings.docs.find(item => item.namespace === 'context')?.payload
 	);
+	const reviewDiffOn = reviewDiffChecked(reviewDiffDocPayload(settings.docs));
 
 	return (
 		<SettingsSection title={t('settings.navigation.experimental')}>
@@ -106,6 +105,22 @@ export function ExperimentalSettings({engineReady}: {engineReady: boolean}) {
 				disabled={busy}
 				onCheckedChange={checked => {
 					const body = contextOffloadPatch(checked);
+					setBusy(true);
+					void settings
+						.patch(body.namespace, body.patch)
+						.then(ok => {
+							if (ok) setNotice(null);
+						})
+						.finally(() => setBusy(false));
+				}}
+			/>
+			<SettingsSwitchRow
+				title={t('settings.experimental.reviewDiff')}
+				description={t('settings.experimental.reviewDiffDescription')}
+				checked={reviewDiffOn}
+				disabled={busy}
+				onCheckedChange={checked => {
+					const body = reviewDiffPatch(checked);
 					setBusy(true);
 					void settings
 						.patch(body.namespace, body.patch)

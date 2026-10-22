@@ -1,8 +1,6 @@
-export const contextOffloadNamespace = 'context';
+import {isRecord} from './formShared';
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-	return typeof value === 'object' && value !== null && !Array.isArray(value);
-}
+export const contextOffloadNamespace = 'context';
 
 /** Only a JSON boolean true turns compaction offload on. */
 export function contextOffloadChecked(payload: unknown): boolean {

@@ -1,12 +1,13 @@
 import {lazy, Suspense, useEffect, useMemo, useState} from 'react';
+import {useTranslation} from 'react-i18next';
 import type {ReviewChangeDetail} from '@fast-ide/session-view';
 import {Button} from '@fast-ide/ui/components/button';
 import {cn} from '@fast-ide/ui/lib/utils';
 import {GitCompare} from 'lucide-react';
 import type {RailTab} from '../railTabs';
-import {groupChangesByPath} from '../review/agentReview';
+import {groupChangesByPath, refusalAction} from '../review/agentReview';
 import {combinedDiffView, DiffModes, drifted, type DiffMode} from '../review/diffSides';
-import type {AgentReview} from '../review/useAgentReview';
+import {reviewDiffUnavailableKey, type AgentReview} from '../review/useAgentReview';
 import {UndoConfirm} from '../review/UndoConfirm';
 import {useUndoFlow} from '../review/useUndoFlow';
 
@@ -32,6 +33,7 @@ export function ReviewDiffPane({
 	/** Bumped on `workspace_file_changed` for this path — re-fetch current side. */
 	refreshToken?: number;
 }) {
+	const {t} = useTranslation();
 	const changeId = tab.changeId ?? null;
 	const [details, setDetails] = useState<ReviewChangeDetail[]>([]);
 	const [notice, setNotice] = useState<string | null>(null);
@@ -65,7 +67,10 @@ export function ReviewDiffPane({
 			for (const answer of answers) {
 				if (answer.ok) fetched.push(answer.change);
 				else {
-					refusedNotice = answer.notice;
+					refusedNotice =
+						refusalAction(answer) === 'unavailable' && !review.reviewDiffOn
+							? t(reviewDiffUnavailableKey)
+							: answer.notice;
 					break;
 				}
 			}
@@ -79,7 +84,7 @@ export function ReviewDiffPane({
 		return () => {
 			live = false;
 		};
-	}, [projectId, changeIds, revision, refreshToken]);
+	}, [projectId, changeIds, revision, refreshToken, review.reviewDiffOn, t]);
 
 	const row = useMemo(
 		() => review.list.changes.find(change => change.id === changeId) ?? null,

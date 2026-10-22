@@ -1,6 +1,8 @@
 import {useState} from 'react';
+import {useTranslation} from 'react-i18next';
 import {Button} from '@fast-ide/ui/components/button';
 import {CircleAlert, Info} from 'lucide-react';
+import {reviewDiffUnavailableKey} from './useAgentReview';
 
 const IntroKey = 'fast-ide.checkpointIntroSeen';
 
@@ -12,7 +14,14 @@ const IntroKey = 'fast-ide.checkpointIntroSeen';
  * dismissed, including what the protection costs — a snapshot scans the work tree, and a user who
  * discovers that from a slow batch instead of from us will assume something is broken.
  */
-export function CheckpointNotice({available}: {available: boolean}) {
+export function CheckpointNotice({
+	available,
+	reviewDiffOn
+}: {
+	available: boolean;
+	reviewDiffOn: boolean;
+}) {
+	const {t} = useTranslation();
 	const [seen, setSeen] = useState(() => {
 		try {
 			return window.localStorage.getItem(IntroKey) === 'yes';
@@ -24,15 +33,22 @@ export function CheckpointNotice({available}: {available: boolean}) {
 	});
 
 	if (!available) {
+		const closedBySwitch = !reviewDiffOn;
 		return (
 			<div className="flex shrink-0 items-start gap-2 border-b bg-amber-500/10 px-3 py-2 text-[11px]">
 				<CircleAlert className="mt-0.5 size-3.5 shrink-0 text-amber-600 dark:text-amber-400" />
 				<p className="text-muted-foreground">
-					<span className="font-medium text-foreground">
-						Agent changes cannot be restored automatically.
-					</span>{' '}
-					Workspace checkpoints are off for this project, so nothing here can be undone for you
-					— use your own version control before letting the agent edit files.
+					{closedBySwitch ? (
+						t(reviewDiffUnavailableKey)
+					) : (
+						<>
+							<span className="font-medium text-foreground">
+								Agent changes cannot be restored automatically.
+							</span>{' '}
+							Workspace checkpoints are off for this project, so nothing here can be undone for you
+							— use your own version control before letting the agent edit files.
+						</>
+					)}
 				</p>
 			</div>
 		);

@@ -49,7 +49,11 @@
       "save": "保存",
       "needKey": "打开开关需要填写密钥",
       "contextOffload": "启动 context offload",
-      "contextOffloadDescription": "上下文压缩时，把窗口外的大段工具结果换成磁盘预览"
+      "contextOffloadDescription": "上下文压缩时，把窗口外的大段工具结果换成磁盘预览",
+      "reviewDiff": "启用修改 Diff",
+      "reviewDiffDescription": "关闭后，AI 改动不再记录检查点，IDE 的修改 Diff 审查也不可用",
+      "reviewDiffUnavailable": "修改 Diff 已关闭，请在设置 → 实验性功能中启用",
+      "checkpointsOffHint": "无法撤销——检查点已关闭"
     },
     "cluster": {
       "aloneTitle": "本机",

@@ -1,4 +1,5 @@
 import {useMemo, useRef, useState} from 'react';
+import {useTranslation} from 'react-i18next';
 import type {ReviewFile, ReviewList} from '@fast-ide/session-view';
 import {Button} from '@fast-ide/ui/components/button';
 import {
@@ -11,7 +12,7 @@ import {ChevronDown} from 'lucide-react';
 import {rememberReviewStats, reviewRowChangeIds, reviewRows} from '../review/agentReview';
 import {reviewRowOpenTarget} from '../review/openReviewDiff';
 import {ReviewRows} from '../review/ReviewRows';
-import type {AgentReview} from '../review/useAgentReview';
+import {reviewDiffUnavailableKey, type AgentReview} from '../review/useAgentReview';
 import {UndoConfirm} from '../review/UndoConfirm';
 import {useUndoFlow} from '../review/useUndoFlow';
 
@@ -38,6 +39,7 @@ export function ReviewChangesStrip({
 	/** Opens the plain file editor for a row that has no diff to show (already decided). */
 	onOpenFile?: (path: string) => void;
 }) {
+	const {t} = useTranslation();
 	const undo = useUndoFlow(review);
 	// Survive the turn: once tool-event +/- is seen, keep it after the live projection clears.
 	const statsRef = useRef(new Map<string, {add: number; del: number}>());
@@ -102,10 +104,10 @@ export function ReviewChangesStrip({
 								</Button>
 							</>
 						) : (
-							// Checkpoints are off for this workspace: nothing was recorded, so there is no
-							// undo to offer and pretending otherwise would be the worst outcome.
 							<span className="px-1 text-[11px] text-muted-foreground">
-								Can't be undone — checkpoints are off
+								{review.reviewDiffOn
+									? t('settings.experimental.checkpointsOffHint')
+									: t(reviewDiffUnavailableKey)}
 							</span>
 						)}
 					</div>

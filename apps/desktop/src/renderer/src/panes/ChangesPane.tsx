@@ -323,7 +323,7 @@ export function ChangesPane({
 				) : null}
 			</div>
 
-			<CheckpointNotice available={review.list.available} />
+			<CheckpointNotice available={review.list.available} reviewDiffOn={review.reviewDiffOn} />
 			{review.notice ? (
 				<p className="shrink-0 border-b px-3 py-1 text-[11px] text-destructive">{review.notice}</p>
 			) : null}

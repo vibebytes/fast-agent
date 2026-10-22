@@ -71,7 +71,8 @@ export type ReviewRestored = {restoreId: string; revision: number};
  * The review list for one checkout.
  *
  * `revision` is passed back on every decision so the daemon can refuse one made against a list that
- * has since moved; `available: false` means checkpoints are off and nothing here can be undone.
+ * has since moved. `available: false` means review is closed: the checkpoint backend is off, or the
+ * experimental review-diff switch is off. The desktop tells those two apart from the switch.
  */
 export type ReviewList = {
 	revision: number;

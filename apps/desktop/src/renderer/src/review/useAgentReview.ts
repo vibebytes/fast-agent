@@ -1,4 +1,5 @@
-import {useCallback, useEffect, useMemo, useRef, useState} from 'react';
+import {useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore} from 'react';
+import {useTranslation} from 'react-i18next';
 import type {
 	FileReviewDiff,
 	ReviewDiffSnapshot,
@@ -16,6 +17,8 @@ import {
 	sameReviewList,
 	withRenameGroups
 } from './agentReview';
+import {settingsStore} from '../settings/useSettings';
+import {reviewDiffDocPayload, reviewDiffSwitchOn} from '../settings/reviewDiffForm';
 
 export type UndoTarget =
 	| {kind: 'pending'}
@@ -55,7 +58,41 @@ export type AgentReview = {
 	planUndo: (target: UndoTarget) => Promise<ReviewPreview | null>;
 	applyUndo: (previewId: string, force?: boolean) => Promise<boolean>;
 	redo: (restoreId: string) => Promise<boolean>;
+	/** Experimental switch. Off means review commands are closed even when the checkpoint backend is git. */
+	reviewDiffOn: boolean;
 };
+
+/** i18n key when the engine refuses review because the experimental switch is off. */
+export const reviewDiffUnavailableKey = 'settings.experimental.reviewDiffUnavailable';
+
+/**
+ * Closed switch must not ask for hunks, even when pending rows are already on the list.
+ * An open switch still skips the call when nothing is undecided.
+ */
+export function pullsReviewDiff(reviewDiffOn: boolean, pendingCount: number): boolean {
+	return reviewDiffOn && pendingCount > 0;
+}
+
+/** `unavailable` while the experimental switch is off is the review-diff hint, not a disabled backend. */
+export function shouldExplainReviewDiffOff(reviewDiffOn: boolean, unavailable: boolean): boolean {
+	return unavailable && !reviewDiffOn;
+}
+
+/**
+ * One decision for the poll loop: whether to ask for hunks, and whether a skipped ask should
+ * carry the switch hint. `unavailable` reads it off the daemon's own list answer — the only
+ * real signal — never off the local pending count, which says nothing about the switch.
+ */
+export function reviewDiffGate(reviewDiffOn: boolean, list: ReviewList | null): {
+	pull: boolean;
+	explain: boolean;
+} {
+	const pending = list != null ? pendingChanges(list).length : 0;
+	return {
+		pull: pullsReviewDiff(reviewDiffOn, pending),
+		explain: shouldExplainReviewDiffOff(reviewDiffOn, list != null && !list.available)
+	};
+}
 
 /**
  * The agent change review for one Project.
@@ -68,6 +105,16 @@ export type AgentReview = {
  * Contents stay out: rows carry no file bytes, and a diff is fetched only for the file being opened.
  */
 export function useAgentReview(projectId: string | null, sessionId: string | null): AgentReview {
+	const {t} = useTranslation();
+	const settings = useSyncExternalStore(
+		settingsStore.subscribe,
+		settingsStore.getSnapshot,
+		settingsStore.getSnapshot
+	);
+	const reviewDiffOn = reviewDiffSwitchOn(
+		settings.status,
+		reviewDiffDocPayload(settings.docs)
+	);
 	const [busy, setBusy] = useState(false);
 	const [notice, setNotice] = useState<string | null>(null);
 	const [expired, setExpired] = useState<ReadonlySet<string>>(EMPTY_EXPIRED);
@@ -145,8 +192,11 @@ export function useAgentReview(projectId: string | null, sessionId: string | nul
 					return;
 				}
 				if (seq !== readSeq.current) return;
-				const wantDiff = list != null && pendingChanges(list).length > 0;
-				if (!wantDiff) {
+				const gate = reviewDiffGate(reviewDiffOn, list);
+				if (!gate.pull) {
+					if (gate.explain) {
+						setNotice(t(reviewDiffUnavailableKey));
+					}
 					if (mode === 'full') setDiff(prev => prev ?? {revision: 0, files: []});
 					return;
 				}
@@ -167,7 +217,7 @@ export function useAgentReview(projectId: string | null, sessionId: string | nul
 		if (!deferNet) run();
 		else if (typeof requestIdleCallback === 'function') requestIdleCallback(() => run());
 		else setTimeout(run, 0);
-	}, [projectId, sessionId, cacheKey]);
+	}, [projectId, sessionId, cacheKey, reviewDiffOn, t]);
 
 	useEffect(() => {
 		// List swap happens render-phase above; only chrome resets here.
@@ -205,12 +255,16 @@ export function useAgentReview(projectId: string | null, sessionId: string | nul
 					setNotice(null);
 					return answer as T;
 				}
-				setNotice(answer.notice);
+				const action = refusalAction(answer);
+				setNotice(
+					shouldExplainReviewDiffOff(reviewDiffOn, action === 'unavailable')
+						? t(reviewDiffUnavailableKey)
+						: answer.notice
+				);
 				onRefusal?.(answer);
 				// A stale revision or a moved path means this window's list was behind, so the honest next
 				// step is to show what the daemon actually has. An expired snapshot is not that: the list
 				// is fine, the history it points at is gone.
-				const action = refusalAction(answer);
 				if (action !== 'report' && action !== 'expired') refresh();
 				return null;
 			} catch (e) {
@@ -221,7 +275,7 @@ export function useAgentReview(projectId: string | null, sessionId: string | nul
 				setBusy(false);
 			}
 		},
-		[projectId, refresh]
+		[projectId, refresh, reviewDiffOn, t]
 	);
 
 	const keep = useCallback(
@@ -278,9 +332,13 @@ export function useAgentReview(projectId: string | null, sessionId: string | nul
 		async (path: string) => {
 			if (!projectId) return null;
 			const answer = await window.fastIde.getFileReviewDiff(projectId, path);
-			return answer.ok ? answer.file : null;
+			if (answer.ok) return answer.file;
+			if (shouldExplainReviewDiffOff(reviewDiffOn, refusalAction(answer) === 'unavailable')) {
+				setNotice(t(reviewDiffUnavailableKey));
+			}
+			return null;
 		},
-		[projectId]
+		[projectId, reviewDiffOn, t]
 	);
 
 	return {
@@ -292,6 +350,7 @@ export function useAgentReview(projectId: string | null, sessionId: string | nul
 		busy,
 		notice,
 		expired,
+		reviewDiffOn,
 		refresh,
 		keep,
 		planUndo,
