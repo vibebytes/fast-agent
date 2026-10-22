@@ -12,7 +12,7 @@ import {ChevronDown} from 'lucide-react';
 import {rememberReviewStats, reviewRowChangeIds, reviewRows} from '../review/agentReview';
 import {reviewRowOpenTarget} from '../review/openReviewDiff';
 import {ReviewRows} from '../review/ReviewRows';
-import {reviewDiffUnavailableKey, type AgentReview} from '../review/useAgentReview';
+import {type AgentReview} from '../review/useAgentReview';
 import {UndoConfirm} from '../review/UndoConfirm';
 import {useUndoFlow} from '../review/useUndoFlow';
 
@@ -52,6 +52,10 @@ export function ReviewChangesStrip({
 	// Strip only mounts when there are rows — start collapsed so the file list does not crowd the
 	// composer on open; the user expands it when they want to review.
 	const [open, setOpen] = useState(false);
+	// With the switch off the daemon refuses every review command, so the rows cannot be kept or
+	// undone: a strip whose buttons cannot work and whose only content is a settings hint is noise.
+	// The switch itself stays discoverable in Settings › Experimental.
+	if (!review.reviewDiffOn) return null;
 
 	return (
 		<>
@@ -105,9 +109,7 @@ export function ReviewChangesStrip({
 							</>
 						) : (
 							<span className="px-1 text-[11px] text-muted-foreground">
-								{review.reviewDiffOn
-									? t('settings.experimental.checkpointsOffHint')
-									: t(reviewDiffUnavailableKey)}
+								{t('settings.experimental.checkpointsOffHint')}
 							</span>
 						)}
 					</div>

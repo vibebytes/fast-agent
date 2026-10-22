@@ -160,6 +160,21 @@ export function useAgentReview(projectId: string | null, sessionId: string | nul
 		const seq = ++readSeq.current;
 		const since = mode === 'incremental' ? diffHeld.current?.revision : undefined;
 		const run = () => {
+			// Closed switch: the daemon refuses every review command, so asking would only buy a
+			// refused round trip on every push. Answer locally with the same shape the refusal would
+			// have produced, and keep the hint the panes still show.
+			if (!reviewDiffOn) {
+				if (seq !== readSeq.current) return;
+				const closed: ReviewList = {revision: 0, changes: [], available: false};
+				setList(prev => {
+					const stable = sameReviewList(prev, closed) ? prev : closed;
+					rememberList(listCache.current, key, stable);
+					return stable;
+				});
+				setNotice(t(reviewDiffUnavailableKey));
+				setDiff(prev => prev ?? {revision: 0, files: []});
+				return;
+			}
 			void (async () => {
 				let list: ReviewList | null = null;
 				try {
