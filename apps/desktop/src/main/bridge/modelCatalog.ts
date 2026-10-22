@@ -15,7 +15,13 @@ import {matchCatalogEntry} from '@fast-ide/session-view';
 
 export type {ModelCatalogEntry};
 
-/** Composer picker = Settings enabled models (same ListProviders rows). */
+/** Composer picker = Settings enabled models (same ListProviders rows).
+ *
+ * Free-zone rules (free-zone.md §8) live here so the picker stays dumb:
+ * - `oauth` provider without a stored token never reaches the catalog.
+ * - `oauth` provider that is logged in contributes all rows to the normal list (ignores `free`).
+ * - everyone else: `free = true` rows are free-zone rows, the rest are normal.
+ */
 export function catalogFromProviders(
 	providers: ProviderRow[],
 	current?: string
@@ -24,12 +30,15 @@ export function catalogFromProviders(
 	const entries: ModelCatalogEntry[] = [];
 	for (const p of providers) {
 		if (!p.enabled) continue;
+		if (p.authType === 'oauth' && p.hasSecret !== true) continue;
+		const loggedInOauth = p.authType === 'oauth';
 		for (const m of p.models ?? []) {
 			if (!m.enabled) continue;
 			const id = `${p.id}/${m.modelId}`;
 			const display = (m.displayName || m.modelId).trim() || m.modelId;
 			const aliases = uniqueAliases(m.modelId, m.aliases, id, display);
 			const keys = [id, display, m.modelId, ...aliases].map(s => s.toLowerCase());
+			const free = !loggedInOauth && m.free === true;
 			entries.push({
 				id,
 				display,
@@ -40,7 +49,8 @@ export function catalogFromProviders(
 				supportsThinking: m.supportsThinking === true,
 				supportedEfforts: m.supportedEfforts ?? [],
 				...(m.defaultEffort ? {defaultEffort: m.defaultEffort} : {}),
-				...(m.inputModalities?.length ? {inputModalities: m.inputModalities} : {})
+				...(m.inputModalities?.length ? {inputModalities: m.inputModalities} : {}),
+				...(free ? {free: true} : {})
 			});
 		}
 	}

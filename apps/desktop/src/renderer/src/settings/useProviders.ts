@@ -2,6 +2,7 @@ import {useEffect, useSyncExternalStore} from 'react';
 import type {
 	ProviderModel,
 	ProviderModelPatch,
+	ProviderLoginPrompt,
 	ProviderRow,
 	SearchModelRow,
 	UpsertProviderInput
@@ -15,6 +16,7 @@ export type SeedModel = ProviderModel;
 export type UpsertInput = UpsertProviderInput;
 export type ModelPatch = ProviderModelPatch;
 export type SearchModel = SearchModelRow;
+export type LoginPrompt = ProviderLoginPrompt;
 
 export type ProvidersView = {
 	status: ProvidersStatus;
@@ -44,6 +46,13 @@ type ProvidersApi = {
 		id: string,
 		query: string
 	) => Promise<{ok: true; searchModels: SearchModel[]} | {ok: false; notice: string}>;
+	startProviderLogin: (
+		id: string
+	) => Promise<{ok: true; login: LoginPrompt} | {ok: false; notice: string}>;
+	finishProviderLogin: (
+		id: string,
+		login: LoginPrompt
+	) => Promise<{ok: true; provider: Provider} | {ok: false; notice: string}>;
 	onProvidersChanged?: (handler: (payload: {providerId: string}) => void) => () => void;
 };
 
@@ -65,6 +74,8 @@ function liveApi(): ProvidersApi {
 		testProvider: id => window.fastIde.testProvider(id),
 		patchProviderModels: (id, patch) => window.fastIde.patchProviderModels(id, patch),
 		searchProviderModels: (id, query) => window.fastIde.searchProviderModels(id, query),
+		startProviderLogin: id => window.fastIde.startProviderLogin(id),
+		finishProviderLogin: (id, login) => window.fastIde.finishProviderLogin(id, login),
 		onProvidersChanged: handler => window.fastIde.onProvidersChanged(handler)
 	};
 }
@@ -241,6 +252,31 @@ class ProvidersStore {
 		}
 		return {ok: true, models: res.searchModels};
 	};
+
+	startLogin = async (
+		id: string
+	): Promise<{ok: true; login: LoginPrompt} | {ok: false; notice: string}> => {
+		if (!this.view.engineReady || this.view.status === 'disabled') {
+			return {ok: false, notice: 'Engine not ready'};
+		}
+		const res = await this.api.startProviderLogin(id);
+		if (!res.ok) {
+			this.setView({...this.view, notice: res.notice, status: 'ready'});
+			return {ok: false, notice: res.notice};
+		}
+		return {ok: true, login: res.login};
+	};
+
+	finishLogin = async (id: string, login: LoginPrompt): Promise<boolean> => {
+		if (!this.view.engineReady || this.view.status === 'disabled') return false;
+		const res = await this.api.finishProviderLogin(id, login);
+		if (!res.ok) {
+			this.setView({...this.view, notice: res.notice, status: 'ready'});
+			return false;
+		}
+		this.setView(viewOf(upsertLocal(this.view.providers, res.provider), 'ready', null, true));
+		return true;
+	};
 }
 
 export const providersStore = new ProvidersStore();
@@ -269,6 +305,10 @@ export function useProviders(engineReady: boolean): ProvidersView & {
 		id: string,
 		query: string
 	) => Promise<{ok: true; models: SearchModel[]} | {ok: false; notice: string}>;
+	startLogin: (
+		id: string
+	) => Promise<{ok: true; login: LoginPrompt} | {ok: false; notice: string}>;
+	finishLogin: (id: string, login: LoginPrompt) => Promise<boolean>;
 } {
 	useEffect(() => {
 		ensurePush();
@@ -290,6 +330,8 @@ export function useProviders(engineReady: boolean): ProvidersView & {
 		setEnabled: providersStore.setEnabled,
 		test: providersStore.test,
 		patchModels: providersStore.patchModels,
-		searchModels: providersStore.searchModels
+		searchModels: providersStore.searchModels,
+		startLogin: providersStore.startLogin,
+		finishLogin: providersStore.finishLogin
 	};
 }

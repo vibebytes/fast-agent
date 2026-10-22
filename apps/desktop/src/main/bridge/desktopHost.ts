@@ -3,7 +3,13 @@
  * Pet / locale channels stay in the host entry; window/tray/media protocol stay there too.
  */
 import {join} from 'node:path';
-import type {CloudflareTunnelStatus, EdgeFailure, InvokeChannel, InvokeChannels} from '@fast-ide/session-view';
+import type {
+	CloudflareTunnelStatus,
+	EdgeFailure,
+	InvokeChannel,
+	InvokeChannels,
+	ProviderLoginPrompt
+} from '@fast-ide/session-view';
 import {classifyProbeError, inspectTls, probeBridge} from '@fastllm/bridge-client';
 import type {WorkspaceHub, WorkspaceProjectHandlers} from './WorkspaceHub.js';
 import {hostSession} from './workspace/hostSession.js';
@@ -276,6 +282,9 @@ export function createDesktopHost(deps: DesktopHostDeps): ProductInvokeMap {
 		'providers:test': (id: string) => hub.testProvider(id),
 		'providers:patchModels': (id, patch) => hub.patchProviderModels(id, patch),
 		'providers:searchModels': (id: string, query: string) => hub.searchProviderModels(id, query),
+		'providers:startLogin': (id: string) => hub.startProviderLogin(id),
+		'providers:finishLogin': (id: string, login: ProviderLoginPrompt) =>
+			hub.finishProviderLogin(id, login),
 
 		'skills:list': () => hub.listSkills(),
 		'tools:list': () => hub.listConfigurableTools(),

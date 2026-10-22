@@ -36,6 +36,7 @@ import type {
 	ProjectSnapshot,
 	ProjectState,
 	ProjectsSnapshot,
+	ProviderLoginPrompt,
 	ProviderModelPatch,
 	ProviderRow,
 	QueueItem,
@@ -157,6 +158,14 @@ export type FastIdeApi = {
 		id: string,
 		query: string
 	) => Promise<{ok: true; searchModels: SearchModelRow[]} | {ok: false; notice: string}>;
+	/** Device-code login: returns the code the user approves, then FinishProviderLogin polls. */
+	startProviderLogin: (
+		id: string
+	) => Promise<{ok: true; login: ProviderLoginPrompt} | {ok: false; notice: string}>;
+	finishProviderLogin: (
+		id: string,
+		login: ProviderLoginPrompt
+	) => Promise<{ok: true; provider: ProviderRow} | {ok: false; notice: string}>;
 	/** Settings-center skills (disk SoT + Skills.sh market). */
 	listSkills: () => Promise<{ok: true; skills: SkillRow[]} | {ok: false; notice: string}>;
 	listConfigurableTools: () => Promise<{ok: true; tools: ConfigurableTool[]} | {ok: false; notice: string}>;

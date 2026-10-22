@@ -345,6 +345,10 @@ export type ProviderModel = {
 	inputModalities?: string[];
 	/** Media capability tags (e.g. ["image_generation"]); absent = none declared. */
 	capabilities?: string[];
+	/** Free zone membership (vendor `free`); locked rows keep this flag. */
+	free?: boolean;
+	/** User set `free` explicitly — refresh must not overwrite it. */
+	freeLocked?: boolean;
 	enabled: boolean;
 	source: string;
 };
@@ -359,12 +363,25 @@ export type ProviderRow = {
 	status?: string | null;
 	statusDetail?: string | null;
 	last4?: string | null;
+	/** Credential kind from meta_json (`none` / `api_key` / `oauth`); desktop never parses meta. */
+	authType?: 'none' | 'api_key' | 'oauth' | string;
+	/** Secret stored (or oauth token present). */
+	hasSecret?: boolean;
 	modelCount: number;
 	enabledModelCount: number;
 	enabled: boolean;
 	meta?: unknown;
 	models?: ProviderModel[];
 	updatedAt?: string | null;
+};
+
+/** StartProviderLogin payload — the user approves `userCode` at `verifyUrl`. */
+export type ProviderLoginPrompt = {
+	deviceCode: string;
+	userCode: string;
+	verifyUrl: string;
+	intervalSeconds: number;
+	expiresAt: string;
 };
 
 /** OpenRouter (etc.) search candidate (SearchProviderModels). */
@@ -387,9 +404,9 @@ export type UpsertProviderInput = {
 	seedModelsJson?: string;
 };
 
-/** PatchProviderModels op — enable / rename / add / remove. */
+/** PatchProviderModels op — enable / rename / add / setFree / remove. */
 export type ProviderModelPatch = {
-	op: 'enable' | 'rename' | 'add' | 'remove' | string;
+	op: 'enable' | 'rename' | 'add' | 'setFree' | 'remove' | string;
 	modelId: string;
 	enabled?: boolean;
 	displayName?: string;
@@ -400,6 +417,8 @@ export type ProviderModelPatch = {
 	inputModalities?: string[];
 	/** Present = replace the model's capability tags (empty list clears them). */
 	capabilities?: string[];
+	/** setFree: move the row in/out of the free zone (locks it against refresh). */
+	free?: boolean;
 };
 
 /** Settings-center installed skill row (List/Create/SetSkillEnabled). */

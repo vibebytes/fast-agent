@@ -1,7 +1,7 @@
 import {z} from 'zod';
 
 export type CatalogCommand =
-	{
+	| {
 			/** Settings-center documents. scope=effective merges project over global. */
 			type: 'GetSettings';
 			scope: 'global' | 'project' | 'effective' | string;
@@ -65,6 +65,25 @@ export type CatalogCommand =
 	| {
 			type: 'TestProvider';
 			id: string;
+			tenantId?: string;
+			appId?: string;
+	  }
+	| {
+			/** Device-code login: step 1 returns `login` (userCode / verifyUrl / deviceCode). */
+			type: 'StartProviderLogin';
+			id: string;
+			tenantId?: string;
+			appId?: string;
+	  }
+	| {
+			/** Device-code login: step 2 blocks until the token is stored (or fails). */
+			type: 'FinishProviderLogin';
+			id: string;
+			deviceCode: string;
+			userCode: string;
+			verifyUrl: string;
+			intervalSeconds: number;
+			expiresAt: string;
 			tenantId?: string;
 			appId?: string;
 	  }
@@ -209,6 +228,23 @@ export const catalogCommandSchemas = [
 	z.object({
 		type: z.literal('TestProvider'),
 		id: z.string(),
+		tenantId: z.string().optional(),
+		appId: z.string().optional()
+	}),
+	z.object({
+		type: z.literal('StartProviderLogin'),
+		id: z.string(),
+		tenantId: z.string().optional(),
+		appId: z.string().optional()
+	}),
+	z.object({
+		type: z.literal('FinishProviderLogin'),
+		id: z.string(),
+		deviceCode: z.string(),
+		userCode: z.string(),
+		verifyUrl: z.string(),
+		intervalSeconds: z.number(),
+		expiresAt: z.string(),
 		tenantId: z.string().optional(),
 		appId: z.string().optional()
 	}),

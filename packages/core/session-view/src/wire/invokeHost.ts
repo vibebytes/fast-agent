@@ -27,6 +27,7 @@ import type {
 	McpControlResultWire,
 	McpServerRowWire,
 	MobilePairingInfo,
+	ProviderLoginPrompt,
 	ProviderModelPatch,
 	ProviderRow,
 	ReadMediaResult,
@@ -175,6 +176,16 @@ export type InvokeHost = {
 	'providers:searchModels': {
 		args: [id: string, query: string];
 		result: {ok: true; searchModels: SearchModelRow[]} | {ok: false; notice: string};
+	};
+	/** Device-code login, step 1: returns the code the user types in the browser. */
+	'providers:startLogin': {
+		args: [id: string];
+		result: {ok: true; login: ProviderLoginPrompt} | {ok: false; notice: string};
+	};
+	/** Device-code login, step 2: blocks until the token is stored, then returns the provider. */
+	'providers:finishLogin': {
+		args: [id: string, login: ProviderLoginPrompt];
+		result: {ok: true; provider: ProviderRow} | {ok: false; notice: string};
 	};
 	/** Settings-center skills (disk SoT + Skills.sh market via Bridge). */
 	'skills:list': {

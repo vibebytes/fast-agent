@@ -344,6 +344,7 @@ export type {
 	ConfigurableToolField,
 	PutConfigurableToolInput,
 	MarketSkillRow,
+	ProviderLoginPrompt,
 	ProviderModel,
 	ProviderModelPatch,
 	ProviderRow,

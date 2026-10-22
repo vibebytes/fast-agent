@@ -41,6 +41,8 @@ export const HostWaitCommands = new Set([
 	'DeleteProvider',
 	'SetProviderEnabled',
 	'TestProvider',
+	'StartProviderLogin',
+	'FinishProviderLogin',
 	'PatchProviderModels',
 	'SearchProviderModels',
 	'ListSkills',

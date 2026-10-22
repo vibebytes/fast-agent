@@ -103,6 +103,8 @@ export type ModelCatalogEntry = {
 	defaultEffort?: string;
 	/** Wire lowercase modalities (e.g. ["text","image"]); omit → text-only. */
 	inputModalities?: string[];
+	/** Free zone row (vendor `free`, or user-locked) — picker pins these first. */
+	free?: boolean;
 };
 
 /** Structured @ mention chip — Submit passthrough (no Mentions.resolve). */

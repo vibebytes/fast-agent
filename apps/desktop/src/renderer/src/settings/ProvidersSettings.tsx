@@ -20,7 +20,7 @@ import {
 } from './SettingsPrimitives';
 import {EditProviderDialog} from './EditProviderDialog';
 import {editTestUpsert, providerStatusNote, type EditDraft} from './providerProbe';
-import {useProviders, type Provider, type SeedModel, type UpsertInput} from './useProviders';
+import {useProviders, type LoginPrompt, type Provider, type SeedModel, type UpsertInput} from './useProviders';
 import {
 	PRESET_GROUPS,
 	customPresetKey,
@@ -109,6 +109,8 @@ export function ProvidersSettings({engineReady, onOpenModels}: Props) {
 	const [editId, setEditId] = useState<string | null>(null);
 	const [formPreset, setFormPreset] = useState<PresetCard | null>(null);
 	const [testingId, setTestingId] = useState<string | null>(null);
+	const [login, setLogin] = useState<{provider: Provider; prompt: LoginPrompt} | null>(null);
+	const [loginBusy, setLoginBusy] = useState(false);
 
 	const editing = useMemo(
 		() => providers.providers.find(p => p.id === editId) ?? null,
@@ -144,6 +146,28 @@ export function ProvidersSettings({engineReady, onOpenModels}: Props) {
 			await providers.test(id);
 		} finally {
 			setTestingId(null);
+		}
+	};
+
+	const handleLogin = async (provider: Provider) => {
+		setLoginBusy(true);
+		try {
+			const res = await providers.startLogin(provider.id);
+			if (res.ok) setLogin({provider, prompt: res.login});
+		} finally {
+			setLoginBusy(false);
+		}
+	};
+
+	const handleConfirmLogin = async () => {
+		if (!login) return false;
+		setLoginBusy(true);
+		try {
+			const ok = await providers.finishLogin(login.provider.id, login.prompt);
+			if (ok) setLogin(null);
+			return ok;
+		} finally {
+			setLoginBusy(false);
 		}
 	};
 
@@ -217,6 +241,8 @@ export function ProvidersSettings({engineReady, onOpenModels}: Props) {
 							onTest={() => void handleTest(provider.id)}
 							onDisconnect={() => void providers.setEnabled(provider.id, false)}
 							onReconnect={() => void providers.setEnabled(provider.id, true)}
+							onLogin={() => void handleLogin(provider)}
+							loginBusy={loginBusy}
 							onOpenModels={() => onOpenModels?.(provider.id)}
 						/>
 					))}
@@ -271,7 +297,86 @@ export function ProvidersSettings({engineReady, onOpenModels}: Props) {
 					}}
 				/>
 			) : null}
+
+			<ProviderLoginDialog
+				open={Boolean(login)}
+				providerName={login?.provider.name ?? ''}
+				prompt={login?.prompt}
+				busy={loginBusy}
+				onOpenChange={open => {
+					if (!open) setLogin(null);
+				}}
+				onConfirm={handleConfirmLogin}
+			/>
 		</div>
+	);
+}
+
+function ProviderLoginDialog({
+	open,
+	providerName,
+	prompt,
+	busy,
+	onOpenChange,
+	onConfirm
+}: {
+	open: boolean;
+	providerName: string;
+	prompt?: LoginPrompt;
+	busy: boolean;
+	onOpenChange: (open: boolean) => void;
+	onConfirm: () => Promise<boolean>;
+}) {
+	const {t} = useTranslation();
+	const expired = Boolean(prompt?.expiresAt) && Date.parse(prompt!.expiresAt) < Date.now();
+	return (
+		<Dialog open={open} onOpenChange={onOpenChange}>
+			<DialogContent className="sm:max-w-md">
+				<DialogHeader>
+					<DialogTitle>{t('settings.providers.loginTitle', {name: providerName})}</DialogTitle>
+					<DialogDescription>{t('settings.providers.loginDescription')}</DialogDescription>
+				</DialogHeader>
+				<div className="space-y-3">
+					<div>
+						<p className="mb-1 text-[11px] text-muted-foreground">
+							{t('settings.providers.loginCode')}
+						</p>
+						<p className="select-all rounded-lg border border-border/60 bg-muted/40 px-3 py-2 font-mono text-lg tracking-[0.3em] text-foreground">
+							{prompt?.userCode ?? ''}
+						</p>
+					</div>
+					{prompt?.verifyUrl ? (
+						<a
+							href={prompt.verifyUrl}
+							target="_blank"
+							rel="noreferrer noopener"
+							className="inline-flex items-center gap-1 text-[12px] text-primary hover:underline"
+						>
+							<Link2 className="size-3" />
+							{t('settings.providers.loginOpen')}
+						</a>
+					) : null}
+					{expired ? (
+						<p className="text-[11px] text-destructive">{t('settings.providers.loginExpired')}</p>
+					) : null}
+				</div>
+				<DialogFooter>
+					<SettingsButton variant="ghost" size="sm" disabled={busy} onClick={() => onOpenChange(false)}>
+						{t('settings.common.cancel')}
+					</SettingsButton>
+					<SettingsButton size="sm" disabled={busy || expired} onClick={() => void onConfirm()}>
+						{busy ? (
+							<>
+								<LoaderCircle className="mr-1 size-3 animate-spin" />
+								{t('settings.providers.loginWaiting')}
+							</>
+						) : (
+							t('settings.providers.loginConfirm')
+						)}
+					</SettingsButton>
+				</DialogFooter>
+			</DialogContent>
+		</Dialog>
 	);
 }
 
@@ -283,6 +388,8 @@ function ProviderCard({
 	onTest,
 	onDisconnect,
 	onReconnect,
+	onLogin,
+	loginBusy,
 	onOpenModels
 }: {
 	provider: Provider;
@@ -292,6 +399,8 @@ function ProviderCard({
 	onTest: () => void;
 	onDisconnect: () => void;
 	onReconnect: () => void;
+	onLogin: () => void;
+	loginBusy: boolean;
 	onOpenModels: () => void;
 }) {
 	const {t} = useTranslation();
@@ -302,6 +411,13 @@ function ProviderCard({
 
 	const isHealthy = statusKey === 'ok' && !disconnected;
 	const isError = statusKey === 'authFailed' || statusKey === 'unreachable';
+	const oauth = provider.authType === 'oauth';
+	const needsLogin = oauth && provider.hasSecret !== true;
+	const credentialLabel = oauth
+		? t(needsLogin ? 'settings.providers.oauthPending' : 'settings.providers.oauthAuthorized')
+		: provider.last4
+			? t('settings.providers.keyLast4', {last4: provider.last4})
+			: t('settings.common.notConfigured');
 
 	return (
 		<div
@@ -360,9 +476,7 @@ function ProviderCard({
 							<span className="inline-flex items-center gap-1 text-muted-foreground/80">
 								<KeyRound className="size-3 text-muted-foreground/60" />
 								<MonoTag>
-									{provider.last4
-										? t('settings.providers.keyLast4', {last4: provider.last4})
-										: t('settings.common.notConfigured')}
+									{credentialLabel}
 								</MonoTag>
 							</span>
 
@@ -378,6 +492,16 @@ function ProviderCard({
 
 				{/* Action Buttons */}
 				<div className="flex shrink-0 items-center gap-1.5 self-end sm:self-center">
+					{needsLogin ? (
+						<SettingsButton
+							size="xs"
+							disabled={busy || loginBusy}
+							onClick={onLogin}
+							className="shadow-2xs"
+						>
+							{t('settings.providers.oauth')}
+						</SettingsButton>
+					) : null}
 					<SettingsButton
 						variant="outline"
 						size="xs"

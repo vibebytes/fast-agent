@@ -2,6 +2,7 @@ import type {
 	CreateSkillInput,
 	MarketSkillRow,
 	MobilePairingInfo,
+	ProviderLoginPrompt,
 	ProviderModelPatch,
 	ProviderRow,
 	SearchModelRow,
@@ -110,6 +111,11 @@ export type WorkspaceCatalog = {
 		id: string,
 		query: string
 	) => Promise<{ok: true; searchModels: SearchModelRow[]} | Notice>;
+	startProviderLogin: (id: string) => Promise<{ok: true; login: ProviderLoginPrompt} | Notice>;
+	finishProviderLogin: (
+		id: string,
+		login: ProviderLoginPrompt
+	) => Promise<{ok: true; provider: ProviderRow} | Notice>;
 	listSkills: () => Promise<{ok: true; skills: SkillRow[]} | Notice>;
 	listConfigurableTools: () => Promise<{ok: true; tools: ConfigurableTool[]} | Notice>;
 	putConfigurableTool: (
@@ -293,6 +299,39 @@ export function createCatalog(lane: HostLane): WorkspaceCatalog {
 			if (r.event.status === 'error') return {ok: false, notice: r.event.message};
 			const raw = (r.event as {searchModels?: SearchModelRow[]}).searchModels;
 			return {ok: true, searchModels: Array.isArray(raw) ? raw : []};
+		},
+		async startProviderLogin(id) {
+			const trimmed = id.trim();
+			if (!trimmed) return {ok: false, notice: 'id required'};
+			const r = await hostRequest(lane, ['StartProviderLogin'], {
+				type: 'StartProviderLogin',
+				id: trimmed
+			});
+			if (!r.ok) return r;
+			if (r.event.status === 'error') return {ok: false, notice: r.event.message};
+			const login = (r.event as {login?: ProviderLoginPrompt}).login;
+			if (!login?.deviceCode) return {ok: false, notice: 'StartProviderLogin returned no prompt'};
+			return {ok: true, login};
+		},
+		finishProviderLogin: (id, login) => {
+			const trimmed = id.trim();
+			if (!trimmed) return Promise.resolve({ok: false as const, notice: 'id required'});
+			if (!login.deviceCode.trim()) {
+				return Promise.resolve({ok: false as const, notice: 'deviceCode required'});
+			}
+			return firstProvider(
+				['FinishProviderLogin'],
+				{
+					type: 'FinishProviderLogin',
+					id: trimmed,
+					deviceCode: login.deviceCode,
+					userCode: login.userCode,
+					verifyUrl: login.verifyUrl,
+					intervalSeconds: login.intervalSeconds,
+					expiresAt: login.expiresAt
+				},
+				'FinishProviderLogin returned no provider'
+			);
 		},
 		async listSkills() {
 			const r = await hostRequest(lane, ['ListSkills'], {type: 'ListSkills'});

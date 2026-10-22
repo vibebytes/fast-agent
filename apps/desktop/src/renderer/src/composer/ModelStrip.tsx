@@ -150,19 +150,30 @@ export function ModelCatalogContent({
 				) : (
 					groupedCatalog.map(group => {
 						const brand = catalogProvider(group.items[0]!.entry).brand;
+						const isFreeZone = group.zone === 'free';
 						return (
 							<div key={group.providerKey} className="space-y-1">
 								<div className="flex items-center justify-between px-2.5 py-1 text-[11px] font-semibold text-muted-foreground">
 									<div className="flex items-center gap-1.5 min-w-0">
-										<span
-											className={cn(
-												'size-4 rounded text-[9.5px] font-bold flex items-center justify-center shrink-0 shadow-2xs',
-												brand.iconBg
-											)}
-										>
-											{brand.shortName}
+										{isFreeZone ? (
+											<span className="size-4 rounded bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
+												<Zap className="size-2.5" />
+											</span>
+										) : (
+											<span
+												className={cn(
+													'size-4 rounded text-[9.5px] font-bold flex items-center justify-center shrink-0 shadow-2xs',
+													brand.iconBg
+												)}
+											>
+												{brand.shortName}
+											</span>
+										)}
+										<span className="truncate">
+											{isFreeZone
+												? t('shell.composer.freeZone', {defaultValue: '免费模型'})
+												: group.providerLabel}
 										</span>
-										<span className="truncate">{group.providerLabel}</span>
 									</div>
 									<span className="text-[10px] font-mono px-1.5 py-0.2 rounded-full bg-muted/60 text-muted-foreground font-normal">
 										{t('shell.composer.modelCountSimple', {

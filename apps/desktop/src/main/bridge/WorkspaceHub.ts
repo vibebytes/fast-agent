@@ -15,6 +15,7 @@ import type {
 	MarketSkillRow,
 	ProjectSnapshot,
 	ProjectStatus,
+	ProviderLoginPrompt,
 	ProviderModelPatch,
 	ProviderRow,
 	ReviewChangeDetail,
@@ -815,6 +816,14 @@ export class WorkspaceHub {
 	}
 	async searchProviderModels(id: string, query: string) {
 		return this.catalog.searchProviderModels(id, query);
+	}
+	async startProviderLogin(id: string) {
+		return this.catalog.startProviderLogin(id);
+	}
+	async finishProviderLogin(id: string, login: ProviderLoginPrompt) {
+		const result = await this.catalog.finishProviderLogin(id, login);
+		if (result.ok) this.composerHeal.invalidateComposerCatalog();
+		return result;
 	}
 	async listSkills() {
 		return this.catalog.listSkills();

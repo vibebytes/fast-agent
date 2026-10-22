@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import type {ProviderRow} from '@fast-ide/session-view';
 import {
 	catalogFromProviders,
 	filterModelCatalog,
@@ -191,4 +192,64 @@ test('resolveComposerChrome keeps a catalog pick and snaps yaml default to first
 		'deepseek/deepseek-v4-pro',
 		'yaml stub is not in the DB catalog — use marked current, else first'
 	);
+});
+
+function provider(partial: Partial<ProviderRow> & Pick<ProviderRow, 'id'>): ProviderRow {
+	return {
+		kind: 'api',
+		vendor: partial.id,
+		name: partial.id,
+		modelCount: 1,
+		enabledModelCount: 1,
+		enabled: true,
+		models: [{modelId: 'm1', displayName: 'M1', enabled: true, source: 'catalog'}],
+		...partial
+	};
+}
+
+test('catalogFromProviders drops an oauth provider until it has a token', () => {
+	const entries = catalogFromProviders([
+		provider({id: 'kilo', authType: 'oauth', hasSecret: false}),
+		provider({id: 'deepseek', authType: 'api_key', hasSecret: true})
+	]);
+	assert.deepEqual(
+		entries.map(e => e.providerId),
+		['deepseek']
+	);
+});
+
+test('catalogFromProviders keeps every model of a logged-in oauth provider in the normal list', () => {
+	const entries = catalogFromProviders([
+		provider({
+			id: 'kilo',
+			authType: 'oauth',
+			hasSecret: true,
+			models: [
+				{modelId: 'k1', displayName: 'K1', enabled: true, source: 'catalog', free: true},
+				{modelId: 'k2', displayName: 'K2', enabled: true, source: 'catalog'}
+			]
+		})
+	]);
+	assert.equal(entries.length, 2);
+	assert.equal(
+		entries.some(e => e.free === true),
+		false,
+		'logged-in oauth ignores vendor free'
+	);
+});
+
+test('catalogFromProviders flags free rows for api_key and openrouter providers', () => {
+	const entries = catalogFromProviders([
+		provider({
+			id: 'openrouter',
+			authType: 'api_key',
+			hasSecret: true,
+			models: [
+				{modelId: 'x:free', displayName: 'X Free', enabled: true, source: 'catalog', free: true},
+				{modelId: 'y', displayName: 'Y', enabled: true, source: 'catalog', free: false}
+			]
+		})
+	]);
+	assert.equal(entries[0]?.free, true);
+	assert.equal(entries[1]?.free, undefined);
 });

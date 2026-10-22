@@ -4,7 +4,8 @@ import type {
 	InvokeChannel,
 	InvokeChannels,
 	PushChannel,
-	PushChannels
+	PushChannels,
+	ProviderLoginPrompt
 } from '@fast-ide/session-view';
 import type {FastIdeApi} from '../shared/fastIdeApi.js';
 
@@ -64,6 +65,9 @@ const api = {
 	testProvider: (id: string) => invoke('providers:test', id),
 	patchProviderModels: (id, patch) => invoke('providers:patchModels', id, patch),
 	searchProviderModels: (id: string, query: string) => invoke('providers:searchModels', id, query),
+	startProviderLogin: (id: string) => invoke('providers:startLogin', id),
+	finishProviderLogin: (id: string, login: ProviderLoginPrompt) =>
+		invoke('providers:finishLogin', id, login),
 	listSkills: () => invoke('skills:list'),
 	listConfigurableTools: () => invoke('tools:list'),
 	putConfigurableTool: input => invoke('tools:put', input),
