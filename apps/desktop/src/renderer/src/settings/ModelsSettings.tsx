@@ -14,7 +14,7 @@ import {useSettings} from './useSettings';
 import {useProviders, type Provider, type SeedModel} from './useProviders';
 import {clampEffort} from '../effortClamp';
 import {AddModelDialog} from './AddModelDialog';
-import {addModelOp, capabilityOp, imageInputOp, visibilityOp} from './modelPatch';
+import {addModelOps, capabilityOp, freeOp, imageInputOp, visibilityOp} from './modelPatch';
 import {ChooseDefaultDialog} from './ChooseDefaultDialog';
 import {ProviderModelsGroup} from './ProviderModelsGroup';
 import {SearchAddDialog} from './SearchAddDialog';
@@ -355,6 +355,9 @@ export function ModelsSettings({engineReady, focusProviderId}: Props) {
 										capabilityOp(model.modelId, model.capabilities ?? [], capability, on)
 									]);
 								}}
+								onToggleFree={(model, free) => {
+									void providers.patchModels(provider.id, [freeOp(model.modelId, free)]);
+								}}
 								onAdd={() => setAddFor(provider.id)}
 								onSearch={() => setSearchFor(provider.id)}
 								onRemove={model =>
@@ -372,11 +375,12 @@ export function ModelsSettings({engineReady, focusProviderId}: Props) {
 				<AddModelDialog
 					open
 					providerName={providers.providers.find(p => p.id === addFor)?.name}
+					defaultFree={providers.providers.find(p => p.id === addFor)?.free === true}
 					onOpenChange={open => {
 						if (!open) setAddFor(null);
 					}}
 					onSubmit={async input => {
-						const ok = await providers.patchModels(addFor, [addModelOp(input)]);
+						const ok = await providers.patchModels(addFor, addModelOps(input));
 						if (ok) setAddFor(null);
 						return ok;
 					}}

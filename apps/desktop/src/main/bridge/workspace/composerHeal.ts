@@ -16,6 +16,7 @@ export type ComposerHeal = {
 	invalidateComposerCatalog: () => void;
 	syncComposerCatalog: () => void;
 	refreshComposerChrome: (handlers: HealHandlers) => Promise<void>;
+	repaintComposerCatalog: (handlers: HealHandlers) => Promise<void>;
 };
 
 export function createComposerHeal(deps: {
@@ -86,6 +87,13 @@ export function createComposerHeal(deps: {
 		return wrapped;
 	};
 
+	/** providers_changed: the Engine already refreshed, so bypass the TTL and repaint chrome. */
+	const repaintComposerCatalog = async (handlers: HealHandlers): Promise<void> => {
+		catalogFreshUntil = 0;
+		await syncComposerCatalogFromProviders(true);
+		await healDefaultModelChrome(handlers);
+	};
+
 	const healDefaultModelChrome = async (handlers: HealHandlers): Promise<void> => {
 		const list = [...deps.projects()];
 		if (!list.some(p => chromeNeedsHeal(p.sessions))) return;
@@ -154,7 +162,8 @@ export function createComposerHeal(deps: {
 		async refreshComposerChrome(handlers) {
 			await syncComposerCatalogFromProviders();
 			await healDefaultModelChrome(handlers);
-		}
+		},
+		repaintComposerCatalog
 	};
 }
 

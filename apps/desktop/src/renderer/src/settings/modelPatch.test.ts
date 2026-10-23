@@ -1,6 +1,15 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import {addModelOp, applyModelPatch, capabilityOp, imageInputOp, searchAddOps, visibilityOp} from './modelPatch.js';
+import {
+	addModelOp,
+	addModelOps,
+	applyModelPatch,
+	capabilityOp,
+	freeOp,
+	imageInputOp,
+	searchAddOps,
+	visibilityOp
+} from './modelPatch.js';
 
 type Row = {modelId: string; [k: string]: unknown};
 type P = {id: string; models?: Row[]; enabledModelCount?: number; modelCount?: number};
@@ -138,6 +147,46 @@ test('search add ops do not send capabilities', () => {
 	assert.equal(ops[0].op, 'add');
 	assert.equal(ops[0].enabled, true);
 	assert.equal('capabilities' in ops[0], false);
+});
+
+test('freeOp emits setFree with the requested flag', () => {
+	assert.deepEqual(freeOp('kilo/x', true), {op: 'setFree', modelId: 'kilo/x', free: true});
+	assert.deepEqual(freeOp('kilo/x', false), {op: 'setFree', modelId: 'kilo/x', free: false});
+});
+
+test('setFree moves the row and locks it against refresh', () => {
+	const list: P[] = [mkProvider([{modelId: 'm1', enabled: true, source: 'discovered', free: false}])];
+	const out = applyModelPatch(list, 'p1', [freeOp('m1', true)]);
+	assert.ok(out);
+	assert.equal(out[0].models![0].free, true);
+	assert.equal(out[0].models![0].freeLocked, true);
+	assert.equal(out[0].models![0].enabled, true);
+
+	const back = applyModelPatch(out, 'p1', [freeOp('m1', false)]);
+	assert.ok(back);
+	assert.equal(back[0].models![0].free, false);
+	assert.equal(back[0].models![0].freeLocked, true);
+});
+
+test('setFree on an unknown model is a no-op', () => {
+	assert.equal(applyModelPatch([mkProvider([])], 'p1', [freeOp('nope', true)]), null);
+});
+
+test('addModelOps emits add then setFree only when free is requested', () => {
+	const base = {
+		modelId: 'm-free',
+		displayName: 'M Free',
+		supportsThinking: false,
+		supportedEfforts: [],
+		supportsImage: false,
+		capabilities: [] as string[]
+	};
+	assert.deepEqual(addModelOps({...base, free: true}), [
+		addModelOp(base),
+		freeOp('m-free', true)
+	]);
+	assert.deepEqual(addModelOps(base), [addModelOp(base)]);
+	assert.deepEqual(addModelOps({...base, free: false}), [addModelOp(base)]);
 });
 
 test('remove and rename keep old behaviour and recount', () => {

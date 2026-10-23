@@ -2,6 +2,7 @@ export type PatchModelRow = {
 	modelId: string;
 	inputModalities?: string[];
 	capabilities?: string[];
+	free?: boolean;
 	[k: string]: unknown;
 };
 
@@ -16,6 +17,7 @@ export type ModelPatchOp = {
 	defaultEffort?: string;
 	inputModalities?: string[];
 	capabilities?: string[];
+	free?: boolean;
 };
 
 export const OUTPUT_CAPABILITIES = [
@@ -55,6 +57,20 @@ export function visibilityOp(modelId: string, enabled: boolean): ModelPatchOp {
 	return {op: 'enable', modelId, enabled};
 }
 
+export function addModelOps(input: {
+	modelId: string;
+	displayName: string;
+	supportsThinking: boolean;
+	supportedEfforts: string[];
+	supportsImage: boolean;
+	defaultEffort?: string;
+	capabilities: readonly string[];
+	free?: boolean;
+}): ModelPatchOp[] {
+	const add = addModelOp(input);
+	return input.free === true ? [add, freeOp(input.modelId, true)] : [add];
+}
+
 export function imageInputOp(modelId: string, image: boolean): ModelPatchOp {
 	return {op: 'enable', modelId, inputModalities: image ? ['text', 'image'] : ['text']};
 }
@@ -69,6 +85,10 @@ export function capabilityOp(
 	if (on) next.add(capability);
 	else next.delete(capability);
 	return {op: 'enable', modelId, capabilities: orderedCapabilities([...next])};
+}
+
+export function freeOp(modelId: string, free: boolean): ModelPatchOp {
+	return {op: 'setFree', modelId, free};
 }
 
 export function orderedCapabilities(tags: readonly string[]): string[] {
@@ -134,6 +154,16 @@ export function applyModelPatch<P extends ProviderLike>(
 			const mi = models.findIndex((m) => m.modelId === op.modelId);
 			if (mi >= 0) {
 				models.splice(mi, 1);
+				changed = true;
+			}
+		} else if (op.op === 'setFree') {
+			const mi = models.findIndex((m) => m.modelId === op.modelId);
+			if (mi >= 0) {
+				models[mi] = {
+					...models[mi]!,
+					...(typeof op.free === 'boolean' ? {free: op.free} : {}),
+					freeLocked: true
+				};
 				changed = true;
 			}
 		} else if (op.op === 'rename') {

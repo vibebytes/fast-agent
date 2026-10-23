@@ -1,6 +1,6 @@
 import {useState} from 'react';
 import {useTranslation} from 'react-i18next';
-import {BrainCircuit, Check, Image as ImageIcon} from 'lucide-react';
+import {BrainCircuit, Check, Image as ImageIcon, Sparkles} from 'lucide-react';
 import {OUTPUT_CAPABILITIES, orderedCapabilities} from './modelPatch';
 import {Input} from '@fast-ide/ui/components/input';
 import {Switch} from '@fast-ide/ui/components/switch';
@@ -18,11 +18,13 @@ import {SettingsButton} from './SettingsPrimitives';
 export function AddModelDialog({
 	open,
 	providerName,
+	defaultFree,
 	onOpenChange,
 	onSubmit
 }: {
 	open: boolean;
 	providerName?: string;
+	defaultFree?: boolean;
 	onOpenChange: (open: boolean) => void;
 	onSubmit: (input: {
 		modelId: string;
@@ -32,6 +34,7 @@ export function AddModelDialog({
 		supportsImage: boolean;
 		defaultEffort?: string;
 		capabilities: string[];
+		free: boolean;
 	}) => Promise<boolean>;
 }) {
 	const {t} = useTranslation();
@@ -39,6 +42,7 @@ export function AddModelDialog({
 	const [displayName, setDisplayName] = useState('');
 	const [supportsThinking, setSupportsThinking] = useState(false);
 	const [supportsImage, setSupportsImage] = useState(false);
+	const [free, setFree] = useState(defaultFree ?? false);
 	const [capabilities, setCapabilities] = useState<string[]>([]);
 	const [supportedEfforts, setSupportedEfforts] = useState<string[]>(['low', 'medium', 'high', 'max']);
 	const [defaultEffort, setDefaultEffort] = useState('medium');
@@ -225,6 +229,23 @@ export function AddModelDialog({
 						<Switch size="sm" checked={supportsImage} onCheckedChange={setSupportsImage} />
 					</div>
 
+					<div className="flex items-center justify-between gap-3 rounded-xl border border-border/70 bg-muted/25 dark:bg-muted/15 p-3.5">
+						<div className="flex items-center gap-2.5 min-w-0">
+							<div className="size-7 rounded-lg bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0 border border-amber-500/20">
+								<Sparkles className="size-4 stroke-[2.2]" />
+							</div>
+							<div className="min-w-0">
+								<div className="text-xs font-semibold text-foreground">
+									{t('settings.models.freeSwitch')}
+								</div>
+								<div className="text-[10.5px] text-muted-foreground truncate">
+									{t('settings.models.freeSwitchDesc')}
+								</div>
+							</div>
+						</div>
+						<Switch size="sm" checked={free} onCheckedChange={setFree} />
+					</div>
+
 					<div className="rounded-xl border border-border/70 bg-muted/25 dark:bg-muted/15 p-3.5 space-y-2">
 						<div className="text-xs font-semibold text-foreground">{t('settings.models.outputCapabilities')}</div>
 						<div className="flex flex-wrap gap-1.5">
@@ -269,7 +290,8 @@ export function AddModelDialog({
 								supportedEfforts,
 								supportsImage,
 								defaultEffort: supportsThinking ? defaultEffort : undefined,
-								capabilities
+								capabilities,
+								free
 							}).finally(() => setSaving(false));
 						}}
 					>

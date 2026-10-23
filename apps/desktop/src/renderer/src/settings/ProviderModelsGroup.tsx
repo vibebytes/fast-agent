@@ -17,6 +17,7 @@ export function ProviderModelsGroup({
 	onToggle,
 	onToggleImage,
 	onToggleCapability,
+	onToggleFree,
 	onAdd,
 	onSearch,
 	onRemove
@@ -27,6 +28,7 @@ export function ProviderModelsGroup({
 	onToggle: (model: SeedModel, enabled: boolean) => void;
 	onToggleImage: (model: SeedModel, image: boolean) => void;
 	onToggleCapability: (model: SeedModel, capability: string, on: boolean) => void;
+	onToggleFree: (model: SeedModel, free: boolean) => void;
 	onAdd: () => void;
 	onSearch: () => void;
 	onRemove: (model: SeedModel) => void;
@@ -140,6 +142,15 @@ export function ProviderModelsGroup({
 										{t('settings.models.imageBadge')}
 									</Badge>
 								) : null}
+								{model.free ? (
+									<Badge
+										variant="secondary"
+										className="text-[10px] px-1.5 py-0 gap-1 bg-sky-500/10 text-sky-600 dark:text-sky-400 border-sky-500/20 font-medium shrink-0"
+										title={t('settings.models.freeBadge')}
+									>
+										{t('settings.models.freeBadge')}
+									</Badge>
+								) : null}
 								{model.source === 'manual' ? (
 									<Badge variant="outline" className="text-[10px] px-1 py-0">
 										{t('settings.models.manual')}
@@ -213,6 +224,15 @@ export function ProviderModelsGroup({
 								>
 									<Pin className={cn('size-3.5', isDefault && 'fill-current')} />
 								</SettingsButton>
+
+								<Switch
+									size="sm"
+									checked={model.free ?? false}
+									disabled={disconnected}
+									aria-label={t('settings.models.toggleFree', {name: model.displayName})}
+									title={t('settings.models.toggleFree', {name: model.displayName})}
+									onCheckedChange={checked => onToggleFree(model, checked)}
+								/>
 
 								<Switch
 									size="sm"

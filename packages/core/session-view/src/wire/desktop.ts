@@ -367,6 +367,8 @@ export type ProviderRow = {
 	authType?: 'none' | 'api_key' | 'oauth' | string;
 	/** Secret stored (or oauth token present). */
 	hasSecret?: boolean;
+	/** Vendor free-zone default from meta_json; seeds the add-model form only. */
+	free?: boolean;
 	modelCount: number;
 	enabledModelCount: number;
 	enabled: boolean;

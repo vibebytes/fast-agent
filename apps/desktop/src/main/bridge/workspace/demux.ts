@@ -147,7 +147,7 @@ export function createDemux(h: DemuxHost): WorkspaceDemux {
 			return true;
 		},
 		providers_changed: (event, handlers) => {
-			h.composerHeal.syncComposerCatalog();
+			void h.composerHeal.repaintComposerCatalog(handlers);
 			handlers.onEvent('engine', event);
 			return true;
 		},

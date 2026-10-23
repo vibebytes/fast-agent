@@ -65,6 +65,38 @@ test('providers_changed refreshes Composer from ListProviders, not yaml /model',
 	hub.closeAll();
 });
 
+test('providers_changed repaints Composer chrome after a remote refresh', async () => {
+	const commands: BridgeCommand[] = [];
+	let bridge: FakeBridge | null = null;
+	const home = mkdtempSync(path.join(tmpdir(), 'hub-home-'));
+	const hub = new WorkspaceHub({
+		createBridge: () => {
+			bridge = createFakeBridge(commands);
+			return bridge;
+		},
+		hostCwd: mkdtempSync(path.join(tmpdir(), 'hub-host-')),
+		homeDir: home
+	});
+	const repaints: string[] = [];
+	hub.ensureDefaultProject({
+		...noopHandlers(),
+		onSessionsChanged: (projectId: string) => repaints.push(projectId)
+	});
+	await new Promise(r => setTimeout(r, 80));
+	const def = hub.getDefaultProject();
+	assert.ok(def);
+	def.sessions.createTask('Catalog repaint');
+	await new Promise(r => setTimeout(r, 80));
+	repaints.length = 0;
+	bridge!.__inject({type: 'providers_changed', providerId: 'deepseek'});
+	await new Promise(r => setTimeout(r, 120));
+	assert.ok(
+		repaints.length > 0,
+		'providers_changed must repaint Composer chrome, not only the Settings list'
+	);
+	hub.closeAll();
+});
+
 test('ListProviders failure does not fall back to yaml /model', async () => {
 	const commands: BridgeCommand[] = [];
 	let bridge: FakeBridge | null = null;
