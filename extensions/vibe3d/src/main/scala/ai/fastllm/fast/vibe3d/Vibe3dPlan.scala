@@ -13,6 +13,14 @@ object Vibe3dPlan:
   val SurfaceId = "vibe3d.editor"
   val McpName = "vibe3d"
   val OpenTopic = "ext.vibe3d.surface.open"
+  val StateTopic = "ext.vibe3d.surface.state"
+
+  /** Lifecycle signal for the pane chip: `ready` once the daemon answers, `down` / `error` otherwise. */
+  def state(value: String, detail: String): Json = Json.obj(
+    "surfaceId" -> SurfaceId.asJson,
+    "state" -> value.asJson,
+    "detail" -> detail.asJson
+  )
 
   def of(cfg: Vibe3dConfig, live: Vibe3dRuntime.Live, editorUrl: String): Vibe3dPlan =
     Vibe3dPlan(

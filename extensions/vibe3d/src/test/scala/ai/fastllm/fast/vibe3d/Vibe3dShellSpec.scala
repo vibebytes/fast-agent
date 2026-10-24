@@ -88,3 +88,10 @@ class Vibe3dPlanSpec extends AnyFunSuite with Matchers:
     plan.surface.fault shouldBe None
     plan.open.hcursor.get[String]("surfaceId").toOption shouldBe Some("vibe3d.editor")
     plan.open.hcursor.get[String]("url").toOption shouldBe Some("http://127.0.0.1:7100/?t=tok")
+
+  test("the state intent names the surface and one of the host's four states"):
+    val state = Vibe3dPlan.state("ready", "http://127.0.0.1:7100")
+    state.hcursor.get[String]("surfaceId").toOption shouldBe Some("vibe3d.editor")
+    state.hcursor.get[String]("state").toOption shouldBe Some("ready")
+    state.hcursor.get[String]("detail").toOption shouldBe Some("http://127.0.0.1:7100")
+    Vibe3dPlan.StateTopic shouldBe "ext.vibe3d.surface.state"

@@ -2,7 +2,7 @@ id: vibe3d
 apiVersion: "1"
 hotUnload: true
 provides:
-  events: [ext.vibe3d.surface.open]
+  events: [ext.vibe3d.surface.open, ext.vibe3d.surface.state]
   surfaces:
     - id: vibe3d.editor
       kind: web
