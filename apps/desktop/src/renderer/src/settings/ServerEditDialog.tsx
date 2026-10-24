@@ -1,4 +1,4 @@
-import {useState} from 'react';
+import {useEffect, useState} from 'react';
 import {useTranslation} from 'react-i18next';
 import {Input} from '@fast-ide/ui/components/input';
 import {
@@ -53,11 +53,15 @@ export function ServerEditDialog({
 		setArgs(Array.isArray(row?.args) ? row.args.join(' ') : (row?.args ?? ''));
 		setEnv(kvLinesOf(row?.env));
 		setUrl(row?.url ?? '');
-		setAutoApprove(row?.autoApprove ?? true);
-		setMcpApps(row?.mcpApps ?? true);
+		setAutoApprove(row?.autoApprove ?? (row?.transport !== 'remote'));
+		setMcpApps(row?.mcpApps ?? false);
 		setCarried(carriedFields(row));
 		setSaving(false);
 	};
+
+	useEffect(() => {
+		if (open) reset();
+	}, [open, editing]); // eslint-disable-line react-hooks/exhaustive-deps -- re-seed only when the dialog opens or the row changes
 
 	if (!open) return null;
 
