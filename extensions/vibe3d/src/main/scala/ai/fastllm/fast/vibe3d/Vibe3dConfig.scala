@@ -1,0 +1,80 @@
+package ai.fastllm.fast.vibe3d
+
+import io.circe.Json
+
+import java.nio.file.{Files, Path, Paths}
+
+/** Everything the shell needs to start the two node processes. `root` is the vibe3d checkout or
+  * install dir; both entry points are built artifacts, never sources.
+  */
+final case class Vibe3dConfig(
+    root: Path,
+    node: String,
+    home: Path,
+    openEditor: Boolean,
+    blockedTools: List[String]
+):
+  def daemonEntry: Path = root.resolve("packages/daemon/dist/index.js")
+
+  def mcpEntry: Path = root.resolve("packages/mcp/dist/index.js")
+
+  def missingEntries: List[Path] = List(daemonEntry, mcpEntry).filterNot(Files.isRegularFile(_))
+
+  def daemonCommand: List[String] =
+    List(
+      node,
+      daemonEntry.toString,
+      "--home",
+      home.toString,
+      "--open-editor",
+      openEditor.toString,
+      "--log-level",
+      "warn"
+    )
+
+  def mcpCommand(baseUrl: String, token: String): List[String] =
+    List(node, mcpEntry.toString, "--url", baseUrl, "--token", token, "--home", home.toString)
+
+  def editorUrl(port: Int, token: String): String = s"http://127.0.0.1:$port/?t=$token"
+
+object Vibe3dConfig:
+  private def str(cfg: Map[String, Json], key: String): Option[String] =
+    cfg.get(key).flatMap(_.asString).map(_.trim).filter(_.nonEmpty)
+
+  private def bool(cfg: Map[String, Json], key: String): Option[Boolean] = cfg.get(key).flatMap(_.asBoolean)
+
+  private def list(cfg: Map[String, Json], key: String): List[String] =
+    cfg.get(key).flatMap(_.asArray).getOrElse(Vector.empty).flatMap(_.asString).toList.map(_.trim).filter(_.nonEmpty)
+
+  def rootOf(cfg: Map[String, Json], env: Map[String, String] = sys.env, cwd: Path = Paths.get("")): Path =
+    val raw = str(cfg, "root").orElse(env.get("VIBE3D_ROOT").map(_.trim).filter(_.nonEmpty))
+    Paths.get(raw.getOrElse(cwd.resolve("vibe3d").toString)).toAbsolutePath.normalize
+
+  /** None: no checkout on this machine, the feature stays off. Some(Left): present but unusable. */
+  def optional(
+      cfg: Map[String, Json],
+      env: Map[String, String] = sys.env,
+      cwd: Path = Paths.get("")
+  ): Option[Either[String, Vibe3dConfig]] =
+    if !Files.isDirectory(rootOf(cfg, env, cwd)) then None else Some(from(cfg, env, cwd))
+
+  def from(
+      cfg: Map[String, Json],
+      env: Map[String, String] = sys.env,
+      cwd: Path = Paths.get("").toAbsolutePath
+  ): Either[String, Vibe3dConfig] =
+    val root = rootOf(cfg, env, cwd)
+    val homeRaw = str(cfg, "home").orElse(env.get("VIBE3D_HOME").map(_.trim).filter(_.nonEmpty))
+    val home = Paths.get(homeRaw.getOrElse(Paths.get(System.getProperty("user.home"), ".vibe3d", "fast").toString)).toAbsolutePath.normalize
+    val conf = Vibe3dConfig(
+      root = root,
+      node = str(cfg, "node").orElse(env.get("VIBE3D_NODE").map(_.trim).filter(_.nonEmpty)).getOrElse("node"),
+      home = home,
+      openEditor = bool(cfg, "openEditor").getOrElse(false),
+      blockedTools = list(cfg, "blockedTools")
+    )
+    if !Files.isDirectory(root) then Left(s"vibe3d root not found: $root")
+    else
+      conf.missingEntries match
+        case Nil => Right(conf)
+        case missing => Left(s"vibe3d build missing: ${missing.mkString(", ")}")

@@ -39,6 +39,7 @@
     <module>dsh-engine</module>
     <module>jev-context</module>
     <module>tools</module>
+    <module>vibe3d</module>
     <module>dist</module>
   </modules>
   <dependencyManagement>

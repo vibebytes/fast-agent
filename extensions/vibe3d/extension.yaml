@@ -1,0 +1,22 @@
+id: vibe3d
+apiVersion: "1"
+hotUnload: true
+provides:
+  events: [ext.vibe3d.surface.open]
+  surfaces:
+    - id: vibe3d.editor
+      kind: web
+      title: Vibe3D
+      slot: pane
+      capabilities: [tool.call]
+  mcp:
+    - name: vibe3d
+      command: [node, packages/mcp/dist/index.js]
+      description: Vibe3D 场景 / 资产 / 渲染
+config:
+  node: node
+  openEditor: false
+  # root 缺省指向 <cwd>/vibe3d；不存在即静默停用，存在但未构建则激活报错。
+  # root: /path/to/vibe3d
+  # home: ~/.vibe3d/fast
+  # blockedTools: [open_editor]

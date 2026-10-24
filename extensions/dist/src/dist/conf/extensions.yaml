@@ -16,7 +16,7 @@ extensions:
     enabled: false
     apiVersion: "1"
     config:
-      global: { timeout: 30000, retryAttempts: 3, retryDelay: 1000 }
+      global: { timeout: 120000, retryAttempts: 3, retryDelay: 1000 }
       servers:
         tavily:
           enabled: true
@@ -32,6 +32,16 @@ extensions:
         #   command: [npx, "-y", "@modelcontextprotocol/server-filesystem", /workspace]
         #   cwd: /workspace
         #   env: { LOG_LEVEL: info }
+
+  # 桌面 3D 面板 + vibe3d MCP：root 缺省为 <cwd>/vibe3d，目录不存在则静默停用；
+  # 存在但未构建（packages/*/dist/index.js 缺失）会在启动时明确报错。
+  vibe3d:
+    enabled: true
+    apiVersion: "1"
+    config:
+      openEditor: false
+      # root: /Users/you/vibe3d
+      # home: ~/.vibe3d/fast
 
   jev-context:
     enabled: true

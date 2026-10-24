@@ -204,6 +204,12 @@
                   <version>${project.version}</version>
                   <outputDirectory>${project.build.directory}/dist/extensions/tools</outputDirectory>
                 </artifactItem>
+                <artifactItem>
+                  <groupId>ai.fastllm</groupId>
+                  <artifactId>fast-ext-vibe3d</artifactId>
+                  <version>${project.version}</version>
+                  <outputDirectory>${project.build.directory}/dist/extensions/vibe3d</outputDirectory>
+                </artifactItem>
               </artifactItems>
             </configuration>
           </execution>
