@@ -459,6 +459,38 @@ test('checkpoint push reaches the renderer without rebuilding the workspace chro
 	assert.deepEqual(sent.slice(2), []);
 });
 
+test('surface events reach the renderer as bridge:event', async () => {
+	const home = tempDir('home-s');
+	const projectRoot = tempDir('proj-s');
+	const sent: Array<{channel: string; payload: unknown}> = [];
+	const hub = new WorkspaceHub({
+		homeDir: home,
+		createBridge: () => fakeBridge([]),
+		createId: () => 'id-1',
+		createClientId: () => 'cli'
+	});
+	const publisher = createUiPublisher({
+		hub,
+		send: ((channel, payload) => sent.push({channel, payload})) as UiSend
+	});
+	hub.openProject(projectRoot, {onEvent: () => {}, onError: () => {}, onExit: () => {}});
+	const projectId = hub.getActive()!.id;
+	sent.length = 0;
+
+	publisher.handleEvent(projectId, {
+		type: 'surface_open',
+		extId: 'vibe3d',
+		surfaceId: 'vibe3d.editor',
+		url: 'http://127.0.0.1:7345/r/kitchen'
+	} as BridgeEvent);
+
+	assert.deepEqual(
+		sent.map(s => s.channel),
+		['bridge:event']
+	);
+	assert.deepEqual((sent[0]!.payload as {event: {type: string}}).event.type, 'surface_open');
+});
+
 test('whitelisted events forward bridge:event; snapshot publish coalesces per microtask', async () => {
 	const home = tempDir('home-w');
 	const projectRoot = tempDir('proj-w');

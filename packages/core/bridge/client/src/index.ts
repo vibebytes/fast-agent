@@ -79,7 +79,12 @@ export {
 	type ExtNote,
 	type ExtOk,
 	type ExtPhase,
-	type ExtRow
+	type ExtRow,
+	type SurfaceCapability,
+	type SurfaceKind,
+	type SurfaceSlot,
+	type SurfaceState,
+	type SurfaceWire
 } from './extensions.js';
 export {
 	mcpAdminMethods,

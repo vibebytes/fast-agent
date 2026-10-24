@@ -39,6 +39,10 @@ import type {ReviewRow} from './review/agentReview';
 import {openReviewDiff} from './review/openReviewDiff';
 import type {AgentReview} from './review/useAgentReview';
 import {RailTabBody} from './railBody';
+import {parseSurfaceOpen, parseSurfaceState} from './surfaces/surfaceEvents';
+import {patchSurfaceState, surfaceTab, upsertSurfaceTab} from './surfaces/surfaceTabs';
+import {loadSurfaceTabs, restoreSurfaceTabs, saveSurfaceTabs} from './surfaces/surfacePersistence';
+import {useSurfaces} from './surfaces/useSurfaces';
 import {
 	createRailTab,
 	diffTabId,
@@ -107,10 +111,12 @@ function RightWorkbenchImpl({
 	onReviewDirtyPaths?: (paths: readonly string[]) => void;
 	onRefreshGit?: () => void;
 }) {
-	const [tabs, setTabs] = useState<RailTab[]>(() => [
-		filesTab(),
-		createRailTab(layout === 'coding' ? 'changes' : 'context')
-	]);
+	const [tabs, setTabs] = useState<RailTab[]>(() =>
+		restoreSurfaceTabs(
+			[filesTab(), createRailTab(layout === 'coding' ? 'changes' : 'context')],
+			loadSurfaceTabs()
+		)
+	);
 	const [activeId, setActiveId] = useState(FILES_TAB_ID);
 	const [menuOpen, setMenuOpen] = useState(false);
 	const [lastDocumentPath, setLastDocumentPath] = useState<string | null>(null);
@@ -121,6 +127,27 @@ function RightWorkbenchImpl({
 	const buffersRef = useRef(new Map<string, MonacoEditorHandle>());
 	const tabsRef = useRef(tabs);
 	tabsRef.current = tabs;
+	const surfaces = useSurfaces();
+
+	// Panel tools are gated by a per-instance bearer; the engine clamps scope to provides.tools.
+	const mintSurfaceToken = useCallback(
+		async (input: {extId: string; surfaceId: string; instanceKey: string}) => {
+			const res = await window.fastIde.mintSurfaceToken(input);
+			return res.ok ? {token: res.token, toolScope: res.toolScope} : null;
+		},
+		[]
+	);
+
+	// Panel tabs survive a restart; a dead extension is dropped by the withdraw sweep below.
+	useEffect(() => {
+		const raw = loadSurfaceTabs();
+		if (!raw) return;
+		setTabs(prev => restoreSurfaceTabs(prev, raw));
+	}, []);
+
+	useEffect(() => {
+		saveSurfaceTabs(tabs);
+	}, [tabs]);
 
 	useEffect(() => {
 		const paths = tabs.flatMap(tab =>
@@ -517,6 +544,41 @@ function RightWorkbenchImpl({
 		return unsub;
 	}, [project?.id, bridgeConnectionId, refreshDocumentFromDisk]);
 
+	// Extension surfaces: the extension's `ext.surface.open` intent creates/focuses the tab.
+	useEffect(() => {
+		return window.fastIde.onBridgeEvent(payload => {
+			const open = parseSurfaceOpen(payload.event);
+			if (open) {
+				const base = surfaceTab({
+					extId: open.extId,
+					surfaceId: open.surfaceId,
+					title: open.title ?? open.surfaceId
+				});
+				setTabs(prev =>
+					upsertSurfaceTab(prev, {
+						...base,
+						surface: {...base.surface!, url: open.url, roomId: open.roomId}
+					})
+				);
+				setEverActive(prev => (prev.has(base.id) ? prev : new Set(prev).add(base.id)));
+				setActiveId(base.id);
+				return;
+			}
+			const state = parseSurfaceState(payload.event);
+			if (state) setTabs(prev => patchSurfaceState(prev, state));
+		});
+	}, []);
+
+	// A surface tab must never outlive its extension: withdraw / uninstall closes it.
+	useEffect(() => {
+		if (!surfaces.loaded) return;
+		const live = new Set(surfaces.entries.map(e => e.extId));
+		const stale = tabsRef.current.filter(tab => tab.surface && !live.has(tab.surface.extId));
+		if (stale.length === 0) return;
+		setTabs(prev => prev.filter(tab => !tab.surface || live.has(tab.surface.extId)));
+		if (stale.some(tab => tab.id === activeId)) setActiveId(FILES_TAB_ID);
+	}, [surfaces.loaded, surfaces.entries, activeId]);
+
 	return (
 		<div className="flex h-full min-h-0 min-w-0 flex-col bg-background">
 			<div className="app-region-drag flex h-10 shrink-0 items-center gap-1 border-b border-border/60 bg-muted/20 px-2 select-none">
@@ -660,6 +722,7 @@ function RightWorkbenchImpl({
 											if (handle) buffersRef.current.set(tab.id, handle);
 											else buffersRef.current.delete(tab.id);
 										}}
+										mintSurfaceToken={mintSurfaceToken}
 									/>
 								</Suspense>
 							</ErrorBoundary>

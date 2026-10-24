@@ -873,6 +873,9 @@ export class WorkspaceHub {
 	async uninstallExtension(id: string) {
 		return this.plugins.uninstallExtension(id);
 	}
+	async mintSurfaceToken(input: Parameters<WorkspacePlugins['mintSurfaceToken']>[0]) {
+		return this.plugins.mintSurfaceToken(input);
+	}
 	async createSkill(input: CreateSkillInput) {
 		return this.catalog.createSkill(input);
 	}

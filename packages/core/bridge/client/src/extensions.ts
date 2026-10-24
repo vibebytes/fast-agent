@@ -1,11 +1,30 @@
 export type ExtPhase = 'Installed' | 'Active' | 'Stopping' | 'Uninstalled' | 'Failed';
 
+export type SurfaceSlot = 'pane';
+export type SurfaceKind = 'web' | 'mcp-app';
+export type SurfaceCapability = 'tool.call' | 'clipboard' | 'open-external';
+export type SurfaceState = 'unknown' | 'ready' | 'down' | 'error';
+
+/** Declared UI surface. Carries no url/resourceUri — the host resolves those per instance. */
+export type SurfaceWire = {
+	id: string;
+	title: string;
+	slot: SurfaceSlot;
+	kind: SurfaceKind;
+	icon?: string;
+	capabilities: SurfaceCapability[];
+	order: number;
+	singleton: boolean;
+	state: SurfaceState;
+};
+
 export type ExtRow = {
 	id: string;
 	phase: ExtPhase;
 	hotUnload: boolean;
 	fault?: string;
 	restartHint?: string;
+	provides?: {surfaces?: SurfaceWire[]};
 };
 
 /** Local Ledger trail mark from ListExtensions (`put` / `drop`). */

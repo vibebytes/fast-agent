@@ -598,7 +598,10 @@ export function createUiPublisher(deps: UiPublisherDeps) {
 		'tree_advanced',
 		'review_changed',
 		// Editor workspace FS — Document reload / conflict / Diff current refresh.
-		'workspace_file_changed'
+		'workspace_file_changed',
+		// Extension panes — the extension publishes intent; the tab lifecycle stays in the renderer.
+		'surface_open',
+		'surface_state'
 	]);
 
 	/** Coalesce same-tick snapshot publishes (hydrate storms) into one (P2-13). */

@@ -15,6 +15,7 @@ import {
 	sessionRestoreSchemas
 } from './protocol/sessionRestore.js';
 import {commandResultSchema} from './protocol/commandResult.js';
+import {type SurfaceCommand, surfaceCommandSchemas, surfaceEventSchemas} from './protocol/surface.js';
 
 export {pickIdList, wireIdList} from './protocol/ids.js';
 export {isLiveChrome, PERSIST_RIVER_TYPES} from './protocol/river.js';
@@ -27,7 +28,8 @@ export type BridgeCommand =
 	| PluginCommand
 	| McpCommand
 	| OrgCommand
-	| CheckoutCommand;
+	| CheckoutCommand
+	| SurfaceCommand;
 
 const commandSchemas = [
 	...sessionCmdSchemas,
@@ -37,7 +39,8 @@ const commandSchemas = [
 	...pluginCommandSchemas,
 	...mcpCommandSchemas,
 	...orgCommandSchemas,
-	...checkoutCommandSchemas
+	...checkoutCommandSchemas,
+	...surfaceCommandSchemas
 ] as const;
 
 const eventSchemas = [
@@ -49,6 +52,7 @@ const eventSchemas = [
 	...sessionLiveSchemas,
 	...sessionSettleSchemas,
 	...sessionRestoreSchemas,
+	...surfaceEventSchemas,
 	commandResultSchema
 ] as const;
 

@@ -733,6 +733,12 @@ export function applyEvent(state: UiState, event: BridgeEvent): UiState {
 					: withTranscript.transcript
 			};
 		}
+		case 'surface_open':
+			return pushLocalSystem(withTranscript, {
+				id: nextId('system'),
+				role: 'system',
+				text: `surface ${event.extId}/${event.surfaceId}: ${event.url}`
+			});
 		case 'error':
 			return {...withTranscript, errors: [...state.errors, event.message], status: 'error'};
 		case 'context_pruned': {

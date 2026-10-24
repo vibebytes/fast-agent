@@ -10,6 +10,8 @@ import {DocumentPane} from './panes/DocumentPane';
 import {FilesPane} from './panes/FilesPane';
 import {ReviewDiffPane} from './panes/ReviewDiffPane';
 import {TerminalPane} from './panes/TerminalPane';
+import {SurfaceHost} from './surfaces/SurfaceHost';
+import type {MintSurfaceToken} from './surfaces/SurfaceHost';
 import type {ReviewRow} from './review/agentReview';
 import type {AgentReview} from './review/useAgentReview';
 import type {RailTab} from './railTabs';
@@ -36,7 +38,8 @@ export function RailTabBody({
 	onOpenTeams,
 	documentActive,
 	onDocumentSave,
-	onDocumentBuffer
+	onDocumentBuffer,
+	mintSurfaceToken
 }: {
 	tab: RailTab;
 	changes: CodeChange[];
@@ -61,6 +64,7 @@ export function RailTabBody({
 	documentActive?: boolean;
 	onDocumentSave?: (content: string) => void;
 	onDocumentBuffer?: (handle: MonacoEditorHandle | null) => void;
+	mintSurfaceToken?: MintSurfaceToken;
 }) {
 	switch (tab.kind) {
 		case 'files':
@@ -113,6 +117,8 @@ export function RailTabBody({
 			return <CanvasPane />;
 		case 'terminal':
 			return <TerminalPane title={tab.title} />;
+		case 'surface':
+			return <SurfaceHost tab={tab} onPatch={onPatch} mintToken={mintSurfaceToken} />;
 		case 'scheduled':
 			return (
 				<ScheduledJobsPane

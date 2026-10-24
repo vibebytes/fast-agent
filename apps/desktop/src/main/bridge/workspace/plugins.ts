@@ -16,6 +16,13 @@ export type WorkspacePlugins = {
 	extensionStatus: (id: string) => Promise<{ok: true; extension: ExtWireRow | null} | Notice>;
 	installExtension: (dir: string) => Promise<{ok: true; id: string} | Notice>;
 	uninstallExtension: (id: string) => Promise<{ok: true} | Notice>;
+	/** Scoped bearer for one web panel instance; `toolScope` is engine-clamped to `provides.tools`. */
+	mintSurfaceToken: (input: {
+		extId: string;
+		surfaceId: string;
+		instanceKey: string;
+		sessionId?: string;
+	}) => Promise<{ok: true; token: string; toolScope: string[]} | Notice>;
 	listEngines: () => Promise<{ok: true; engines: EngineWireRow[]} | Notice>;
 	writeEngine: (
 		type:
@@ -86,6 +93,16 @@ export function createPlugins(lane: PluginLane): WorkspacePlugins {
 			if (!r.ok) return r;
 			if (r.event.status === 'error') return {ok: false, notice: r.event.message};
 			return {ok: true};
+		},
+		async mintSurfaceToken(input) {
+			const r = await hostRequest(lane, ['MintSurfaceToken'], {type: 'MintSurfaceToken', ...input});
+			if (!r.ok) return r;
+			if (r.event.status === 'error' || r.event.status === 'rejected') {
+				return {ok: false, notice: r.event.message};
+			}
+			const minted = r.event.surfaceToken;
+			if (!minted) return {ok: false, notice: r.event.message || 'no surface token'};
+			return {ok: true, token: minted.token, toolScope: minted.toolScope};
 		},
 		async listEngines() {
 			const r = await hostRequest(readyLane, ['ListEngines'], {type: 'ListEngines'});

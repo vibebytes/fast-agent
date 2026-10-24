@@ -205,9 +205,34 @@ export const commandResultSchema = z.object({
 					phase: z.enum(['Installed', 'Active', 'Stopping', 'Uninstalled', 'Failed']),
 					hotUnload: z.boolean(),
 					fault: z.string().optional(),
-					restartHint: z.string().optional()
+					restartHint: z.string().optional(),
+					/** Declared UI surfaces. Wire carries no url/resourceUri — the host resolves them. */
+					provides: z
+						.object({
+							surfaces: z.array(
+								z.object({
+									id: z.string(),
+									title: z.string(),
+									slot: z.enum(['pane']),
+									kind: z.enum(['web', 'mcp-app']),
+									icon: z.string().optional(),
+									capabilities: z.array(z.enum(['tool.call', 'clipboard', 'open-external'])),
+									order: z.number(),
+									singleton: z.boolean(),
+									state: z.enum(['unknown', 'ready', 'down', 'error'])
+								})
+							)
+						})
+						.optional()
 				})
 			)
+			.optional(),
+		/** MintSurfaceToken result: a scoped bearer for one web panel instance. Never logged. */
+		surfaceToken: z
+			.object({
+				token: z.string(),
+				toolScope: z.array(z.string())
+			})
 			.optional(),
 		/** MCP admin rows (ListMcpServers / McpServerPut / McpServerEnabled / McpConfigImport / McpConfigReload). */
 		mcpServers: z

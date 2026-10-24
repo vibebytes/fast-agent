@@ -270,6 +270,19 @@ export type InvokeHost = {
 		args: [];
 		result: string | null;
 	};
+	'extensions:mintSurfaceToken': {
+		args: [
+			input: {
+				extId: string;
+				surfaceId: string;
+				instanceKey: string;
+				sessionId?: string;
+			}
+		];
+		result:
+			| {ok: true; token: string; toolScope: string[]}
+			| {ok: false; notice: string};
+	};
 	'engines:list': {
 		args: [];
 		result: {ok: true; engines: EngineWireRow[]} | {ok: false; notice: string};

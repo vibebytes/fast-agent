@@ -304,6 +304,12 @@ export function createDesktopHost(deps: DesktopHostDeps): ProductInvokeMap {
 		'extensions:install': (dir: string) => hub.installExtension(dir),
 		'extensions:uninstall': (id: string) => hub.uninstallExtension(id),
 		'extensions:pickDir': () => pickDirectory(),
+		'extensions:mintSurfaceToken': (input: {
+			extId: string;
+			surfaceId: string;
+			instanceKey: string;
+			sessionId?: string;
+		}) => hub.mintSurfaceToken(input),
 
 		'engines:list': async () => {
 			const res = await hub.listEngines();

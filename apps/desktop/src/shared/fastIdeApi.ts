@@ -202,6 +202,12 @@ export type FastIdeApi = {
 	) => Promise<{ok: true; extension: ExtRow | null} | {ok: false; notice: string}>;
 	installExtension: (dir: string) => Promise<{ok: true; id: string} | {ok: false; notice: string}>;
 	uninstallExtension: (id: string) => Promise<{ok: true} | {ok: false; notice: string}>;
+	mintSurfaceToken: (input: {
+		extId: string;
+		surfaceId: string;
+		instanceKey: string;
+		sessionId?: string;
+	}) => Promise<{ok: true; token: string; toolScope: string[]} | {ok: false; notice: string}>;
 	pickExtensionDir: () => Promise<string | null>;
 	listMcpServers: () => Promise<{ok: true; mcpServers: McpServerRow[]} | {ok: false; notice: string}>;
 	mcpServerControl: (

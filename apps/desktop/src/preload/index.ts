@@ -84,6 +84,8 @@ const api = {
 	extensionStatus: (id: string) => invoke('extensions:status', id),
 	installExtension: (dir: string) => invoke('extensions:install', dir),
 	uninstallExtension: (id: string) => invoke('extensions:uninstall', id),
+	mintSurfaceToken: (input: {extId: string; surfaceId: string; instanceKey: string; sessionId?: string}) =>
+		invoke('extensions:mintSurfaceToken', input),
 	pickExtensionDir: () => invoke('extensions:pickDir'),
 	listEngines: () => invoke('engines:list'),
 	enableEngine: (id: string) => invoke('engines:enable', id),

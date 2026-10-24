@@ -1,5 +1,6 @@
 import {cn} from '@fast-ide/ui/lib/utils';
 import {
+	Boxes,
 	CalendarClock,
 	FileText,
 	Folder,
@@ -12,6 +13,7 @@ import {
 } from 'lucide-react';
 import {createElement, type ReactElement} from 'react';
 import {shellT as t} from './i18n/t';
+import type {SurfaceTabRef} from './surfaces/surfaceTabs';
 
 type Translate = (key: string, params?: Record<string, string | number>) => string;
 
@@ -24,13 +26,16 @@ export type RailTabKind =
 	| 'canvas'
 	| 'terminal'
 	| 'context'
-	| 'scheduled';
+	| 'scheduled'
+	| 'surface';
 
 export type RailTab = {
 	id: string;
 	kind: RailTabKind;
 	title: string;
 	pinned?: boolean;
+	/** Extension panel owner + live instance info; only set when kind === 'surface'. */
+	surface?: SurfaceTabRef;
 	/** Project-relative path when opened from the file tree. */
 	filePath?: string;
 	url?: string;
@@ -58,7 +63,7 @@ export type RailTab = {
 };
 
 /** `files` is pinned and `diff` needs a change to review, so neither is offered as a blank tab. */
-export type NewTabKind = Exclude<RailTabKind, 'files' | 'diff'>;
+export type NewTabKind = Exclude<RailTabKind, 'files' | 'diff' | 'surface'>;
 
 type NewTabOption = {
 	kind: NewTabKind;
@@ -103,6 +108,7 @@ export function railTabTitle(tab: RailTab, tr: Translate = t): string {
 		case 'document':
 		case 'canvas':
 		case 'terminal':
+		case 'surface':
 			return tab.title;
 	}
 }
@@ -218,6 +224,8 @@ export function TabKindIcon({kind, className}: {kind: RailTabKind; className?: s
 				return FileText;
 			case 'scheduled':
 				return CalendarClock;
+			case 'surface':
+				return Boxes;
 		}
 	})();
 	return createElement(icon, {className: cls});

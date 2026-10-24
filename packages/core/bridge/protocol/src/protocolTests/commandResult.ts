@@ -240,3 +240,59 @@ test('command result accepts a configurable tool without origin fields', () => {
 test('command result rejects an unknown tool origin', () => {
 	assert.throws(() => commandResultSchema.parse(configurableToolResult({origin: 'other'})));
 });
+
+function extensionResult(extra: Record<string, unknown>) {
+	return {
+		type: 'command_result',
+		name: 'ListExtensions',
+		message: 'ok',
+		status: 'success',
+		extensions: [{id: 'vibe3d', phase: 'Active', hotUnload: true, ...extra}],
+	};
+}
+
+test('command result keeps declared extension surfaces', () => {
+	const parsed = commandResultSchema.parse(extensionResult({
+		provides: {
+			surfaces: [{
+				id: 'viewer',
+				title: 'Vibe3D Viewer',
+				slot: 'pane',
+				kind: 'web',
+				icon: 'box',
+				capabilities: ['tool.call'],
+				order: 100,
+				singleton: true,
+				state: 'unknown',
+			}],
+		},
+	}));
+	const surface = parsed.extensions?.[0]?.provides?.surfaces?.[0];
+	assert.equal(surface?.id, 'viewer');
+	assert.equal(surface?.kind, 'web');
+	assert.deepEqual(surface?.capabilities, ['tool.call']);
+	assert.equal(surface !== undefined && 'url' in surface, false);
+});
+
+test('command result accepts an extension without surfaces', () => {
+	const parsed = commandResultSchema.parse(extensionResult({}));
+	assert.equal(parsed.extensions?.[0]?.id, 'vibe3d');
+	assert.equal(parsed.extensions?.[0]?.provides, undefined);
+});
+
+test('command result rejects a surface with an unknown kind', () => {
+	assert.throws(() => commandResultSchema.parse(extensionResult({
+		provides: {
+			surfaces: [{
+				id: 'viewer',
+				title: 'Vibe3D Viewer',
+				slot: 'pane',
+				kind: 'iframe',
+				capabilities: [],
+				order: 100,
+				singleton: true,
+				state: 'unknown',
+			}],
+		},
+	})));
+});
