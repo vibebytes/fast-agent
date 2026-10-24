@@ -13,6 +13,10 @@ object Vibe3dRuntime:
   final case class Live(pid: Long, port: Int, token: String):
     def baseUrl: String = s"http://127.0.0.1:$port"
 
+  /** The daemon is Bun; a cleartext HTTP/2 upgrade gets a 404 back, so pin HTTP/1.1. */
+  def healthClient: HttpClient =
+    HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(2)).version(HttpClient.Version.HTTP_1_1).build()
+
   /** Probe `/health`; 401/403 still prove the listener is up (auth wraps the router on some builds). */
   def healthy(client: HttpClient, baseUrl: String, timeout: Duration): Boolean =
     try

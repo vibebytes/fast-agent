@@ -6,7 +6,9 @@ import org.slf4j.LoggerFactory
 /** Thin shell: start the daemon, hand the host a stdio MCP server and a panel url. No scenes, no
   * tools, no editor code — those live in the vibe3d repo.
   */
-final class Vibe3dExtension(runtime: Vibe3dRuntime = Vibe3dProcess()) extends Extension:
+final class Vibe3dExtension(runtime: Vibe3dRuntime) extends Extension:
+  def this() = this(Vibe3dProcess())
+
   private val log = LoggerFactory.getLogger(getClass)
 
   def id: ExtensionId = ExtensionId("vibe3d")

@@ -2,7 +2,6 @@ package ai.fastllm.fast.vibe3d
 
 import org.slf4j.LoggerFactory
 
-import java.net.http.HttpClient
 import java.time.Duration
 import java.util.concurrent.TimeUnit
 import scala.jdk.CollectionConverters.*
@@ -12,7 +11,7 @@ import scala.jdk.CollectionConverters.*
   */
 final class Vibe3dProcess(awaitMs: Long = 20_000) extends Vibe3dRuntime:
   private val log = LoggerFactory.getLogger(getClass)
-  private val client = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(2)).build()
+  private val client = Vibe3dRuntime.healthClient
   private var proc: Option[Process] = None
 
   def start(cfg: Vibe3dConfig): Either[String, Vibe3dRuntime.Live] =
