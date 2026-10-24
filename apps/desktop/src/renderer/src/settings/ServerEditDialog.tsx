@@ -11,27 +11,8 @@ import {
 } from '@fast-ide/ui/components/dialog';
 import {SettingsButton} from './SettingsPrimitives';
 import type {McpServerRow} from '@fastllm/bridge-client';
+import {carriedFields, mergeServerConfig} from './serverConfigForm';
 import {cn} from '@fast-ide/ui/lib/utils';
-
-export type ServerConfig = {
-	transport: 'stdio' | 'remote';
-	command?: string;
-	args?: string[];
-	env?: Record<string, string>;
-	url?: string;
-};
-
-export function parseKvLines(text: string): Record<string, string> {
-	const out: Record<string, string> = {};
-	for (const line of text.split('\n')) {
-		const trimmed = line.trim();
-		if (!trimmed) continue;
-		const idx = trimmed.indexOf('=');
-		if (idx <= 0) continue;
-		out[trimmed.slice(0, idx).trim()] = trimmed.slice(idx + 1).trim();
-	}
-	return out;
-}
 
 function kvLinesOf(value: Record<string, string> | string[] | undefined): string {
 	if (!value) return '';
@@ -59,6 +40,9 @@ export function ServerEditDialog({
 	const [args, setArgs] = useState('');
 	const [env, setEnv] = useState('');
 	const [url, setUrl] = useState('');
+	const [autoApprove, setAutoApprove] = useState(true);
+	const [mcpApps, setMcpApps] = useState(true);
+	const [carried, setCarried] = useState<Record<string, unknown>>({});
 	const [saving, setSaving] = useState(false);
 
 	const reset = () => {
@@ -69,6 +53,9 @@ export function ServerEditDialog({
 		setArgs(Array.isArray(row?.args) ? row.args.join(' ') : (row?.args ?? ''));
 		setEnv(kvLinesOf(row?.env));
 		setUrl(row?.url ?? '');
+		setAutoApprove(row?.autoApprove ?? true);
+		setMcpApps(row?.mcpApps ?? true);
+		setCarried(carriedFields(row));
 		setSaving(false);
 	};
 
@@ -79,19 +66,10 @@ export function ServerEditDialog({
 	const save = async () => {
 		if (invalid) return;
 		setSaving(true);
-		const config: ServerConfig =
-			transport === 'stdio'
-				? {
-						transport,
-						command: command.trim(),
-						args: args.trim() ? args.trim().split(/\s+/) : [],
-						env: parseKvLines(env)
-					}
-				: {
-						transport,
-						url: url.trim()
-					};
-		const ok = await onSubmit(name.trim(), config);
+		const ok = await onSubmit(
+			name.trim(),
+			mergeServerConfig({transport, command, args, env, url, autoApprove, mcpApps}, carried)
+		);
 		setSaving(false);
 		if (ok) onOpenChange(false);
 	};
@@ -192,6 +170,39 @@ export function ServerEditDialog({
 						</label>
 					</>
 				)}
+					<div className="space-y-2 rounded-md border border-input/60 p-3">
+						<label className="flex items-start gap-2">
+							<input
+								type="checkbox"
+								className="mt-0.5"
+								checked={autoApprove}
+								onChange={e => setAutoApprove(e.target.checked)}
+							/>
+							<span className="space-y-0.5">
+								<span className="block text-xs">{t('settings.plugins.mcp.formAutoApprove')}</span>
+								<span className="block text-[11px] text-muted-foreground/70">
+									{t('settings.plugins.mcp.formAutoApproveHint')}
+								</span>
+							</span>
+						</label>
+						<label
+							className={cn('flex items-start gap-2', transport === 'remote' && 'opacity-50')}
+						>
+							<input
+								type="checkbox"
+								className="mt-0.5"
+								checked={transport === 'stdio' && mcpApps}
+								disabled={transport === 'remote'}
+								onChange={e => setMcpApps(e.target.checked)}
+							/>
+							<span className="space-y-0.5">
+								<span className="block text-xs">{t('settings.plugins.mcp.formMcpApps')}</span>
+								<span className="block text-[11px] text-muted-foreground/70">
+									{t('settings.plugins.mcp.formMcpAppsHint')}
+								</span>
+							</span>
+						</label>
+					</div>
 				</div>
 				<DialogFooter className="gap-2">
 					<SettingsButton type="button" variant="outline" onClick={() => onOpenChange(false)}>

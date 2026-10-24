@@ -212,6 +212,26 @@ export type McpCommand =
 			tenantId?: string;
 			appId?: string;
 	  }
+ | {
+			type: 'McpAppList';
+			sessionId?: string;
+			tenantId?: string;
+	  }
+ | {
+			type: 'McpAppRead';
+			server: string;
+			resourceUri: string;
+			sessionId?: string;
+			tenantId?: string;
+	  }
+ | {
+			type: 'McpAppCall';
+			server: string;
+			tool: string;
+			arguments: Record<string, unknown>;
+			sessionId?: string;
+			tenantId?: string;
+	  }
 
 export const mcpCommandSchemas = [
 	z.object({
@@ -256,5 +276,25 @@ export const mcpCommandSchemas = [
 		type: z.literal('McpConfigReload'),
 		tenantId: z.string().optional(),
 		appId: z.string().optional()
+	}),
+	z.object({
+		type: z.literal('McpAppList'),
+		sessionId: z.string().optional(),
+		tenantId: z.string().optional()
+	}),
+	z.object({
+		type: z.literal('McpAppRead'),
+		server: z.string(),
+		resourceUri: z.string(),
+		sessionId: z.string().optional(),
+		tenantId: z.string().optional()
+	}),
+	z.object({
+		type: z.literal('McpAppCall'),
+		server: z.string(),
+		tool: z.string(),
+		arguments: z.record(z.string(), z.unknown()),
+		sessionId: z.string().optional(),
+		tenantId: z.string().optional()
 	})
 ] as const

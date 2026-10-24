@@ -56,6 +56,7 @@ import {
 } from './fs/listProjectDir';
 import {applyPackagedRuntime} from './packagedRuntime';
 import {applyRuntimeEnv} from './runtimeEnv';
+import {MCP_RELAY_SCHEME_PRIVILEGES, handleMcpRelayProtocol} from './mcpAppProtocol';
 import {
 	LOCAL_EDGE_ID,
 	commitActiveId,
@@ -68,6 +69,7 @@ import {
 
 /** Serve project images, video, and audio without shipping the bytes over IPC. */
 protocol.registerSchemesAsPrivileged([
+	MCP_RELAY_SCHEME_PRIVILEGES,
 	{
 		scheme: 'fast-ide-media',
 		privileges: {
@@ -164,6 +166,13 @@ function createWindow(): void {
 			autoplayPolicy: 'no-user-gesture-required'
 		}
 	});
+
+	// MCP app frames are opaque-origin srcdoc documents: no device permissions, no new windows.
+	const appFrame = (url: string) => url === 'about:srcdoc' || url.startsWith('fast-mcp-relay:');
+	mainWindow.webContents.session.setPermissionRequestHandler((_wc, _permission, callback, details) => {
+		callback(!appFrame(details?.requestingUrl ?? ''));
+	});
+	mainWindow.webContents.setWindowOpenHandler(({url}) => (appFrame(url) ? {action: 'deny'} : {action: 'allow'}));
 
 	mainWindow.once('ready-to-show', () => {
 		if (!mainWindow || mainWindow.isDestroyed()) return;
@@ -598,6 +607,8 @@ app.whenReady().then(async () => {
 	// Apply persisted locale before tray/pet menus so cold start matches pinned pref.
 	await applyLocalePref(loadLocalePref());
 	bindCommittedFromDisk();
+
+	handleMcpRelayProtocol();
 
 	protocol.handle('fast-ide-media', async request => {
 		const root = activeFsRoot();

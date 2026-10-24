@@ -90,6 +90,7 @@ export {
 	mcpAdminMethods,
 	mcpServerOps,
 	type McpAdminApi,
+	type McpAppRow,
 	type McpControlResult,
 	type McpErr,
 	type McpOk,

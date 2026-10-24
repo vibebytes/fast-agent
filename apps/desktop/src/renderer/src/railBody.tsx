@@ -10,6 +10,7 @@ import {DocumentPane} from './panes/DocumentPane';
 import {FilesPane} from './panes/FilesPane';
 import {ReviewDiffPane} from './panes/ReviewDiffPane';
 import {TerminalPane} from './panes/TerminalPane';
+import {McpAppView} from './mcpApp/McpAppView';
 import {SurfaceHost} from './surfaces/SurfaceHost';
 import type {MintSurfaceToken} from './surfaces/SurfaceHost';
 import type {ReviewRow} from './review/agentReview';
@@ -36,6 +37,7 @@ export function RailTabBody({
 	focusSessionId,
 	onOpenLivingSession,
 	onOpenTeams,
+	active,
 	documentActive,
 	onDocumentSave,
 	onDocumentBuffer,
@@ -61,6 +63,8 @@ export function RailTabBody({
 		teamId?: string;
 		agentId?: string;
 	}) => void;
+	/** Tab is the visible one; pages poll only while this is true. */
+	active?: boolean;
 	documentActive?: boolean;
 	onDocumentSave?: (content: string) => void;
 	onDocumentBuffer?: (handle: MonacoEditorHandle | null) => void;
@@ -119,6 +123,15 @@ export function RailTabBody({
 			return <TerminalPane title={tab.title} />;
 		case 'surface':
 			return <SurfaceHost tab={tab} onPatch={onPatch} mintToken={mintSurfaceToken} />;
+		case 'mcp-app':
+			return tab.mcpServer && tab.mcpResourceUri ? (
+				<McpAppView
+					server={tab.mcpServer}
+					resourceUri={tab.mcpResourceUri}
+					title={tab.title}
+					active={active ?? false}
+				/>
+			) : null;
 		case 'scheduled':
 			return (
 				<ScheduledJobsPane

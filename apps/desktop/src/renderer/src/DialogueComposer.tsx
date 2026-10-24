@@ -56,6 +56,13 @@ import {useSlashCatalog} from './composer/useSlashCatalog';
 import {useMentionSuggest} from './composer/useMentionSuggest';
 import {useMenuScroll} from './composer/useMenuScroll';
 import {ActionStrip} from './composer/ActionStrip';
+import {AppContextChips} from './composer/AppContextChips';
+import {
+	appContextSnapshot,
+	clearAppContexts,
+	removeAppContext,
+	subscribeAppContext
+} from './composer/appContext';
 import {handleComposerKeyDown} from './composer/keys';
 
 const SYSTEM_BLUE_CHIP =
@@ -208,6 +215,7 @@ export const DialogueComposer = memo(function DialogueComposer({
 	/** Text before caret in rich input (chips → refs) for @ suggest. */
 	const [mentionBeforeCaret, setMentionBeforeCaret] = useState('');
 	const [pendingImages, setPendingImages] = useState<PendingImage[]>([]);
+	const appContexts = useSyncExternalStore(subscribeAppContext, appContextSnapshot);
 	const [attachNotice, setAttachNotice] = useState<string | null>(null);
 	const textareaRef = useRef<HTMLTextAreaElement>(null);
 	const richRef = useRef<MentionRichInputHandle>(null);
@@ -221,6 +229,7 @@ export const DialogueComposer = memo(function DialogueComposer({
 			revokePending(prev);
 			return [];
 		});
+		clearAppContexts();
 		setAttachNotice(null);
 	}, [taskId]);
 
@@ -527,16 +536,20 @@ export const DialogueComposer = memo(function DialogueComposer({
 
 	async function submitText(
 		text: string,
-		restoreDraft: string,
 		restoreSlash: SlashItem | null,
 		restoreChips: MentionChip[],
 		mentions?: MentionChip[]
 	) {
 		const hasImages = pendingImages.some(p => !p.rejectReason && p.data);
-		if (!text && !hasImages) return;
+		const appText = appContexts
+			.flatMap(entry => [...entry.text, ...entry.links.map(link => link.name ?? link.uri)])
+			.join('\n\n');
+		const appImages = canAttachImages ? appContexts.flatMap(entry => entry.images) : [];
+		const body = [text, appText].filter(Boolean).join('\n\n');
+		if (!body && !hasImages && appImages.length === 0) return;
 		// Hand-typed `/plan …` or `/mode <m>` keeps Mode UI in sync with Engine sticky SetMode.
-		const slashName = text.match(/^\/([^\s]+)/)?.[1]?.toLowerCase();
-		const modeArg = text.match(/^\/mode\s+(agent|plan|ask|yolo)\b/i)?.[1]?.toLowerCase() as
+		const slashName = body.match(/^\/([^\s]+)/)?.[1]?.toLowerCase();
+		const modeArg = body.match(/^\/mode\s+(agent|plan|ask|yolo)\b/i)?.[1]?.toLowerCase() as
 			| RunModeName
 			| undefined;
 		if (engineKind !== 'dsh') {
@@ -555,15 +568,19 @@ export const DialogueComposer = memo(function DialogueComposer({
 		setMentionChips([]);
 		setMentionBeforeCaret('');
 		setMentionGroups([]);
-		const imagesWire = pendingImages
-			.filter(p => !p.rejectReason && p.data)
-			.map(p => ({mediaType: p.mediaType, data: p.data, name: p.name}));
+		clearAppContexts();
+		const imagesWire = [
+			...appImages.map(img => ({mediaType: img.mimeType, data: img.data, name: img.name})),
+			...pendingImages
+				.filter(p => !p.rejectReason && p.data)
+				.map(p => ({mediaType: p.mediaType, data: p.data, name: p.name}))
+		];
 		const restoreImages = pendingImages;
 		setPendingImages([]);
 		richRef.current?.clear();
-		onSubmitSuccess?.(text);
+		onSubmitSuccess?.(body);
 		const result = await window.fastIde.sendMessage(
-			text,
+			body,
 			mentions && mentions.length > 0 ? mentions : undefined,
 			taskId,
 			imagesWire.length > 0 ? imagesWire : undefined,
@@ -571,14 +588,14 @@ export const DialogueComposer = memo(function DialogueComposer({
 		);
 		if (!result.ok) {
 			setPendingImages(restoreImages);
-			store.restore(restoreDraft);
+			store.restore(body);
 			setSelectedSlash(restoreSlash);
 			setMentionChips(restoreChips);
 			if (restoreSlash) {
 				requestAnimationFrame(() => textareaRef.current?.focus());
 			} else {
-				richRef.current?.restore(restoreDraft, restoreChips);
-				setMentionBeforeCaret(restoreDraft);
+				richRef.current?.restore(body, restoreChips);
+				setMentionBeforeCaret(body);
 				requestAnimationFrame(() => richRef.current?.focus());
 			}
 			onError?.(
@@ -607,10 +624,9 @@ export const DialogueComposer = memo(function DialogueComposer({
 			? formatSlashSubmit(selectedSlash.name, draft)
 			: (snap?.text ?? draft).trim();
 		const chips = selectedSlash ? [] : (snap?.chips ?? mentionChips);
-		const restoreBody = selectedSlash ? draft : (snap?.text ?? draft);
 		const hasImages = pendingImages.some(p => !p.rejectReason && p.data);
-		if (!text && !hasImages) return;
-		await submitText(text, restoreBody, selectedSlash, chips, chips);
+		if (!text && !hasImages && appContexts.length === 0) return;
+		await submitText(text, selectedSlash, chips, chips);
 	}
 
 	function onComposerKeyDown(e: KeyboardEvent<HTMLTextAreaElement | HTMLDivElement>) {
@@ -639,7 +655,13 @@ export const DialogueComposer = memo(function DialogueComposer({
 		!composerDisabled &&
 		!dshBlocked &&
 		(canSubmitNow || canEnqueue) &&
-		Boolean(selectedSlash || draft.trim() || mentionChips.length > 0 || hasSendableImages);
+		Boolean(
+			selectedSlash ||
+				draft.trim() ||
+				mentionChips.length > 0 ||
+				hasSendableImages ||
+				appContexts.length > 0
+		);
 
 	const slashCmdValue =
 		flatSlashMenu[slashHighlight] != null
@@ -692,6 +714,7 @@ export const DialogueComposer = memo(function DialogueComposer({
 				}}
 			>
 				{engineKind === 'dsh' ? <DshNotice /> : null}
+				<AppContextChips entries={appContexts} onRemove={removeAppContext} />
 				<ImageDrawer
 					pendingImages={pendingImages}
 					attachNotice={attachNotice}

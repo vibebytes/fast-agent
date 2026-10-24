@@ -96,6 +96,23 @@ test('imports the blender export that failed with "unknown field transport"', ()
 	}
 });
 
+test('import keeps boolean app-level switches and drops Cline tool-name arrays', () => {
+	const res = parseImportPayload(
+		JSON.stringify({
+			mcpServers: {
+				blender: {command: 'uvx', args: ['blender-mcp'], autoApprove: false, mcpApps: true},
+				cline: {command: 'uvx', args: ['blender-mcp'], autoApprove: ['execute_blender_code']}
+			}
+		})
+	);
+	assert.equal(res.ok, true);
+	if (res.ok) {
+		assert.equal(res.payload.mcpServers.blender.autoApprove, false);
+		assert.equal(res.payload.mcpServers.blender.mcpApps, true);
+		assert.equal('autoApprove' in (res.payload.mcpServers.cline as object), false);
+	}
+});
+
 test('imports a real claude_desktop_config.json unchanged', () => {
 	const res = parseImportPayload(
 		JSON.stringify({
@@ -272,6 +289,42 @@ test('save ok updates rows', async () => {
 	const done = await mcpStore.save('fresh', {command: 'uvx'});
 	assert.equal(done, true);
 	assert.deepEqual(mcpStore.getSnapshot().servers.map(s => s.name), ['fresh']);
+});
+
+test('save passes the app-level switches through untouched', async () => {
+	let seen: unknown = null;
+	mcpStore.bindApi(
+		api({
+			put: async (_name, config) => {
+				seen = config;
+				return {ok: true, mcpServers: [server('blender', {autoApprove: false, mcpApps: true})]};
+			}
+		})
+	);
+	mcpStore.setEngineReady(true);
+	const rowContract = {
+		name: 'blender',
+		enabled: true,
+		autoApprove: false,
+		mcpApps: true,
+		startupTimeout: 60000
+	} satisfies Partial<McpServerRow>;
+	const done = await mcpStore.save('blender', {
+		transport: 'stdio',
+		command: 'uvx',
+		autoApprove: rowContract.autoApprove,
+		mcpApps: rowContract.mcpApps
+	});
+	assert.equal(done, true);
+	assert.deepEqual(seen, {
+		transport: 'stdio',
+		command: 'uvx',
+		autoApprove: false,
+		mcpApps: true
+	});
+	const saved = mcpStore.getSnapshot().servers[0]!;
+	assert.equal(saved.autoApprove, false);
+	assert.equal(saved.mcpApps, true);
 });
 
 test('save of a starting server polls until it leaves starting', async () => {

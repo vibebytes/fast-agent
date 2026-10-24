@@ -271,7 +271,26 @@ export const commandResultSchema = z.object({
 				restarts: wireNum,
 				restartRequired: z.boolean().optional(),
 				lastError: z.string().nullish(),
-				message: z.string().optional()
+				message: z.string().optional(),
+				/** `McpAppList`: tools whose `_meta.ui` points at a `ui://` resource. */
+				apps: z
+					.array(
+						z.object({
+							server: z.string(),
+							tool: z.string(),
+							remoteTool: z.string(),
+							resourceUri: z.string(),
+							visibility: z.array(z.string()),
+							csp: z.record(z.string(), z.unknown()).optional()
+						})
+					)
+					.optional(),
+				/** `McpAppRead`: the page HTML, CSP-injected by the host. */
+				html: z.string().optional(),
+				/** `McpAppCall`: the structured tool result, same shape the model gets. */
+				result: z.unknown().optional(),
+				server: z.string().optional(),
+				resourceUri: z.string().optional()
 			})
 			.passthrough()
 			.optional(),

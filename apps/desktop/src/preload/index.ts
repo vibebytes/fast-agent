@@ -112,6 +112,10 @@ const api = {
 	mcpServerDelete: (name: string) => invoke('mcp:delete', name),
 	mcpConfigImport: (payload: unknown) => invoke('mcp:import', payload),
 	mcpConfigReload: () => invoke('mcp:reload'),
+	mcpAppList: () => invoke('mcp:appList'),
+	mcpAppRead: (server: string, resourceUri: string) => invoke('mcp:appRead', server, resourceUri),
+	mcpAppCall: (server: string, tool: string, args: Record<string, unknown>) =>
+		invoke('mcp:appCall', server, tool, args),
 	listRules: (projectId: string) => invoke('rules:list', projectId),
 	addProjectRule: (projectId: string, text: string) => invoke('rules:add', projectId, text),
 	removeRule: (projectId: string, ruleId: string) => invoke('rules:remove', projectId, ruleId),

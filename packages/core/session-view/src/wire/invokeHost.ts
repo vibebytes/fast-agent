@@ -24,6 +24,7 @@ import type {
 	HostDirResult,
 	ListWorkspaceDirResult,
 	MarketSkillRow,
+	McpAppRowWire,
 	McpControlResultWire,
 	McpServerRowWire,
 	MobilePairingInfo,
@@ -347,6 +348,21 @@ export type InvokeHost = {
 	'mcp:reload': {
 		args: [];
 		result: {ok: true; mcpServers: McpServerRowWire[]} | {ok: false; notice: string};
+	};
+	/** Tools that ship a `ui://` page; the rail mounts each pair once. */
+	'mcp:appList': {
+		args: [];
+		result: {ok: true; apps: McpAppRowWire[]} | {ok: false; notice: string};
+	};
+	/** Page HTML for one app, already CSP-scoped by the host. */
+	'mcp:appRead': {
+		args: [server: string, resourceUri: string];
+		result: {ok: true; html: string} | {ok: false; notice: string};
+	};
+	/** `tools/call` forwarded from the page after the host checked `visibility`. */
+	'mcp:appCall': {
+		args: [server: string, tool: string, args: Record<string, unknown>];
+		result: {ok: true; result: unknown} | {ok: false; notice: string};
 	};
 	'rules:setEnabled': {
 		args: [projectId: string, ruleId: string, enabled: boolean];

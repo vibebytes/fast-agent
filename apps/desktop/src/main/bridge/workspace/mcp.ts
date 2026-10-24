@@ -1,4 +1,4 @@
-import type {McpControlResult, McpServerRow} from '@fastllm/bridge-client';
+import type {McpAppRow, McpControlResult, McpServerRow} from '@fastllm/bridge-client';
 import {hostRequest, type CommandResult, type HostLane} from './hostWait.js';
 
 type Notice = {ok: false; notice: string};
@@ -14,6 +14,13 @@ export type WorkspaceMcp = {
 	mcpServerDelete: (name: string) => Promise<{ok: true} | Notice>;
 	mcpConfigImport: (payload: unknown) => Promise<McpRowsResult>;
 	mcpConfigReload: () => Promise<McpRowsResult>;
+	mcpAppList: () => Promise<{ok: true; apps: McpAppRow[]} | Notice>;
+	mcpAppRead: (server: string, resourceUri: string) => Promise<{ok: true; html: string} | Notice>;
+	mcpAppCall: (
+		server: string,
+		tool: string,
+		args: Record<string, unknown>
+	) => Promise<{ok: true; result: unknown} | Notice>;
 };
 
 /** Import/reload parse ecosystem JSON files; everything else is a single admin plane roundtrip (design §2). */
@@ -139,6 +146,44 @@ export function createMcp(lane: HostLane): WorkspaceMcp {
 				return {ok: false, notice: r.event.message};
 			}
 			return mcpRowsFromEvent(r.event);
+		},
+		async mcpAppList() {
+			const r = await hostRequest(lane, ['McpAppList'], {type: 'McpAppList'}, {timeoutMs: mcpTimeout('fast')});
+			if (!r.ok) return r;
+			if (r.event.status === 'error' || r.event.status === 'rejected') {
+				return {ok: false, notice: r.event.message};
+			}
+			const apps = r.event.mcp?.apps;
+			if (!apps) return {ok: false, notice: r.event.message || 'mcp app list missing'};
+			return {ok: true, apps};
+		},
+		async mcpAppRead(server, resourceUri) {
+			const r = await hostRequest(
+				lane,
+				['McpAppRead'],
+				{type: 'McpAppRead', server, resourceUri},
+				{timeoutMs: mcpTimeout('fast')}
+			);
+			if (!r.ok) return r;
+			if (r.event.status === 'error' || r.event.status === 'rejected') {
+				return {ok: false, notice: r.event.message};
+			}
+			const html = r.event.mcp?.html;
+			if (typeof html !== 'string') return {ok: false, notice: r.event.message || 'mcp app page missing'};
+			return {ok: true, html};
+		},
+		async mcpAppCall(server, tool, args) {
+			const r = await hostRequest(
+				lane,
+				['McpAppCall'],
+				{type: 'McpAppCall', server, tool, arguments: args},
+				{timeoutMs: mcpTimeout('slow')}
+			);
+			if (!r.ok) return r;
+			if (r.event.status === 'error' || r.event.status === 'rejected') {
+				return {ok: false, notice: r.event.message};
+			}
+			return {ok: true, result: r.event.mcp?.result};
 		}
 	};
 }

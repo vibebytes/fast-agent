@@ -572,6 +572,16 @@ export type McpServerRowWire = {
 	discoveredToolCount?: number | null;
 };
 
+/** A tool whose `_meta.ui` names a `ui://` page the desktop can mount. */
+export type McpAppRowWire = {
+	server: string;
+	tool: string;
+	remoteTool: string;
+	resourceUri: string;
+	visibility: string[];
+	csp?: Record<string, unknown>;
+};
+
 export type McpControlResultWire = {
 	ok: boolean;
 	name: string;

@@ -1,6 +1,6 @@
 import {useMemo, useState} from 'react';
 import {useTranslation} from 'react-i18next';
-import {Plus, RefreshCw, Search, Upload} from 'lucide-react';
+import {Boxes, Plus, RefreshCw, Search, Upload} from 'lucide-react';
 import {Input} from '@fast-ide/ui/components/input';
 import {SettingsButton, SettingsSection, SettingsState} from './SettingsPrimitives';
 import {McpServerCard} from './McpServerCard';
@@ -8,6 +8,8 @@ import {ServerEditDialog} from './ServerEditDialog';
 import {ImportEcosystemDialog} from './ImportEcosystemDialog';
 import {mcpNoticeKind, type McpHook} from './useMcpServers';
 import type {McpServerRow} from '@fastllm/bridge-client';
+import {requestOpenMcpApp} from '../mcpApp/openRequest';
+import {useMcpAppCatalog} from '../mcpApp/useMcpAppCatalog';
 import {cn} from '@fast-ide/ui/lib/utils';
 
 export function mcpNoticeCopy(
@@ -29,6 +31,24 @@ export function McpPane({mcp}: {mcp: McpHook}) {
 	const [editOpen, setEditOpen] = useState(false);
 	const [editing, setEditing] = useState<McpServerRow | null>(null);
 	const [importOpen, setImportOpen] = useState(false);
+	const appsRevision = useMemo(
+		() =>
+			`${mcp.status}|${mcp.servers
+				.map(s => `${s.name}:${s.enabled}:${s.connectionStatus ?? ''}:${s.discoveredToolCount ?? ''}`)
+				.join(',')}`,
+		[mcp.status, mcp.servers]
+	);
+	const {apps} = useMcpAppCatalog(mcp.status !== 'disabled', appsRevision);
+
+	const appEntries = useMemo(() => {
+		const seen = new Set<string>();
+		return apps.filter(app => {
+			const key = `${app.server}\u0000${app.resourceUri}`;
+			if (seen.has(key)) return false;
+			seen.add(key);
+			return true;
+		});
+	}, [apps]);
 
 	const visible = useMemo(() => {
 		const q = filter.trim().toLowerCase();
@@ -130,6 +150,42 @@ export function McpPane({mcp}: {mcp: McpHook}) {
 					</div>
 				</SettingsSection>
 			)}
+
+			{appEntries.length > 0 ? (
+				<SettingsSection
+					title={t('settings.plugins.mcp.apps.title', {defaultValue: '界面视图'})}
+					description={t('settings.plugins.mcp.apps.description', {
+						defaultValue: '带 ui:// 页面的工具；打开后固定在右侧工作区，同一页面只开一个标签。'
+					})}
+				>
+					<div className="divide-y divide-border/40">
+						{appEntries.map(app => (
+							<div key={`${app.server}:${app.resourceUri}`} className="flex items-center gap-3 py-2">
+								<Boxes className="size-4 shrink-0 text-muted-foreground" />
+								<div className="min-w-0 flex-1">
+									<div className="truncate text-[12px] font-medium">{app.tool}</div>
+									<div className="truncate text-[11px] text-muted-foreground">
+										{app.server} · {app.resourceUri}
+									</div>
+								</div>
+								<SettingsButton
+									variant="outline"
+									className="shrink-0 font-medium shadow-2xs"
+									onClick={() =>
+										requestOpenMcpApp({
+											server: app.server,
+											resourceUri: app.resourceUri,
+											title: app.tool
+										})
+									}
+								>
+									{t('settings.plugins.mcp.apps.open', {defaultValue: '打开视图'})}
+								</SettingsButton>
+							</div>
+						))}
+					</div>
+				</SettingsSection>
+			) : null}
 
 			<ServerEditDialog
 				open={editOpen}

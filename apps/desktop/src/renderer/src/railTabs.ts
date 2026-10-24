@@ -12,6 +12,7 @@ import {
 	type LucideIcon
 } from 'lucide-react';
 import {createElement, type ReactElement} from 'react';
+import {appKey} from './mcpApp/store';
 import {shellT as t} from './i18n/t';
 import type {SurfaceTabRef} from './surfaces/surfaceTabs';
 
@@ -27,7 +28,8 @@ export type RailTabKind =
 	| 'terminal'
 	| 'context'
 	| 'scheduled'
-	| 'surface';
+	| 'surface'
+	| 'mcp-app';
 
 export type RailTab = {
 	id: string;
@@ -36,6 +38,9 @@ export type RailTab = {
 	pinned?: boolean;
 	/** Extension panel owner + live instance info; only set when kind === 'surface'. */
 	surface?: SurfaceTabRef;
+	/** MCP App identity; one tab per server + `ui://` resource. */
+	mcpServer?: string;
+	mcpResourceUri?: string;
 	/** Project-relative path when opened from the file tree. */
 	filePath?: string;
 	url?: string;
@@ -63,7 +68,7 @@ export type RailTab = {
 };
 
 /** `files` is pinned and `diff` needs a change to review, so neither is offered as a blank tab. */
-export type NewTabKind = Exclude<RailTabKind, 'files' | 'diff' | 'surface'>;
+export type NewTabKind = Exclude<RailTabKind, 'files' | 'diff' | 'surface' | 'mcp-app'>;
 
 type NewTabOption = {
 	kind: NewTabKind;
@@ -109,6 +114,7 @@ export function railTabTitle(tab: RailTab, tr: Translate = t): string {
 		case 'canvas':
 		case 'terminal':
 		case 'surface':
+		case 'mcp-app':
 			return tab.title;
 	}
 }
@@ -116,6 +122,44 @@ export function railTabTitle(tab: RailTab, tr: Translate = t): string {
 /** Stable id so openers can focus the tab without waiting on a `setTabs` updater. */
 export function diffTabId(changeId: string): string {
 	return `diff:${changeId}`;
+}
+
+/** One tab per server + resource: the relay instance and the page are singletons per pair. */
+export function mcpAppTabId(server: string, resourceUri: string): string {
+	return `mcp-app:${server}:${resourceUri}`;
+}
+
+export function mcpAppTab(server: string, resourceUri: string, title: string): RailTab {
+	return {
+		id: mcpAppTabId(server, resourceUri),
+		kind: 'mcp-app',
+		title,
+		mcpServer: server,
+		mcpResourceUri: resourceUri
+	};
+}
+
+/**
+ * Withdraw app tabs whose server + resource the engine no longer offers.
+ *
+ * `live` is `null` while discovery has not answered: an unloaded catalog must not close tabs.
+ * Surviving tabs keep their identity so React can skip them; a withdrawn active tab falls back
+ * to Files rather than to a neighbour, because the neighbour may be a stale app tab too.
+ */
+export function withdrawMcpAppTabs(
+	tabs: readonly RailTab[],
+	live: ReadonlySet<string> | null,
+	activeId: string
+): {tabs: RailTab[]; activeId: string} {
+	if (!live) return {tabs: tabs as RailTab[], activeId};
+	const next = tabs.filter(
+		tab => tab.kind !== 'mcp-app' || live.has(appKey(tab.mcpServer ?? '', tab.mcpResourceUri ?? ''))
+	);
+	if (next.length === tabs.length) return {tabs: tabs as RailTab[], activeId};
+	return {
+		tabs: next,
+		activeId: next.some(tab => tab.id === activeId) ? activeId : FILES_TAB_ID
+	};
 }
 
 /** A review diff tab, named after the file so it reads like the document tab beside it. */
@@ -225,6 +269,7 @@ export function TabKindIcon({kind, className}: {kind: RailTabKind; className?: s
 			case 'scheduled':
 				return CalendarClock;
 			case 'surface':
+			case 'mcp-app':
 				return Boxes;
 		}
 	})();

@@ -861,6 +861,15 @@ export class WorkspaceHub {
 	async mcpConfigReload() {
 		return this.mcp.mcpConfigReload();
 	}
+	async mcpAppList() {
+		return this.mcp.mcpAppList();
+	}
+	async mcpAppRead(server: string, resourceUri: string) {
+		return this.mcp.mcpAppRead(server, resourceUri);
+	}
+	async mcpAppCall(server: string, tool: string, args: Record<string, unknown>) {
+		return this.mcp.mcpAppCall(server, tool, args);
+	}
 	async installExtension(dir: string) {
 		return this.plugins.installExtension(dir);
 	}

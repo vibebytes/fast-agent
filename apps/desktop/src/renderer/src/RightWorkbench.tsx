@@ -39,6 +39,10 @@ import type {ReviewRow} from './review/agentReview';
 import {openReviewDiff} from './review/openReviewDiff';
 import type {AgentReview} from './review/useAgentReview';
 import {RailTabBody} from './railBody';
+import {mcpAppBus, parseAppEvent} from './mcpApp/store';
+import {liveKeysOf} from './mcpApp/catalog';
+import {useMcpAppCatalog} from './mcpApp/useMcpAppCatalog';
+import {onOpenMcpApp} from './mcpApp/openRequest';
 import {parseSurfaceOpen, parseSurfaceState} from './surfaces/surfaceEvents';
 import {patchSurfaceState, surfaceTab, upsertSurfaceTab} from './surfaces/surfaceTabs';
 import {loadSurfaceTabs, restoreSurfaceTabs, saveSurfaceTabs} from './surfaces/surfacePersistence';
@@ -48,9 +52,12 @@ import {
 	diffTabId,
 	filesTab,
 	FILES_TAB_ID,
+	mcpAppTab,
+	mcpAppTabId,
 	newTabOptions,
 	newTabId,
 	railTabTitle,
+	withdrawMcpAppTabs,
 	type NewTabKind,
 	type RailTab,
 	type RailTabKind,
@@ -125,6 +132,8 @@ function RightWorkbenchImpl({
 	const [conflictRequest, setConflictRequest] = useState<ConflictChoiceRequest | null>(null);
 	const [closeDirtyRequest, setCloseDirtyRequest] = useState<CloseDirtyRequest | null>(null);
 	const buffersRef = useRef(new Map<string, MonacoEditorHandle>());
+	/** A tab the user closed stays closed: later results must not reopen it. */
+	const mcpAppClosedRef = useRef(new Set<string>());
 	const tabsRef = useRef(tabs);
 	tabsRef.current = tabs;
 	const surfaces = useSurfaces();
@@ -465,6 +474,7 @@ function RightWorkbenchImpl({
 	async function closeTab(id: string) {
 		if (id === FILES_TAB_ID) return;
 		const tab = tabsRef.current.find(t => t.id === id);
+		if (tab?.kind === 'mcp-app') mcpAppClosedRef.current.add(id);
 		if (tab?.kind === 'document' && tab.dirty) {
 			const choice = await chooseCloseDirty(railTabTitle(tab));
 			if (choice === 'cancel') return;
@@ -568,6 +578,55 @@ function RightWorkbenchImpl({
 			if (state) setTabs(prev => patchSurfaceState(prev, state));
 		});
 	}, []);
+
+	// MCP Apps: the first result for a `ui://` resource opens its tab; later ones only feed it.
+	useEffect(() => {
+		return window.fastIde.onBridgeEvent(payload => {
+			if (project?.id && payload.projectId !== project.id) return;
+			const app = parseAppEvent(payload.event);
+			if (!app) {
+				mcpAppBus.noteCall(payload.event);
+				return;
+			}
+			mcpAppBus.dispatch(payload.event);
+			if (app.event.kind !== 'result') return;
+			const {server, resourceUri, tool} = app.event.result;
+			const id = mcpAppTabId(server, resourceUri);
+			if (mcpAppClosedRef.current.has(id)) return;
+			if (tabsRef.current.some(tab => tab.id === id)) return;
+			setTabs(prev =>
+				prev.some(tab => tab.id === id) ? prev : [...prev, mcpAppTab(server, resourceUri, tool || resourceUri)]
+			);
+			setEverActive(prev => (prev.has(id) ? prev : new Set(prev).add(id)));
+			setActiveId(id);
+		});
+	}, [project?.id]);
+
+	// Settings entry: same tab as a result would open, plus the buffered result on mount.
+	useEffect(() => {
+		return onOpenMcpApp(({server, resourceUri, title}) => {
+			const id = mcpAppTabId(server, resourceUri);
+			mcpAppClosedRef.current.delete(id);
+			setTabs(prev =>
+				prev.some(tab => tab.id === id) ? prev : [...prev, mcpAppTab(server, resourceUri, title)]
+			);
+			setEverActive(prev => (prev.has(id) ? prev : new Set(prev).add(id)));
+			setActiveId(id);
+		});
+	}, []);
+
+	// An app tab must never outlive its server: a removed server (or a dropped `ui://` page) closes
+	// it. This is a withdrawal, not a user close, so it must **not** touch `mcpAppClosedRef` — if the
+	// server comes back the page is allowed to open again.
+	const appCatalog = useMcpAppCatalog(true, bridgeConnectionId ?? 'local');
+	useEffect(() => {
+		const live = liveKeysOf(appCatalog);
+		if (!live) return;
+		const next = withdrawMcpAppTabs(tabsRef.current, live, activeId);
+		if (next.tabs === tabsRef.current) return;
+		setTabs(() => next.tabs);
+		setActiveId(next.activeId);
+	}, [appCatalog, activeId]);
 
 	// A surface tab must never outlive its extension: withdraw / uninstall closes it.
 	useEffect(() => {
@@ -716,6 +775,7 @@ function RightWorkbenchImpl({
 										focusSessionId={focusSessionId}
 										onOpenLivingSession={onOpenLivingSession}
 										onOpenTeams={onOpenTeams}
+										active={tab.id === active?.id}
 										documentActive={tab.id === active?.id}
 										onDocumentSave={content => void saveActiveDocument(content)}
 										onDocumentBuffer={handle => {

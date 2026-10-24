@@ -332,6 +332,10 @@ export function createDesktopHost(deps: DesktopHostDeps): ProductInvokeMap {
 		'mcp:delete': (name: string) => hub.mcpServerDelete(name),
 		'mcp:import': (payload: unknown) => hub.mcpConfigImport(payload),
 		'mcp:reload': () => hub.mcpConfigReload(),
+		'mcp:appList': () => hub.mcpAppList(),
+		'mcp:appRead': (server: string, resourceUri: string) => hub.mcpAppRead(server, resourceUri),
+		'mcp:appCall': (server: string, tool: string, args: Record<string, unknown>) =>
+			hub.mcpAppCall(server, tool, args),
 
 		'rules:list': (projectId: string) => hub.listRules(projectId),
 		'rules:add': (projectId: string, text: string) => hub.addProjectRule(projectId, text),

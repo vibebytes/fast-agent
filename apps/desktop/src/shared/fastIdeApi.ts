@@ -67,7 +67,7 @@ import type {
 	TranscriptTailPatch,
 	WorkspaceFocus
 } from '@fast-ide/session-view';
-import type {ExtNote, ExtRow, McpControlResult, McpServerOp, McpServerRow} from '@fastllm/bridge-client';
+import type {ExtNote, ExtRow, McpAppRow, McpControlResult, McpServerOp, McpServerRow} from '@fastllm/bridge-client';
 
 /** Electron `process.platform` without requiring NodeJS namespace in the renderer tsconfig. */
 export type HostPlatform =
@@ -222,6 +222,16 @@ export type FastIdeApi = {
 	mcpServerDelete: (name: string) => Promise<{ok: true} | {ok: false; notice: string}>;
 	mcpConfigImport: (payload: unknown) => Promise<{ok: true; mcpServers: McpServerRow[]} | {ok: false; notice: string}>;
 	mcpConfigReload: () => Promise<{ok: true; mcpServers: McpServerRow[]} | {ok: false; notice: string}>;
+	mcpAppList: () => Promise<{ok: true; apps: McpAppRow[]} | {ok: false; notice: string}>;
+	mcpAppRead: (
+		server: string,
+		resourceUri: string
+	) => Promise<{ok: true; html: string} | {ok: false; notice: string}>;
+	mcpAppCall: (
+		server: string,
+		tool: string,
+		args: Record<string, unknown>
+	) => Promise<{ok: true; result: unknown} | {ok: false; notice: string}>;
 	listEngines: () => Promise<{ok: true; engines: EngineWireRow[]} | {ok: false; notice: string}>;
 	enableEngine: (id: string) => Promise<{ok: true; engines: EngineWireRow[]} | {ok: false; notice: string}>;
 	disableEngine: (id: string) => Promise<{ok: true; engines: EngineWireRow[]} | {ok: false; notice: string}>;

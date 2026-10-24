@@ -601,7 +601,12 @@ export function createUiPublisher(deps: UiPublisherDeps) {
 		'workspace_file_changed',
 		// Extension panes — the extension publishes intent; the tab lifecycle stays in the renderer.
 		'surface_open',
-		'surface_state'
+		'surface_state',
+		// MCP App results — transient; the rail opens the tab and each mounted page keeps its own state.
+		'mcp_app_result',
+		'mcp_app_cancelled',
+		// Page-initiated calls stay out of the transcript but the pane shows a live activity line.
+		'mcp_app_call'
 	]);
 
 	/** Coalesce same-tick snapshot publishes (hydrate storms) into one (P2-13). */

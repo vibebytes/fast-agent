@@ -83,13 +83,20 @@ const IMPORT_SERVER_KEYS = new Set([
 	'blockedTools'
 ]);
 
-/** Keeps engine-known fields, maps Cline-style `disabled`/string `args`, drops ecosystem-only junk (headers, autoApprove, ...). */
+/**
+ * Keeps engine-known fields, maps Cline-style `disabled`/string `args`, drops ecosystem-only junk
+ * (headers, ...). `autoApprove`/`mcpApps` only survive as booleans: Cline writes `autoApprove` as a
+ * tool-name array, and passing that through would make the engine reject the whole import.
+ */
 function normalizeImportedServer(value: unknown): Record<string, unknown> | null {
 	if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
 	const src = value as Record<string, unknown>;
 	const out: Record<string, unknown> = {};
 	for (const [k, v] of Object.entries(src)) {
 		if (IMPORT_SERVER_KEYS.has(k) && v !== null) out[k] = v;
+	}
+	for (const k of ['autoApprove', 'mcpApps'] as const) {
+		if (typeof src[k] === 'boolean') out[k] = src[k];
 	}
 	if (typeof src.disabled === 'boolean') out.enabled = !src.disabled;
 	if (typeof out.args === 'string') out.args = (out.args as string).split(/\s+/).filter(Boolean);

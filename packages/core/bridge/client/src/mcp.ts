@@ -12,6 +12,18 @@ export type McpServerRow = {
 	args?: string[] | string;
 	env?: Record<string, string> | string[];
 	url?: string;
+	/** Engine-known fields the edit dialog does not render; a save must carry them back untouched. */
+	description?: string;
+	timeout?: number;
+	startupTimeout?: number;
+	allowedTools?: string[];
+	blockedTools?: string[];
+	sandbox?: string;
+	auth?: Record<string, unknown>;
+	/** Standing consent for model + page calls; unset means stdio yes, remote no (§5.1). */
+	autoApprove?: boolean;
+	/** Per-server MCP Apps switch; only local stdio servers may open a page (§5.4). */
+	mcpApps?: boolean;
 	enabled?: boolean;
 	restartRequired?: boolean;
 	state?: string | null;
@@ -21,6 +33,17 @@ export type McpServerRow = {
 	stderrTail?: string | null;
 	connectionStatus?: string | null;
 	discoveredToolCount?: number | null;
+};
+
+/** §5.1 app row: a tool whose `_meta.ui` names a `ui://` page. */
+export type McpAppRow = {
+	server: string;
+	tool: string;
+	remoteTool: string;
+	resourceUri: string;
+	visibility: string[];
+	/** `_meta.ui.csp` as the server declared it; the host sanitises it, nothing is trusted. */
+	csp?: Record<string, unknown>;
 };
 
 export type McpControlResult = {
