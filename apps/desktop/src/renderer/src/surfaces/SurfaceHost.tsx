@@ -3,14 +3,13 @@ import {Boxes, RotateCw} from 'lucide-react';
 import {Button} from '@fast-ide/ui/components/button';
 import type {RailTab} from '../railTabs';
 import {allowFrom, hostReady, hostToken, readPageMsg, readyAccepted, surfaceSandbox} from './surfaceHandshake';
+import {canAcceptReady, nextPhase, type Phase} from './surfacePhase';
 
 export type MintSurfaceToken = (input: {
 	extId: string;
 	surfaceId: string;
 	instanceKey: string;
 }) => Promise<{token: string; toolScope: string[]} | null>;
-
-type Phase = 'waiting' | 'handshaking' | 'ready' | 'rejected' | 'timeout';
 
 const HANDSHAKE_TIMEOUT_MS = 10_000;
 
@@ -22,6 +21,9 @@ export function SurfaceHost({tab, mintToken}: {tab: RailTab; onPatch?: (patch: P
 	const [attempt, setAttempt] = useState(0);
 
 	const url = surface?.url;
+	// The open event carries the extension's instance key; fall back to the tab id so two panes of
+	// the same extension never share a grant (revoke(instanceKey) would otherwise evict both).
+	const instanceKey = surface?.instanceKey ?? tab.id;
 	const origin = (() => {
 		if (!url || !/^https?:\/\//i.test(url)) return null;
 		try {
@@ -37,13 +39,14 @@ export function SurfaceHost({tab, mintToken}: {tab: RailTab; onPatch?: (patch: P
 	}, [origin]);
 
 	useEffect(() => {
-		setPhase(url ? 'handshaking' : 'waiting');
+		setPhase(p => nextPhase(p, {kind: 'url', hasUrl: Boolean(url)}));
 		setNotice(null);
-	}, [url, attempt]);
+		console.info('[surface] open', {surfaceId: surface?.surfaceId, tabId: tab.id, url, attempt});
+	}, [url, attempt, surface?.surfaceId, tab.id]);
 
 	useEffect(() => {
 		if (phase !== 'handshaking') return;
-		const timer = setTimeout(() => setPhase('timeout'), HANDSHAKE_TIMEOUT_MS);
+		const timer = setTimeout(() => setPhase(p => nextPhase(p, {kind: 'timeout'})), HANDSHAKE_TIMEOUT_MS);
 		return () => clearTimeout(timer);
 	}, [phase]);
 
@@ -57,12 +60,29 @@ export function SurfaceHost({tab, mintToken}: {tab: RailTab; onPatch?: (patch: P
 				setNotice(`面板请求打开外部链接：${msg.url}`);
 				return;
 			}
+			if (!canAcceptReady(phase)) {
+				console.warn('[surface] ready.ignored', {surfaceId: surface.surfaceId, tabId: tab.id, phase});
+				return;
+			}
 			if (!readyAccepted(msg.capabilities, surface.capabilities)) {
-				setPhase('rejected');
+				setPhase(p => nextPhase(p, {kind: 'page.ready', accepted: false}));
+				console.warn('[surface] rejected', {surfaceId: surface.surfaceId, capabilities: msg.capabilities});
 				setNotice(`请求了未声明的能力：${msg.capabilities.filter(c => !surface.capabilities.includes(c)).join(', ')}`);
 				return;
 			}
-			setPhase('ready');
+			console.info('[surface] handshake', {surfaceId: surface.surfaceId, tabId: tab.id, capabilities: msg.capabilities});
+			setPhase(p => nextPhase(p, {kind: 'page.ready', accepted: true}));
+			// The panel may announce `surface.ready` before our `host.ready` reached it (iframe load
+			// races the bundle). Re-send so the panel always sees a handshake; idempotent on its side.
+			post(
+				hostReady({
+					surfaceId: surface.surfaceId,
+					instanceKey,
+					theme: 'dark',
+					width: frameRef.current?.clientWidth ?? 0,
+					height: frameRef.current?.clientHeight ?? 0
+				})
+			);
 			if (!mintToken) {
 				setNotice('面板已就绪；宿主未提供 token 签发，工具调用不可用。');
 				return;
@@ -70,17 +90,19 @@ export function SurfaceHost({tab, mintToken}: {tab: RailTab; onPatch?: (patch: P
 			const grant = await mintToken({
 				extId: surface.extId,
 				surfaceId: surface.surfaceId,
-				instanceKey: tab.id
+				instanceKey
 			});
 			if (!grant) {
+				console.warn('[surface] token.failed', {surfaceId: surface.surfaceId, tabId: tab.id});
 				setNotice('token 签发失败，工具调用不可用。');
 				return;
 			}
+			console.info('[surface] ready', {surfaceId: surface.surfaceId, tabId: tab.id, toolScope: grant.toolScope});
 			post(hostToken(grant.token, grant.toolScope));
 		};
 		window.addEventListener('message', onMessage);
 		return () => window.removeEventListener('message', onMessage);
-	}, [surface, origin, mintToken, post]);
+	}, [surface, origin, mintToken, post, phase, instanceKey]);
 
 	if (!surface) {
 		return <Placeholder title="面板声明缺失" detail="该标签不是扩展面板。" />;
@@ -102,7 +124,7 @@ export function SurfaceHost({tab, mintToken}: {tab: RailTab; onPatch?: (patch: P
 						post(
 							hostReady({
 								surfaceId: surface.surfaceId,
-								instanceKey: tab.id,
+								instanceKey,
 								theme: 'dark',
 								width: frameRef.current?.clientWidth ?? 0,
 								height: frameRef.current?.clientHeight ?? 0
@@ -118,7 +140,19 @@ export function SurfaceHost({tab, mintToken}: {tab: RailTab; onPatch?: (patch: P
 			)}
 			{phase === 'timeout' || phase === 'rejected' ? (
 				<div className="absolute inset-x-0 bottom-0 flex items-center gap-2 border-t bg-muted/60 px-3 py-2 text-xs text-muted-foreground">
-					<span className="flex-1">{phase === 'timeout' ? '面板握手超时（10s）。' : notice}</span>
+					<span className="flex-1">
+						{phase === 'timeout' ? (
+							<>
+								面板握手超时（10s）：未收到 <code>surface.ready</code>。
+								<span className="ml-1 opacity-70">
+									{surface.state === 'down' ? '扩展服务未就绪；' : ''}
+									{url ? `url=${url.replace(/[?&]t=[^&]*/, '?t=***')}` : '无 url'}
+								</span>
+							</>
+						) : (
+							notice
+						)}
+					</span>
 					<Button size="xs" variant="secondary" onClick={() => setAttempt(n => n + 1)}>
 						<RotateCw className="mr-1 size-3" /> 重试
 					</Button>

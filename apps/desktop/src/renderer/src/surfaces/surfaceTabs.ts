@@ -8,6 +8,8 @@ export type SurfaceTabRef = {
 	capabilities: SurfaceCapability[];
 	/** Instance url, only known after `ext.surface.open`. */
 	url?: string;
+	/** Per-open instance key from `ext.surface.open`; scopes the surface token grant. */
+	instanceKey?: string;
 	roomId?: string;
 	detail?: string;
 };

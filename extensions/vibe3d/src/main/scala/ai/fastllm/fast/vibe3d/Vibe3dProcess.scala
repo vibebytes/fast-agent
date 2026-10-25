@@ -5,6 +5,8 @@ import org.slf4j.LoggerFactory
 import java.time.Duration
 import java.util.concurrent.TimeUnit
 import scala.jdk.CollectionConverters.*
+import scala.jdk.OptionConverters.*
+import scala.util.Try
 
 /** Owns the daemon child process. The MCP server is spawned by the host as a stdio server, so only
   * the daemon needs an explicit lifecycle here.
@@ -16,6 +18,7 @@ final class Vibe3dProcess(awaitMs: Long = 20_000) extends Vibe3dRuntime:
 
   def start(cfg: Vibe3dConfig): Either[String, Vibe3dRuntime.Live] =
     stop()
+    reap(cfg.home)
     val builder = ProcessBuilder(cfg.daemonCommand.asJava)
     builder.redirectErrorStream(true)
     builder.redirectOutput(ProcessBuilder.Redirect.DISCARD)
@@ -33,6 +36,18 @@ final class Vibe3dProcess(awaitMs: Long = 20_000) extends Vibe3dRuntime:
       if !child.waitFor(3, TimeUnit.SECONDS) then child.destroyForcibly()
       log.info("[vibe3d] daemon stopped pid={}", child.pid())
     proc = None
+
+  /** A daemon left behind by a previous host (crash, force-quit) still holds the run file and the
+    * port; kill it before spawning so the new child is the only one publishing.
+    */
+  private def reap(home: java.nio.file.Path): Unit =
+    Vibe3dDiscovery.read(home).foreach: run =>
+      Try(ProcessHandle.of(run.pid).toScala).toOption.flatten.foreach: h =>
+        if h.isAlive then
+          h.descendants().forEach(_.destroy())
+          h.destroy()
+          if h.onExit().get(3, TimeUnit.SECONDS).isAlive then h.destroyForcibly()
+          log.info("[vibe3d] reaped stale daemon pid={}", run.pid)
 
   private def await(cfg: Vibe3dConfig, child: Process, known: Set[Long]): Either[String, Vibe3dRuntime.Live] =
     val deadline = System.currentTimeMillis() + awaitMs

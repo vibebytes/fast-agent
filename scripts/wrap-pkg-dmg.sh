@@ -25,11 +25,20 @@ After install, Fast is in Applications. Terminal commands: fast-ink, fast-cli (a
 EOF
 
 rm -f "$out"
-hdiutil create \
+if ! hdiutil create \
 	-volname "Fast" \
 	-srcfolder "$work" \
 	-ov \
 	-format UDZO \
 	-imagekey zlib-level=9 \
-	"$out"
+	"$out"; then
+	# -srcfolder mounts a scratch volume under /Volumes; sandboxed/headless runs
+	# cannot mount, so build the filesystem in place and compress afterwards.
+	echo "hdiutil create failed; falling back to makehybrid" >&2
+	rm -f "$out"
+	stage="${out%.dmg}.stage.dmg"
+	hdiutil makehybrid -hfs -hfs-volume-name "Fast" -o "$stage" "$work" >/dev/null
+	hdiutil convert "$stage" -format UDZO -imagekey zlib-level=9 -o "$out" >/dev/null
+	rm -f "$stage"
+fi
 echo "dmg -> $out"
