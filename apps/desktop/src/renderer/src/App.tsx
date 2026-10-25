@@ -4,6 +4,7 @@ import {
 	useCallback,
 	useEffect,
 	useMemo,
+	useRef,
 	useState,
 	useSyncExternalStore
 } from 'react';
@@ -35,6 +36,8 @@ import {ScheduledPlans} from './sidebar/ScheduledSidebar';
 import type {OpenTeamsRequest} from './TeamsWorkbench';
 import {AppChrome} from './shell/AppChrome';
 import {readStored, readStoredBool} from './shell/layoutPrefs';
+import {parseSurfaceOpen} from './surfaces/surfaceEvents';
+import {railOpenIntent} from './surfaces/railAutoOpen';
 import {useAppWindow} from './shell/useAppWindow';
 
 // Heavy, low-frequency surfaces load on first use (perf doc P1-9): Teams pulls
@@ -125,6 +128,11 @@ export function App({store}: {store: WorkspaceStore}) {
 	const [rightRailOpen, setRightRailOpen] = useState(() =>
 		readStoredBool('fast-ide.right-rail', true)
 	);
+	const rightRailOpenRef = useRef(rightRailOpen);
+	rightRailOpenRef.current = rightRailOpen;
+	// Surface instances seen while the rail was up: once the user collapses the rail,
+	// replays of those instances must not pop it back open.
+	const railSeenSurfaceRef = useRef(new Set<string>());
 	const {paletteId, setPaletteId} = useThemePrefs();
 	const {localePref, setLocalePref} = useLocalePrefs();
 	const {t} = useTranslation();
@@ -364,6 +372,19 @@ export function App({store}: {store: WorkspaceStore}) {
 	);
 	const collapseRightRail = useCallback(() => setRightRailOpen(false), []);
 	const expandRightRail = useCallback(() => setRightRailOpen(true), []);
+
+	// RightWorkbench unmounts while the rail is collapsed, so its surface_open handler is
+	// dead exactly when a web surface (e.g. vibe3d) appears. Watch here: a genuinely new
+	// instance expands the rail; replays of instances we already saw stay silent.
+	useEffect(() => {
+		return window.fastIde.onBridgeEvent(payload => {
+			const open = parseSurfaceOpen(payload.event);
+			if (!open) return;
+			if (railOpenIntent(railSeenSurfaceRef.current, open) && !rightRailOpenRef.current) {
+				expandRightRail();
+			}
+		});
+	}, [expandRightRail]);
 	const onOpenReviewDiff = useCallback((changeId: string, path: string) => {
 		setRightRailOpen(true);
 		setOpenDiffRequest({changeId, path, nonce: Date.now()});
