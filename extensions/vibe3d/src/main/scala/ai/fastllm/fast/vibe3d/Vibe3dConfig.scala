@@ -28,6 +28,7 @@ final case class Vibe3dConfig(
       home.toString,
       "--open-editor",
       openEditor.toString,
+      "--persist",
       "--log-level",
       "warn"
     )
