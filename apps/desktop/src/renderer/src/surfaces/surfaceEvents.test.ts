@@ -1,6 +1,13 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import {parseSurfaceOpen, parseSurfaceState} from './surfaceEvents.js';
+import {parseSurfaceOpen, parseSurfaceState, surfacesReloadOn} from './surfaceEvents.js';
+
+test('surfacesReloadOn only echoes extension list changes, never open/state replays', () => {
+	assert.equal(surfacesReloadOn('extensions_changed'), true);
+	assert.equal(surfacesReloadOn('surface_open'), false);
+	assert.equal(surfacesReloadOn('surface_state'), false);
+	assert.equal(surfacesReloadOn(undefined), false);
+});
 
 test('parseSurfaceOpen requires the surface_open discriminator', () => {
 	assert.equal(

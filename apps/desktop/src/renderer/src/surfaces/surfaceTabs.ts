@@ -109,6 +109,59 @@ export function upsertSurfaceTab(tabs: RailTab[], next: RailTab): RailTab[] {
 	return tabs.map((tab, i) => (i === idx ? merged : tab));
 }
 
+/**
+ * Identifies one open instance of a surface. The bridge replays retained `surface.open` intents on
+ * every ListExtensions, so the host needs this key to tell a replay from a genuine new instance
+ * (daemon restart = new port) and to remember which instances the user closed.
+ */
+export function surfaceCloseKey(surface: {extId: string; surfaceId: string; instanceKey?: string; url?: string}): string {
+	return `${surface.extId}|${surface.surfaceId}|${surface.instanceKey ?? ''}|${surface.url ?? ''}`;
+}
+
+export type SurfaceOpenIntent = {
+	extId: string;
+	surfaceId: string;
+	url: string;
+	instanceKey?: string;
+	roomId?: string;
+	title?: string;
+};
+
+export type SurfaceOpenOutcome = {tabs: RailTab[]; focusId: string | null};
+
+/** Idempotent host-side reducer for `surface_open`. A replay of the instance the tab already shows
+ * (or that the user closed) changes nothing and never steals focus; a new instance url recreates
+ * or refreshes the tab and focuses it — that is the extension's explicit open intent.
+ */
+export function applySurfaceOpen(tabs: RailTab[], open: SurfaceOpenIntent, closedKeys: ReadonlySet<string>): SurfaceOpenOutcome {
+	const skipKey = `${open.extId}|${open.surfaceId}|${open.instanceKey ?? ''}|${open.url}`;
+	if (closedKeys.has(skipKey)) return {tabs, focusId: null};
+	const id = surfaceTabId(open.extId, open.surfaceId);
+	const prev = tabs.find(tab => tab.id === id);
+	if (prev?.surface?.url === open.url && prev?.surface?.instanceKey === open.instanceKey) {
+		if ((prev.surface.roomId ?? undefined) === open.roomId) return {tabs, focusId: null};
+		const merged = tabs.map(tab =>
+			tab.id === id ? {...tab, surface: {...tab.surface!, roomId: open.roomId ?? tab.surface!.roomId}} : tab
+		);
+		return {tabs: merged, focusId: null};
+	}
+	const base = surfaceTab({
+		extId: open.extId,
+		surfaceId: open.surfaceId,
+		title: open.title ?? prev?.title ?? open.surfaceId
+	});
+	const next = upsertSurfaceTab(tabs, {
+		...base,
+		surface: {
+			...base.surface!,
+			url: open.url,
+			...(open.instanceKey ? {instanceKey: open.instanceKey} : {}),
+			...(open.roomId || prev?.surface?.roomId ? {roomId: open.roomId ?? prev?.surface?.roomId} : {})
+		}
+	});
+	return {tabs: next, focusId: id};
+}
+
 export function dropSurfaceTabs(tabs: RailTab[], extId: string): RailTab[] {
 	return tabs.filter(tab => tab.surface?.extId !== extId);
 }

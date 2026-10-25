@@ -62,3 +62,12 @@ export function parseSurfaceState(event: unknown): SurfaceStateEvent | null {
 	if (!extId || !surfaceId || !state) return null;
 	return {extId, surfaceId, state, detail: str(e.detail)};
 }
+
+/**
+ * The extension list is the menu/hint source; refresh it only when the set of extensions changes.
+ * `surface_open` / `surface_state` must NOT trigger a reload: ListExtensions replays those very
+ * events, so echoing them back turns the host into an infinite open↔replay ping-pong.
+ */
+export function surfacesReloadOn(type: string | undefined): boolean {
+	return type === 'extensions_changed';
+}

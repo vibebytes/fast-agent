@@ -2,8 +2,10 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import type {ExtRow, SurfaceWire} from '@fastllm/bridge-client';
 import {
+	applySurfaceOpen,
 	dropSurfaceTabs,
 	patchSurfaceState,
+	surfaceCloseKey,
 	surfaceEntries,
 	surfaceRunnable,
 	surfaceTab,
@@ -135,4 +137,80 @@ test('dropSurfaceTabs removes every tab owned by the extension', () => {
 		dropSurfaceTabs(tabs, 'vibe3d').map(t => t.id),
 		['surface:other:other.pane']
 	);
+});
+
+const OPEN = {
+	extId: 'vibe3d',
+	surfaceId: 'vibe3d.editor',
+	url: 'http://127.0.0.1:7345/?t=tok',
+	instanceKey: 'vibe3d.editor',
+	title: 'Vibe3D'
+};
+
+test('applySurfaceOpen creates and focuses a tab for a new surface', () => {
+	const outcome = applySurfaceOpen([], OPEN, new Set());
+	assert.equal(outcome.focusId, 'surface:vibe3d:vibe3d.editor');
+	assert.equal(outcome.tabs.length, 1);
+	assert.equal(outcome.tabs[0].surface?.url, OPEN.url);
+	assert.equal(outcome.tabs[0].surface?.instanceKey, OPEN.instanceKey);
+	assert.equal(outcome.tabs[0].title, 'Vibe3D');
+});
+
+test('applySurfaceOpen replay with the same instance keeps the tab and never steals focus', () => {
+	const first = applySurfaceOpen([], OPEN, new Set());
+	const second = applySurfaceOpen(first.tabs, OPEN, new Set());
+	assert.equal(second.focusId, null);
+	assert.equal(second.tabs, first.tabs);
+});
+
+test('applySurfaceOpen refreshes the url and focuses when the instance url changes', () => {
+	const first = applySurfaceOpen([], OPEN, new Set());
+	const second = applySurfaceOpen(first.tabs, {...OPEN, url: 'http://127.0.0.1:8000/?t=tok2'}, new Set());
+	assert.equal(second.focusId, 'surface:vibe3d:vibe3d.editor');
+	assert.equal(second.tabs.length, 1);
+	assert.equal(second.tabs[0].surface?.url, 'http://127.0.0.1:8000/?t=tok2');
+});
+
+test('applySurfaceOpen refreshes the grant and focuses when the instanceKey changes', () => {
+	const first = applySurfaceOpen([], OPEN, new Set());
+	const second = applySurfaceOpen(first.tabs, {...OPEN, instanceKey: 'vibe3d.editor#2'}, new Set());
+	assert.equal(second.focusId, 'surface:vibe3d:vibe3d.editor');
+	assert.equal(second.tabs[0].surface?.instanceKey, 'vibe3d.editor#2');
+});
+
+test('applySurfaceOpen keeps the declared title when the replay has none', () => {
+	const declared = surfaceTab({extId: 'vibe3d', surfaceId: 'vibe3d.editor', title: 'Vibe3D'});
+	const opened = {...declared, surface: {...declared.surface!, url: OPEN.url, instanceKey: OPEN.instanceKey}};
+	const replayed = applySurfaceOpen([opened], {...OPEN, title: undefined}, new Set());
+	assert.equal(replayed.focusId, null);
+	assert.equal(replayed.tabs[0].title, 'Vibe3D');
+});
+
+test('applySurfaceOpen skips a replay whose exact instance the user closed', () => {
+	const first = applySurfaceOpen([], OPEN, new Set());
+	const closed = new Set([surfaceCloseKey(first.tabs[0].surface!)]);
+	const outcome = applySurfaceOpen([], OPEN, closed);
+	assert.equal(outcome.tabs.length, 0);
+	assert.equal(outcome.focusId, null);
+});
+
+test('applySurfaceOpen reopens with a new url after the user closed the old instance', () => {
+	const first = applySurfaceOpen([], OPEN, new Set());
+	const closed = new Set([surfaceCloseKey(first.tabs[0].surface!)]);
+	const outcome = applySurfaceOpen([], {...OPEN, url: 'http://127.0.0.1:8000/?t=tok2'}, closed);
+	assert.equal(outcome.focusId, 'surface:vibe3d:vibe3d.editor');
+	assert.equal(outcome.tabs[0].surface?.url, 'http://127.0.0.1:8000/?t=tok2');
+});
+
+test('applySurfaceOpen focuses the first real open after a placeholder was closed', () => {
+	const closed = new Set([surfaceCloseKey({extId: 'vibe3d', surfaceId: 'vibe3d.editor'})]);
+	const outcome = applySurfaceOpen([], OPEN, closed);
+	assert.equal(outcome.focusId, 'surface:vibe3d:vibe3d.editor');
+});
+
+test('applySurfaceOpen merges roomId on a replay without stealing focus', () => {
+	const first = applySurfaceOpen([], OPEN, new Set());
+	const second = applySurfaceOpen(first.tabs, {...OPEN, roomId: 'r_ab12cd34'}, new Set());
+	assert.equal(second.focusId, null);
+	assert.equal(second.tabs[0].surface?.roomId, 'r_ab12cd34');
 });

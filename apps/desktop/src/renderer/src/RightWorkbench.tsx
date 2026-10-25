@@ -44,7 +44,7 @@ import {liveKeysOf} from './mcpApp/catalog';
 import {useMcpAppCatalog} from './mcpApp/useMcpAppCatalog';
 import {onOpenMcpApp} from './mcpApp/openRequest';
 import {parseSurfaceOpen, parseSurfaceState} from './surfaces/surfaceEvents';
-import {patchSurfaceState, surfaceTab, upsertSurfaceTab} from './surfaces/surfaceTabs';
+import {applySurfaceOpen, patchSurfaceState, surfaceCloseKey} from './surfaces/surfaceTabs';
 import {loadSurfaceTabs, restoreSurfaceTabs, saveSurfaceTabs} from './surfaces/surfacePersistence';
 import {useSurfaces} from './surfaces/useSurfaces';
 import {
@@ -134,6 +134,7 @@ function RightWorkbenchImpl({
 	const buffersRef = useRef(new Map<string, MonacoEditorHandle>());
 	/** A tab the user closed stays closed: later results must not reopen it. */
 	const mcpAppClosedRef = useRef(new Set<string>());
+	const surfaceClosedKeysRef = useRef(new Set<string>());
 	const tabsRef = useRef(tabs);
 	tabsRef.current = tabs;
 	const surfaces = useSurfaces();
@@ -475,6 +476,7 @@ function RightWorkbenchImpl({
 		if (id === FILES_TAB_ID) return;
 		const tab = tabsRef.current.find(t => t.id === id);
 		if (tab?.kind === 'mcp-app') mcpAppClosedRef.current.add(id);
+		if (tab?.kind === 'surface' && tab.surface) surfaceClosedKeysRef.current.add(surfaceCloseKey(tab.surface));
 		if (tab?.kind === 'document' && tab.dirty) {
 			const choice = await chooseCloseDirty(railTabTitle(tab));
 			if (choice === 'cancel') return;
@@ -555,23 +557,21 @@ function RightWorkbenchImpl({
 	}, [project?.id, bridgeConnectionId, refreshDocumentFromDisk]);
 
 	// Extension surfaces: the extension's `ext.surface.open` intent creates/focuses the tab.
+	// ListExtensions replays retained open intents, so idempotence is mandatory: a replay of the
+	// instance already shown (or user-closed) must not recreate the tab nor steal focus — otherwise
+	// switching tabs is impossible and a closed vibe3d tab resurrects on every bridge roundtrip.
 	useEffect(() => {
 		return window.fastIde.onBridgeEvent(payload => {
 			const open = parseSurfaceOpen(payload.event);
 			if (open) {
-				const base = surfaceTab({
-					extId: open.extId,
-					surfaceId: open.surfaceId,
-					title: open.title ?? open.surfaceId
-				});
-				setTabs(prev =>
-					upsertSurfaceTab(prev, {
-						...base,
-						surface: {...base.surface!, url: open.url, roomId: open.roomId}
-					})
-				);
-				setEverActive(prev => (prev.has(base.id) ? prev : new Set(prev).add(base.id)));
-				setActiveId(base.id);
+				// Preview on tabsRef decides focus; the functional update below stays cumulative even
+				// when two open intents land in the same tick (tabsRef lags behind the pending update).
+				const focusId = applySurfaceOpen(tabsRef.current, open, surfaceClosedKeysRef.current).focusId;
+				setTabs(prev => applySurfaceOpen(prev, open, surfaceClosedKeysRef.current).tabs);
+				if (focusId) {
+					setEverActive(prev => (prev.has(focusId) ? prev : new Set(prev).add(focusId)));
+					setActiveId(focusId);
+				}
 				return;
 			}
 			const state = parseSurfaceState(payload.event);
