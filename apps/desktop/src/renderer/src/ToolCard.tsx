@@ -503,12 +503,12 @@ export function ToolCard({item}: {item: ToolItem}) {
 	const isAgentOp =
 		item.tool === 'define_agent' || item.tool === 'update_agent' || item.tool === 'delete_agent';
 	const collapsible = isAgentOp || thresholdFold || item.status === 'success' || item.status === 'error';
-	const defaultOpen = media != null || artifact != null || (isAgentOp ? false : item.status === 'running');
+	const defaultOpen = media != null || (isAgentOp ? false : item.status === 'running');
 	// Only problem or verbose cards owe a preview: quiet successes stay one line.
 	const wantsPreview = shellEnv != null || (!isAgentOp && (item.status === 'error' || thresholdFold));
 	const previewSource = wantsPreview ? (shellEnv?.outputPreview ?? output) : '';
 
-	return (
+	const frame = (
 		<WindowFrame
 			variant="terminal"
 			title={item.title}
@@ -527,11 +527,6 @@ export function ToolCard({item}: {item: ToolItem}) {
 			className="w-full"
 		>
 			{item.command ? <CommandLine command={item.command} /> : null}
-			{artifact ? (
-				<div className="border-b border-border px-3 py-2">
-					<ArtifactCard spec={artifact} />
-				</div>
-			) : null}
 			{media ? (
 				<div className="border-b border-border">
 					<MediaStage artifact={media} alt={item.title} />
@@ -555,5 +550,16 @@ export function ToolCard({item}: {item: ToolItem}) {
 				<div className="px-3 py-2 text-xs text-muted-foreground">Running…</div>
 			) : null}
 		</WindowFrame>
+	);
+
+	return (
+		<div className="w-full">
+			{frame}
+			{artifact ? (
+				<div className="mt-1.5">
+					<ArtifactCard spec={artifact} />
+				</div>
+			) : null}
+		</div>
 	);
 }

@@ -1,3 +1,4 @@
+import {readArtifact} from '../artifact.js';
 import {classifyToolActivity, formatActivitySummary, type ActivityCounts} from '../diff.js';
 import type {ProcessStackStep, TimelineItem} from '../timeline.js';
 
@@ -7,7 +8,10 @@ export function isSealedProcessStep(item: TimelineItem): item is ProcessStackSte
 	if (item.kind === 'thought' || item.kind === 'exploring') return !item.open;
 	if (item.kind === 'tool') {
 		// Successful/completed tools stack into process steps; running/failed/error tools stay visible
-		return item.status === 'success';
+		if (item.status !== 'success') return false;
+		// A tool that produced an openable artifact is a result, not process noise: its card must
+		// stay on its own row even when the surrounding tool calls collapse into a stack.
+		return readArtifact(item.output) == null;
 	}
 	return false;
 }
