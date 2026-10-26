@@ -1148,7 +1148,8 @@
       "copyLogPath": "ログパスをコピー",
       "showOutput": "出力を表示",
       "hideOutput": "出力を隠す",
-      "moreLines": "+{{count}} 行"
+      "moreLines": "+{{count}} lines",
+      "artifactOpen": "Open"
     },
     "planCard": {
       "completed": "completed",

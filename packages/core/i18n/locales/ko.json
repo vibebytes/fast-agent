@@ -1148,7 +1148,8 @@
       "copyLogPath": "로그 경로 복사",
       "showOutput": "출력 펼치기",
       "hideOutput": "출력 접기",
-      "moreLines": "+{{count}} 줄"
+      "moreLines": "+{{count}} lines",
+      "artifactOpen": "Open"
     },
     "planCard": {
       "completed": "completed",

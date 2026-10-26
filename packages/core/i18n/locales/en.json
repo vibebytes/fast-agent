@@ -1226,7 +1226,8 @@
       "copyLogPath": "Copy log path",
       "showOutput": "Show output",
       "hideOutput": "Hide output",
-      "moreLines": "+{{count}} lines"
+      "moreLines": "+{{count}} lines",
+      "artifactOpen": "Open"
     },
     "planCard": {
       "completed": "completed",

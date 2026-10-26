@@ -44,6 +44,8 @@ import {liveKeysOf} from './mcpApp/catalog';
 import {useMcpAppCatalog} from './mcpApp/useMcpAppCatalog';
 import {onOpenMcpApp} from './mcpApp/openRequest';
 import {parseSurfaceOpen, parseSurfaceState} from './surfaces/surfaceEvents';
+import type {SurfaceOpen} from './surfaces/surfaceEvents';
+import {onSurfaceOpen} from './surfaces/openRequest';
 import {applySurfaceOpen, patchSurfaceState, surfaceCloseKey} from './surfaces/surfaceTabs';
 import {loadSurfaceTabs, restoreSurfaceTabs, saveSurfaceTabs} from './surfaces/surfacePersistence';
 import {useSurfaces} from './surfaces/useSurfaces';
@@ -560,24 +562,37 @@ function RightWorkbenchImpl({
 	// ListExtensions replays retained open intents, so idempotence is mandatory: a replay of the
 	// instance already shown (or user-closed) must not recreate the tab nor steal focus — otherwise
 	// switching tabs is impossible and a closed vibe3d tab resurrects on every bridge roundtrip.
+	const openSurface = useCallback((open: SurfaceOpen) => {
+		// Preview on tabsRef decides focus; the functional update below stays cumulative even
+		// when two open intents land in the same tick (tabsRef lags behind the pending update).
+		const focusId = applySurfaceOpen(tabsRef.current, open, surfaceClosedKeysRef.current).focusId;
+		setTabs(prev => applySurfaceOpen(prev, open, surfaceClosedKeysRef.current).tabs);
+		if (focusId) {
+			setEverActive(prev => (prev.has(focusId) ? prev : new Set(prev).add(focusId)));
+			setActiveId(focusId);
+		}
+	}, []);
+
 	useEffect(() => {
 		return window.fastIde.onBridgeEvent(payload => {
 			const open = parseSurfaceOpen(payload.event);
 			if (open) {
-				// Preview on tabsRef decides focus; the functional update below stays cumulative even
-				// when two open intents land in the same tick (tabsRef lags behind the pending update).
-				const focusId = applySurfaceOpen(tabsRef.current, open, surfaceClosedKeysRef.current).focusId;
-				setTabs(prev => applySurfaceOpen(prev, open, surfaceClosedKeysRef.current).tabs);
-				if (focusId) {
-					setEverActive(prev => (prev.has(focusId) ? prev : new Set(prev).add(focusId)));
-					setActiveId(focusId);
-				}
+				openSurface(open);
 				return;
 			}
 			const state = parseSurfaceState(payload.event);
 			if (state) setTabs(prev => patchSurfaceState(prev, state));
 		});
-	}, []);
+	}, [openSurface]);
+
+	// An artifact-card click is explicit, so drop the "the user closed this" memory first: the
+	// same room must reopen. Everything else goes through the reducer above.
+	useEffect(() => {
+		return onSurfaceOpen(open => {
+			surfaceClosedKeysRef.current.delete(surfaceCloseKey(open));
+			openSurface(open);
+		});
+	}, [openSurface]);
 
 	// MCP Apps: the first result for a `ui://` resource opens its tab; later ones only feed it.
 	useEffect(() => {

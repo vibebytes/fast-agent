@@ -1159,7 +1159,8 @@
       "copyLogPath": "複製日誌路徑",
       "showOutput": "展開輸出",
       "hideOutput": "收起輸出",
-      "moreLines": "+{{count}} 行"
+      "moreLines": "+{{count}} lines",
+      "artifactOpen": "開啟"
     },
     "planCard": {
       "completed": "completed",

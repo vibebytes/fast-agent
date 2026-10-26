@@ -3,8 +3,10 @@ import {useEffect, useState, type ReactNode} from 'react';
 import {WindowFrame} from '@fast-ide/ui/components/window-frame';
 import {cn} from '@fast-ide/ui/lib/utils';
 import type {TimelineItem} from '@fast-ide/session-view';
+import {readArtifact, stripArtifact} from '@fast-ide/session-view';
 import {Boxes, Check, ChevronDown, Copy, FileText, LoaderCircle} from 'lucide-react';
 import {highlightCode} from './highlightCode';
+import {ArtifactCard} from './ArtifactCard';
 import {tintOutputLine} from './outputTint';
 import {ToolOutputPreview} from './ToolOutputPreview';
 import {StreamingMarkdownMessage} from './MarkdownMessage';
@@ -489,9 +491,11 @@ export function ToolCard({item}: {item: ToolItem}) {
 	if (isSkillView(item.tool)) return <SkillViewCard item={item} />;
 	if (isSubagentTool(item.tool)) return <SubagentCard item={item} />;
 
-	const output = displayToolOutput(item.output);
+	const raw = displayToolOutput(item.output);
+	const artifact = readArtifact(raw);
+	const output = artifact ? stripArtifact(raw) : raw;
 	const shellEnv = parseShellEnvelope(output);
-	const displayItem = output === (item.output ?? '') ? item : {...item, output};
+	const displayItem = raw === (item.output ?? '') ? item : {...item, output: raw};
 	const media = extractMediaArtifact(output, item.summary, item.title);
 	const thresholdFold = shouldThresholdFoldTool(displayItem);
 	// Successful tool cards settle to their one-line header (shell commands and
@@ -499,7 +503,7 @@ export function ToolCard({item}: {item: ToolItem}) {
 	const isAgentOp =
 		item.tool === 'define_agent' || item.tool === 'update_agent' || item.tool === 'delete_agent';
 	const collapsible = isAgentOp || thresholdFold || item.status === 'success' || item.status === 'error';
-	const defaultOpen = media != null || (isAgentOp ? false : item.status === 'running');
+	const defaultOpen = media != null || artifact != null || (isAgentOp ? false : item.status === 'running');
 	// Only problem or verbose cards owe a preview: quiet successes stay one line.
 	const wantsPreview = shellEnv != null || (!isAgentOp && (item.status === 'error' || thresholdFold));
 	const previewSource = wantsPreview ? (shellEnv?.outputPreview ?? output) : '';
@@ -523,6 +527,11 @@ export function ToolCard({item}: {item: ToolItem}) {
 			className="w-full"
 		>
 			{item.command ? <CommandLine command={item.command} /> : null}
+			{artifact ? (
+				<div className="border-b border-border px-3 py-2">
+					<ArtifactCard spec={artifact} />
+				</div>
+			) : null}
 			{media ? (
 				<div className="border-b border-border">
 					<MediaStage artifact={media} alt={item.title} />

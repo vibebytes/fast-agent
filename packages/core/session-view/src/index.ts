@@ -1,4 +1,14 @@
 export {
+	ARTIFACT_OPEN_TAG,
+	parseArtifactSpec,
+	readArtifact,
+	stripArtifact,
+	type ArtifactKind,
+	type ArtifactOpen,
+	type ArtifactSpec
+} from './artifact.js';
+
+export {
 	documentCard,
 	forgetDocument,
 	isChatAssistant,

@@ -1221,7 +1221,8 @@
       "copyLogPath": "复制日志路径",
       "showOutput": "展开输出",
       "hideOutput": "收起输出",
-      "moreLines": "+{{count}} 行"
+      "moreLines": "+{{count}} lines",
+      "artifactOpen": "打开"
     },
     "planCard": {
       "completed": "已完成",

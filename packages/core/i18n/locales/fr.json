@@ -1148,7 +1148,8 @@
       "copyLogPath": "Copier le chemin du log",
       "showOutput": "Afficher la sortie",
       "hideOutput": "Masquer la sortie",
-      "moreLines": "+{{count}} lignes"
+      "moreLines": "+{{count}} lines",
+      "artifactOpen": "Open"
     },
     "planCard": {
       "completed": "completed",

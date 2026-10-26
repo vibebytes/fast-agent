@@ -1148,7 +1148,8 @@
       "copyLogPath": "Копировать путь к логу",
       "showOutput": "Показать вывод",
       "hideOutput": "Скрыть вывод",
-      "moreLines": "+{{count}} строк"
+      "moreLines": "+{{count}} lines",
+      "artifactOpen": "Open"
     },
     "planCard": {
       "completed": "completed",
