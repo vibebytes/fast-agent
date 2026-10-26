@@ -37,19 +37,34 @@ final class Vibe3dExtension(runtime: Vibe3dRuntime) extends Extension:
         ctx.ui.surface(plan.surface)
         ctx.events.publish(Vibe3dPlan.OpenTopic, plan.open)
         ctx.events.publish(Vibe3dPlan.StateTopic, Vibe3dPlan.state("ready", live.baseUrl))
-        health = Some(watch(ctx, live))
+        health = Some(watch(ctx, cfg, live))
         log.info("[vibe3d] installed pid={} port={}", live.pid, live.port)
 
   override def uninstall(): Unit =
     stopHealth()
     runtime.stop()
 
-  private def watch(ctx: ExtensionContext, live: Vibe3dRuntime.Live): Vibe3dHealth =
+  private def watch(ctx: ExtensionContext, cfg: Vibe3dConfig, live: Vibe3dRuntime.Live): Vibe3dHealth =
     val client = Vibe3dRuntime.healthClient
+    var base = live.baseUrl
     val monitor = Vibe3dHealth(
-      () => Vibe3dRuntime.healthy(client, live.baseUrl, Duration.ofSeconds(2)),
+      () => Vibe3dRuntime.healthy(client, base, Duration.ofSeconds(2)),
       (state, detail) => ctx.events.publish(Vibe3dPlan.StateTopic, Vibe3dPlan.state(state, detail)),
-      live.baseUrl
+      live.baseUrl,
+      () =>
+        log.warn("[vibe3d] daemon down, restarting")
+        runtime.start(cfg) match
+          case Right(fresh) =>
+            base = fresh.baseUrl
+            val plan = Vibe3dPlan.of(cfg, fresh, cfg.editorUrl(fresh.port, fresh.token))
+            ctx.mcp.upsert(plan.mcp)
+            ctx.ui.surface(plan.surface)
+            ctx.events.publish(Vibe3dPlan.OpenTopic, plan.open)
+            log.info("[vibe3d] daemon recovered pid={} port={}", fresh.pid, fresh.port)
+            Some(fresh.baseUrl)
+          case Left(why) =>
+            log.warn("[vibe3d] daemon restart failed: {}", why)
+            None
     )
     monitor.start()
     monitor

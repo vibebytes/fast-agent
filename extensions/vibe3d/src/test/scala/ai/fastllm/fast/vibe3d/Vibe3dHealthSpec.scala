@@ -45,3 +45,41 @@ class Vibe3dHealthSpec extends AnyFunSuite with Matchers:
     health.tick()
     health.tick()
     seen shouldBe empty
+
+  test("a dead daemon restarts and ready is republished with the new url"):
+    val seen = ListBuffer.empty[(String, String)]
+    var up = true
+    var attempts = 0
+    val health = Vibe3dHealth(
+      () => up,
+      (state, detail) => seen += (state -> detail),
+      "http://127.0.0.1:7100",
+      recover = () => { attempts += 1; Some("http://127.0.0.1:7101") }
+    )
+    health.tick()
+    up = false
+    health.tick()
+    attempts shouldBe 1
+    seen shouldBe List("ready" -> "http://127.0.0.1:7101")
+
+  test("a failed restart publishes down once, then retries only after the backoff"):
+    val seen = ListBuffer.empty[(String, String)]
+    var t = 0L
+    var attempts = 0
+    val health = Vibe3dHealth(
+      () => false,
+      (state, detail) => seen += (state -> detail),
+      "http://127.0.0.1:7100",
+      recover = () => { attempts += 1; None },
+      retryMs = 30_000L,
+      now = () => { t += 5_000L; t }
+    )
+    health.tick()
+    health.tick()
+    health.tick()
+    health.tick()
+    health.tick()
+    health.tick()
+    health.tick()
+    attempts shouldBe 2
+    seen shouldBe List("down" -> "http://127.0.0.1:7100 /health failed")
