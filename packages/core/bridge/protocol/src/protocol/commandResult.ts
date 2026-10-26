@@ -204,8 +204,10 @@ export const commandResultSchema = z.object({
 					id: z.string(),
 					phase: z.enum(['Installed', 'Active', 'Stopping', 'Uninstalled', 'Failed']),
 					hotUnload: z.boolean(),
+					enabled: z.boolean().optional(),
 					fault: z.string().optional(),
 					restartHint: z.string().optional(),
+					health: z.enum(['ok', 'down']).optional(),
 					/** Declared UI surfaces. Wire carries no url/resourceUri — the host resolves them. */
 					provides: z
 						.object({
@@ -293,6 +295,17 @@ export const commandResultSchema = z.object({
 				resourceUri: z.string().optional()
 			})
 			.passthrough()
+			.optional(),
+		/** Extension health snapshot rows (ExtensionHealth): {ext, state, detail?, checkedAt?}. */
+		health: z
+			.array(
+				z.object({
+					ext: z.string(),
+					state: z.enum(['ok', 'down', 'unknown']),
+					detail: z.string().optional(),
+					checkedAt: z.number().optional()
+				})
+			)
 			.optional(),
 		/** L0 engine admin rows (ListEngines / write cmds). */
 		engines: z

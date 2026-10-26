@@ -82,8 +82,10 @@ const api = {
 		invoke('skills:uninstallMarket', name, scope),
 	listExtensions: () => invoke('extensions:list'),
 	extensionStatus: (id: string) => invoke('extensions:status', id),
+	extensionHealth: () => invoke('extensions:health'),
 	installExtension: (dir: string) => invoke('extensions:install', dir),
 	uninstallExtension: (id: string) => invoke('extensions:uninstall', id),
+	setExtensionEnabled: (id: string, enabled: boolean) => invoke('extensions:setEnabled', id, enabled),
 	mintSurfaceToken: (input: {extId: string; surfaceId: string; instanceKey: string; sessionId?: string}) =>
 		invoke('extensions:mintSurfaceToken', input),
 	pickExtensionDir: () => invoke('extensions:pickDir'),

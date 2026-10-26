@@ -237,6 +237,7 @@ export type InvokeHost = {
 						id: string;
 						phase: 'Installed' | 'Active' | 'Stopping' | 'Uninstalled' | 'Failed';
 						hotUnload: boolean;
+						enabled?: boolean;
 						fault?: string;
 						restartHint?: string;
 					}>;
@@ -253,6 +254,7 @@ export type InvokeHost = {
 						id: string;
 						phase: 'Installed' | 'Active' | 'Stopping' | 'Uninstalled' | 'Failed';
 						hotUnload: boolean;
+						enabled?: boolean;
 						fault?: string;
 						restartHint?: string;
 					} | null;
@@ -265,6 +267,10 @@ export type InvokeHost = {
 	};
 	'extensions:uninstall': {
 		args: [id: string];
+		result: {ok: true} | {ok: false; notice: string};
+	};
+	'extensions:setEnabled': {
+		args: [id: string, enabled: boolean];
 		result: {ok: true} | {ok: false; notice: string};
 	};
 	'extensions:pickDir': {

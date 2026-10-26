@@ -22,8 +22,10 @@ export type ExtRow = {
 	id: string;
 	phase: ExtPhase;
 	hotUnload: boolean;
+	enabled?: boolean;
 	fault?: string;
 	restartHint?: string;
+	health?: 'ok' | 'down';
 	provides?: {surfaces?: SurfaceWire[]};
 };
 
@@ -33,14 +35,23 @@ export type ExtNote = {
 	mark: string;
 };
 
+export type ExtensionHealthOut = {
+	extension_id: string;
+	status: 'ok' | 'down';
+	checked_at: string;
+	detail?: string;
+};
+
 export type ExtOk<T> = {ok: true} & T;
 export type ExtErr = {ok: false; notice: string};
 
 export type ExtAdminApi = {
 	listExtensions: () => Promise<ExtOk<{extensions: ExtRow[]; ledger: ExtNote[]}> | ExtErr>;
 	extensionStatus: (id: string) => Promise<ExtOk<{extension: ExtRow | null}> | ExtErr>;
+	extensionHealth: (id: string) => Promise<ExtOk<{status: ExtensionHealthOut}> | ExtErr>;
 	installExtension: (dir: string) => Promise<ExtOk<{id: string}> | ExtErr>;
 	uninstallExtension: (id: string) => Promise<ExtOk<Record<string, never>> | ExtErr>;
+	setExtensionEnabled: (id: string, enabled: boolean) => Promise<ExtOk<Record<string, never>> | ExtErr>;
 };
 
 export function restartHint(row: Pick<ExtRow, 'hotUnload'>): string | undefined {
@@ -54,6 +65,8 @@ export function extensionPayload(row: ExtRow): ExtRow {
 export const extAdminMethods = [
 	'listExtensions',
 	'extensionStatus',
+	'extensionHealth',
 	'installExtension',
-	'uninstallExtension'
+	'uninstallExtension',
+	'setExtensionEnabled'
 ] as const;

@@ -13,6 +13,11 @@ export type PluginCommand =
 			appId?: string;
 	  }
 	| {
+			type: 'ExtensionHealth';
+			tenantId?: string;
+			appId?: string;
+	  }
+	| {
 			type: 'InstallExtension';
 			dir: string;
 			tenantId?: string;
@@ -21,6 +26,13 @@ export type PluginCommand =
 	| {
 			type: 'UninstallExtension';
 			id: string;
+			tenantId?: string;
+			appId?: string;
+	  }
+	| {
+			type: 'SetExtensionEnabled';
+			id: string;
+			enabled: boolean;
 			tenantId?: string;
 			appId?: string;
 	  }
@@ -91,6 +103,11 @@ export const pluginCommandSchemas = [
 		appId: z.string().optional()
 	}),
 	z.object({
+		type: z.literal('ExtensionHealth'),
+		tenantId: z.string().optional(),
+		appId: z.string().optional()
+	}),
+	z.object({
 		type: z.literal('InstallExtension'),
 		dir: z.string(),
 		tenantId: z.string().optional(),
@@ -99,6 +116,13 @@ export const pluginCommandSchemas = [
 	z.object({
 		type: z.literal('UninstallExtension'),
 		id: z.string(),
+		tenantId: z.string().optional(),
+		appId: z.string().optional()
+	}),
+	z.object({
+		type: z.literal('SetExtensionEnabled'),
+		id: z.string(),
+		enabled: z.boolean(),
 		tenantId: z.string().optional(),
 		appId: z.string().optional()
 	}),

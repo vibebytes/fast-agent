@@ -301,8 +301,10 @@ export function createDesktopHost(deps: DesktopHostDeps): ProductInvokeMap {
 
 		'extensions:list': () => hub.listExtensions(),
 		'extensions:status': (id: string) => hub.extensionStatus(id),
+		'extensions:health': () => hub.extensionHealth(),
 		'extensions:install': (dir: string) => hub.installExtension(dir),
 		'extensions:uninstall': (id: string) => hub.uninstallExtension(id),
+		'extensions:setEnabled': (id: string, enabled: boolean) => hub.setExtensionEnabled(id, enabled),
 		'extensions:pickDir': () => pickDirectory(),
 		'extensions:mintSurfaceToken': (input: {
 			extId: string;

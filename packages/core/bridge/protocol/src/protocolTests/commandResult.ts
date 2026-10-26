@@ -280,6 +280,11 @@ test('command result accepts an extension without surfaces', () => {
 	assert.equal(parsed.extensions?.[0]?.provides, undefined);
 });
 
+test('command result keeps extension enabled state', () => {
+	assert.equal(commandResultSchema.parse(extensionResult({enabled: false})).extensions?.[0]?.enabled, false);
+	assert.equal(commandResultSchema.parse(extensionResult({})).extensions?.[0]?.enabled, undefined);
+});
+
 test('command result rejects a surface with an unknown kind', () => {
 	assert.throws(() => commandResultSchema.parse(extensionResult({
 		provides: {

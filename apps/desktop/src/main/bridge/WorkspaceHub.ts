@@ -840,6 +840,9 @@ export class WorkspaceHub {
 	async extensionStatus(id: string) {
 		return this.plugins.extensionStatus(id);
 	}
+	async extensionHealth() {
+		return this.plugins.extensionHealth();
+	}
 	async listMcpServers() {
 		return this.mcp.listMcpServers();
 	}
@@ -881,6 +884,9 @@ export class WorkspaceHub {
 	}
 	async uninstallExtension(id: string) {
 		return this.plugins.uninstallExtension(id);
+	}
+	async setExtensionEnabled(id: string, enabled: boolean) {
+		return this.plugins.setExtensionEnabled(id, enabled);
 	}
 	async mintSurfaceToken(input: Parameters<WorkspacePlugins['mintSurfaceToken']>[0]) {
 		return this.plugins.mintSurfaceToken(input);

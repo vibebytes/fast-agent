@@ -200,8 +200,12 @@ export type FastIdeApi = {
 	extensionStatus: (
 		id: string
 	) => Promise<{ok: true; extension: ExtRow | null} | {ok: false; notice: string}>;
+	extensionHealth: () => Promise<
+		{ok: true; health: Record<string, 'ok' | 'down' | 'unknown'>} | {ok: false; notice: string}
+	>;
 	installExtension: (dir: string) => Promise<{ok: true; id: string} | {ok: false; notice: string}>;
 	uninstallExtension: (id: string) => Promise<{ok: true} | {ok: false; notice: string}>;
+	setExtensionEnabled: (id: string, enabled: boolean) => Promise<{ok: true} | {ok: false; notice: string}>;
 	mintSurfaceToken: (input: {
 		extId: string;
 		surfaceId: string;

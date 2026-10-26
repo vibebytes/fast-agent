@@ -30,8 +30,12 @@ type ExtApi = {
 	extensionStatus: (
 		id: string
 	) => Promise<{ok: true; extension: ExtRow | null} | {ok: false; notice: string}>;
+	extensionHealth: () => Promise<
+		{ok: true; health: Record<string, 'ok' | 'down' | 'unknown'>} | {ok: false; notice: string}
+	>;
 	installExtension: (dir: string) => Promise<{ok: true; id: string} | {ok: false; notice: string}>;
 	uninstallExtension: (id: string) => Promise<{ok: true} | {ok: false; notice: string}>;
+	setExtensionEnabled: (id: string, enabled: boolean) => Promise<{ok: true} | {ok: false; notice: string}>;
 	pickExtensionDir: () => Promise<string | null>;
 };
 
@@ -50,8 +54,10 @@ function liveApi(): ExtApi {
 	return {
 		listExtensions: () => window.fastIde.listExtensions(),
 		extensionStatus: id => window.fastIde.extensionStatus(id),
+		extensionHealth: () => window.fastIde.extensionHealth(),
 		installExtension: dir => window.fastIde.installExtension(dir),
 		uninstallExtension: id => window.fastIde.uninstallExtension(id),
+		setExtensionEnabled: (id, enabled) => window.fastIde.setExtensionEnabled(id, enabled),
 		pickExtensionDir: () => window.fastIde.pickExtensionDir()
 	};
 }
@@ -224,6 +230,22 @@ class ExtsStore {
 		}
 	};
 
+	probeHealth = async (): Promise<Record<string, 'ok' | 'down' | 'unknown'>> => {
+		if (!this.view.engineReady || this.view.status === 'disabled') return {};
+		try {
+			const res = await this.api.extensionHealth();
+			if (!res.ok) return {};
+			const patched = this.view.extensions.map(row => {
+				const st = res.health[row.id];
+				return st === 'ok' || st === 'down' ? {...row, health: st} : row;
+			});
+			this.setView({...this.view, extensions: patched});
+			return res.health;
+		} catch {
+			return {};
+		}
+	};
+
 	install = async (dir?: string): Promise<boolean> => {
 		if (!this.view.engineReady || this.view.status === 'disabled') return false;
 		const prev = this.view;
@@ -257,6 +279,19 @@ class ExtsStore {
 			return false;
 		}
 		this.setView({...prev, failed: prev.failed?.id === id ? null : prev.failed, notice: null});
+		await this.list();
+		return true;
+	};
+
+	setEnabled = async (id: string, enabled: boolean): Promise<boolean> => {
+		if (!this.view.engineReady || this.view.status === 'disabled') return false;
+		const prev = this.view;
+		const res = await this.api.setExtensionEnabled(id, enabled);
+		if (!res.ok) {
+			this.setView({...prev, notice: res.notice, status: 'ready'});
+			return false;
+		}
+		this.setView({...prev, notice: null});
 		await this.list();
 		return true;
 	};
@@ -306,8 +341,10 @@ export function useExtensions(engineReady: boolean): ExtsView & {
 	retry: () => void;
 	list: () => Promise<void>;
 	statusOf: (id: string) => Promise<ExtRow | null>;
+	probeHealth: () => Promise<Record<string, 'ok' | 'down' | 'unknown'>>;
 	install: (dir?: string) => Promise<boolean>;
 	uninstall: (id: string) => Promise<boolean>;
+	setEnabled: (id: string, enabled: boolean) => Promise<boolean>;
 	upgrade: (id: string) => Promise<boolean>;
 	reinstall: (id: string) => Promise<boolean>;
 } {
@@ -323,8 +360,10 @@ export function useExtensions(engineReady: boolean): ExtsView & {
 		retry: extStore.retry,
 		list: extStore.list,
 		statusOf: extStore.statusOf,
+		probeHealth: extStore.probeHealth,
 		install: extStore.install,
 		uninstall: extStore.uninstall,
+		setEnabled: extStore.setEnabled,
 		upgrade: extStore.upgrade,
 		reinstall: extStore.reinstall
 	};

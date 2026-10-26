@@ -6,9 +6,21 @@ test('ext admin method names match settings-style verbs', () => {
 	assert.deepEqual(extAdminMethods, [
 		'listExtensions',
 		'extensionStatus',
+		'extensionHealth',
 		'installExtension',
-		'uninstallExtension'
+		'uninstallExtension',
+		'setExtensionEnabled'
 	]);
+});
+
+test('extensionHealth result decodes ok/down probe', () => {
+	const res: {ok: true; status: {extension_id: string; status: 'ok' | 'down'; checked_at: string; detail?: string}} = {
+		ok: true,
+		status: {extension_id: 'vibe3d', status: 'down', checked_at: '2026-10-26T10:00:00Z', detail: 'daemon http 127.0.0.1:62597 unreachable'}
+	};
+	assert.equal(res.ok, true);
+	assert.equal(res.status.status, 'down');
+	assert.equal(typeof res.status.checked_at, 'string');
 });
 
 test('hotUnload false projects 需重启', () => {

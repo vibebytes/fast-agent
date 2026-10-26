@@ -5,6 +5,7 @@ import {hostRequest, type CommandResult, type HostLane} from './hostWait.js';
 type Notice = {ok: false; notice: string};
 type ExtWireRow = NonNullable<Extract<BridgeEvent, {type: 'command_result'}>['extensions']>[number];
 type ExtWireNote = NonNullable<Extract<BridgeEvent, {type: 'command_result'}>['ledger']>[number];
+type ExtWireHealth = NonNullable<Extract<BridgeEvent, {type: 'command_result'}>['health']>[number];
 
 export type PluginLane = HostLane & {
 	hostOpen: () => boolean;
@@ -14,8 +15,12 @@ export type PluginLane = HostLane & {
 export type WorkspacePlugins = {
 	listExtensions: () => Promise<{ok: true; extensions: ExtWireRow[]; ledger: ExtWireNote[]} | Notice>;
 	extensionStatus: (id: string) => Promise<{ok: true; extension: ExtWireRow | null} | Notice>;
+	extensionHealth: () => Promise<
+		{ok: true; health: Record<string, 'ok' | 'down' | 'unknown'>} | Notice
+	>;
 	installExtension: (dir: string) => Promise<{ok: true; id: string} | Notice>;
 	uninstallExtension: (id: string) => Promise<{ok: true} | Notice>;
+	setExtensionEnabled: (id: string, enabled: boolean) => Promise<{ok: true} | Notice>;
 	/** Scoped bearer for one web panel instance; `toolScope` is engine-clamped to `provides.tools`. */
 	mintSurfaceToken: (input: {
 		extId: string;
@@ -53,6 +58,15 @@ function ledgerFromEvent(event: CommandResult): ExtWireNote[] {
 	return Array.isArray(raw) ? raw : [];
 }
 
+function healthMapFromEvent(event: CommandResult): Record<string, 'ok' | 'down' | 'unknown'> {
+	const rows = (Array.isArray(event.health) ? event.health : []) as ExtWireHealth[];
+	const map: Record<string, 'ok' | 'down' | 'unknown'> = {};
+	for (const row of rows) {
+		if (typeof row?.ext === 'string') map[row.ext] = row.state;
+	}
+	return map;
+}
+
 /** Install waits on npm. Enable/Start wait on DSH `$events` ready (`EngineAdmin.startNow` is 20s). */
 export function engineWriteTimeout(
 	type: Parameters<WorkspacePlugins['writeEngine']>[0]
@@ -81,6 +95,12 @@ export function createPlugins(lane: PluginLane): WorkspacePlugins {
 			if (r.event.status === 'error') return {ok: false, notice: r.event.message};
 			return {ok: true, extension: extensionsFromEvent(r.event)[0] ?? null};
 		},
+		async extensionHealth() {
+			const r = await hostRequest(lane, ['ExtensionHealth'], {type: 'ExtensionHealth'});
+			if (!r.ok) return r;
+			if (r.event.status === 'error') return {ok: false, notice: r.event.message};
+			return {ok: true, health: healthMapFromEvent(r.event)};
+		},
 		async installExtension(dir) {
 			const r = await hostRequest(lane, ['InstallExtension'], {type: 'InstallExtension', dir});
 			if (!r.ok) return r;
@@ -92,6 +112,14 @@ export function createPlugins(lane: PluginLane): WorkspacePlugins {
 			const r = await hostRequest(lane, ['UninstallExtension'], {type: 'UninstallExtension', id});
 			if (!r.ok) return r;
 			if (r.event.status === 'error') return {ok: false, notice: r.event.message};
+			return {ok: true};
+		},
+		async setExtensionEnabled(id, enabled) {
+			const r = await hostRequest(lane, ['SetExtensionEnabled'], {type: 'SetExtensionEnabled', id, enabled});
+			if (!r.ok) return r;
+			if (r.event.status === 'error' || r.event.status === 'rejected') {
+				return {ok: false, notice: r.event.message};
+			}
 			return {ok: true};
 		},
 		async mintSurfaceToken(input) {

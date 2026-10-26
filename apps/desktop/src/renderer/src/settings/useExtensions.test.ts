@@ -13,15 +13,22 @@ function row(id: string, phase: ExtRow['phase'] = 'Active', hotUnload = true): E
 function api(opts: {
 	list?: () => Promise<ListOk | Err>;
 	status?: (id: string) => Promise<{ok: true; extension: ExtRow | null} | Err>;
+	health?: () => Promise<
+		{ok: true; health: Record<string, 'ok' | 'down' | 'unknown'>} | Err
+	>;
 	install?: (dir: string) => Promise<{ok: true; id: string} | Err>;
 	uninstall?: (id: string) => Promise<{ok: true} | Err>;
 	pick?: () => Promise<string | null>;
+	setEnabled?: (id: string, enabled: boolean) => Promise<{ok: true} | Err>;
 }) {
 	return {
 		listExtensions: opts.list ?? (async () => ({ok: true as const, extensions: [], ledger: []})),
 		extensionStatus: opts.status ?? (async () => ({ok: true as const, extension: null})),
+		extensionHealth: opts.health ?? (async () => ({ok: true as const, health: {}})),
 		installExtension: opts.install ?? (async (dir: string) => ({ok: true as const, id: dir})),
 		uninstallExtension: opts.uninstall ?? (async () => ({ok: true as const})),
+		setExtensionEnabled:
+			opts.setEnabled ?? (async () => ({ok: true as const})),
 		pickExtensionDir: opts.pick ?? (async () => '/tmp/probe')
 	};
 }
@@ -72,6 +79,32 @@ test('list ready projects ledger and restartHint', async () => {
 	);
 });
 
+test('setEnabled toggles, refreshes, and surfaces notice on failure', async () => {
+	const calls: Array<[string, boolean]> = [];
+	extStore.bindApi(
+		api({
+			list: async () => ({ok: true, extensions: [row('probe', 'Active', false)], ledger: []}),
+			setEnabled: async (id, enabled) => {
+				calls.push([id, enabled]);
+				return enabled ? {ok: true as const} : {ok: false as const, notice: '需重启'};
+			}
+		})
+	);
+	extStore.setEngineReady(true);
+	await extStore.list();
+	assert.deepEqual(calls, []);
+	assert.equal(await extStore.setEnabled('probe', true), true);
+	assert.deepEqual(calls, [['probe', true]]);
+	assert.equal(extStore.getSnapshot().notice, null);
+	assert.equal(await extStore.setEnabled('probe', false), false);
+	assert.deepEqual(calls, [
+		['probe', true],
+		['probe', false]
+	]);
+	assert.equal(extStore.getSnapshot().notice, '需重启');
+	assert.equal(extStore.getSnapshot().status, 'ready');
+});
+
 test('noticeKind maps known faults; unknown stays Unknown', () => {
 	assert.equal(noticeKind('需重启'), 'NeedsRestart');
 	assert.equal(noticeKind('Busy'), 'Busy');
@@ -102,6 +135,38 @@ test('known faults stay on notice; unknown notice is kept verbatim', async () =>
 	assert.equal(ok, false);
 	assert.equal(extStore.getSnapshot().notice, 'DrainTimeout');
 	assert.equal(noticeKind('DrainTimeout'), 'Unknown');
+});
+
+test('setEnabled refreshes list; failure keeps notice', async () => {
+	extStore.resetForTest();
+	let enabled = false;
+	let setCalls = 0;
+	extStore.bindApi(
+		api({
+			list: async () => ({
+				ok: true,
+				extensions: [row('probe', 'Active'), {...row('probe'), enabled}],
+				ledger: []
+			}),
+			setEnabled: async (_id, next) => {
+				setCalls += 1;
+				enabled = next;
+				return next ? {ok: true} : {ok: false, notice: 'Busy'};
+			}
+		})
+	);
+	extStore.setEngineReady(true);
+	await extStore.list();
+
+	assert.equal(await extStore.setEnabled('probe', true), true);
+	assert.equal(setCalls, 1);
+	assert.equal(extStore.getSnapshot().notice, null);
+	assert.equal(extStore.getSnapshot().extensions[1]?.enabled, true);
+
+	assert.equal(await extStore.setEnabled('probe', false), false);
+	assert.equal(extStore.getSnapshot().notice, 'Busy');
+	assert.equal(extStore.getSnapshot().extensions[1]?.enabled, true);
+	assert.equal(setCalls, 2);
 });
 
 test('install and uninstall refresh list', async () => {
@@ -307,4 +372,30 @@ test('upgrade install fail marks Failed and reinstall recovers', async () => {
 	assert.equal(recovered.extensions.find(r => r.id === 'probe')?.phase, 'Active');
 	assert.equal(recovered.ledger.filter(n => n.mark === 'put').length, 2);
 	assert.equal(recovered.ledger.filter(n => n.mark === 'drop').length, 1);
+});
+
+test('probeHealth patches row health from snapshot', async () => {
+	extStore.bindApi(
+		api({
+			list: async () => ({
+				ok: true as const,
+				extensions: [
+					{id: 'vibe3d', phase: 'Active', hotUnload: true},
+					{id: 'memory', phase: 'Active', hotUnload: true}
+				],
+				ledger: []
+			}),
+			health: async () => ({
+				ok: true as const,
+				health: {vibe3d: 'down', memory: 'ok', ghost: 'unknown'}
+			})
+		})
+	);
+	extStore.setEngineReady(true);
+	await extStore.list();
+	const got = await extStore.probeHealth();
+	assert.deepEqual(got, {vibe3d: 'down', memory: 'ok', ghost: 'unknown'});
+	const rows = extStore.getSnapshot().extensions;
+	assert.equal(rows.find(r => r.id === 'vibe3d')?.health, 'down');
+	assert.equal(rows.find(r => r.id === 'memory')?.health, 'ok');
 });

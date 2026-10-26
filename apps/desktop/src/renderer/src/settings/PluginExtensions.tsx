@@ -1,3 +1,4 @@
+import {useState} from 'react';
 import {useTranslation} from 'react-i18next';
 import {Download, Trash2} from 'lucide-react';
 import {Badge} from '@fast-ide/ui/components/badge';
@@ -30,11 +31,14 @@ export function ExtensionsTab({
 		retry: () => void;
 		install: (dir?: string) => Promise<boolean>;
 		uninstall: (id: string) => Promise<boolean>;
+		setEnabled: (id: string, enabled: boolean) => Promise<boolean>;
 		upgrade: (id: string) => Promise<boolean>;
 		reinstall: (id: string) => Promise<boolean>;
+		probeHealth: () => Promise<Record<string, 'ok' | 'down' | 'unknown'>>;
 	};
 }) {
 	const {t} = useTranslation();
+	const [probing, setProbing] = useState(false);
 	if (ext.status === 'disabled') {
 		return (
 			<SettingsState
@@ -70,6 +74,17 @@ export function ExtensionsTab({
 					<Download className="mr-1 size-3.5" />
 					{t('settings.plugins.ext.installLocal')}
 				</SettingsButton>
+				<SettingsButton
+					className="shadow-2xs font-medium"
+					variant="outline"
+					onClick={() => {
+						setProbing(true);
+						void ext.probeHealth().finally(() => setProbing(false));
+					}}
+					disabled={ext.status === 'loading' || probing}
+				>
+					{t('settings.plugins.ext.probeHealth')}
+				</SettingsButton>
 			</div>
 
 			{visible.length === 0 ? (
@@ -89,6 +104,7 @@ export function ExtensionsTab({
 								row={row}
 								failed={ext.failed?.id === row.id}
 								busy={ext.status === 'loading'}
+								onSetEnabled={(id, enabled) => void ext.setEnabled(id, enabled)}
 								onUninstall={() => void ext.uninstall(row.id)}
 								onUpgrade={() => void ext.upgrade(row.id)}
 								onReinstall={() => void ext.reinstall(row.id)}
@@ -107,6 +123,7 @@ function ExtensionCard({
 	row,
 	failed,
 	busy,
+	onSetEnabled,
 	onUninstall,
 	onUpgrade,
 	onReinstall
@@ -114,6 +131,7 @@ function ExtensionCard({
 	row: ExtRow;
 	failed: boolean;
 	busy: boolean;
+	onSetEnabled: (id: string, enabled: boolean) => void;
 	onUninstall: () => void;
 	onUpgrade: () => void;
 	onReinstall: () => void;
@@ -121,12 +139,50 @@ function ExtensionCard({
 	const {t} = useTranslation();
 	const phaseLabel = t(`settings.plugins.ext.phase.${row.phase}`, {defaultValue: row.phase});
 	const hint = row.restartHint ?? (!row.hotUnload ? t('settings.plugins.ext.restartHint') : undefined);
+	const enabled = row.enabled ?? true;
+	const failedRow = failed || row.phase === 'Failed';
+	const dotClass = failedRow
+		? 'bg-destructive'
+		: !enabled
+			? 'bg-muted-foreground/40'
+			: row.phase === 'Stopping'
+				? 'bg-amber-500'
+				: 'bg-emerald-500';
+	const dotTitle = failedRow
+		? t('settings.plugins.ext.statusFault')
+		: !enabled
+			? t('settings.plugins.ext.statusDisabled')
+			: t('settings.plugins.ext.statusEnabled');
 	return (
 		<div className="flex flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
 			<div className="min-w-0 flex-1">
 				<div className="flex flex-wrap items-center gap-2">
+					<span
+						data-testid="ext-status-dot"
+						title={dotTitle}
+						aria-label={dotTitle}
+						className={`inline-block size-2 shrink-0 rounded-full ${dotClass}`}
+					/>
 					<span className="font-mono text-[13px] font-semibold">{row.id}</span>
-					<Badge variant={failed || row.phase === 'Failed' ? 'destructive' : 'secondary'}>
+					{row.health ? (
+						<span
+							data-testid="ext-health-dot"
+							title={
+								row.health === 'ok'
+									? t('settings.plugins.ext.healthOk')
+									: t('settings.plugins.ext.healthDown')
+							}
+							aria-label={
+								row.health === 'ok'
+									? t('settings.plugins.ext.healthOk')
+									: t('settings.plugins.ext.healthDown')
+							}
+							className={`inline-block size-2 shrink-0 rounded-full ${
+								row.health === 'ok' ? 'bg-emerald-500' : 'bg-amber-500'
+							}`}
+						/>
+					) : null}
+					<Badge variant={failedRow ? 'destructive' : 'secondary'}>
 						{failed ? t('settings.plugins.ext.phase.Failed') : phaseLabel}
 					</Badge>
 					{row.hotUnload ? (
@@ -150,6 +206,14 @@ function ExtensionCard({
 					</SettingsButton>
 				) : (
 					<>
+						<SettingsButton
+							size="xs"
+							variant="outline"
+							onClick={() => onSetEnabled(row.id, !enabled)}
+							disabled={busy}
+						>
+							{enabled ? t('settings.plugins.ext.disable') : t('settings.plugins.ext.enable')}
+						</SettingsButton>
 						<SettingsButton size="xs" variant="outline" onClick={onUpgrade} disabled={busy}>
 							{t('settings.plugins.ext.upgrade')}
 						</SettingsButton>

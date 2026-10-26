@@ -56,6 +56,7 @@ export const HostWaitCommands = new Set([
 	'UninstallSkillFromMarket',
 	'ListExtensions',
 	'ExtensionStatus',
+	'ExtensionHealth',
 	'InstallExtension',
 	'UninstallExtension',
 	'ListMcpServers',

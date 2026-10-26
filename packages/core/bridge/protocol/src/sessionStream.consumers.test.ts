@@ -10,7 +10,7 @@ const fastRoot = join(here, '../../../../../');
 const consumers = [
 	['Desktop', 'apps/desktop/src/main/bridge/sessionEvents.ts'],
 	['Mobile', 'apps/mobile/src/bridge/store.ts'],
-	['TUI', 'apps/tui/src/state/reducer.ts']
+	['TUI', 'apps/tui/src/state/applyEvent.ts']
 ] as const;
 
 test('Desktop / Mobile / TUI import session stream from @fastllm/bridge-protocol', () => {
