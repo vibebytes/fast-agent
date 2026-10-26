@@ -47,29 +47,48 @@ object Vibe3dConfig:
   private def list(cfg: Map[String, Json], key: String): List[String] =
     cfg.get(key).flatMap(_.asArray).getOrElse(Vector.empty).flatMap(_.asString).toList.map(_.trim).filter(_.nonEmpty)
 
-  def rootOf(cfg: Map[String, Json], env: Map[String, String] = sys.env, cwd: Path = Paths.get("")): Path =
+  def rootOf(
+      cfg: Map[String, Json],
+      env: Map[String, String] = sys.env,
+      cwd: Path = Paths.get(""),
+      bundled: Option[Path] = defaultBundledRoot
+  ): Path =
     val raw = str(cfg, "root").orElse(env.get("VIBE3D_ROOT").map(_.trim).filter(_.nonEmpty))
-    Paths.get(raw.getOrElse(cwd.resolve("vibe3d").toString)).toAbsolutePath.normalize
+    val chosen = raw
+      .map(Paths.get(_))
+      .orElse(bundled.filter(b => Files.isDirectory(b)))
+      .getOrElse(cwd.resolve("vibe3d"))
+    chosen.toAbsolutePath.normalize
 
-  /** None: no checkout on this machine, the feature stays off. Some(Left): present but unusable. */
+  private def defaultBundledRoot: Option[Path] =
+    Option(System.getProperty("fast.extensions"))
+      .map(_.trim)
+      .filter(_.nonEmpty)
+      .map(dir => Paths.get(dir).resolve("vibe3d"))
+
   def optional(
       cfg: Map[String, Json],
       env: Map[String, String] = sys.env,
-      cwd: Path = Paths.get("")
+      cwd: Path = Paths.get(""),
+      bundled: Option[Path] = defaultBundledRoot
   ): Option[Either[String, Vibe3dConfig]] =
-    if !Files.isDirectory(rootOf(cfg, env, cwd)) then None else Some(from(cfg, env, cwd))
+    if !Files.isDirectory(rootOf(cfg, env, cwd, bundled)) then None else Some(from(cfg, env, cwd, bundled))
 
   def from(
       cfg: Map[String, Json],
       env: Map[String, String] = sys.env,
-      cwd: Path = Paths.get("").toAbsolutePath
+      cwd: Path = Paths.get("").toAbsolutePath,
+      bundled: Option[Path] = defaultBundledRoot
   ): Either[String, Vibe3dConfig] =
-    val root = rootOf(cfg, env, cwd)
+    val root = rootOf(cfg, env, cwd, bundled)
     val homeRaw = str(cfg, "home").orElse(env.get("VIBE3D_HOME").map(_.trim).filter(_.nonEmpty))
     val home = Paths.get(homeRaw.getOrElse(Paths.get(System.getProperty("user.home"), ".vibe3d", "fast").toString)).toAbsolutePath.normalize
     val conf = Vibe3dConfig(
       root = root,
-      node = str(cfg, "node").orElse(env.get("VIBE3D_NODE").map(_.trim).filter(_.nonEmpty)).getOrElse("node"),
+      node = str(cfg, "node")
+        .orElse(env.get("VIBE3D_NODE").map(_.trim).filter(_.nonEmpty))
+        .orElse(env.get("FAST_NODE").map(_.trim).filter(_.nonEmpty))
+        .getOrElse("node"),
       home = home,
       openEditor = bool(cfg, "openEditor").getOrElse(false),
       blockedTools = list(cfg, "blockedTools")

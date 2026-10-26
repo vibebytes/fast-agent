@@ -290,6 +290,7 @@ ensure_engine() {
 		fi
 		"$root/scripts/patch-engine-java.sh" "$dest"
 		echo "engine already at $cli"
+		"$root/scripts/fetch-vibe3d.sh"
 		return
 	fi
 	local fetch_args=()
@@ -300,6 +301,7 @@ ensure_engine() {
 	fi
 	fetch_args+=("$want")
 	"$root/scripts/fetch-engine.sh" "${fetch_args[@]}"
+	"$root/scripts/fetch-vibe3d.sh"
 }
 
 build_js() {

@@ -14,7 +14,6 @@ provides:
       command: [node, packages/mcp/dist/index.js]
       description: Vibe3D 场景 / 资产 / 渲染
 config:
-  node: node
   openEditor: false
   # root 缺省指向 <cwd>/vibe3d；不存在即静默停用，存在但未构建则激活报错。
   # root: /path/to/vibe3d

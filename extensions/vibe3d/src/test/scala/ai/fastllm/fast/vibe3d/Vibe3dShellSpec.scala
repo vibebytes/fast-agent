@@ -78,7 +78,7 @@ class Vibe3dPlanSpec extends AnyFunSuite with Matchers:
 
   test("one stdio mcp, one pane, one open intent"):
     val root = builtRoot()
-    val cfg = Vibe3dConfig.from(Map("root" -> Json.fromString(root.toString), "home" -> Json.fromString("/tmp/h"))).toOption.get
+    val cfg = Vibe3dConfig.from(Map("root" -> Json.fromString(root.toString), "home" -> Json.fromString("/tmp/h")), sys.env - "FAST_NODE" - "VIBE3D_NODE").toOption.get
     val live = Vibe3dRuntime.Live(42, 7100, "tok")
     val plan = Vibe3dPlan.of(cfg, live, cfg.editorUrl(live.port, live.token))
     plan.mcp.name shouldBe "vibe3d"

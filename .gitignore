@@ -49,6 +49,9 @@ modules/engine/jars/
 modules/engine/*.zip
 modules/engine/*.jar
 
+# fetch-vibe3d.sh stages built JS bundles here (built from the vibe3d checkout)
+extensions/dist/src/dist/extensions/vibe3d/packages/
+
 # Env & secrets
 .env
 .env.*
