@@ -46,7 +46,8 @@ import {onOpenMcpApp} from './mcpApp/openRequest';
 import {parseSurfaceOpen, parseSurfaceState} from './surfaces/surfaceEvents';
 import type {SurfaceOpen} from './surfaces/surfaceEvents';
 import {onSurfaceOpen} from './surfaces/openRequest';
-import {applySurfaceOpen, patchSurfaceState, surfaceCloseKey} from './surfaces/surfaceTabs';
+import {applySurfaceOpen, dropSurfaceTabs, patchSurfaceState, surfaceCloseKey} from './surfaces/surfaceTabs';
+import {unlistedSurfaceExtIds} from './surfaces/surfaceSweep';
 import {loadSurfaceTabs, restoreSurfaceTabs, saveSurfaceTabs} from './surfaces/surfacePersistence';
 import {useSurfaces} from './surfaces/useSurfaces';
 import {
@@ -643,15 +644,40 @@ function RightWorkbenchImpl({
 		setActiveId(next.activeId);
 	}, [appCatalog, activeId]);
 
-	// A surface tab must never outlive its extension: withdraw / uninstall closes it.
+	// A surface tab must never outlive its extension: withdraw / uninstall closes it. Liveness needs
+	// positive proof — the entry list is a menu (Active + pane/web only), so an install retry
+	// (`Failed`) or a stale snapshot would otherwise close the tab the instant the user opens it.
 	useEffect(() => {
 		if (!surfaces.loaded) return;
-		const live = new Set(surfaces.entries.map(e => e.extId));
-		const stale = tabsRef.current.filter(tab => tab.surface && !live.has(tab.surface.extId));
-		if (stale.length === 0) return;
-		setTabs(prev => prev.filter(tab => !tab.surface || live.has(tab.surface.extId)));
-		if (stale.some(tab => tab.id === activeId)) setActiveId(FILES_TAB_ID);
-	}, [surfaces.loaded, surfaces.entries, activeId]);
+		const suspects = unlistedSurfaceExtIds(tabsRef.current, surfaces.live);
+		if (suspects.length === 0) return;
+		let cancelled = false;
+		void (async () => {
+			const gone = new Set<string>();
+			let alive = false;
+			for (const extId of suspects) {
+				const res = await window.fastIde.extensionStatus(extId);
+				if (!res.ok) continue;
+				if (res.extension && res.extension.phase !== 'Uninstalled') {
+					alive = true;
+					continue;
+				}
+				gone.add(extId);
+			}
+			if (cancelled) return;
+			// The snapshot only reloads on `extensions_changed`, so an extension installed after the
+			// last reload is missing from it even though it is running — refresh instead of closing.
+			if (alive) surfaces.reload();
+			if (gone.size === 0) return;
+			const next = [...gone].reduce(dropSurfaceTabs, tabsRef.current);
+			if (next.length === tabsRef.current.length) return;
+			setTabs(next);
+			setActiveId(prev => (next.some(tab => tab.id === prev) ? prev : FILES_TAB_ID));
+		})();
+		return () => {
+			cancelled = true;
+		};
+	}, [surfaces.loaded, surfaces.live, surfaces.reload]);
 
 	return (
 		<div className="flex h-full min-h-0 min-w-0 flex-col bg-background">

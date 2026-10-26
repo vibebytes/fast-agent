@@ -1,19 +1,27 @@
-import {useCallback, useEffect, useState} from 'react';
+import {useCallback, useEffect, useMemo, useState} from 'react';
+import type {ExtRow} from '@fastllm/bridge-client';
 import {surfacesReloadOn} from './surfaceEvents';
+import {liveExtIds} from './surfaceSweep';
 import {surfaceEntries, type SurfaceEntry} from './surfaceTabs';
 
 /**
  * Declared extension panes, refreshed on mount and on extension set changes.
  * The list is a menu/hint source only — a tab opens from `ext.surface.open`.
  */
-export function useSurfaces(): {entries: SurfaceEntry[]; loaded: boolean} {
-	const [entries, setEntries] = useState<SurfaceEntry[]>([]);
+export function useSurfaces(): {
+	entries: SurfaceEntry[];
+	rows: ExtRow[];
+	live: Set<string>;
+	loaded: boolean;
+	reload: () => void;
+} {
+	const [rows, setRows] = useState<ExtRow[]>([]);
 	const [loaded, setLoaded] = useState(false);
 
 	const reload = useCallback(() => {
 		void window.fastIde.listExtensions().then(res => {
 			if (!res.ok) return;
-			setEntries(surfaceEntries(res.extensions));
+			setRows(res.extensions);
 			setLoaded(true);
 		});
 	}, []);
@@ -28,5 +36,7 @@ export function useSurfaces(): {entries: SurfaceEntry[]; loaded: boolean} {
 		return unsub;
 	}, [reload]);
 
-	return {entries, loaded};
+	const entries = useMemo(() => surfaceEntries(rows), [rows]);
+	const live = useMemo(() => liveExtIds(rows), [rows]);
+	return {entries, rows, live, loaded, reload};
 }
