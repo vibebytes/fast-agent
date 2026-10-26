@@ -37,7 +37,7 @@ final case class Vibe3dConfig(
     ) ++ notifyEndpoint.toList.flatMap(e => List("--notify-opens", e))
 
   def mcpCommand(baseUrl: String, token: String): List[String] =
-    List(node, mcpEntry.toString, "--url", baseUrl, "--token", token, "--home", home.toString)
+    List(node, mcpEntry.toString, "--url", baseUrl, "--token", token, "--home", home.toString, "--autostart", "false")
 
   def editorUrl(port: Int, token: String): String = s"http://127.0.0.1:$port/?t=$token"
 

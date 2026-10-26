@@ -85,7 +85,7 @@ class Vibe3dPlanSpec extends AnyFunSuite with Matchers:
     val live = Vibe3dRuntime.Live(42, 7100, "tok")
     val plan = Vibe3dPlan.of(cfg, live, cfg.editorUrl(live.port, live.token))
     plan.mcp.name shouldBe "vibe3d"
-    plan.mcp.command shouldBe List("node", root.resolve("packages/mcp/dist/index.js").toString, "--url", "http://127.0.0.1:7100", "--token", "tok", "--home", "/tmp/h")
+    plan.mcp.command shouldBe List("node", root.resolve("packages/mcp/dist/index.js").toString, "--url", "http://127.0.0.1:7100", "--token", "tok", "--home", "/tmp/h", "--autostart", "false")
     plan.mcp.env shouldBe Map("VIBE3D_HOME" -> "/tmp/h")
     plan.surface.url shouldBe Some("http://127.0.0.1:7100/?t=tok")
     plan.surface.fault shouldBe None
