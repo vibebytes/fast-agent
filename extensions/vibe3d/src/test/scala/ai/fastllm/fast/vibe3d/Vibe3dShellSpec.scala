@@ -59,6 +59,9 @@ class Vibe3dConfigSpec extends AnyFunSuite with Matchers:
     val root = builtRoot()
     val cfg = Vibe3dConfig.from(Map("root" -> Json.fromString(root.toString), "home" -> Json.fromString("/tmp/h"))).toOption.get
     cfg.daemonCommand should contain allOf ("--home", "/tmp/h", "--open-editor", "false")
+    cfg.daemonCommand should not contain "--notify-opens"
+    cfg.withNotifyEndpoint("http://127.0.0.1:54321/vibe3d/opens").daemonCommand should contain
+      allOf ("--notify-opens", "http://127.0.0.1:54321/vibe3d/opens")
     cfg.mcpCommand("http://127.0.0.1:7001", "tok") should contain allOf ("--url", "http://127.0.0.1:7001", "--token", "tok")
     cfg.editorUrl(7001, "tok") shouldBe "http://127.0.0.1:7001/?t=tok"
 
@@ -95,3 +98,11 @@ class Vibe3dPlanSpec extends AnyFunSuite with Matchers:
     state.hcursor.get[String]("state").toOption shouldBe Some("ready")
     state.hcursor.get[String]("detail").toOption shouldBe Some("http://127.0.0.1:7100")
     Vibe3dPlan.StateTopic shouldBe "ext.vibe3d.surface.state"
+
+  test("a room-open intent carries the roomId so the host swaps the tab to that room"):
+    val open = Vibe3dPlan.openRoom("http://127.0.0.1:7100/editor/r/r_abc12345?t=tok", "r_abc12345")
+    open.hcursor.get[String]("surfaceId").toOption shouldBe Some("vibe3d.editor")
+    open.hcursor.get[String]("instanceKey").toOption shouldBe Some("vibe3d.editor")
+    open.hcursor.get[String]("url").toOption shouldBe Some("http://127.0.0.1:7100/editor/r/r_abc12345?t=tok")
+    open.hcursor.get[String]("roomId").toOption shouldBe Some("r_abc12345")
+    open.hcursor.get[String]("title").toOption shouldBe Some("Vibe3D")

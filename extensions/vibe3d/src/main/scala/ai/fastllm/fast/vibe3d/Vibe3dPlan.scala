@@ -46,3 +46,14 @@ object Vibe3dPlan:
         "title" -> "Vibe3D".asJson
       )
     )
+
+  /** Open intent after a `room.create` notify: same shape as `of(...).open` plus the roomId, so
+    * the host swaps the existing tab to that room's url and focuses it.
+    */
+  def openRoom(url: String, roomId: String): Json = Json.obj(
+    "surfaceId" -> SurfaceId.asJson,
+    "instanceKey" -> SurfaceId.asJson,
+    "url" -> url.asJson,
+    "title" -> "Vibe3D".asJson,
+    "roomId" -> roomId.asJson
+  )

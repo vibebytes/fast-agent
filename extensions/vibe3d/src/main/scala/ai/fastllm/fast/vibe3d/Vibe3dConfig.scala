@@ -12,13 +12,16 @@ final case class Vibe3dConfig(
     node: String,
     home: Path,
     openEditor: Boolean,
-    blockedTools: List[String]
+    blockedTools: List[String],
+    notifyEndpoint: Option[String] = None
 ):
   def daemonEntry: Path = root.resolve("packages/daemon/dist/index.js")
 
   def mcpEntry: Path = root.resolve("packages/mcp/dist/index.js")
 
   def missingEntries: List[Path] = List(daemonEntry, mcpEntry).filterNot(Files.isRegularFile(_))
+
+  def withNotifyEndpoint(endpoint: String): Vibe3dConfig = copy(notifyEndpoint = Some(endpoint))
 
   def daemonCommand: List[String] =
     List(
@@ -31,7 +34,7 @@ final case class Vibe3dConfig(
       "--persist",
       "--log-level",
       "warn"
-    )
+    ) ++ notifyEndpoint.toList.flatMap(e => List("--notify-opens", e))
 
   def mcpCommand(baseUrl: String, token: String): List[String] =
     List(node, mcpEntry.toString, "--url", baseUrl, "--token", token, "--home", home.toString)
