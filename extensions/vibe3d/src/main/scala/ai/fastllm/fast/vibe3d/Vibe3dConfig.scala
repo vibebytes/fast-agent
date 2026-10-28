@@ -36,10 +36,14 @@ final case class Vibe3dConfig(
       "warn"
     ) ++ notifyEndpoint.toList.flatMap(e => List("--notify-opens", e))
 
-  def mcpCommand(baseUrl: String, token: String): List[String] =
-    List(node, mcpEntry.toString, "--url", baseUrl, "--token", token, "--home", home.toString, "--autostart", "false")
+  def mcpCommand(baseUrl: String, token: Option[String]): List[String] =
+    List(node, mcpEntry.toString, "--url", baseUrl) ++
+      token.filter(_.nonEmpty).toList.flatMap(t => List("--token", t)) ++
+      List("--home", home.toString, "--autostart", "false")
 
-  def editorUrl(port: Int, token: String): String = s"http://127.0.0.1:$port/?t=$token"
+  def editorUrl(port: Int, token: Option[String]): String =
+    val base = s"http://127.0.0.1:$port/"
+    token.filter(_.nonEmpty).fold(base)(t => s"$base?t=$t")
 
 object Vibe3dConfig:
   private def str(cfg: Map[String, Json], key: String): Option[String] =

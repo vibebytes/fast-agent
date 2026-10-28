@@ -76,7 +76,7 @@ class Vibe3dConfigResolutionSpec extends AnyFunSuite with Matchers:
   test("mcpCommand passes --autostart false; daemon is owned solely by Vibe3dRuntime"):
     val root = tempTree("mcp-command", List("packages/daemon/dist/index.js", "packages/mcp/dist/index.js"))
     val cfg = Vibe3dConfig.from(Map.empty, Map.empty, cwd = Paths.get("/w"), bundled = Some(root)).toOption.get
-    val cmd = cfg.mcpCommand("http://127.0.0.1:1", "tok")
+    val cmd = cfg.mcpCommand("http://127.0.0.1:1", Some("tok"))
     val i = cmd.indexOf("--autostart")
     i should be >= 0
     cmd(i + 1) shouldBe "false"

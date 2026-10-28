@@ -62,16 +62,24 @@ class Vibe3dConfigSpec extends AnyFunSuite with Matchers:
     cfg.daemonCommand should not contain "--notify-opens"
     cfg.withNotifyEndpoint("http://127.0.0.1:54321/vibe3d/opens").daemonCommand should contain
       allOf ("--notify-opens", "http://127.0.0.1:54321/vibe3d/opens")
-    cfg.mcpCommand("http://127.0.0.1:7001", "tok") should contain allOf ("--url", "http://127.0.0.1:7001", "--token", "tok")
-    cfg.editorUrl(7001, "tok") shouldBe "http://127.0.0.1:7001/?t=tok"
+    cfg.mcpCommand("http://127.0.0.1:7001", Some("tok")) should contain allOf ("--url", "http://127.0.0.1:7001", "--token", "tok")
+    cfg.mcpCommand("http://127.0.0.1:7001", None) should not contain "--token"
+    cfg.editorUrl(7001, Some("tok")) shouldBe "http://127.0.0.1:7001/?t=tok"
+    cfg.editorUrl(7001, None) shouldBe "http://127.0.0.1:7001/"
 
 class Vibe3dDiscoverySpec extends AnyFunSuite with Matchers:
   test("reads live run files and skips corrupt ones"):
     val home = Files.createTempDirectory("vibe3d-home")
     Files.createDirectories(home.resolve("run"))
     Files.writeString(home.resolve("run/11.json"), """{"pid":11,"host":"127.0.0.1","port":7100,"token":"a"}""")
+    Files.writeString(home.resolve("run/13.json"), """{"pid":13,"host":"127.0.0.1","port":7101,"mode":"persist"}""")
+    Files.writeString(home.resolve("run/14.json"), """{"pid":14,"port":7102,"token":"  "}""")
     Files.writeString(home.resolve("run/12.json"), "not json", StandardCharsets.UTF_8)
-    Vibe3dDiscovery.read(home) shouldBe List(Vibe3dDiscovery.Run(11, "127.0.0.1", 7100, "a"))
+    Vibe3dDiscovery.read(home).sortBy(_.pid) shouldBe List(
+      Vibe3dDiscovery.Run(11, "127.0.0.1", 7100, Some("a")),
+      Vibe3dDiscovery.Run(13, "127.0.0.1", 7101, None),
+      Vibe3dDiscovery.Run(14, "127.0.0.1", 7102, None)
+    )
     Vibe3dDiscovery.byPid(home, 11).map(_.port) shouldBe Some(7100)
     Vibe3dDiscovery.byPid(home, 99) shouldBe None
     Vibe3dDiscovery.read(Files.createTempDirectory("no-run")) shouldBe Nil
@@ -82,7 +90,7 @@ class Vibe3dPlanSpec extends AnyFunSuite with Matchers:
   test("one stdio mcp, one pane, one open intent"):
     val root = builtRoot()
     val cfg = Vibe3dConfig.from(Map("root" -> Json.fromString(root.toString), "home" -> Json.fromString("/tmp/h")), sys.env - "FAST_NODE" - "VIBE3D_NODE").toOption.get
-    val live = Vibe3dRuntime.Live(42, 7100, "tok")
+    val live = Vibe3dRuntime.Live(42, 7100, Some("tok"))
     val plan = Vibe3dPlan.of(cfg, live, cfg.editorUrl(live.port, live.token))
     plan.mcp.name shouldBe "vibe3d"
     plan.mcp.command shouldBe List("node", root.resolve("packages/mcp/dist/index.js").toString, "--url", "http://127.0.0.1:7100", "--token", "tok", "--home", "/tmp/h", "--autostart", "false")

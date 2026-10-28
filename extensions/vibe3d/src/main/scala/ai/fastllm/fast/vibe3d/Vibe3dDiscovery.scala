@@ -8,10 +8,10 @@ import scala.jdk.CollectionConverters.*
 import scala.util.Try
 
 /** The daemon binds an ephemeral port and publishes it as `<home>/run/<pid>.json`. Reading that
-  * file is the only supported way to learn the port + token for the process we just spawned.
+  * file is the only supported way to learn the port, and the token when auth is on.
   */
 object Vibe3dDiscovery:
-  final case class Run(pid: Long, host: String, port: Int, token: String)
+  final case class Run(pid: Long, host: String, port: Int, token: Option[String])
 
   def read(home: Path): List[Run] =
     val dir = home.resolve("run")
@@ -35,5 +35,9 @@ object Vibe3dDiscovery:
       for
         pid <- c.get[Long]("pid").toOption
         port <- c.get[Int]("port").toOption
-        token <- c.get[String]("token").toOption
-      yield Run(pid, c.get[String]("host").toOption.getOrElse("127.0.0.1"), port, token)
+      yield Run(
+        pid,
+        c.get[String]("host").toOption.getOrElse("127.0.0.1"),
+        port,
+        c.get[String]("token").toOption.map(_.trim).filter(_.nonEmpty)
+      )

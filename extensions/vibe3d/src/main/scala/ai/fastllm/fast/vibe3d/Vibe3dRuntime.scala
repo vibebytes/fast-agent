@@ -10,7 +10,7 @@ trait Vibe3dRuntime:
   def stop(): Unit
 
 object Vibe3dRuntime:
-  final case class Live(pid: Long, port: Int, token: String):
+  final case class Live(pid: Long, port: Int, token: Option[String]):
     def baseUrl: String = s"http://127.0.0.1:$port"
 
   /** The daemon is Bun; a cleartext HTTP/2 upgrade gets a 404 back, so pin HTTP/1.1. */
