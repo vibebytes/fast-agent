@@ -47,6 +47,10 @@ extensions:
     enabled: true
     apiVersion: "1"
 
+  tools:
+    enabled: true
+    apiVersion: "1"
+
 services:
   embedder: none
   memory.store: lance
