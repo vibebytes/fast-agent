@@ -46,8 +46,10 @@ if [[ ! -d "$vibe/node_modules" ]]; then
 	( cd "$vibe" && pnpm install --frozen-lockfile )
 fi
 
-echo "fetch-vibe3d: building daemon/mcp bundles in $vibe"
-( cd "$vibe" && pnpm exec turbo run build --filter=...@vibebyte/vibe3d-daemon --filter=...@vibebyte/vibe3d-mcp --force )
+echo "fetch-vibe3d: building editor + daemon/mcp bundles in $vibe"
+# editor is private and not a package.json dep of daemon; turbo must still build it
+# first so packages/daemon/scripts/copy-editor.mjs can pack dist/editor.
+( cd "$vibe" && pnpm exec turbo run build --filter=...@vibebyte/vibe3d-daemon --filter=...@vibebyte/vibe3d-mcp --filter=@vibebyte/vibe3d-editor --force )
 ( cd "$vibe" && node scripts/check-bundle.mjs packages/daemon/dist packages/mcp/dist )
 
 place() {
