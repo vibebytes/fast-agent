@@ -62,6 +62,7 @@ export function createSessionGlue(h: SessionGlueHost): SessionGlue {
 		settleTask: task => h.tasks.set(task.id, task),
 		onChange: () => h.onChange?.(),
 		armCancelSettle: taskId => h.leaseWatch.armCancelSettle(taskId),
+		syncCancelSettle: task => h.leaseWatch.syncCancelSettle(task),
 		composerSampling: () => h.composer.composerSampling()
 	});
 

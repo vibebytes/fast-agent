@@ -70,6 +70,40 @@ export function applyReasoningDelta(
 	event: Extract<BridgeEvent, {type: 'reasoning_delta'}>
 ): TranscriptState {
 	if (subagentRunIdOf(event)) return state;
+	// Stamped turnId: never fall back onto a prior remapped streaming card.
+	// Optimistic window (turnId === clientMessageId) may remap; otherwise wait for turn_started.
+	if (
+		event.turnId &&
+		!chromePostRun(state.chrome) &&
+		!documentCard(state, event.turnId, {strictTurn: true})
+	) {
+		const candidate = documentCard(state);
+		const unconfirmed =
+			candidate &&
+			candidate.status === 'streaming' &&
+			(!candidate.turnId || candidate.turnId === candidate.clientMessageId);
+		if (!(candidate && unconfirmed)) return state;
+		const wasActive = entryMatchesKey(candidate, chromeRunId(state.chrome));
+		return rememberDocument(
+			{
+				...state,
+				chrome: wasActive
+					? runChromeTransition(state.chrome, {run: {id: event.turnId, fromServer: true}})
+					: state.chrome,
+				entries: state.entries.map(entry => {
+					if (entry === candidate) {
+						return {
+							...clearWaitState(pushThinkingSegment(entry, event.text)),
+							turnId: event.turnId
+						};
+					}
+					const pairedUser = entry.role === 'user' && sameTurn(entry, candidate);
+					return pairedUser ? {...entry, turnId: event.turnId} : entry;
+				})
+			},
+			event.turnId
+		);
+	}
 	return patchAssistant(state, event.turnId, entry =>
 		clearWaitState(pushThinkingSegment(entry, event.text))
 	);

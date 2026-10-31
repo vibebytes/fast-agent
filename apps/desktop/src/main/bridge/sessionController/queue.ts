@@ -5,7 +5,9 @@ import {
 	applyBridgeEvent,
 	chromeAwaitingSettlement,
 	chromeFromServer,
+	chromePostRun,
 	chromeRunId,
+	composerGate,
 	createTranscriptState,
 	type TranscriptState
 } from '@fast-ide/session-view';
@@ -239,13 +241,177 @@ test('interruptQueueItem seals the streaming turn like cancelRun', () => {
 
 	sent.length = 0;
 	assert.equal(controller.interruptQueueItem('fu-cut'), true);
-	assert.ok(sent.some(c => c.type === 'InterruptWithMessage' && c.itemId === 'fu-cut'));
+	const interruptCmd = sent.find(c => c.type === 'InterruptWithMessage');
+	assert.ok(interruptCmd && interruptCmd.type === 'InterruptWithMessage');
+	assert.equal(interruptCmd.itemId, 'fu-cut');
+	const clientMessageId = interruptCmd.clientMessageId;
+	assert.ok(clientMessageId);
 	const transcript = controller.getActiveTask()!.transcript;
-	assert.equal(chromeAwaitingSettlement(transcript.chrome), true);
-	const assistant = transcript.entries.find(e => e.role === 'assistant');
-	assert.ok(assistant);
-	assert.equal(assistant!.status, 'cancelled');
+	// Prior turn sealed cancelled; optimistic opener lights Stop on a new streaming row.
+	assert.ok(
+		transcript.entries.some(e => e.role === 'assistant' && e.status === 'cancelled')
+	);
+	assert.ok(
+		transcript.entries.some(
+			e =>
+				e.role === 'user' &&
+				e.clientMessageId === clientMessageId &&
+				e.text === 'cut in'
+		)
+	);
+	assert.ok(
+		transcript.entries.some(
+			e =>
+				e.role === 'assistant' &&
+				e.status === 'streaming' &&
+				(e.clientMessageId === clientMessageId || e.turnId === clientMessageId)
+		)
+	);
+	assert.equal(chromePostRun(transcript.chrome), false);
+	assert.equal(composerGate(transcript, true).canCancel, true);
 });
+
+test('interruptQueueItem rolls back optimistic turn when sendFn fails', () => {
+	const controller = new SessionController({
+		clientId: 'cli',
+		send: () => false,
+		createId: (() => {
+			let n = 0;
+			return () => `id-${++n}`;
+		})()
+	});
+	const task = controller.createTask('T');
+	controller.acceptNewSession('sess-int-fail', task.id);
+	controller.handleEvent({type: 'Attached', sessionId: 'sess-int-fail', clientId: 'cli'});
+	controller.handleEvent(
+		withSid('sess-int-fail', {
+			type: 'turn_started',
+			turnId: 'run-old',
+			clientMessageId: 'm-old',
+			text: 'old'
+		})
+	);
+	controller.handleEvent(
+		withSid('sess-int-fail', {
+			type: 'assistant_delta',
+			turnId: 'run-old',
+			text: 'partial'
+		})
+	);
+	controller.handleEvent(
+		withSid('sess-int-fail', {
+			type: 'follow_up_changed',
+			paused: false,
+			itemsJson: JSON.stringify([{id: 'fu-blank', text: '   ', order: 0}])
+		})
+	);
+	assert.equal(controller.interruptQueueItem('fu-blank'), false);
+
+	controller.handleEvent(
+		withSid('sess-int-fail', {
+			type: 'follow_up_changed',
+			paused: false,
+			itemsJson: JSON.stringify([{id: 'fu-1', text: 'steer me', order: 0}])
+		})
+	);
+	const before = controller.getActiveTask()!.transcript;
+	const beforeEntries = before.entries.length;
+	assert.equal(
+		before.entries.find(e => e.role === 'assistant' && e.status === 'streaming')?.text,
+		'partial'
+	);
+
+	assert.equal(controller.interruptQueueItem('fu-1'), false);
+	const after = controller.getActiveTask()!.transcript;
+	assert.equal(after.entries.length, beforeEntries);
+	assert.equal(
+		after.entries.find(e => e.role === 'assistant' && e.status === 'streaming')?.text,
+		'partial'
+	);
+	assert.equal(
+		after.entries.some(e => e.role === 'user' && e.text === 'steer me'),
+		false
+	);
+});
+
+test('interrupt optimistic turn remaps engine echo then accepts server-run reasoning', () => {
+	const sent: BridgeCommand[] = [];
+	const controller = new SessionController({
+		clientId: 'cli',
+		send: cmd => {
+			sent.push(cmd);
+			return true;
+		},
+		createId: (() => {
+			let n = 0;
+			return () => `id-${++n}`;
+		})()
+	});
+	const task = controller.createTask('T');
+	controller.acceptNewSession('sess-int-remap', task.id);
+	controller.handleEvent({type: 'Attached', sessionId: 'sess-int-remap', clientId: 'cli'});
+	controller.handleEvent(
+		withSid('sess-int-remap', {
+			type: 'turn_started',
+			turnId: 'run-old',
+			clientMessageId: 'm-old',
+			text: 'old'
+		})
+	);
+	controller.handleEvent(
+		withSid('sess-int-remap', {
+			type: 'assistant_delta',
+			turnId: 'run-old',
+			text: 'partial'
+		})
+	);
+	controller.handleEvent(
+		withSid('sess-int-remap', {
+			type: 'follow_up_changed',
+			paused: false,
+			itemsJson: JSON.stringify([{id: 'fu-1', text: 'steer me', order: 0}])
+		})
+	);
+
+	assert.equal(controller.interruptQueueItem('fu-1'), true);
+	const clientMessageId = sent.find(c => c.type === 'InterruptWithMessage')?.clientMessageId;
+	assert.ok(clientMessageId);
+
+	controller.handleEvent(
+		withSid('sess-int-remap', {
+			type: 'turn_started',
+			turnId: 'run-new',
+			clientMessageId,
+			text: ''
+		})
+	);
+	const afterEcho = controller.getActiveTask()!.transcript;
+	assert.equal(afterEcho.entries.filter(e => e.role === 'user').length, 2);
+	assert.equal(
+		afterEcho.entries.filter(e => e.role === 'assistant' && e.status === 'streaming').length,
+		1
+	);
+	assert.equal(
+		afterEcho.entries.find(e => e.role === 'assistant' && e.status === 'streaming')
+			?.clientMessageId,
+		clientMessageId
+	);
+
+	controller.handleEvent(
+		withSid('sess-int-remap', {
+			type: 'reasoning_delta',
+			turnId: 'run-new',
+			text: 'new-think'
+		})
+	);
+	assert.equal(
+		controller.getActiveTask()!.transcript.entries.find(
+			e => e.role === 'assistant' && e.status === 'streaming'
+		)?.reasoning,
+		'new-think'
+	);
+});
+
 test('queued follow-up suppresses the completion cue', () => {
 	const {controller} = cueController();
 	controller.handleEvent(withSid('sess', {type: 'turn_started', turnId: 't1', text: 'hi'}));

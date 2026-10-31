@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import {COMPACTION_WAIT_REASON, formatThoughtChromeEn} from './chrome.js';
 import {toTimelineItems} from './timeline.js';
+import {deltaEventAllowed} from './transcript/delta.js';
 import {compactionNotice, contextPruneText, tokenSpan} from './transcript/usage.js';
 import {applyBridgeEvent, createTranscriptState} from './transcriptProjection.js';
 
@@ -70,4 +71,38 @@ test('compactionNotice is gated by the contextPrune cap and falls back to the la
 		'摘要压缩未成功，已回退到裁剪方式（91k → 40k）');
 	assert.equal(tokenSpan(1500, 800), '1.5k → 800');
 	assert.equal(tokenSpan(undefined, 800), undefined);
+});
+
+test('deltaEventAllowed: undefined caps is permissive like bridge None', () => {
+	assert.equal(deltaEventAllowed('context_compacting', undefined), true);
+	assert.equal(deltaEventAllowed('context_pruned', undefined), true);
+	assert.equal(deltaEventAllowed('usage_reported', undefined), true);
+	assert.equal(
+		deltaEventAllowed('context_compacting', {
+			usage: true,
+			childTranscript: true,
+			goalDelta: true,
+			contextPrune: false
+		}),
+		false
+	);
+	assert.equal(deltaEventAllowed('context_compacting', caps), true);
+});
+
+test('compactionNotice shows when caps omitted but compacting state set', () => {
+	let state = createTranscriptState();
+	state = applyBridgeEvent(state, {type: 'turn_started', turnId: 'run_1'});
+	state = applyBridgeEvent(state, {
+		type: 'context_compacting',
+		runId: 'run_1',
+		trigger: 'threshold',
+		tokensBefore: 64_000
+	});
+	const notice = compactionNotice(state, undefined);
+	assert.equal(notice?.phase, 'running');
+	assert.match(notice!.text, /正在压缩上下文/);
+	assert.equal(
+		compactionNotice(state, {...caps, contextPrune: false}),
+		null
+	);
 });

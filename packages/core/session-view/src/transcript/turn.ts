@@ -82,6 +82,8 @@ function isRiverTurnStarted(
 	if (event.type !== 'turn_started') return false;
 	if (rerunVictim(event)) return false;
 	if ((event.text ?? '').trim()) return false;
+	// Interrupt / optimistic openers carry clientMessageId — not cold-restore river.
+	if (event.clientMessageId) return false;
 	if (event.messageType === 'plan_build') return false;
 	if (event.messageType === 'goal_step_conclusion' || event.messageType === 'goal_outcome')
 		return false;

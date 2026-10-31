@@ -27,6 +27,8 @@ export interface SessionCommandsDeps {
 	settleTask(task: TaskRecord): void;
 	onChange(): void;
 	armCancelSettle(taskId: string): void;
+	/** Drop or re-arm cancel-settle timer to match transcript awaiting chrome. */
+	syncCancelSettle(task: TaskRecord): void;
 	composerSampling(): ComposerSampling;
 }
 
@@ -172,18 +174,46 @@ export function createSessionCommands(deps: SessionCommandsDeps) {
 		if (plan.kind === 'dsh') {
 			return deps.send({type: 'QueueMessage', sessionId: active.sessionId, itemId, action: 'steer'});
 		}
-		const streaming = active.task.transcript.entries.some(e => e.status === 'streaming');
-		if (canStopSession({chrome: active.task.transcript.chrome, streaming, goalBusy: goalKeepsBusy(active.task.goalCard)})) {
+		const trimmed = plan.text.trim();
+		if (!trimmed) return false;
+		const clientMessageId = deps.createId();
+		// Snapshot before local cancel + optimistic opener so a failed send rolls back cleanly.
+		const prevTranscript = active.task.transcript;
+		const streaming = prevTranscript.entries.some(e => e.status === 'streaming');
+		if (
+			canStopSession({
+				chrome: prevTranscript.chrome,
+				streaming,
+				goalBusy: goalKeepsBusy(active.task.goalCard)
+			})
+		) {
 			stageLocalCancel(active.task);
 		}
-		return deps.send({
+		// Optimistic opener: clear postRun, light Stop; engine empty TurnStarted remaps onto this pair.
+		active.task.transcript = applyBridgeEvent(active.task.transcript, {
+			type: 'turn_started',
+			turnId: clientMessageId,
+			clientMessageId,
+			text: trimmed
+		});
+		deps.settleTask(active.task);
+		// Optimistic turn clears awaiting — drop the timer stageLocalCancel just armed.
+		deps.syncCancelSettle(active.task);
+		const ok = deps.send({
 			type: 'InterruptWithMessage',
 			sessionId: active.sessionId,
-			text: plan.text,
-			clientMessageId: deps.createId(),
+			text: trimmed,
+			clientMessageId,
 			itemId,
 			...deps.composerSampling()
 		});
+		if (!ok) {
+			active.task.transcript = prevTranscript;
+			deps.settleTask(active.task);
+			deps.syncCancelSettle(active.task);
+			return false;
+		}
+		return true;
 	};
 
 	// ── 运行控制 ──

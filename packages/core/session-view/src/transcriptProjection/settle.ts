@@ -288,6 +288,84 @@ test('straggler guard lifts once the next turn starts', () => {
 	});
 	assert.equal(state.entries.at(-1)?.reasoning, 'ok');
 });
+
+test('interrupt empty TurnStarted with clientMessageId clears postRun and lights Stop', () => {
+	let state = createTranscriptState();
+	state = applyBridgeEvent(state, {
+		type: 'turn_started',
+		turnId: 'run-old',
+		clientMessageId: 'm-old',
+		text: 'old'
+	});
+	state = applyBridgeEvent(state, {type: 'assistant_delta', turnId: 'run-old', text: 'partial'});
+	state = applyBridgeEvent(state, {
+		type: 'run_cancelled',
+		runId: 'run-old',
+		reason: 'user'
+	});
+	assert.equal(chromePostRun(state.chrome), true);
+	assert.equal(composerGate(state, true).canCancel, false);
+
+	state = applyBridgeEvent(state, {
+		type: 'turn_started',
+		turnId: 'run-new',
+		clientMessageId: 'm-interrupt',
+		text: ''
+	});
+	assert.equal(chromePostRun(state.chrome), false);
+	assert.equal(
+		state.entries.filter(e => e.role === 'assistant' && e.status === 'streaming').length,
+		1
+	);
+	assert.equal(composerGate(state, true).canCancel, true);
+	state = applyBridgeEvent(state, {
+		type: 'reasoning_delta',
+		turnId: 'run-new',
+		text: 'think'
+	});
+	assert.equal(state.entries.at(-1)?.reasoning, 'think');
+});
+
+test('reasoning_delta with unmatched turnId must not paint prior streaming turn', () => {
+	let state = createTranscriptState();
+	state = applyBridgeEvent(state, {
+		type: 'turn_started',
+		turnId: 'm-old',
+		clientMessageId: 'm-old',
+		text: 'old'
+	});
+	state = applyBridgeEvent(state, {
+		type: 'input_accepted',
+		clientMessageId: 'm-old',
+		turnId: 'run-old'
+	});
+	state = applyBridgeEvent(state, {
+		type: 'reasoning_delta',
+		turnId: 'run-old',
+		text: 'old-think'
+	});
+	state = applyBridgeEvent(state, {
+		type: 'reasoning_delta',
+		turnId: 'run-new',
+		text: 'leaked'
+	});
+	assert.equal(state.entries.at(-1)?.reasoning, 'old-think');
+	state = applyBridgeEvent(state, {
+		type: 'turn_started',
+		turnId: 'run-new',
+		clientMessageId: 'm-new',
+		text: 'interrupt'
+	});
+	state = applyBridgeEvent(state, {
+		type: 'reasoning_delta',
+		turnId: 'run-new',
+		text: 'new-think'
+	});
+	const assistants = state.entries.filter(e => e.role === 'assistant');
+	assert.equal(assistants[0]?.reasoning, 'old-think');
+	assert.equal(assistants.at(-1)?.reasoning, 'new-think');
+});
+
 test('foreign run_cancelled drops orphaned prompts for that run only', () => {
 	let state = createTranscriptState();
 	state = applyBridgeEvent(state, {

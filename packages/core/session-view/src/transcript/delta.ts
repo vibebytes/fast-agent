@@ -27,13 +27,14 @@ const DELTA_CAP_BY_TYPE: Record<string, keyof DshDeltaCaps> = {
 };
 
 /**
- * Fail-closed gate for the four DSH delta rivers: an engine that ships a delta
- * while its caps bit is absent/false is out of contract, so the neutral layer
- * drops it instead of painting a surface the engine did not declare.
+ * Gate for the four DSH delta rivers. Matches Bridge: `caps` undefined is
+ * permissive (wire already filtered by FastLoop.caps). Explicit `false` drops.
  */
 export function deltaEventAllowed(type: string, caps: DshDeltaCaps | undefined): boolean {
 	const bit = DELTA_CAP_BY_TYPE[type];
-	return bit ? caps?.[bit] === true : true;
+	if (!bit) return true;
+	if (!caps) return true;
+	return caps[bit] === true;
 }
 
 /**

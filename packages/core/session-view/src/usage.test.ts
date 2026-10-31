@@ -52,6 +52,8 @@ test('contextPruneNotice returns the latest notice only when caps allow it', () 
 	assert.deepEqual(notice?.prunedIds, ['b', 'c']);
 	assert.equal(notice?.remainingTokens, 800);
 	assert.equal(contextPruneNotice(state, CAPS_OFF), null);
+	// Fast path: no dsh_caps → undefined delta still shows prune notices.
+	assert.deepEqual(contextPruneNotice(state, undefined)?.prunedIds, ['b', 'c']);
 	assert.equal(contextPruneNotice(createTranscriptState(), CAPS_ON), null);
 });
 

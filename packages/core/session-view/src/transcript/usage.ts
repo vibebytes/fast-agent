@@ -93,12 +93,13 @@ export function contextPruneText(notice: ContextPruneView): string {
 	}
 }
 
-/** Latest context-prune notice — `null` when the host cannot emit `context_pruned`. */
+/** Latest context-prune notice — `null` when the host explicitly disabled contextPrune. */
 export function contextPruneNotice(
 	state: DeltaSurfaces,
 	caps: DshDeltaCaps | undefined
 ): (ContextPruneView & {text: string}) | null {
-	if (caps?.contextPrune !== true) return null;
+	// Undefined caps: permissive (Fast never ships dsh_caps; bridge already gated).
+	if (caps?.contextPrune === false) return null;
 	const notice = state.contextPrunes?.at(-1);
 	if (!notice) return null;
 	return {...notice, text: contextPruneText(notice)};
@@ -107,13 +108,13 @@ export function contextPruneNotice(
 /**
  * Compaction as a progress state: the in-flight `context_compacting` wins over the latest
  * result, so a banner shows "compacting…" while the run is blocked and the outcome after.
- * `null` when the host cannot emit the compaction river or nothing has happened.
+ * `null` when the host explicitly disabled contextPrune or nothing has happened.
  */
 export function compactionNotice(
 	state: DeltaSurfaces,
 	caps: DshDeltaCaps | undefined
 ): CompactionNotice | null {
-	if (caps?.contextPrune !== true) return null;
+	if (caps?.contextPrune === false) return null;
 	const running = state.compacting;
 	if (running) {
 		const before = running.tokensBefore !== undefined ? `（${kTokens(running.tokensBefore)}）` : '';
