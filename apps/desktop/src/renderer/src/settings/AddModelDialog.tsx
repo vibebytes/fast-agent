@@ -1,7 +1,7 @@
 import {useState} from 'react';
 import {useTranslation} from 'react-i18next';
 import {BrainCircuit, Check, Image as ImageIcon, Sparkles} from 'lucide-react';
-import {OUTPUT_CAPABILITIES, orderedCapabilities} from './modelPatch';
+import {OUTPUT_CAPABILITIES, orderedCapabilities, parseContextWindow} from './modelPatch';
 import {Input} from '@fast-ide/ui/components/input';
 import {Switch} from '@fast-ide/ui/components/switch';
 import {cn} from '@fast-ide/ui/lib/utils';
@@ -35,6 +35,7 @@ export function AddModelDialog({
 		defaultEffort?: string;
 		capabilities: string[];
 		free: boolean;
+		contextWindow?: number;
 	}) => Promise<boolean>;
 }) {
 	const {t} = useTranslation();
@@ -48,6 +49,8 @@ export function AddModelDialog({
 	const [defaultEffort, setDefaultEffort] = useState('medium');
 	const [userToggledThinking, setUserToggledThinking] = useState(false);
 	const [saving, setSaving] = useState(false);
+	const [contextWindowText, setContextWindowText] = useState('');
+	const contextWindow = parseContextWindow(contextWindowText);
 
 	const onModelIdChange = (val: string) => {
 		setModelId(val);
@@ -122,6 +125,27 @@ export function AddModelDialog({
 							placeholder={modelId.trim() || t('settings.models.displayNamePlaceholder')}
 							className="text-xs"
 						/>
+					</label>
+
+					<label className="block space-y-1.5">
+						<span className="text-xs font-medium text-foreground">{t('settings.models.contextWindow')}</span>
+						<Input
+							value={contextWindowText}
+							onChange={e => setContextWindowText(e.target.value)}
+							placeholder={t('settings.models.contextWindowPlaceholder')}
+							aria-invalid={contextWindow === null}
+							className="text-xs font-mono"
+						/>
+						<span
+							className={cn(
+								'block text-[10.5px]',
+								contextWindow === null ? 'text-destructive' : 'text-muted-foreground'
+							)}
+						>
+							{contextWindow === null
+								? t('settings.models.contextWindowInvalid')
+								: t('settings.models.contextWindowDesc')}
+						</span>
 					</label>
 
 					<div className="rounded-xl border border-border/70 bg-muted/25 dark:bg-muted/15 p-3.5 space-y-3">
@@ -280,7 +304,7 @@ export function AddModelDialog({
 						{t('shell.common.cancel')}
 					</SettingsButton>
 					<SettingsButton
-						disabled={saving || !modelId.trim()}
+						disabled={saving || !modelId.trim() || contextWindow === null}
 						onClick={() => {
 							setSaving(true);
 							void onSubmit({
@@ -291,7 +315,8 @@ export function AddModelDialog({
 								supportsImage,
 								defaultEffort: supportsThinking ? defaultEffort : undefined,
 								capabilities,
-								free
+								free,
+								...(contextWindow ? {contextWindow} : {})
 							}).finally(() => setSaving(false));
 						}}
 					>

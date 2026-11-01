@@ -3,6 +3,7 @@ export type PatchModelRow = {
 	inputModalities?: string[];
 	capabilities?: string[];
 	free?: boolean;
+	contextWindow?: number;
 	[k: string]: unknown;
 };
 
@@ -18,7 +19,33 @@ export type ModelPatchOp = {
 	inputModalities?: string[];
 	capabilities?: string[];
 	free?: boolean;
+	contextWindow?: number;
 };
+
+/** Parses `128000`, `128k`, `1m` / `1.5M` into tokens; `''` → `0` (clear); anything else → `null`. */
+export function parseContextWindow(raw: string): number | null {
+	const s = raw.trim().toLowerCase().replace(/[,_\s]/g, '');
+	if (s === '') return 0;
+	const m = /^(\d+(?:\.\d+)?)([km]?)$/.exec(s);
+	if (!m) return null;
+	const scale = m[2] === 'k' ? 1_000 : m[2] === 'm' ? 1_000_000 : 1;
+	const tokens = Math.round(Number(m[1]) * scale);
+	return tokens > 0 ? tokens : null;
+}
+
+/** Compact label: 128000 → `128k`, 1048576 → `1M`. */
+export function formatContextWindow(tokens: number): string {
+	if (tokens >= 1_000_000) {
+		const unit = tokens % 1_048_576 === 0 ? 1_048_576 : 1_000_000;
+		return `${+(tokens / unit).toFixed(1)}M`;
+	}
+	if (tokens >= 1_000) return `${Math.round(tokens / 1_000)}k`;
+	return String(tokens);
+}
+
+export function contextWindowOp(modelId: string, tokens: number): ModelPatchOp {
+	return {op: 'enable', modelId, contextWindow: tokens};
+}
 
 export const OUTPUT_CAPABILITIES = [
 	'image_generation',
@@ -39,6 +66,7 @@ export function addModelOp(input: {
 	supportsImage: boolean;
 	defaultEffort?: string;
 	capabilities: readonly string[];
+	contextWindow?: number;
 }): ModelPatchOp {
 	return {
 		op: 'add',
@@ -49,6 +77,7 @@ export function addModelOp(input: {
 		defaultEffort: input.supportsThinking ? input.defaultEffort : undefined,
 		...(input.supportsImage ? {inputModalities: ['text', 'image']} : {}),
 		capabilities: orderedCapabilities(input.capabilities),
+		...(input.contextWindow && input.contextWindow > 0 ? {contextWindow: input.contextWindow} : {}),
 		enabled: true
 	};
 }
@@ -66,6 +95,7 @@ export function addModelOps(input: {
 	defaultEffort?: string;
 	capabilities: readonly string[];
 	free?: boolean;
+	contextWindow?: number;
 }): ModelPatchOp[] {
 	const add = addModelOp(input);
 	return input.free === true ? [add, freeOp(input.modelId, true)] : [add];
@@ -122,15 +152,23 @@ export function applyModelPatch<P extends ProviderLike>(
 		if (op.op === 'enable') {
 			const mi = models.findIndex((m) => m.modelId === op.modelId);
 			const hasPatch =
-				typeof op.enabled === 'boolean' || op.inputModalities !== undefined || op.capabilities !== undefined;
+				typeof op.enabled === 'boolean' ||
+				op.inputModalities !== undefined ||
+				op.capabilities !== undefined ||
+				op.contextWindow !== undefined;
 			if (mi >= 0 && hasPatch) {
 				const cur = models[mi]!;
-				models[mi] = {
+				const next: PatchModelRow = {
 					...cur,
 					...(typeof op.enabled === 'boolean' ? {enabled: op.enabled} : {}),
 					...(op.inputModalities !== undefined ? {inputModalities: [...op.inputModalities]} : {}),
 					...(op.capabilities !== undefined ? {capabilities: [...op.capabilities]} : {})
 				};
+				if (op.contextWindow !== undefined) {
+					if (op.contextWindow > 0) next.contextWindow = op.contextWindow;
+					else delete next.contextWindow;
+				}
+				models[mi] = next;
 				changed = true;
 			}
 		} else if (op.op === 'add') {
@@ -145,6 +183,7 @@ export function applyModelPatch<P extends ProviderLike>(
 					defaultEffort: op.defaultEffort,
 					...(op.inputModalities !== undefined ? {inputModalities: [...op.inputModalities]} : {}),
 					...(op.capabilities !== undefined ? {capabilities: [...op.capabilities]} : {}),
+					...(op.contextWindow && op.contextWindow > 0 ? {contextWindow: op.contextWindow} : {}),
 					enabled: op.enabled ?? true,
 					source: 'manual'
 				});

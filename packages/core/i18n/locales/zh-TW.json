@@ -49,7 +49,11 @@
       "save": "Save",
       "needKey": "A key is required to turn this on",
       "contextOffload": "Enable context offload",
-      "contextOffloadDescription": "During context compaction, replace large tool results outside the window with a disk preview."
+      "contextOffloadDescription": "During context compaction, replace large tool results outside the window with a disk preview.",
+      "reviewDiff": "啟用修改 Diff",
+      "reviewDiffDescription": "關閉後，AI 改動不再記錄檢查點，IDE 的修改 Diff 審查也不可用",
+      "reviewDiffUnavailable": "修改 Diff 已關閉，請在設定 → 實驗性功能中啟用",
+      "checkpointsOffHint": "無法復原——檢查點已關閉"
     },
     "common": {
       "all": "All",
@@ -208,13 +212,24 @@
       "imageSupported": "Supports image input",
       "supportsImage": "Supports image input",
       "supportsImageDesc": "The model accepts images in addition to text",
+      "contextWindow": "上下文視窗",
+      "contextWindowDesc": "模型可接收的輸入 token 數，上下文壓縮會在接近此值時觸發。留空則使用代理的預設預算。",
+      "contextWindowPlaceholder": "例如 128000 或 128k",
+      "contextWindowInvalid": "請輸入正數，例如 128000、128k 或 1m",
+      "contextWindowTitle": "上下文視窗：{{tokens}} tokens",
+      "contextWindowUnset": "未設定上下文視窗，壓縮將使用代理的預設預算",
+      "editContextWindow": "編輯上下文視窗",
       "defaultBadge": "Default",
       "primaryDefaultBadge": "Primary default",
       "toolDefaults": "工具預設模型",
       "toolDefaultsDescription": "當呼叫未指定模型時，工具會使用這些模型。",
       "imageUnderstand": "圖像理解",
       "imageUnderstandDescription": "圖像理解工具的預設模型。",
-      "chooseImageModelDescription": "為圖像理解選擇一個已啟用的模型。"
+      "chooseImageModelDescription": "為圖像理解選擇一個已啟用的模型。",
+      "toggleFree": "切換 {{name}} 的免費區",
+      "freeBadge": "免費",
+      "freeSwitch": "加入免費區",
+      "freeSwitchDesc": "勾選後進入免費區，固定顯示在模型選單頂端。"
     },
     "health": {
       "title": "System health",
@@ -617,6 +632,10 @@
         "videoCaption": {
           "title": "影片字幕",
           "summary": "為影片寫出字幕文本。"
+        },
+        "understandImage": {
+          "title": "圖片理解",
+          "summary": "用視覺模型看圖並回答問題。"
         }
       },
       "searchSkills": "Search skills…",
@@ -694,7 +713,15 @@
           "Stopping": "Stopping",
           "Uninstalled": "Uninstalled",
           "Failed": "Failed"
-        }
+        },
+        "enable": "啟用",
+        "disable": "停用",
+        "statusEnabled": "已啟用",
+        "statusDisabled": "已停用",
+        "statusFault": "異常",
+        "probeHealth": "健康檢測",
+        "healthOk": "健康檢查通過",
+        "healthDown": "健康檢查未通過"
       },
       "author": "Author",
       "marketEmpty": "No matching skills",
@@ -826,7 +853,19 @@
       "deleteConfirm": "Delete provider “{{name}}”? This cannot be undone.",
       "editProvider": "Edit {{name}}",
       "editProviderDescription": "Update the display name, endpoint, or API key.",
-      "apiKeyOptional": "API key (optional)"
+      "apiKeyOptional": "API key (optional)",
+      "testing": "測試中",
+      "oauth": "登入",
+      "oauthAuthorized": "已登入",
+      "oauthPending": "未登入",
+      "loginTitle": "登入 {{name}}",
+      "loginDescription": "在瀏覽器中開啟授權頁面，輸入下方的代碼，完成後回到這裡確認。",
+      "loginCode": "授權代碼",
+      "loginOpen": "開啟授權頁面",
+      "loginConfirm": "我已完成授權",
+      "loginWaiting": "等待授權…",
+      "loginExpired": "授權代碼已過期，請重新登入",
+      "lastProbe": "連線測試結果"
     },
     "agents": {
       "engineUnavailable": "Engine is not ready",
@@ -1276,7 +1315,8 @@
       "language": "Language",
       "about": "About Fast IDE",
       "signOut": "Sign out",
-      "searchCommands": "Search and command menu"
+      "searchCommands": "Search and command menu",
+      "mainSession": "主對話"
     },
     "sidebarMenu": {
       "open": "Open",
@@ -1290,7 +1330,8 @@
       "pin": "Pin",
       "unpin": "Unpin",
       "archive": "Archive",
-      "delete": "Delete"
+      "delete": "Delete",
+      "restartMain": "重新開始主工作階段"
     },
     "filesMenu": {
       "open": "Open",
@@ -1317,7 +1358,12 @@
       "removeAction": "Remove",
       "name": "Name",
       "cancel": "Cancel",
-      "save": "Save"
+      "save": "Save",
+      "restartMainTitle": "重新開始主工作階段？",
+      "restartMainDesc": "將建立新的主工作階段取代目前的主工作階段，目前對話會保留為一般工作階段。目前主工作階段中正在進行的任務將被終止。",
+      "restartMainAction": "重新開始",
+      "restartMainFailedTitle": "重新開始主工作階段失敗",
+      "restartMainFailedAction": "知道了"
     },
     "newProject": {
       "title": "Name your project",

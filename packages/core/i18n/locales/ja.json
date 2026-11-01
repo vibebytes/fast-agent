@@ -49,7 +49,11 @@
       "save": "Save",
       "needKey": "A key is required to turn this on",
       "contextOffload": "Enable context offload",
-      "contextOffloadDescription": "During context compaction, replace large tool results outside the window with a disk preview."
+      "contextOffloadDescription": "During context compaction, replace large tool results outside the window with a disk preview.",
+      "reviewDiff": "レビュー差分を有効にする",
+      "reviewDiffDescription": "オフにすると、AI の編集はチェックポイントに記録されず、IDE のレビュー差分は使えません。",
+      "reviewDiffUnavailable": "レビュー差分はオフです。設定 → 実験的機能でオンにしてください。",
+      "checkpointsOffHint": "元に戻せません — チェックポイントはオフです"
     },
     "common": {
       "all": "All",
@@ -135,8 +139,12 @@
       "engineUnavailable": "Engine is not ready",
       "engineUnavailableDescription": "Model defaults need a running Engine.",
       "capabilities": {
-        "thinking": "Thinking",
-        "effort": "Effort: {{value}}"
+        "image_generation": "画像生成",
+        "video_generation": "動画生成",
+        "tts": "音声合成",
+        "asr": "音声認識",
+        "ocr": "OCR",
+        "video_caption": "動画キャプション"
       },
       "sessionDefault": "New session default",
       "sessionDefaultDescription": "Pinned model for new tasks.",
@@ -204,13 +212,24 @@
       "imageSupported": "Supports image input",
       "supportsImage": "Supports image input",
       "supportsImageDesc": "The model accepts images in addition to text",
+      "contextWindow": "コンテキストウィンドウ",
+      "contextWindowDesc": "モデルが受け付ける入力トークン数。コンテキスト圧縮はこの値の近くで発動します。空欄の場合はエージェントの既定予算を使用します。",
+      "contextWindowPlaceholder": "例: 128000 または 128k",
+      "contextWindowInvalid": "128000、128k、1m などの正の数を入力してください",
+      "contextWindowTitle": "コンテキストウィンドウ: {{tokens}} トークン",
+      "contextWindowUnset": "コンテキストウィンドウ未設定 — 圧縮はエージェントの既定予算を使用します",
+      "editContextWindow": "コンテキストウィンドウを編集",
       "defaultBadge": "Default",
       "primaryDefaultBadge": "Primary default",
       "toolDefaults": "ツールの既定モデル",
       "toolDefaultsDescription": "呼び出しで指定がない場合、ツールはこれらのモデルを使用します。",
       "imageUnderstand": "画像理解",
       "imageUnderstandDescription": "画像理解ツールの既定モデル。",
-      "chooseImageModelDescription": "画像理解に使用する有効なモデルを選択してください。"
+      "chooseImageModelDescription": "画像理解に使用する有効なモデルを選択してください。",
+      "toggleFree": "{{name}} の無料枠を切り替え",
+      "freeBadge": "無料",
+      "freeSwitch": "無料枠に追加",
+      "freeSwitchDesc": "無料枠のモデルはモデルメニューの先頭に固定されます。"
     },
     "health": {
       "title": "System health",
@@ -545,7 +564,9 @@
         },
         "emptyTitle": "No configurable tools",
         "field": {
-          "apiKey": "API key"
+          "apiKey": "API key",
+          "model": "モデル",
+          "sessionScope": "セッション範囲"
         },
         "origin": {
           "builtin": "組み込み",
@@ -606,6 +627,15 @@
         "videoCaption": {
           "title": "動画キャプション",
           "summary": "動画の字幕テキストを書き出します。"
+        },
+        "imageGenerate": {
+          "title": "画像生成",
+          "summary": "テキストのプロンプトから画像を生成します。"
+        },
+        "modelNoToken": "認証情報がありません",
+        "understandImage": {
+          "title": "画像理解",
+          "summary": "ビジョンモデルで画像を見て質問に答えます。"
         }
       },
       "searchSkills": "Search skills…",
@@ -683,7 +713,15 @@
           "Stopping": "Stopping",
           "Uninstalled": "Uninstalled",
           "Failed": "Failed"
-        }
+        },
+        "enable": "有効にする",
+        "disable": "無効にする",
+        "statusEnabled": "有効",
+        "statusDisabled": "無効",
+        "statusFault": "異常",
+        "probeHealth": "ヘルスチェック",
+        "healthOk": "ヘルスチェック成功",
+        "healthDown": "ヘルスチェック失敗"
       },
       "author": "Author",
       "marketEmpty": "No matching skills",
@@ -815,7 +853,19 @@
       "deleteConfirm": "Delete provider “{{name}}”? This cannot be undone.",
       "editProvider": "Edit {{name}}",
       "editProviderDescription": "Update the display name, endpoint, or API key.",
-      "apiKeyOptional": "API key (optional)"
+      "apiKeyOptional": "API key (optional)",
+      "testing": "テスト中",
+      "oauth": "サインイン",
+      "oauthAuthorized": "サインイン済み",
+      "oauthPending": "未サインイン",
+      "loginTitle": "{{name}} にサインイン",
+      "loginDescription": "ブラウザで認可ページを開き、下のコードを入力してから、ここで確認してください。",
+      "loginCode": "認可コード",
+      "loginOpen": "認可ページを開く",
+      "loginConfirm": "認可しました",
+      "loginWaiting": "認可を待っています…",
+      "loginExpired": "コードの有効期限が切れました。もう一度サインインしてください。",
+      "lastProbe": "前回の接続テスト"
     },
     "agents": {
       "engineUnavailable": "Engine is not ready",
@@ -1265,7 +1315,8 @@
       "localEdge": "This machine",
       "connecting": "Connecting…",
       "switchEdgeConfirm": "A task is still running. Switch servers anyway? Open editors on the current server will close.",
-      "switchEdgeFailed": "Could not switch ({{code}}): {{message}}"
+      "switchEdgeFailed": "Could not switch ({{code}}): {{message}}",
+      "mainSession": "メインチャット"
     },
     "sidebarMenu": {
       "open": "Open",
@@ -1279,7 +1330,8 @@
       "pin": "Pin",
       "unpin": "Unpin",
       "archive": "Archive",
-      "delete": "Delete"
+      "delete": "Delete",
+      "restartMain": "メインセッションを再開"
     },
     "filesMenu": {
       "open": "Open",
@@ -1306,7 +1358,12 @@
       "removeAction": "Remove",
       "name": "Name",
       "cancel": "Cancel",
-      "save": "Save"
+      "save": "Save",
+      "restartMainTitle": "メインセッションを再開しますか？",
+      "restartMainDesc": "新しいメインセッションが現在のセッションに置き換わります。現在の会話は通常のチャットとして残ります。現在のメインセッションで実行中のタスクは停止します。",
+      "restartMainAction": "再開",
+      "restartMainFailedTitle": "メインセッションを再開できませんでした",
+      "restartMainFailedAction": "OK"
     },
     "newProject": {
       "title": "Name your project",

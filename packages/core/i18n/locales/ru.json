@@ -49,7 +49,11 @@
       "save": "Save",
       "needKey": "A key is required to turn this on",
       "contextOffload": "Enable context offload",
-      "contextOffloadDescription": "During context compaction, replace large tool results outside the window with a disk preview."
+      "contextOffloadDescription": "During context compaction, replace large tool results outside the window with a disk preview.",
+      "reviewDiff": "Включить diff проверки",
+      "reviewDiffDescription": "Если выключено, правки ИИ не сохраняются в контрольных точках, и diff проверки в IDE недоступен.",
+      "reviewDiffUnavailable": "Diff проверки выключен. Включите его в Настройки → Экспериментальные.",
+      "checkpointsOffHint": "Нельзя отменить — контрольные точки выключены"
     },
     "common": {
       "all": "All",
@@ -135,8 +139,12 @@
       "engineUnavailable": "Engine is not ready",
       "engineUnavailableDescription": "Model defaults need a running Engine.",
       "capabilities": {
-        "thinking": "Thinking",
-        "effort": "Effort: {{value}}"
+        "image_generation": "Генерация изображений",
+        "video_generation": "Генерация видео",
+        "tts": "Синтез речи",
+        "asr": "Распознавание речи",
+        "ocr": "OCR",
+        "video_caption": "Субтитры к видео"
       },
       "sessionDefault": "New session default",
       "sessionDefaultDescription": "Pinned model for new tasks.",
@@ -204,13 +212,24 @@
       "imageSupported": "Supports image input",
       "supportsImage": "Supports image input",
       "supportsImageDesc": "The model accepts images in addition to text",
+      "contextWindow": "Контекстное окно",
+      "contextWindowDesc": "Число входных токенов, которое принимает модель; сжатие контекста срабатывает около этого значения. Оставьте пустым, чтобы использовать бюджет агента по умолчанию.",
+      "contextWindowPlaceholder": "например, 128000 или 128k",
+      "contextWindowInvalid": "Введите положительное число, например 128000, 128k или 1m",
+      "contextWindowTitle": "Контекстное окно: {{tokens}} токенов",
+      "contextWindowUnset": "Контекстное окно не задано — сжатие использует бюджет агента по умолчанию",
+      "editContextWindow": "Изменить контекстное окно",
       "defaultBadge": "Default",
       "primaryDefaultBadge": "Primary default",
       "toolDefaults": "Модели по умолчанию для инструментов",
       "toolDefaultsDescription": "Инструменты используют эти модели, если вызов не указывает свою.",
       "imageUnderstand": "Понимание изображений",
       "imageUnderstandDescription": "Модель по умолчанию для инструмента понимания изображений.",
-      "chooseImageModelDescription": "Выберите включённую модель для понимания изображений."
+      "chooseImageModelDescription": "Выберите включённую модель для понимания изображений.",
+      "toggleFree": "Переключить бесплатную зону для {{name}}",
+      "freeBadge": "Бесплатно",
+      "freeSwitch": "Добавить в бесплатную зону",
+      "freeSwitchDesc": "Модели бесплатной зоны закреплены вверху меню моделей."
     },
     "health": {
       "title": "System health",
@@ -545,7 +564,9 @@
         },
         "emptyTitle": "No configurable tools",
         "field": {
-          "apiKey": "API key"
+          "apiKey": "API key",
+          "model": "Модель",
+          "sessionScope": "Область сессии"
         },
         "origin": {
           "builtin": "Встроенный",
@@ -606,6 +627,15 @@
         "videoCaption": {
           "title": "Субтитры видео",
           "summary": "Пишет текст субтитров к видео."
+        },
+        "imageGenerate": {
+          "title": "Генерация изображений",
+          "summary": "Создаёт изображение по текстовому запросу."
+        },
+        "modelNoToken": "нет токена",
+        "understandImage": {
+          "title": "Понимание изображений",
+          "summary": "Смотрит на изображение с помощью модели зрения и отвечает на вопрос."
         }
       },
       "searchSkills": "Search skills…",
@@ -683,7 +713,15 @@
           "Stopping": "Stopping",
           "Uninstalled": "Uninstalled",
           "Failed": "Failed"
-        }
+        },
+        "enable": "Включить",
+        "disable": "Выключить",
+        "statusEnabled": "Включено",
+        "statusDisabled": "Выключено",
+        "statusFault": "Сбой",
+        "probeHealth": "Проверка состояния",
+        "healthOk": "Проверка пройдена",
+        "healthDown": "Проверка не пройдена"
       },
       "author": "Author",
       "marketEmpty": "No matching skills",
@@ -815,7 +853,19 @@
       "deleteConfirm": "Delete provider “{{name}}”? This cannot be undone.",
       "editProvider": "Edit {{name}}",
       "editProviderDescription": "Update the display name, endpoint, or API key.",
-      "apiKeyOptional": "API key (optional)"
+      "apiKeyOptional": "API key (optional)",
+      "testing": "Проверка",
+      "oauth": "Войти",
+      "oauthAuthorized": "Выполнен вход",
+      "oauthPending": "Вход не выполнен",
+      "loginTitle": "Войти в {{name}}",
+      "loginDescription": "Откройте страницу авторизации в браузере, введите код ниже и подтвердите здесь.",
+      "loginCode": "Код авторизации",
+      "loginOpen": "Открыть страницу авторизации",
+      "loginConfirm": "Я авторизовался",
+      "loginWaiting": "Ожидание авторизации…",
+      "loginExpired": "Срок действия кода истёк. Войдите снова.",
+      "lastProbe": "Последняя проверка"
     },
     "agents": {
       "engineUnavailable": "Engine is not ready",
@@ -1265,7 +1315,8 @@
       "localEdge": "This machine",
       "connecting": "Connecting…",
       "switchEdgeConfirm": "A task is still running. Switch servers anyway? Open editors on the current server will close.",
-      "switchEdgeFailed": "Could not switch ({{code}}): {{message}}"
+      "switchEdgeFailed": "Could not switch ({{code}}): {{message}}",
+      "mainSession": "Основной чат"
     },
     "sidebarMenu": {
       "open": "Open",
@@ -1279,7 +1330,8 @@
       "pin": "Pin",
       "unpin": "Unpin",
       "archive": "Archive",
-      "delete": "Delete"
+      "delete": "Delete",
+      "restartMain": "Перезапустить основную сессию"
     },
     "filesMenu": {
       "open": "Open",
@@ -1306,7 +1358,12 @@
       "removeAction": "Remove",
       "name": "Name",
       "cancel": "Cancel",
-      "save": "Save"
+      "save": "Save",
+      "restartMainTitle": "Перезапустить основную сессию?",
+      "restartMainDesc": "Новая основная сессия заменит текущую. Текущий разговор сохранится как обычный чат. Все задачи, выполняемые в текущей основной сессии, будут остановлены.",
+      "restartMainAction": "Перезапустить",
+      "restartMainFailedTitle": "Не удалось перезапустить основную сессию",
+      "restartMainFailedAction": "ОК"
     },
     "newProject": {
       "title": "Name your project",

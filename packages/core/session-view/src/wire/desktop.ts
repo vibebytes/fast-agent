@@ -341,6 +341,8 @@ export type ProviderModel = {
 	supportedEfforts?: string[];
 	defaultEffort?: string;
 	maxTokens?: number;
+	/** Input context window in tokens; absent = compaction falls back to the agent's YAML budget. */
+	contextWindow?: number;
 	/** Wire lowercase (e.g. ["text","image"]); absent = text-only. */
 	inputModalities?: string[];
 	/** Media capability tags (e.g. ["image_generation"]); absent = none declared. */
@@ -421,6 +423,8 @@ export type ProviderModelPatch = {
 	capabilities?: string[];
 	/** setFree: move the row in/out of the free zone (locks it against refresh). */
 	free?: boolean;
+	/** add / enable: context window in tokens; `0` clears it. */
+	contextWindow?: number;
 };
 
 /** Settings-center installed skill row (List/Create/SetSkillEnabled). */

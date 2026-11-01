@@ -5,8 +5,11 @@ import {
 	addModelOps,
 	applyModelPatch,
 	capabilityOp,
+	contextWindowOp,
+	formatContextWindow,
 	freeOp,
 	imageInputOp,
+	parseContextWindow,
 	searchAddOps,
 	visibilityOp
 } from './modelPatch.js';
@@ -208,4 +211,37 @@ test('remove and rename keep old behaviour and recount', () => {
 	const renamed = applyModelPatch(list, 'p1', [{op: 'rename', modelId: 'm1', displayName: 'New'}]);
 	assert.ok(renamed);
 	assert.equal(renamed[0].models![0].displayName, 'New');
+});
+
+test('parseContextWindow accepts plain, k and m forms; empty clears; junk is null', () => {
+	assert.equal(parseContextWindow('128000'), 128000);
+	assert.equal(parseContextWindow(' 128k '), 128000);
+	assert.equal(parseContextWindow('1,048,576'), 1048576);
+	assert.equal(parseContextWindow('1.5M'), 1500000);
+	assert.equal(parseContextWindow(''), 0);
+	assert.equal(parseContextWindow('0'), null);
+	assert.equal(parseContextWindow('-5'), null);
+	assert.equal(parseContextWindow('abc'), null);
+});
+
+test('formatContextWindow renders compact labels', () => {
+	assert.equal(formatContextWindow(128000), '128k');
+	assert.equal(formatContextWindow(1048576), '1M');
+	assert.equal(formatContextWindow(2000000), '2M');
+	assert.equal(formatContextWindow(512), '512');
+});
+
+test('context window: add carries it, enable sets it, 0 clears it', () => {
+	const add = addModelOp({
+		modelId: 'm', displayName: '', supportsThinking: false, supportedEfforts: [], supportsImage: false,
+		capabilities: [], contextWindow: 128000
+	});
+	assert.equal(add.contextWindow, 128000);
+	const added = applyModelPatch([mkProvider([])], 'p1', [add]);
+	assert.equal(added![0].models![0].contextWindow, 128000);
+	const set = applyModelPatch(added!, 'p1', [contextWindowOp('m', 200000)]);
+	assert.equal(set![0].models![0].contextWindow, 200000);
+	assert.equal(set![0].models![0].enabled, true);
+	const cleared = applyModelPatch(set!, 'p1', [contextWindowOp('m', 0)]);
+	assert.equal('contextWindow' in cleared![0].models![0], false);
 });

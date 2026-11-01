@@ -49,7 +49,11 @@
       "save": "Save",
       "needKey": "A key is required to turn this on",
       "contextOffload": "Enable context offload",
-      "contextOffloadDescription": "During context compaction, replace large tool results outside the window with a disk preview."
+      "contextOffloadDescription": "During context compaction, replace large tool results outside the window with a disk preview.",
+      "reviewDiff": "리뷰 diff 사용",
+      "reviewDiffDescription": "끄면 AI 편집이 체크포인트에 기록되지 않으며 IDE 리뷰 diff를 사용할 수 없습니다.",
+      "reviewDiffUnavailable": "리뷰 diff가 꺼져 있습니다. 설정 → 실험 기능에서 켜세요.",
+      "checkpointsOffHint": "실행 취소할 수 없음 — 체크포인트가 꺼져 있습니다"
     },
     "common": {
       "all": "All",
@@ -135,8 +139,12 @@
       "engineUnavailable": "Engine is not ready",
       "engineUnavailableDescription": "Model defaults need a running Engine.",
       "capabilities": {
-        "thinking": "Thinking",
-        "effort": "Effort: {{value}}"
+        "image_generation": "이미지 생성",
+        "video_generation": "동영상 생성",
+        "tts": "음성 합성",
+        "asr": "음성 인식",
+        "ocr": "OCR",
+        "video_caption": "동영상 자막"
       },
       "sessionDefault": "New session default",
       "sessionDefaultDescription": "Pinned model for new tasks.",
@@ -204,13 +212,24 @@
       "imageSupported": "Supports image input",
       "supportsImage": "Supports image input",
       "supportsImageDesc": "The model accepts images in addition to text",
+      "contextWindow": "컨텍스트 윈도우",
+      "contextWindowDesc": "모델이 받을 수 있는 입력 토큰 수입니다. 컨텍스트 압축은 이 값 근처에서 실행됩니다. 비워 두면 에이전트의 기본 예산을 사용합니다.",
+      "contextWindowPlaceholder": "예: 128000 또는 128k",
+      "contextWindowInvalid": "128000, 128k, 1m 같은 양수를 입력하세요",
+      "contextWindowTitle": "컨텍스트 윈도우: {{tokens}} 토큰",
+      "contextWindowUnset": "컨텍스트 윈도우 미설정 — 압축은 에이전트 기본 예산을 사용합니다",
+      "editContextWindow": "컨텍스트 윈도우 편집",
       "defaultBadge": "Default",
       "primaryDefaultBadge": "Primary default",
       "toolDefaults": "도구 기본 모델",
       "toolDefaultsDescription": "호출에서 지정하지 않으면 도구가 이 모델을 사용합니다.",
       "imageUnderstand": "이미지 이해",
       "imageUnderstandDescription": "이미지 이해 도구의 기본 모델.",
-      "chooseImageModelDescription": "이미지 이해에 사용할 활성화된 모델을 선택하세요."
+      "chooseImageModelDescription": "이미지 이해에 사용할 활성화된 모델을 선택하세요.",
+      "toggleFree": "{{name}} 무료 영역 전환",
+      "freeBadge": "무료",
+      "freeSwitch": "무료 영역에 추가",
+      "freeSwitchDesc": "무료 영역의 모델은 모델 메뉴 맨 위에 고정됩니다."
     },
     "health": {
       "title": "System health",
@@ -545,7 +564,9 @@
         },
         "emptyTitle": "No configurable tools",
         "field": {
-          "apiKey": "API key"
+          "apiKey": "API key",
+          "model": "모델",
+          "sessionScope": "세션 범위"
         },
         "origin": {
           "builtin": "내장",
@@ -606,6 +627,15 @@
         "videoCaption": {
           "title": "영상 자막",
           "summary": "영상의 자막 텍스트를 작성합니다."
+        },
+        "imageGenerate": {
+          "title": "이미지 생성",
+          "summary": "텍스트 프롬프트로 이미지를 생성합니다."
+        },
+        "modelNoToken": "자격 증명 없음",
+        "understandImage": {
+          "title": "이미지 이해",
+          "summary": "비전 모델로 이미지를 보고 질문에 답합니다."
         }
       },
       "searchSkills": "Search skills…",
@@ -683,7 +713,15 @@
           "Stopping": "Stopping",
           "Uninstalled": "Uninstalled",
           "Failed": "Failed"
-        }
+        },
+        "enable": "사용",
+        "disable": "사용 안 함",
+        "statusEnabled": "사용 중",
+        "statusDisabled": "사용 안 함",
+        "statusFault": "오류",
+        "probeHealth": "상태 점검",
+        "healthOk": "상태 점검 통과",
+        "healthDown": "상태 점검 실패"
       },
       "author": "Author",
       "marketEmpty": "No matching skills",
@@ -815,7 +853,19 @@
       "deleteConfirm": "Delete provider “{{name}}”? This cannot be undone.",
       "editProvider": "Edit {{name}}",
       "editProviderDescription": "Update the display name, endpoint, or API key.",
-      "apiKeyOptional": "API key (optional)"
+      "apiKeyOptional": "API key (optional)",
+      "testing": "테스트 중",
+      "oauth": "로그인",
+      "oauthAuthorized": "로그인됨",
+      "oauthPending": "로그인 안 됨",
+      "loginTitle": "{{name}}에 로그인",
+      "loginDescription": "브라우저에서 인증 페이지를 열고 아래 코드를 입력한 뒤 여기서 확인하세요.",
+      "loginCode": "인증 코드",
+      "loginOpen": "인증 페이지 열기",
+      "loginConfirm": "인증을 완료했습니다",
+      "loginWaiting": "인증을 기다리는 중…",
+      "loginExpired": "코드가 만료되었습니다. 다시 로그인하세요.",
+      "lastProbe": "마지막 연결 테스트"
     },
     "agents": {
       "engineUnavailable": "Engine is not ready",
@@ -1265,7 +1315,8 @@
       "localEdge": "This machine",
       "connecting": "Connecting…",
       "switchEdgeConfirm": "A task is still running. Switch servers anyway? Open editors on the current server will close.",
-      "switchEdgeFailed": "Could not switch ({{code}}): {{message}}"
+      "switchEdgeFailed": "Could not switch ({{code}}): {{message}}",
+      "mainSession": "기본 채팅"
     },
     "sidebarMenu": {
       "open": "Open",
@@ -1279,7 +1330,8 @@
       "pin": "Pin",
       "unpin": "Unpin",
       "archive": "Archive",
-      "delete": "Delete"
+      "delete": "Delete",
+      "restartMain": "기본 세션 다시 시작"
     },
     "filesMenu": {
       "open": "Open",
@@ -1306,7 +1358,12 @@
       "removeAction": "Remove",
       "name": "Name",
       "cancel": "Cancel",
-      "save": "Save"
+      "save": "Save",
+      "restartMainTitle": "기본 세션을 다시 시작할까요?",
+      "restartMainDesc": "새 기본 세션이 현재 세션을 대체합니다. 현재 대화는 일반 채팅으로 남고, 현재 기본 세션에서 실행 중인 작업은 중지됩니다.",
+      "restartMainAction": "다시 시작",
+      "restartMainFailedTitle": "기본 세션을 다시 시작하지 못했습니다",
+      "restartMainFailedAction": "확인"
     },
     "newProject": {
       "title": "Name your project",

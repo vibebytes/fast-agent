@@ -49,7 +49,11 @@
       "save": "Save",
       "needKey": "A key is required to turn this on",
       "contextOffload": "Enable context offload",
-      "contextOffloadDescription": "During context compaction, replace large tool results outside the window with a disk preview."
+      "contextOffloadDescription": "During context compaction, replace large tool results outside the window with a disk preview.",
+      "reviewDiff": "Activer le diff de revue",
+      "reviewDiffDescription": "Si désactivé, les modifications de l'IA ne sont pas enregistrées en points de contrôle et le diff de revue de l'IDE est indisponible.",
+      "reviewDiffUnavailable": "Le diff de revue est désactivé. Activez-le dans Réglages → Expérimental.",
+      "checkpointsOffHint": "Annulation impossible — les points de contrôle sont désactivés"
     },
     "common": {
       "all": "All",
@@ -135,8 +139,12 @@
       "engineUnavailable": "Engine is not ready",
       "engineUnavailableDescription": "Model defaults need a running Engine.",
       "capabilities": {
-        "thinking": "Thinking",
-        "effort": "Effort: {{value}}"
+        "image_generation": "Génération d'images",
+        "video_generation": "Génération de vidéos",
+        "tts": "Synthèse vocale",
+        "asr": "Reconnaissance vocale",
+        "ocr": "OCR",
+        "video_caption": "Sous-titres vidéo"
       },
       "sessionDefault": "New session default",
       "sessionDefaultDescription": "Pinned model for new tasks.",
@@ -204,13 +212,24 @@
       "imageSupported": "Supports image input",
       "supportsImage": "Supports image input",
       "supportsImageDesc": "The model accepts images in addition to text",
+      "contextWindow": "Fenêtre de contexte",
+      "contextWindowDesc": "Jetons d'entrée acceptés par le modèle ; la compaction se déclenche près de cette taille. Laissez vide pour utiliser le budget par défaut de l'agent.",
+      "contextWindowPlaceholder": "ex. 128000 ou 128k",
+      "contextWindowInvalid": "Saisissez un nombre positif, par ex. 128000, 128k ou 1m",
+      "contextWindowTitle": "Fenêtre de contexte : {{tokens}} jetons",
+      "contextWindowUnset": "Fenêtre de contexte non définie — la compaction utilise le budget par défaut de l'agent",
+      "editContextWindow": "Modifier la fenêtre de contexte",
       "defaultBadge": "Default",
       "primaryDefaultBadge": "Primary default",
       "toolDefaults": "Modèles par défaut des outils",
       "toolDefaultsDescription": "Les outils utilisent ces modèles lorsqu'un appel n'en précise aucun.",
       "imageUnderstand": "Compréhension d'images",
       "imageUnderstandDescription": "Modèle par défaut pour l'outil de compréhension d'images.",
-      "chooseImageModelDescription": "Choisissez un modèle activé pour la compréhension d'images."
+      "chooseImageModelDescription": "Choisissez un modèle activé pour la compréhension d'images.",
+      "toggleFree": "Basculer la zone gratuite de {{name}}",
+      "freeBadge": "Gratuit",
+      "freeSwitch": "Ajouter à la zone gratuite",
+      "freeSwitchDesc": "Les modèles de la zone gratuite restent épinglés en haut du menu des modèles."
     },
     "health": {
       "title": "System health",
@@ -545,7 +564,9 @@
         },
         "emptyTitle": "No configurable tools",
         "field": {
-          "apiKey": "API key"
+          "apiKey": "API key",
+          "model": "Modèle",
+          "sessionScope": "Portée de la session"
         },
         "origin": {
           "builtin": "Intégré",
@@ -606,6 +627,15 @@
         "videoCaption": {
           "title": "Sous-titres vidéo",
           "summary": "Écrit les sous-titres d'une vidéo."
+        },
+        "imageGenerate": {
+          "title": "Génération d'images",
+          "summary": "Génère une image à partir d'un texte."
+        },
+        "modelNoToken": "jeton manquant",
+        "understandImage": {
+          "title": "Compréhension d'images",
+          "summary": "Examine une image avec un modèle de vision et répond à une question."
         }
       },
       "searchSkills": "Search skills…",
@@ -683,7 +713,15 @@
           "Stopping": "Stopping",
           "Uninstalled": "Uninstalled",
           "Failed": "Failed"
-        }
+        },
+        "enable": "Activer",
+        "disable": "Désactiver",
+        "statusEnabled": "Activé",
+        "statusDisabled": "Désactivé",
+        "statusFault": "Défaut",
+        "probeHealth": "Contrôle d'intégrité",
+        "healthOk": "Contrôle réussi",
+        "healthDown": "Contrôle échoué"
       },
       "author": "Author",
       "marketEmpty": "No matching skills",
@@ -815,7 +853,19 @@
       "deleteConfirm": "Delete provider “{{name}}”? This cannot be undone.",
       "editProvider": "Edit {{name}}",
       "editProviderDescription": "Update the display name, endpoint, or API key.",
-      "apiKeyOptional": "API key (optional)"
+      "apiKeyOptional": "API key (optional)",
+      "testing": "Test en cours",
+      "oauth": "Se connecter",
+      "oauthAuthorized": "Connecté",
+      "oauthPending": "Non connecté",
+      "loginTitle": "Se connecter à {{name}}",
+      "loginDescription": "Ouvrez la page d'autorisation dans le navigateur, saisissez le code ci-dessous, puis confirmez ici.",
+      "loginCode": "Code d'autorisation",
+      "loginOpen": "Ouvrir la page d'autorisation",
+      "loginConfirm": "J'ai autorisé",
+      "loginWaiting": "En attente d'autorisation…",
+      "loginExpired": "Le code a expiré. Veuillez vous reconnecter.",
+      "lastProbe": "Dernier test"
     },
     "agents": {
       "engineUnavailable": "Engine is not ready",
@@ -1265,7 +1315,8 @@
       "localEdge": "This machine",
       "connecting": "Connecting…",
       "switchEdgeConfirm": "A task is still running. Switch servers anyway? Open editors on the current server will close.",
-      "switchEdgeFailed": "Could not switch ({{code}}): {{message}}"
+      "switchEdgeFailed": "Could not switch ({{code}}): {{message}}",
+      "mainSession": "Chat principal"
     },
     "sidebarMenu": {
       "open": "Open",
@@ -1279,7 +1330,8 @@
       "pin": "Pin",
       "unpin": "Unpin",
       "archive": "Archive",
-      "delete": "Delete"
+      "delete": "Delete",
+      "restartMain": "Redémarrer la session principale"
     },
     "filesMenu": {
       "open": "Open",
@@ -1306,7 +1358,12 @@
       "removeAction": "Remove",
       "name": "Name",
       "cancel": "Cancel",
-      "save": "Save"
+      "save": "Save",
+      "restartMainTitle": "Redémarrer la session principale ?",
+      "restartMainDesc": "Une nouvelle session principale remplacera la session actuelle. La conversation actuelle sera conservée comme un chat ordinaire. Toute tâche en cours dans la session principale actuelle sera arrêtée.",
+      "restartMainAction": "Redémarrer",
+      "restartMainFailedTitle": "Impossible de redémarrer la session principale",
+      "restartMainFailedAction": "OK"
     },
     "newProject": {
       "title": "Name your project",

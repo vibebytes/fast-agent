@@ -14,7 +14,7 @@ import {useSettings} from './useSettings';
 import {useProviders, type Provider, type SeedModel} from './useProviders';
 import {clampEffort} from '../effortClamp';
 import {AddModelDialog} from './AddModelDialog';
-import {addModelOps, capabilityOp, freeOp, imageInputOp, visibilityOp} from './modelPatch';
+import {addModelOps, capabilityOp, contextWindowOp, freeOp, imageInputOp, visibilityOp} from './modelPatch';
 import {ChooseDefaultDialog} from './ChooseDefaultDialog';
 import {ProviderModelsGroup} from './ProviderModelsGroup';
 import {SearchAddDialog} from './SearchAddDialog';
@@ -357,6 +357,9 @@ export function ModelsSettings({engineReady, focusProviderId}: Props) {
 								}}
 								onToggleFree={(model, free) => {
 									void providers.patchModels(provider.id, [freeOp(model.modelId, free)]);
+								}}
+								onSetContextWindow={(model, tokens) => {
+									void providers.patchModels(provider.id, [contextWindowOp(model.modelId, tokens)]);
 								}}
 								onAdd={() => setAddFor(provider.id)}
 								onSearch={() => setSearchFor(provider.id)}

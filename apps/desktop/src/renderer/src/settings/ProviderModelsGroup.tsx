@@ -1,9 +1,11 @@
+import {useState} from 'react';
 import {useTranslation} from 'react-i18next';
-import {BrainCircuit, Image as ImageIcon, Pin, Plus, Sparkles, Trash2} from 'lucide-react';
+import {BrainCircuit, Image as ImageIcon, Pin, Plus, Ruler, Sparkles, Trash2} from 'lucide-react';
 import {Badge} from '@fast-ide/ui/components/badge';
+import {Input} from '@fast-ide/ui/components/input';
 import {Popover, PopoverContent, PopoverTrigger} from '@fast-ide/ui/components/popover';
 import {Switch} from '@fast-ide/ui/components/switch';
-import {OUTPUT_CAPABILITIES} from './modelPatch';
+import {OUTPUT_CAPABILITIES, formatContextWindow, parseContextWindow} from './modelPatch';
 import {cn} from '@fast-ide/ui/lib/utils';
 import {MonoTag, SettingsButton} from './SettingsPrimitives';
 import {type ModelsDoc} from './useSettings';
@@ -18,6 +20,7 @@ export function ProviderModelsGroup({
 	onToggleImage,
 	onToggleCapability,
 	onToggleFree,
+	onSetContextWindow,
 	onAdd,
 	onSearch,
 	onRemove
@@ -29,6 +32,7 @@ export function ProviderModelsGroup({
 	onToggleImage: (model: SeedModel, image: boolean) => void;
 	onToggleCapability: (model: SeedModel, capability: string, on: boolean) => void;
 	onToggleFree: (model: SeedModel, free: boolean) => void;
+	onSetContextWindow: (model: SeedModel, tokens: number) => void;
 	onAdd: () => void;
 	onSearch: () => void;
 	onRemove: (model: SeedModel) => void;
@@ -142,6 +146,17 @@ export function ProviderModelsGroup({
 										{t('settings.models.imageBadge')}
 									</Badge>
 								) : null}
+								{model.contextWindow ? (
+									<Badge
+										variant="secondary"
+										className="text-[10px] px-1.5 py-0 font-mono font-medium shrink-0"
+										title={t('settings.models.contextWindowTitle', {
+											tokens: model.contextWindow.toLocaleString()
+										})}
+									>
+										{formatContextWindow(model.contextWindow)}
+									</Badge>
+								) : null}
 								{model.free ? (
 									<Badge
 										variant="secondary"
@@ -209,6 +224,12 @@ export function ProviderModelsGroup({
 									</PopoverContent>
 								</Popover>
 
+								<ContextWindowEditor
+									model={model}
+									disabled={disconnected}
+									onSave={tokens => onSetContextWindow(model, tokens)}
+								/>
+
 								<SettingsButton
 									size="icon-xs"
 									variant="ghost"
@@ -258,5 +279,71 @@ export function ProviderModelsGroup({
 				})}
 			</div>
 		</div>
+	);
+}
+
+function ContextWindowEditor({
+	model,
+	disabled,
+	onSave
+}: {
+	model: SeedModel;
+	disabled: boolean;
+	onSave: (tokens: number) => void;
+}) {
+	const {t} = useTranslation();
+	const [open, setOpen] = useState(false);
+	const [text, setText] = useState('');
+	const parsed = parseContextWindow(text);
+	const save = () => {
+		if (parsed === null) return;
+		onSave(parsed);
+		setOpen(false);
+	};
+
+	return (
+		<Popover
+			open={open}
+			onOpenChange={next => {
+				if (next) setText(model.contextWindow ? String(model.contextWindow) : '');
+				setOpen(next);
+			}}
+		>
+			<PopoverTrigger
+				disabled={disabled}
+				title={model.contextWindow ? t('settings.models.editContextWindow') : t('settings.models.contextWindowUnset')}
+				className={cn(
+					'inline-flex size-6 cursor-pointer items-center justify-center rounded-lg text-muted-foreground transition-colors duration-150 hover:bg-accent hover:text-foreground',
+					model.contextWindow && 'text-primary'
+				)}
+			>
+				<Ruler className="size-3.5" />
+			</PopoverTrigger>
+			<PopoverContent align="end" className="w-64 p-3 space-y-2">
+				<div className="text-[12px] font-medium">{t('settings.models.contextWindow')}</div>
+				<Input
+					value={text}
+					onChange={e => setText(e.target.value)}
+					onKeyDown={e => {
+						if (e.key === 'Enter') save();
+					}}
+					placeholder={t('settings.models.contextWindowPlaceholder')}
+					aria-invalid={parsed === null}
+					className="text-xs font-mono"
+					autoFocus
+				/>
+				<div className={cn('text-[10.5px]', parsed === null ? 'text-destructive' : 'text-muted-foreground')}>
+					{parsed === null ? t('settings.models.contextWindowInvalid') : t('settings.models.contextWindowDesc')}
+				</div>
+				<div className="flex justify-end gap-1.5">
+					<SettingsButton variant="outline" size="xs" onClick={() => setOpen(false)}>
+						{t('shell.common.cancel')}
+					</SettingsButton>
+					<SettingsButton size="xs" disabled={parsed === null} onClick={save}>
+						{t('shell.common.save')}
+					</SettingsButton>
+				</div>
+			</PopoverContent>
+		</Popover>
 	);
 }
