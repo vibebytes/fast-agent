@@ -334,6 +334,69 @@ test('interruptQueueItem rolls back optimistic turn when sendFn fails', () => {
 	);
 });
 
+test('interrupt optimistic opener survives id-less turn_cancelled settlement', () => {
+	const sent: BridgeCommand[] = [];
+	const controller = new SessionController({
+		clientId: 'cli',
+		send: cmd => {
+			sent.push(cmd);
+			return true;
+		},
+		createId: (() => {
+			let n = 0;
+			return () => `id-${++n}`;
+		})()
+	});
+	const task = controller.createTask('T');
+	controller.acceptNewSession('sess-int-settle', task.id);
+	controller.handleEvent({type: 'Attached', sessionId: 'sess-int-settle', clientId: 'cli'});
+	controller.handleEvent(
+		withSid('sess-int-settle', {
+			type: 'turn_started',
+			turnId: 'run-old',
+			clientMessageId: 'm-old',
+			text: 'old'
+		})
+	);
+	controller.handleEvent(
+		withSid('sess-int-settle', {
+			type: 'assistant_delta',
+			turnId: 'run-old',
+			text: 'partial'
+		})
+	);
+	controller.handleEvent(
+		withSid('sess-int-settle', {
+			type: 'follow_up_changed',
+			paused: false,
+			itemsJson: JSON.stringify([{id: 'fu-1', text: '继续开发啊', order: 0}])
+		})
+	);
+
+	assert.equal(controller.interruptQueueItem('fu-1'), true);
+	const clientMessageId = sent.find(c => c.type === 'InterruptWithMessage')?.clientMessageId;
+	assert.ok(clientMessageId);
+	assert.equal(composerGate(controller.getActiveTask()!.transcript, true).canCancel, true);
+
+	controller.handleEvent(
+		withSid('sess-int-settle', {
+			type: 'turn_cancelled',
+			reason: 'cancelled'
+		})
+	);
+	const after = controller.getActiveTask()!.transcript;
+	assert.equal(chromePostRun(after.chrome), false);
+	assert.equal(composerGate(after, true).canCancel, true);
+	assert.equal(
+		after.entries.filter(e => e.role === 'assistant' && e.status === 'streaming').length,
+		1
+	);
+	assert.equal(
+		after.entries.some(e => e.role === 'user' && e.clientMessageId === clientMessageId),
+		true
+	);
+});
+
 test('interrupt optimistic turn remaps engine echo then accepts server-run reasoning', () => {
 	const sent: BridgeCommand[] = [];
 	const controller = new SessionController({

@@ -1,7 +1,12 @@
 import type {BridgeEvent} from '@fastllm/bridge-protocol';
 import {documentCard, forgetDocument, rememberDocument} from '../chatDocument.js';
 import {planBuildDisplayContent} from '../plan.js';
-import {chromePostRun, chromeRunId, runChromeTransition} from '../runChrome.js';
+import {
+	chromeAwaitingSettlement,
+	chromePostRun,
+	chromeRunId,
+	runChromeTransition
+} from '../runChrome.js';
 import {
 	entryMatchesKey,
 	entryTurnIdIs,
@@ -426,6 +431,17 @@ export function applyTurnCancelled(
 					)
 				};
 			})
+		};
+	}
+	// Bridge cancel settlement often omits turnId. After InterruptWithMessage the client
+	// already opened a live optimistic turn (awaiting cleared) — that ack must not seal it.
+	const liveStreaming = state.entries.some(
+		e => e.role === 'assistant' && e.status === 'streaming'
+	);
+	if (!event.turnId && !chromeAwaitingSettlement(state.chrome) && liveStreaming) {
+		return {
+			...state,
+			chrome: runChromeTransition(state.chrome, {awaiting: false, postRun: false})
 		};
 	}
 	return {

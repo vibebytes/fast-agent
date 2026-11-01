@@ -474,6 +474,82 @@ test('foreign turn_cancelled (superseded prior) does not freeze the live Turn', 
 	assert.equal(state.entries[1]?.text, 'still answering');
 	assert.equal(composerGate(state, true).canCancel, true, 'Stop must stay lit on the live turn');
 });
+
+test('id-less turn_cancelled after interrupt optimistic opener keeps Stop lit', () => {
+	// Bridge cancel settlement often emits turn_cancelled with only `reason` (no turnId).
+	// That must settle the prior local cancel — not extinguish the interrupt opener.
+	let state = createTranscriptState();
+	state = applyBridgeEvent(state, {
+		type: 'turn_started',
+		turnId: 'run-old',
+		clientMessageId: 'm-old',
+		text: 'old'
+	});
+	state = applyBridgeEvent(state, {
+		type: 'assistant_delta',
+		turnId: 'run-old',
+		text: 'partial'
+	});
+	state = applyLocalCancel(state);
+	assert.equal(chromeAwaitingSettlement(state.chrome), true);
+	state = applyBridgeEvent(state, {
+		type: 'turn_started',
+		turnId: 'm-interrupt',
+		clientMessageId: 'm-interrupt',
+		text: '继续开发啊'
+	});
+	assert.equal(chromePostRun(state.chrome), false);
+	assert.equal(composerGate(state, true).canCancel, true);
+
+	state = applyBridgeEvent(state, {
+		type: 'turn_cancelled',
+		reason: 'cancelled'
+	});
+	assert.equal(chromePostRun(state.chrome), false, 'settlement ack must not arm postRun on opener');
+	assert.equal(chromeAwaitingSettlement(state.chrome), false);
+	assert.equal(
+		state.entries.filter(e => e.role === 'assistant' && e.status === 'streaming').length,
+		1
+	);
+	assert.equal(
+		state.entries.find(e => e.role === 'user' && e.clientMessageId === 'm-interrupt')?.text,
+		'继续开发啊'
+	);
+	assert.equal(composerGate(state, true).canCancel, true, 'Stop must stay lit');
+	state = applyBridgeEvent(state, {
+		type: 'reasoning_delta',
+		turnId: 'run-new',
+		text: 'think'
+	});
+	assert.equal(
+		state.entries.find(e => e.role === 'assistant' && e.status === 'streaming')?.reasoning,
+		'think'
+	);
+});
+
+test('id-less turn_cancelled while awaiting local cancel still settles Stop off', () => {
+	let state = createTranscriptState();
+	state = applyBridgeEvent(state, {
+		type: 'turn_started',
+		turnId: 'run-1',
+		clientMessageId: 'm-1',
+		text: 'hi'
+	});
+	state = applyLocalCancel(state);
+	assert.equal(chromeAwaitingSettlement(state.chrome), true);
+	state = applyBridgeEvent(state, {
+		type: 'turn_cancelled',
+		reason: 'cancelled by user'
+	});
+	assert.equal(chromeAwaitingSettlement(state.chrome), false);
+	assert.equal(chromePostRun(state.chrome), true);
+	assert.equal(composerGate(state, true).canCancel, false);
+	assert.equal(
+		state.entries.some(e => e.role === 'assistant' && e.status === 'streaming'),
+		false
+	);
+});
+
 test('turn_finished resolves orphan running tools', () => {
 	let state = createTranscriptState();
 	state = applyBridgeEvent(state, {
