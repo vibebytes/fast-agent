@@ -1,7 +1,7 @@
 import {useState} from 'react';
 import {useTranslation} from 'react-i18next';
 import {BrainCircuit, Check, Image as ImageIcon, Sparkles} from 'lucide-react';
-import {OUTPUT_CAPABILITIES, orderedCapabilities, parseContextWindow} from './modelPatch';
+import {OUTPUT_CAPABILITIES, orderedCapabilities, parseContextWindow, parseTemperature} from './modelPatch';
 import {Input} from '@fast-ide/ui/components/input';
 import {Switch} from '@fast-ide/ui/components/switch';
 import {cn} from '@fast-ide/ui/lib/utils';
@@ -36,6 +36,7 @@ export function AddModelDialog({
 		capabilities: string[];
 		free: boolean;
 		contextWindow?: number;
+		temperature?: number;
 	}) => Promise<boolean>;
 }) {
 	const {t} = useTranslation();
@@ -51,6 +52,8 @@ export function AddModelDialog({
 	const [saving, setSaving] = useState(false);
 	const [contextWindowText, setContextWindowText] = useState('');
 	const contextWindow = parseContextWindow(contextWindowText);
+	const [temperatureText, setTemperatureText] = useState('');
+	const temperature = parseTemperature(temperatureText);
 
 	const onModelIdChange = (val: string) => {
 		setModelId(val);
@@ -145,6 +148,27 @@ export function AddModelDialog({
 							{contextWindow === null
 								? t('settings.models.contextWindowInvalid')
 								: t('settings.models.contextWindowDesc')}
+						</span>
+					</label>
+
+					<label className="block space-y-1.5">
+						<span className="text-xs font-medium text-foreground">{t('settings.models.temperature')}</span>
+						<Input
+							value={temperatureText}
+							onChange={e => setTemperatureText(e.target.value)}
+							placeholder={t('settings.models.temperaturePlaceholder')}
+							aria-invalid={temperature === null}
+							className="text-xs font-mono"
+						/>
+						<span
+							className={cn(
+								'block text-[10.5px]',
+								temperature === null ? 'text-destructive' : 'text-muted-foreground'
+							)}
+						>
+							{temperature === null
+								? t('settings.models.temperatureInvalid')
+								: t('settings.models.temperatureDesc')}
 						</span>
 					</label>
 
@@ -304,7 +328,7 @@ export function AddModelDialog({
 						{t('shell.common.cancel')}
 					</SettingsButton>
 					<SettingsButton
-						disabled={saving || !modelId.trim() || contextWindow === null}
+						disabled={saving || !modelId.trim() || contextWindow === null || temperature === null}
 						onClick={() => {
 							setSaving(true);
 							void onSubmit({
@@ -316,7 +340,8 @@ export function AddModelDialog({
 								defaultEffort: supportsThinking ? defaultEffort : undefined,
 								capabilities,
 								free,
-								...(contextWindow ? {contextWindow} : {})
+								...(contextWindow ? {contextWindow} : {}),
+								...(typeof temperature === 'number' ? {temperature} : {})
 							}).finally(() => setSaving(false));
 						}}
 					>

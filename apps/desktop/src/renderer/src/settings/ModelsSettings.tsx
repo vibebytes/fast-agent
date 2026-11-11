@@ -14,7 +14,7 @@ import {useSettings} from './useSettings';
 import {useProviders, type Provider, type SeedModel} from './useProviders';
 import {clampEffort} from '../effortClamp';
 import {AddModelDialog} from './AddModelDialog';
-import {addModelOps, capabilityOp, contextWindowOp, freeOp, imageInputOp, visibilityOp} from './modelPatch';
+import {addModelOps, capabilityOp, contextWindowOp, freeOp, imageInputOp, temperatureOp, visibilityOp} from './modelPatch';
 import {ChooseDefaultDialog} from './ChooseDefaultDialog';
 import {ProviderModelsGroup} from './ProviderModelsGroup';
 import {SearchAddDialog} from './SearchAddDialog';
@@ -360,6 +360,9 @@ export function ModelsSettings({engineReady, focusProviderId}: Props) {
 								}}
 								onSetContextWindow={(model, tokens) => {
 									void providers.patchModels(provider.id, [contextWindowOp(model.modelId, tokens)]);
+								}}
+								onSetTemperature={(model, temperature) => {
+									void providers.patchModels(provider.id, [temperatureOp(model.modelId, temperature)]);
 								}}
 								onAdd={() => setAddFor(provider.id)}
 								onSearch={() => setSearchFor(provider.id)}

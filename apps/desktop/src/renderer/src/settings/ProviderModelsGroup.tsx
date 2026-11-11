@@ -1,11 +1,11 @@
 import {useState} from 'react';
 import {useTranslation} from 'react-i18next';
-import {BrainCircuit, Image as ImageIcon, Pin, Plus, Ruler, Sparkles, Trash2} from 'lucide-react';
+import {BrainCircuit, Image as ImageIcon, Pin, Plus, Ruler, Sparkles, Thermometer, Trash2} from 'lucide-react';
 import {Badge} from '@fast-ide/ui/components/badge';
 import {Input} from '@fast-ide/ui/components/input';
 import {Popover, PopoverContent, PopoverTrigger} from '@fast-ide/ui/components/popover';
 import {Switch} from '@fast-ide/ui/components/switch';
-import {OUTPUT_CAPABILITIES, formatContextWindow, parseContextWindow} from './modelPatch';
+import {OUTPUT_CAPABILITIES, formatContextWindow, parseContextWindow, parseTemperature} from './modelPatch';
 import {cn} from '@fast-ide/ui/lib/utils';
 import {MonoTag, SettingsButton} from './SettingsPrimitives';
 import {type ModelsDoc} from './useSettings';
@@ -21,6 +21,7 @@ export function ProviderModelsGroup({
 	onToggleCapability,
 	onToggleFree,
 	onSetContextWindow,
+	onSetTemperature,
 	onAdd,
 	onSearch,
 	onRemove
@@ -33,6 +34,7 @@ export function ProviderModelsGroup({
 	onToggleCapability: (model: SeedModel, capability: string, on: boolean) => void;
 	onToggleFree: (model: SeedModel, free: boolean) => void;
 	onSetContextWindow: (model: SeedModel, tokens: number) => void;
+	onSetTemperature: (model: SeedModel, temperature: number | null) => void;
 	onAdd: () => void;
 	onSearch: () => void;
 	onRemove: (model: SeedModel) => void;
@@ -157,6 +159,17 @@ export function ProviderModelsGroup({
 										{formatContextWindow(model.contextWindow)}
 									</Badge>
 								) : null}
+								{typeof model.temperature === 'number' ? (
+									<Badge
+										variant="secondary"
+										className="text-[10px] px-1.5 py-0 font-mono font-medium shrink-0"
+										title={t('settings.models.temperatureTitle', {
+											value: String(model.temperature)
+										})}
+									>
+										T={model.temperature}
+									</Badge>
+								) : null}
 								{model.free ? (
 									<Badge
 										variant="secondary"
@@ -228,6 +241,12 @@ export function ProviderModelsGroup({
 									model={model}
 									disabled={disconnected}
 									onSave={tokens => onSetContextWindow(model, tokens)}
+								/>
+
+								<TemperatureEditor
+									model={model}
+									disabled={disconnected}
+									onSave={temp => onSetTemperature(model, temp)}
 								/>
 
 								<SettingsButton
@@ -334,6 +353,73 @@ function ContextWindowEditor({
 				/>
 				<div className={cn('text-[10.5px]', parsed === null ? 'text-destructive' : 'text-muted-foreground')}>
 					{parsed === null ? t('settings.models.contextWindowInvalid') : t('settings.models.contextWindowDesc')}
+				</div>
+				<div className="flex justify-end gap-1.5">
+					<SettingsButton variant="outline" size="xs" onClick={() => setOpen(false)}>
+						{t('shell.common.cancel')}
+					</SettingsButton>
+					<SettingsButton size="xs" disabled={parsed === null} onClick={save}>
+						{t('shell.common.save')}
+					</SettingsButton>
+				</div>
+			</PopoverContent>
+		</Popover>
+	);
+}
+
+function TemperatureEditor({
+	model,
+	disabled,
+	onSave
+}: {
+	model: SeedModel;
+	disabled: boolean;
+	onSave: (temperature: number | null) => void;
+}) {
+	const {t} = useTranslation();
+	const [open, setOpen] = useState(false);
+	const [text, setText] = useState('');
+	const parsed = parseTemperature(text);
+	const hasTemp = typeof model.temperature === 'number';
+	const save = () => {
+		if (parsed === null) return;
+		onSave(parsed === undefined ? null : parsed);
+		setOpen(false);
+	};
+
+	return (
+		<Popover
+			open={open}
+			onOpenChange={next => {
+				if (next) setText(hasTemp ? String(model.temperature) : '');
+				setOpen(next);
+			}}
+		>
+			<PopoverTrigger
+				disabled={disabled}
+				title={hasTemp ? t('settings.models.editTemperature') : t('settings.models.temperatureUnset')}
+				className={cn(
+					'inline-flex size-6 cursor-pointer items-center justify-center rounded-lg text-muted-foreground transition-colors duration-150 hover:bg-accent hover:text-foreground',
+					hasTemp && 'text-primary'
+				)}
+			>
+				<Thermometer className="size-3.5" />
+			</PopoverTrigger>
+			<PopoverContent align="end" className="w-64 p-3 space-y-2">
+				<div className="text-[12px] font-medium">{t('settings.models.temperature')}</div>
+				<Input
+					value={text}
+					onChange={e => setText(e.target.value)}
+					onKeyDown={e => {
+						if (e.key === 'Enter') save();
+					}}
+					placeholder={t('settings.models.temperaturePlaceholder')}
+					aria-invalid={parsed === null}
+					className="text-xs font-mono"
+					autoFocus
+				/>
+				<div className={cn('text-[10.5px]', parsed === null ? 'text-destructive' : 'text-muted-foreground')}>
+					{parsed === null ? t('settings.models.temperatureInvalid') : t('settings.models.temperatureDesc')}
 				</div>
 				<div className="flex justify-end gap-1.5">
 					<SettingsButton variant="outline" size="xs" onClick={() => setOpen(false)}>

@@ -11,6 +11,7 @@ import {
 	imageInputOp,
 	parseContextWindow,
 	searchAddOps,
+	temperatureOp,
 	visibilityOp
 } from './modelPatch.js';
 
@@ -244,4 +245,26 @@ test('context window: add carries it, enable sets it, 0 clears it', () => {
 	assert.equal(set![0].models![0].enabled, true);
 	const cleared = applyModelPatch(set!, 'p1', [contextWindowOp('m', 0)]);
 	assert.equal('contextWindow' in cleared![0].models![0], false);
+});
+
+test('temperature: add carries it, enable sets it, null clears it', () => {
+	const add = addModelOp({
+		modelId: 'm', displayName: '', supportsThinking: false, supportedEfforts: [], supportsImage: false,
+		capabilities: [], temperature: 1
+	});
+	assert.equal(add.temperature, 1);
+	const added = applyModelPatch([mkProvider([])], 'p1', [add]);
+	assert.equal(added![0].models![0].temperature, 1);
+	const set = applyModelPatch(added!, 'p1', [temperatureOp('m', 0.6)]);
+	assert.equal(set![0].models![0].temperature, 0.6);
+	const cleared = applyModelPatch(set!, 'p1', [temperatureOp('m', null)]);
+	assert.equal('temperature' in cleared![0].models![0], false);
+});
+
+test('temperature: blank add omits the field', () => {
+	const add = addModelOp({
+		modelId: 'm', displayName: '', supportsThinking: false, supportedEfforts: [], supportsImage: false,
+		capabilities: []
+	});
+	assert.equal('temperature' in add, false);
 });

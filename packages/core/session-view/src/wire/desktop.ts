@@ -341,6 +341,8 @@ export type ProviderModel = {
 	supportedEfforts?: string[];
 	defaultEffort?: string;
 	maxTokens?: number;
+	/** Sampling temperature; absent = omitted from outbound requests so the vendor default applies. */
+	temperature?: number;
 	/** Input context window in tokens; absent = compaction falls back to the agent's YAML budget. */
 	contextWindow?: number;
 	/** Wire lowercase (e.g. ["text","image"]); absent = text-only. */
@@ -425,6 +427,8 @@ export type ProviderModelPatch = {
 	free?: boolean;
 	/** add / enable: context window in tokens; `0` clears it. */
 	contextWindow?: number;
+	/** add / enable: sampling temperature; `null` clears it so the vendor default applies. */
+	temperature?: number | null;
 };
 
 /** Settings-center installed skill row (List/Create/SetSkillEnabled). */

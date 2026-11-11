@@ -4,6 +4,7 @@ export type PatchModelRow = {
 	capabilities?: string[];
 	free?: boolean;
 	contextWindow?: number;
+	temperature?: number;
 	[k: string]: unknown;
 };
 
@@ -20,6 +21,7 @@ export type ModelPatchOp = {
 	capabilities?: string[];
 	free?: boolean;
 	contextWindow?: number;
+	temperature?: number | null;
 };
 
 /** Parses `128000`, `128k`, `1m` / `1.5M` into tokens; `''` → `0` (clear); anything else → `null`. */
@@ -47,6 +49,19 @@ export function contextWindowOp(modelId: string, tokens: number): ModelPatchOp {
 	return {op: 'enable', modelId, contextWindow: tokens};
 }
 
+/** Parses `0` .. `2` (decimal); `''` → `undefined` (unset/clear); anything else → `null` (invalid). */
+export function parseTemperature(raw: string): number | null | undefined {
+	const s = raw.trim();
+	if (s === '') return undefined;
+	if (!/^\d+(?:\.\d+)?$/.test(s)) return null;
+	const n = Number(s);
+	return Number.isFinite(n) && n >= 0 && n <= 2 ? n : null;
+}
+
+export function temperatureOp(modelId: string, temperature: number | null): ModelPatchOp {
+	return {op: 'enable', modelId, temperature};
+}
+
 export const OUTPUT_CAPABILITIES = [
 	'image_generation',
 	'video_generation',
@@ -67,6 +82,7 @@ export function addModelOp(input: {
 	defaultEffort?: string;
 	capabilities: readonly string[];
 	contextWindow?: number;
+	temperature?: number;
 }): ModelPatchOp {
 	return {
 		op: 'add',
@@ -78,6 +94,7 @@ export function addModelOp(input: {
 		...(input.supportsImage ? {inputModalities: ['text', 'image']} : {}),
 		capabilities: orderedCapabilities(input.capabilities),
 		...(input.contextWindow && input.contextWindow > 0 ? {contextWindow: input.contextWindow} : {}),
+		...(input.temperature !== undefined ? {temperature: input.temperature} : {}),
 		enabled: true
 	};
 }
@@ -96,6 +113,7 @@ export function addModelOps(input: {
 	capabilities: readonly string[];
 	free?: boolean;
 	contextWindow?: number;
+	temperature?: number;
 }): ModelPatchOp[] {
 	const add = addModelOp(input);
 	return input.free === true ? [add, freeOp(input.modelId, true)] : [add];
@@ -155,7 +173,8 @@ export function applyModelPatch<P extends ProviderLike>(
 				typeof op.enabled === 'boolean' ||
 				op.inputModalities !== undefined ||
 				op.capabilities !== undefined ||
-				op.contextWindow !== undefined;
+				op.contextWindow !== undefined ||
+				op.temperature !== undefined;
 			if (mi >= 0 && hasPatch) {
 				const cur = models[mi]!;
 				const next: PatchModelRow = {
@@ -167,6 +186,10 @@ export function applyModelPatch<P extends ProviderLike>(
 				if (op.contextWindow !== undefined) {
 					if (op.contextWindow > 0) next.contextWindow = op.contextWindow;
 					else delete next.contextWindow;
+				}
+				if (op.temperature !== undefined) {
+					if (op.temperature === null) delete next.temperature;
+					else next.temperature = op.temperature;
 				}
 				models[mi] = next;
 				changed = true;
@@ -184,6 +207,7 @@ export function applyModelPatch<P extends ProviderLike>(
 					...(op.inputModalities !== undefined ? {inputModalities: [...op.inputModalities]} : {}),
 					...(op.capabilities !== undefined ? {capabilities: [...op.capabilities]} : {}),
 					...(op.contextWindow && op.contextWindow > 0 ? {contextWindow: op.contextWindow} : {}),
+					...(typeof op.temperature === 'number' ? {temperature: op.temperature} : {}),
 					enabled: op.enabled ?? true,
 					source: 'manual'
 				});
