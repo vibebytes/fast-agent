@@ -261,6 +261,12 @@ export type InvokeHost = {
 			  }
 			| {ok: false; notice: string};
 	};
+	'extensions:health': {
+		args: [];
+		result:
+			| {ok: true; health: Record<string, 'ok' | 'down' | 'unknown'>}
+			| {ok: false; notice: string};
+	};
 	'extensions:install': {
 		args: [dir: string];
 		result: {ok: true; id: string} | {ok: false; notice: string};
