@@ -115,6 +115,10 @@ export function createTaskLifecycle<T extends LifecycleTask>(deps: TaskLifecycle
 	const pendingTitleBySession = new Map<string, {taskId: string; previous: string}>();
 	/** Owned picker kind keyed by Engine sessionId. Hydrate must not overwrite it. */
 	const pendingEngineBySession = new Map<string, EngineKind>();
+	const pendingModelSettingsBySession = new Map<
+		string,
+		NonNullable<SessionMetaInfo['modelSettings']>
+	>();
 	/** Soft-delete waiters keyed by Engine sessionId. */
 	const pendingDeleteBySession = new Map<
 		string,
@@ -237,6 +241,7 @@ export function createTaskLifecycle<T extends LifecycleTask>(deps: TaskLifecycle
 		if (task.sessionId) {
 			deps.attachedSessionIds.unbind(task.sessionId);
 			pendingTitleBySession.delete(task.sessionId);
+			pendingModelSettingsBySession.delete(task.sessionId);
 			deps.seqBySession.delete(task.sessionId);
 		}
 		tasks.delete(taskId);
@@ -382,6 +387,13 @@ export function createTaskLifecycle<T extends LifecycleTask>(deps: TaskLifecycle
 		pendingEngineBySession.set(sessionId, engineKind);
 	};
 
+	const stageModelSettings = (
+		sessionId: string,
+		settings: NonNullable<SessionMetaInfo['modelSettings']>
+	): void => {
+		pendingModelSettingsBySession.set(sessionId, {...settings});
+	};
+
 	const rejectPendingDeletes = (notice: string): void => {
 		for (const pending of pendingDeleteBySession.values()) {
 			clearTimeout(pending.timer);
@@ -395,6 +407,7 @@ export function createTaskLifecycle<T extends LifecycleTask>(deps: TaskLifecycle
 		for (const pending of pendingDeleteBySession.values()) clearTimeout(pending.timer);
 		pendingTitleBySession.clear();
 		pendingEngineBySession.clear();
+		pendingModelSettingsBySession.clear();
 		pendingDeleteBySession.clear();
 		tasks.clear();
 	};
@@ -434,9 +447,26 @@ export function createTaskLifecycle<T extends LifecycleTask>(deps: TaskLifecycle
 			const owned = pendingEngineBySession.get(info.id);
 			const settled = parseEngineKind(info.engineKind);
 			if (owned != null && settled === owned) pendingEngineBySession.delete(info.id);
-			const stickyInfo = pendingEngineBySession.has(info.id)
+			let stickyInfo = pendingEngineBySession.has(info.id)
 				? {...info, engineKind: undefined}
 				: info;
+
+			const ownedSettings = pendingModelSettingsBySession.get(info.id);
+			const incomingSettings = info.modelSettings;
+			if (
+				ownedSettings &&
+				incomingSettings &&
+				incomingSettings.platform === ownedSettings.platform &&
+				incomingSettings.model === ownedSettings.model &&
+				(ownedSettings.effort === undefined || incomingSettings.effort === ownedSettings.effort) &&
+				(ownedSettings.thinking === undefined ||
+					incomingSettings.thinking === ownedSettings.thinking)
+			) {
+				pendingModelSettingsBySession.delete(info.id);
+			}
+			if (pendingModelSettingsBySession.has(info.id)) {
+				stickyInfo = {...stickyInfo, modelSettings: undefined};
+			}
 
 			const named = info.title?.trim() || '';
 			const existing = bySessionId.get(info.id);
@@ -583,6 +613,7 @@ export function createTaskLifecycle<T extends LifecycleTask>(deps: TaskLifecycle
 		retryPendingNew,
 		applyDeletedTask,
 		stageEngineChange,
+		stageModelSettings,
 		rejectPendingDeletes,
 		hydrateSessions,
 		reset,

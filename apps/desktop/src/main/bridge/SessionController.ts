@@ -620,6 +620,12 @@ export class SessionController implements TaskCommands, SessionLifecycle, TaskVi
 		if (!platform || !model) return false;
 		const sessionId = this.commandSessionId();
 		if (sessionId) {
+			this.lifecycle.stageModelSettings(sessionId, {
+				platform,
+				model,
+				...(settings.effort ? {effort: settings.effort} : {}),
+				...(settings.thinking !== undefined ? {thinking: settings.thinking} : {})
+			});
 			this.sendFn({
 				type: 'SetModelSettings',
 				sessionId,

@@ -332,6 +332,48 @@ test('hydrate omit effort/thinking keeps prior Task chrome', () => {
 	assert.equal(controller.runMode, 'plan');
 });
 
+test('setModelSettings survives a stale sessions_list until the new sampling is echoed', () => {
+	let n = 0;
+	const controller = new SessionController({
+		clientId: 'cli',
+		projectId: () => 'proj-1',
+		workspaceId: () => 'ws-1',
+		send: () => true,
+		createId: () => `id-${++n}`
+	});
+	const task = controller.createTask('A');
+	controller.acceptNewSession('sess-a', task.id, 'ws-1');
+	const row = (effort: string, thinking: boolean, lastModified: string) => ({
+		id: 'sess-a',
+		title: 'A',
+		lastModified,
+		isCurrent: true,
+		messageCount: 0,
+		modelSettings: {platform: 'openrouter', model: 'claude-sonnet-4', effort, thinking}
+	});
+	controller.hydrateFromSessionsList([row('medium', false, '2026-09-16T00:00:00.000Z')]);
+
+	controller.setModelSettings({
+		platform: 'openrouter',
+		model: 'claude-sonnet-4',
+		effort: 'high',
+		thinking: true
+	});
+	controller.hydrateFromSessionsList([row('medium', false, '2026-09-16T00:00:00.000Z')]);
+
+	assert.equal(controller.thinking, true, 'stale inventory must not turn thinking back off');
+	assert.equal(controller.effort, 'high', 'stale inventory must not restore the old effort');
+	assert.equal(controller.getActiveTask()?.thinking, true);
+
+	controller.hydrateFromSessionsList([row('high', true, '2026-09-16T00:00:01.000Z')]);
+	assert.equal(controller.thinking, true);
+	assert.equal(controller.effort, 'high');
+
+	controller.hydrateFromSessionsList([row('low', false, '2026-09-16T00:00:02.000Z')]);
+	assert.equal(controller.thinking, false, 'a newer snapshot must apply after the echo settles');
+	assert.equal(controller.effort, 'low');
+});
+
 test('selectTask to Off task does not emit SetModelSettings(true) from composer materialize path', () => {
 	// Regression: DialogueComposer no longer persists thinking:true on mount.
 	// Controller chrome for Off must survive focus switch without a sticky overwrite.
