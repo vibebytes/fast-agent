@@ -7,6 +7,7 @@ import {Popover, PopoverContent, PopoverTrigger} from '@fast-ide/ui/components/p
 import {cn} from '@fast-ide/ui/lib/utils';
 import {requestStop, useStopEcho} from '../session/stopEcho';
 import {
+	AlertTriangle,
 	ArrowUp,
 	Brain,
 	BrainCircuit,
@@ -21,12 +22,17 @@ import {enginePickerKinds, type EngineKindName} from '../enginePicker';
 import {formatSlashSubmit, type SlashItem} from '../slashCatalog';
 import {openModelPicker} from './modelSettings';
 import {ModelCatalogContent, ThinkingContent} from './ModelStrip';
+import {ContextUsageMeter} from './ContextUsageMeter';
+import {
+	RUN_MODES,
+	isHighRiskRunMode,
+	runModeRiskSuffixKey,
+	type RunModeName
+} from './runModeRisk';
+import type {ContextUsageView} from '@fast-ide/session-view';
 import type {MentionRichInputHandle} from '../MentionRichInput';
 import type {ModelCatalogEntry} from '../env';
 import type {RefObject} from 'react';
-
-const RUN_MODES = ['agent', 'plan', 'ask', 'yolo', 'free'] as const;
-type RunModeName = (typeof RUN_MODES)[number];
 
 export function ActionStrip(p: {
 	composerDisabled: boolean;
@@ -73,6 +79,10 @@ export function ActionStrip(p: {
 	richRef: RefObject<MentionRichInputHandle | null>;
 	draft: string;
 	store: {setDraft: (t: string) => void};
+	contextUsageView?: ContextUsageView | null;
+	compacting?: boolean;
+	canCompact?: boolean;
+	onCompact?: () => void;
 }) {
 	const {t} = useTranslation();
 	const {
@@ -83,7 +93,8 @@ export function ActionStrip(p: {
 		composerLocked, canChat, setModelSearch, modelCatalog, modelCatalogReady, modelSearch, effectiveModel, pickModel,
 		thinkingPopOpen, setThinkingPopOpen, supportsThinking, supportedEfforts, thinking,
 		thinkingButtonLabel, effort, toggleThinking, pickEffort,
-		stopKind, canSteer, canSubmitNow, canSend, selectedSlash, richRef, draft, store
+		stopKind, canSteer, canSubmitNow, canSend, selectedSlash, richRef, draft, store,
+		contextUsageView = null, compacting = false, canCompact = false, onCompact
 	} = p;
 	const stopEchoBusy = useStopEcho(sessionId ?? null);
 	return (
@@ -143,37 +154,69 @@ export function ActionStrip(p: {
 								</PopoverContent>
 							</Popover>
 							{engineKind !== 'dsh' && (
+							<>
 							<Popover open={modePopOpen} onOpenChange={setModePopOpen}>
 								<PopoverTrigger asChild>
 									<InputGroupButton
 										type="button"
 										size="sm"
 										variant="ghost"
-										className="h-7 shrink-0 gap-1 rounded-full px-2.5 text-xs font-medium capitalize text-muted-foreground hover:bg-muted/70 hover:text-foreground transition-colors"
+										className={cn(
+											'h-7 shrink-0 gap-1 rounded-full px-2.5 text-xs font-medium capitalize transition-colors',
+											isHighRiskRunMode(runMode)
+												? 'bg-destructive/10 text-destructive hover:bg-destructive/15'
+												: 'text-muted-foreground hover:bg-muted/70 hover:text-foreground'
+										)}
 										disabled={composerDisabled}
 										aria-label={t('shell.composer.runMode')}
 									>
+										{isHighRiskRunMode(runMode) && (
+											<AlertTriangle className="size-3 shrink-0" />
+										)}
 										{runMode}
 										<ChevronDown className="size-3 opacity-60" />
 									</InputGroupButton>
 								</PopoverTrigger>
-								<PopoverContent className="w-40 p-1" align="start">
-									{RUN_MODES.map(m => (
-										<button
-											key={m}
-											type="button"
-											className={cn(
-												'flex w-full items-center justify-between rounded-md px-2 py-1.5 text-left text-sm capitalize hover:bg-accent',
-												m === runMode && 'bg-accent'
-											)}
-											onClick={() => void pickMode(m)}
-										>
-											{m}
-											{m === runMode && <Check className="size-3.5" />}
-										</button>
-									))}
+								<PopoverContent className="w-56 p-1" align="start">
+									{RUN_MODES.map(m => {
+										const riskKey = runModeRiskSuffixKey(m);
+										return (
+											<button
+												key={m}
+												type="button"
+												className={cn(
+													'flex w-full items-center justify-between gap-2 rounded-md px-2 py-1.5 text-left text-sm hover:bg-accent',
+													m === runMode && 'bg-accent'
+												)}
+												onClick={() => void pickMode(m)}
+											>
+												<span className="flex items-center gap-1.5 min-w-0">
+													<span className="capitalize">{m}</span>
+													{riskKey && (
+														<span className="rounded bg-destructive/10 px-1.5 py-0.5 text-[10px] font-medium leading-none text-destructive">
+															{t(riskKey, {defaultValue: '高危 · 无任何限制'})}
+														</span>
+													)}
+												</span>
+												{m === runMode && <Check className="size-3.5 shrink-0" />}
+											</button>
+										);
+									})}
 								</PopoverContent>
 							</Popover>
+							{isHighRiskRunMode(runMode) && (
+								<span
+									className="inline-flex items-center gap-1 truncate text-[11px] text-destructive/90"
+									title={t('shell.composer.freeModeRiskBanner', {
+										defaultValue: '高危：AI 可直接修改或删除电脑上的任意文件'
+									})}
+								>
+									{t('shell.composer.freeModeRiskBanner', {
+										defaultValue: '高危：AI 可直接修改或删除电脑上的任意文件'
+									})}
+								</span>
+							)}
+							</>
 							)}
 							{engineKind === 'dsh' ? (
 								<ModelMenu sessionId={sessionId} disabled={composerDisabled} />
@@ -269,66 +312,74 @@ export function ActionStrip(p: {
 								</Popover>
 							)}
 						</div>
-						{stopKind ? (
-							<InputGroupButton
-								type="button"
-								size="icon-sm"
-								variant="default"
-								className="relative size-7 cursor-pointer rounded-full bg-foreground text-background hover:bg-foreground/90 active:scale-95 transition-all shadow-sm"
-								aria-busy={stopEchoBusy}
-								aria-label={
-									stopKind === 'goal' ? t('shell.background.stopGoal') : t('shell.common.stop')
-								}
-								title={
-									stopKind === 'goal'
-										? t('shell.background.stopGoal')
-										: `${t('shell.common.stop')} (Esc)`
-								}
-								onClick={() =>
-									stopKind === 'goal'
-										? void window.fastIde.cancelGoal()
-										: void requestStop(sessionId ?? null, () => window.fastIde.cancelRun())
-								}
-							>
-								<Square className="size-2.5 fill-current" />
-								<span className="pointer-events-none absolute inset-0.5 rounded-full border-2 border-background/20 border-t-background animate-spin" />
-							</InputGroupButton>
-						) : (
-							<>
-								{canSteer && !canSubmitNow ? (
-									<InputGroupButton
-										type="button"
-										size="icon-sm"
-										variant="ghost"
-										className="size-7 cursor-pointer rounded-full disabled:opacity-30 disabled:cursor-not-allowed"
-										disabled={!canSend}
-										aria-label="Steer"
-										onClick={() => {
-											const snap = selectedSlash ? null : richRef.current?.snapshot();
-											const text = selectedSlash
-												? formatSlashSubmit(selectedSlash.name, draft)
-												: (snap?.text ?? draft).trim();
-											if (!text) return;
-											void window.fastIde.dshSteer(text);
-											richRef.current?.clear();
-											store.setDraft('');
-										}}
-									>
-										<Zap className="size-3.5" />
-									</InputGroupButton>
-								) : null}
+						<div className="flex items-center gap-1.5 shrink-0">
+							<ContextUsageMeter
+								usage={contextUsageView}
+								compacting={compacting}
+								canCompact={canCompact}
+								onCompact={onCompact}
+							/>
+							{stopKind ? (
 								<InputGroupButton
-									type="submit"
+									type="button"
 									size="icon-sm"
 									variant="default"
-									className="size-7 cursor-pointer rounded-full bg-primary text-primary-foreground hover:opacity-90 active:scale-95 transition-all shadow-sm disabled:opacity-30 disabled:scale-100 disabled:cursor-not-allowed"
-									disabled={!canSend}
-									aria-label={t('shell.common.send')}
+									className="relative size-7 cursor-pointer rounded-full bg-foreground text-background hover:bg-foreground/90 active:scale-95 transition-all shadow-sm"
+									aria-busy={stopEchoBusy}
+									aria-label={
+										stopKind === 'goal' ? t('shell.background.stopGoal') : t('shell.common.stop')
+									}
+									title={
+										stopKind === 'goal'
+											? t('shell.background.stopGoal')
+											: `${t('shell.common.stop')} (Esc)`
+									}
+									onClick={() =>
+										stopKind === 'goal'
+											? void window.fastIde.cancelGoal()
+											: void requestStop(sessionId ?? null, () => window.fastIde.cancelRun())
+									}
 								>
-									<ArrowUp className="size-3.5 stroke-[2.2]" />
+									<Square className="size-2.5 fill-current" />
+									<span className="pointer-events-none absolute inset-0.5 rounded-full border-2 border-background/20 border-t-background animate-spin" />
 								</InputGroupButton>
-							</>
-						)}
+							) : (
+								<>
+									{canSteer && !canSubmitNow ? (
+										<InputGroupButton
+											type="button"
+											size="icon-sm"
+											variant="ghost"
+											className="size-7 cursor-pointer rounded-full disabled:opacity-30 disabled:cursor-not-allowed"
+											disabled={!canSend}
+											aria-label="Steer"
+											onClick={() => {
+												const snap = selectedSlash ? null : richRef.current?.snapshot();
+												const text = selectedSlash
+													? formatSlashSubmit(selectedSlash.name, draft)
+													: (snap?.text ?? draft).trim();
+												if (!text) return;
+												void window.fastIde.dshSteer(text);
+												richRef.current?.clear();
+												store.setDraft('');
+											}}
+										>
+											<Zap className="size-3.5" />
+										</InputGroupButton>
+									) : null}
+									<InputGroupButton
+										type="submit"
+										size="icon-sm"
+										variant="default"
+										className="size-7 cursor-pointer rounded-full bg-primary text-primary-foreground hover:opacity-90 active:scale-95 transition-all shadow-sm disabled:opacity-30 disabled:scale-100 disabled:cursor-not-allowed"
+										disabled={!canSend}
+										aria-label={t('shell.common.send')}
+									>
+										<ArrowUp className="size-3.5 stroke-[2.2]" />
+									</InputGroupButton>
+								</>
+							)}
+						</div>
 					</InputGroupAddon>
 	);
 }

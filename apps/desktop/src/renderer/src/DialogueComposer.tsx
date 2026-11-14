@@ -8,6 +8,16 @@ import {
 	type FormEvent,
 	type KeyboardEvent
 } from 'react';
+import {
+	AlertDialog,
+	AlertDialogAction,
+	AlertDialogCancel,
+	AlertDialogContent,
+	AlertDialogDescription,
+	AlertDialogFooter,
+	AlertDialogHeader,
+	AlertDialogTitle
+} from '@fast-ide/ui/components/alert-dialog';
 import {InputGroup, InputGroupTextarea} from '@fast-ide/ui/components/input-group';
 import {cn} from '@fast-ide/ui/lib/utils';
 import {Boxes, X} from 'lucide-react';
@@ -36,9 +46,11 @@ import {helpNoticeText} from './helpNoticeText';
 import {
 	composerModelLabel,
 	concreteModelDisplay,
+	contextUsage,
 	isUnresolvedModelDisplay,
 	matchCatalogEntry,
-	sameModelRef
+	sameModelRef,
+	type TranscriptState
 } from '@fast-ide/session-view';
 import {
 	chromeEngineKind,
@@ -56,6 +68,10 @@ import {useSlashCatalog} from './composer/useSlashCatalog';
 import {useMentionSuggest} from './composer/useMentionSuggest';
 import {useMenuScroll} from './composer/useMenuScroll';
 import {ActionStrip} from './composer/ActionStrip';
+import {
+	requiresRunModeConfirmation,
+	type RunModeName
+} from './composer/runModeRisk';
 import {AppContextChips} from './composer/AppContextChips';
 import {
 	appContextSnapshot,
@@ -67,9 +83,6 @@ import {handleComposerKeyDown} from './composer/keys';
 
 const SYSTEM_BLUE_CHIP =
 	'bg-[#007AFF]/10 text-[#007AFF] dark:bg-[#0A84FF]/15 dark:text-[#0A84FF]';
-
-const RUN_MODES = ['agent', 'plan', 'ask', 'yolo', 'free'] as const;
-type RunModeName = (typeof RUN_MODES)[number];
 
 export type DialogueComposerProps = {
 	/** Active Task — draft is remembered per task across tab switches. */
@@ -107,6 +120,9 @@ export type DialogueComposerProps = {
 	pendingSlashInsert?: SlashItem | null;
 	onPendingSlashConsumed?: () => void;
 	sessionId?: string;
+	transcript?: TranscriptState;
+	dshDeltaCaps?: boolean;
+	compacting?: boolean;
 };
 
 /**
@@ -139,7 +155,10 @@ export const DialogueComposer = memo(function DialogueComposer({
 	onPendingMentionConsumed,
 	pendingSlashInsert = null,
 	onPendingSlashConsumed,
-	sessionId
+	sessionId,
+	transcript,
+	dshDeltaCaps,
+	compacting = false
 }: DialogueComposerProps) {
 	const {t} = useTranslation();
 	const [store] = useState(() => createTaskComposerDraftStore(taskId));
@@ -151,6 +170,7 @@ export const DialogueComposer = memo(function DialogueComposer({
 		chromeEngineKind(taskId, stickyEngineKind)
 	);
 	const [modePopOpen, setModePopOpen] = useState(false);
+	const [freeModeConfirmOpen, setFreeModeConfirmOpen] = useState(false);
 	const [enginePopOpen, setEnginePopOpen] = useState(false);
 	const [modelPopOpen, setModelPopOpen] = useState(false);
 	const [thinkingPopOpen, setThinkingPopOpen] = useState(false);
@@ -187,6 +207,7 @@ export const DialogueComposer = memo(function DialogueComposer({
 	useEffect(() => {
 		if (!shouldResyncChrome(resyncTaskRef.current, taskId)) return;
 		resyncTaskRef.current = taskId ?? null;
+		setFreeModeConfirmOpen(false);
 		setRunMode(stickyRunMode);
 		setEngineKind(chromeEngineKind(taskId, stickyEngineKind));
 		setEffort(stickyEffort);
@@ -344,6 +365,16 @@ export const DialogueComposer = memo(function DialogueComposer({
 	const supportedEfforts = activeModelEntry?.supportedEfforts ?? [];
 	const supportsThinking = activeModelEntry?.supportsThinking === true;
 	const canAttachImages = supportsImageInput(activeModelEntry);
+	const contextUsageView = useMemo(
+		() =>
+			transcript
+				? contextUsage(transcript, {
+						modelContextWindow: activeModelEntry?.contextWindow,
+						caps: dshDeltaCaps
+					})
+				: null,
+		[transcript, activeModelEntry?.contextWindow, dshDeltaCaps]
+	);
 	const modelButtonFull = useMemo(() => {
 		const catalogDisplay = activeModelEntry?.display ?? '';
 		if (!isUnresolvedModelDisplay(catalogDisplay)) return catalogDisplay;
@@ -404,8 +435,7 @@ export const DialogueComposer = memo(function DialogueComposer({
 		]);
 	}
 
-	async function pickMode(mode: RunModeName) {
-		setModePopOpen(false);
+	async function applyRunMode(mode: RunModeName) {
 		setRunMode(mode);
 		await window.fastIde.setRunMode(mode, taskId);
 		const next =
@@ -415,6 +445,15 @@ export const DialogueComposer = memo(function DialogueComposer({
 			richRef.current?.restore(next, mentionChips);
 			setMentionBeforeCaret(next);
 		}
+	}
+
+	async function pickMode(mode: RunModeName) {
+		setModePopOpen(false);
+		if (requiresRunModeConfirmation(runMode, mode)) {
+			setFreeModeConfirmOpen(true);
+			return;
+		}
+		await applyRunMode(mode);
 	}
 
 	async function pickEngine(kind: EngineKindName) {
@@ -789,7 +828,16 @@ export const DialogueComposer = memo(function DialogueComposer({
 							effectiveModel, pickModel, thinkingPopOpen, setThinkingPopOpen,
 							supportsThinking, supportedEfforts, thinking, thinkingButtonLabel, effort,
 							toggleThinking, pickEffort, stopKind, canSteer, canSubmitNow, canSend,
-							selectedSlash, richRef, draft, store
+							selectedSlash, richRef, draft, store,
+							contextUsageView,
+							compacting,
+							canCompact: !composerDisabled && canSubmitNow,
+							onCompact:
+								engineKind !== 'dsh'
+									? () => {
+											void submitText('/compact', null, []);
+										}
+									: undefined
 						}}
 					/>
 
@@ -800,6 +848,39 @@ export const DialogueComposer = memo(function DialogueComposer({
 					{t('shell.composer.resolveGate')}
 				</p>
 			) : null}
+			<AlertDialog open={freeModeConfirmOpen} onOpenChange={setFreeModeConfirmOpen}>
+				<AlertDialogContent>
+					<AlertDialogHeader>
+						<AlertDialogTitle>
+							{t('shell.composer.freeModeConfirmTitle', {
+								defaultValue: '确认开启 Free 模式？（高危）'
+							})}
+						</AlertDialogTitle>
+						<AlertDialogDescription>
+							{t('shell.composer.freeModeConfirmDesc', {
+								defaultValue:
+									'开启后，AI 将不经你确认，直接运行任意命令、访问隐私密钥，并可修改或删除你电脑上的任何文件。一旦出错，可能导致重要数据永久丢失或系统损坏！强烈建议仅在虚拟机中使用，确定要开启吗？'
+							})}
+						</AlertDialogDescription>
+					</AlertDialogHeader>
+					<AlertDialogFooter>
+						<AlertDialogCancel>
+							{t('shell.composer.freeModeConfirmCancel', {defaultValue: '取消'})}
+						</AlertDialogCancel>
+						<AlertDialogAction
+							variant="destructive"
+							onClick={() => {
+								setFreeModeConfirmOpen(false);
+								void applyRunMode('free');
+							}}
+						>
+							{t('shell.composer.freeModeConfirmAction', {
+								defaultValue: '承担风险并开启'
+							})}
+						</AlertDialogAction>
+					</AlertDialogFooter>
+				</AlertDialogContent>
+			</AlertDialog>
 		</form>
 	);
 });
