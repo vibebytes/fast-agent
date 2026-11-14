@@ -14,7 +14,7 @@ import {useSettings} from './useSettings';
 import {useProviders, type Provider, type SeedModel} from './useProviders';
 import {clampEffort} from '../effortClamp';
 import {AddModelDialog} from './AddModelDialog';
-import {addModelOps, capabilityOp, contextWindowOp, freeOp, imageInputOp, temperatureOp, visibilityOp} from './modelPatch';
+import {addModelOps, capabilityOp, contextWindowOp, defaultPromptCacheKey, freeOp, imageInputOp, temperatureOp, visibilityOp} from './modelPatch';
 import {ChooseDefaultDialog} from './ChooseDefaultDialog';
 import {ProviderModelsGroup} from './ProviderModelsGroup';
 import {SearchAddDialog} from './SearchAddDialog';
@@ -88,6 +88,8 @@ export function ModelsSettings({engineReady, focusProviderId}: Props) {
 		}
 		return {enabled, hidden, all: enabled + hidden};
 	}, [providers.providers]);
+
+	const addProvider = providers.providers.find(p => p.id === addFor);
 
 	const pinDefault = (provider: Provider, model: SeedModel) => {
 		const efforts = model.supportedEfforts ?? [];
@@ -380,8 +382,9 @@ export function ModelsSettings({engineReady, focusProviderId}: Props) {
 			{addFor ? (
 				<AddModelDialog
 					open
-					providerName={providers.providers.find(p => p.id === addFor)?.name}
-					defaultFree={providers.providers.find(p => p.id === addFor)?.free === true}
+					providerName={addProvider?.name}
+					defaultFree={addProvider?.free === true}
+					defaultPromptCacheKey={defaultPromptCacheKey(addProvider?.baseUrl, addProvider?.id)}
 					onOpenChange={open => {
 						if (!open) setAddFor(null);
 					}}

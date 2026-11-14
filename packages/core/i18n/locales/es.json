@@ -229,7 +229,10 @@
       "toggleFree": "Alternar zona gratuita de {{name}}",
       "freeBadge": "Gratis",
       "freeSwitch": "Añadir a la zona gratuita",
-      "freeSwitchDesc": "Los modelos de la zona gratuita quedan fijados al principio del menú de modelos."
+      "freeSwitchDesc": "Los modelos de la zona gratuita quedan fijados al principio del menú de modelos.",
+      "promptCacheKey": "Activar optimización de ID de caché (prompt_cache_key)",
+      "promptCacheKeyDesc": "Envía prompt_cache_key (ID de sesión por defecto) en las peticiones para mejorar el acierto de caché de prefijo.",
+      "promptCacheKeyWarn": "Algunos proveedores que no admiten este parámetro pueden devolver errores; se puede desactivar en cualquier momento."
     },
     "health": {
       "title": "System health",

@@ -229,7 +229,10 @@
       "toggleFree": "Basculer la zone gratuite de {{name}}",
       "freeBadge": "Gratuit",
       "freeSwitch": "Ajouter à la zone gratuite",
-      "freeSwitchDesc": "Les modèles de la zone gratuite restent épinglés en haut du menu des modèles."
+      "freeSwitchDesc": "Les modèles de la zone gratuite restent épinglés en haut du menu des modèles.",
+      "promptCacheKey": "Activer l'optimisation de l'ID de cache (prompt_cache_key)",
+      "promptCacheKeyDesc": "Envoie prompt_cache_key (ID de session par défaut) avec les requêtes pour améliorer le cache de préfixe amont.",
+      "promptCacheKeyWarn": "Certains fournisseurs ne prenant pas en charge ce paramètre peuvent renvoyer des erreurs ; désactivable à tout moment."
     },
     "health": {
       "title": "System health",

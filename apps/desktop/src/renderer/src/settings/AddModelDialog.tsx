@@ -1,6 +1,6 @@
 import {useState} from 'react';
 import {useTranslation} from 'react-i18next';
-import {BrainCircuit, Check, Image as ImageIcon, Sparkles} from 'lucide-react';
+import {BrainCircuit, Check, Image as ImageIcon, Sparkles, Zap} from 'lucide-react';
 import {OUTPUT_CAPABILITIES, orderedCapabilities, parseContextWindow, parseTemperature} from './modelPatch';
 import {Input} from '@fast-ide/ui/components/input';
 import {Switch} from '@fast-ide/ui/components/switch';
@@ -19,12 +19,14 @@ export function AddModelDialog({
 	open,
 	providerName,
 	defaultFree,
+	defaultPromptCacheKey,
 	onOpenChange,
 	onSubmit
 }: {
 	open: boolean;
 	providerName?: string;
 	defaultFree?: boolean;
+	defaultPromptCacheKey?: boolean;
 	onOpenChange: (open: boolean) => void;
 	onSubmit: (input: {
 		modelId: string;
@@ -37,6 +39,7 @@ export function AddModelDialog({
 		free: boolean;
 		contextWindow?: number;
 		temperature?: number;
+		promptCacheKey: boolean;
 	}) => Promise<boolean>;
 }) {
 	const {t} = useTranslation();
@@ -45,6 +48,7 @@ export function AddModelDialog({
 	const [supportsThinking, setSupportsThinking] = useState(false);
 	const [supportsImage, setSupportsImage] = useState(false);
 	const [free, setFree] = useState(defaultFree ?? false);
+	const [promptCacheKey, setPromptCacheKey] = useState(defaultPromptCacheKey ?? false);
 	const [capabilities, setCapabilities] = useState<string[]>([]);
 	const [supportedEfforts, setSupportedEfforts] = useState<string[]>(['low', 'medium', 'high', 'max']);
 	const [defaultEffort, setDefaultEffort] = useState('medium');
@@ -295,6 +299,30 @@ export function AddModelDialog({
 					</div>
 
 					<div className="rounded-xl border border-border/70 bg-muted/25 dark:bg-muted/15 p-3.5 space-y-2">
+						<div className="flex items-center justify-between gap-3">
+							<div className="flex items-center gap-2.5 min-w-0">
+								<div className="size-7 rounded-lg bg-violet-500/10 text-violet-600 dark:text-violet-400 flex items-center justify-center shrink-0 border border-violet-500/20">
+									<Zap className="size-4 stroke-[2.2]" />
+								</div>
+								<div className="min-w-0">
+									<div className="text-xs font-semibold text-foreground">
+										{t('settings.models.promptCacheKey')}
+									</div>
+									<div className="text-[10.5px] text-muted-foreground truncate">
+										{t('settings.models.promptCacheKeyDesc')}
+									</div>
+								</div>
+							</div>
+							<Switch size="sm" checked={promptCacheKey} onCheckedChange={setPromptCacheKey} />
+						</div>
+						{promptCacheKey ? (
+							<p className="text-[10.5px] text-amber-600 dark:text-amber-400">
+								{t('settings.models.promptCacheKeyWarn')}
+							</p>
+						) : null}
+					</div>
+
+					<div className="rounded-xl border border-border/70 bg-muted/25 dark:bg-muted/15 p-3.5 space-y-2">
 						<div className="text-xs font-semibold text-foreground">{t('settings.models.outputCapabilities')}</div>
 						<div className="flex flex-wrap gap-1.5">
 							{OUTPUT_CAPABILITIES.map(tag => {
@@ -340,6 +368,7 @@ export function AddModelDialog({
 								defaultEffort: supportsThinking ? defaultEffort : undefined,
 								capabilities,
 								free,
+								promptCacheKey,
 								...(contextWindow ? {contextWindow} : {}),
 								...(typeof temperature === 'number' ? {temperature} : {})
 							}).finally(() => setSaving(false));

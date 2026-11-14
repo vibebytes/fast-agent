@@ -229,7 +229,10 @@
       "toggleFree": "Kostenlos-Bereich für {{name}} umschalten",
       "freeBadge": "Kostenlos",
       "freeSwitch": "Zum Kostenlos-Bereich hinzufügen",
-      "freeSwitchDesc": "Modelle im Kostenlos-Bereich bleiben oben im Modellmenü angeheftet."
+      "freeSwitchDesc": "Modelle im Kostenlos-Bereich bleiben oben im Modellmenü angeheftet.",
+      "promptCacheKey": "Cache-ID-Optimierung aktivieren (prompt_cache_key)",
+      "promptCacheKeyDesc": "Sendet prompt_cache_key (standardmäßig die Session-ID) mit Anfragen, um Prefix-Cache-Treffer am Upstream zu verbessern.",
+      "promptCacheKeyWarn": "Manche Anbieter ohne Unterstützung dieses Parameters können Fehler liefern; jederzeit abschaltbar."
     },
     "health": {
       "title": "System health",

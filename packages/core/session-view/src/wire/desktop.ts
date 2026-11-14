@@ -353,6 +353,8 @@ export type ProviderModel = {
 	free?: boolean;
 	/** User set `free` explicitly — refresh must not overwrite it. */
 	freeLocked?: boolean;
+	/** Explicit prompt_cache_key toggle; absent = default by provider (api.openai.com & openrouter.ai). */
+	promptCacheKey?: boolean;
 	enabled: boolean;
 	source: string;
 };
@@ -429,6 +431,8 @@ export type ProviderModelPatch = {
 	contextWindow?: number;
 	/** add / enable: sampling temperature; `null` clears it so the vendor default applies. */
 	temperature?: number | null;
+	/** add / enable: whether to send `prompt_cache_key` in outbound requests. */
+	promptCacheKey?: boolean;
 };
 
 /** Settings-center installed skill row (List/Create/SetSkillEnabled). */

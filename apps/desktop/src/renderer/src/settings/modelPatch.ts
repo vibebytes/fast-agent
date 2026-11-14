@@ -5,6 +5,7 @@ export type PatchModelRow = {
 	free?: boolean;
 	contextWindow?: number;
 	temperature?: number;
+	promptCacheKey?: boolean;
 	[k: string]: unknown;
 };
 
@@ -22,7 +23,21 @@ export type ModelPatchOp = {
 	free?: boolean;
 	contextWindow?: number;
 	temperature?: number | null;
+	promptCacheKey?: boolean;
 };
+
+/** Only `api.openai.com` and `openrouter.ai` enable `prompt_cache_key` by default; all other vendors default to false. */
+export function defaultPromptCacheKey(baseUrl?: string | null, providerId?: string | null): boolean {
+	const url = (baseUrl ?? '').trim().toLowerCase();
+	const id = (providerId ?? '').trim().toLowerCase();
+	if (url.includes('api.openai.com') || url.includes('openrouter.ai')) return true;
+	if (!url && (id === 'openai' || id === 'openrouter')) return true;
+	return false;
+}
+
+export function promptCacheKeyOp(modelId: string, promptCacheKey: boolean): ModelPatchOp {
+	return {op: 'enable', modelId, promptCacheKey};
+}
 
 /** Parses `128000`, `128k`, `1m` / `1.5M` into tokens; `''` → `0` (clear); anything else → `null`. */
 export function parseContextWindow(raw: string): number | null {
@@ -83,6 +98,7 @@ export function addModelOp(input: {
 	capabilities: readonly string[];
 	contextWindow?: number;
 	temperature?: number;
+	promptCacheKey?: boolean;
 }): ModelPatchOp {
 	return {
 		op: 'add',
@@ -95,6 +111,7 @@ export function addModelOp(input: {
 		capabilities: orderedCapabilities(input.capabilities),
 		...(input.contextWindow && input.contextWindow > 0 ? {contextWindow: input.contextWindow} : {}),
 		...(input.temperature !== undefined ? {temperature: input.temperature} : {}),
+		...(typeof input.promptCacheKey === 'boolean' ? {promptCacheKey: input.promptCacheKey} : {}),
 		enabled: true
 	};
 }
@@ -114,6 +131,7 @@ export function addModelOps(input: {
 	free?: boolean;
 	contextWindow?: number;
 	temperature?: number;
+	promptCacheKey?: boolean;
 }): ModelPatchOp[] {
 	const add = addModelOp(input);
 	return input.free === true ? [add, freeOp(input.modelId, true)] : [add];
@@ -174,14 +192,16 @@ export function applyModelPatch<P extends ProviderLike>(
 				op.inputModalities !== undefined ||
 				op.capabilities !== undefined ||
 				op.contextWindow !== undefined ||
-				op.temperature !== undefined;
+				op.temperature !== undefined ||
+				typeof op.promptCacheKey === 'boolean';
 			if (mi >= 0 && hasPatch) {
 				const cur = models[mi]!;
 				const next: PatchModelRow = {
 					...cur,
 					...(typeof op.enabled === 'boolean' ? {enabled: op.enabled} : {}),
 					...(op.inputModalities !== undefined ? {inputModalities: [...op.inputModalities]} : {}),
-					...(op.capabilities !== undefined ? {capabilities: [...op.capabilities]} : {})
+					...(op.capabilities !== undefined ? {capabilities: [...op.capabilities]} : {}),
+					...(typeof op.promptCacheKey === 'boolean' ? {promptCacheKey: op.promptCacheKey} : {})
 				};
 				if (op.contextWindow !== undefined) {
 					if (op.contextWindow > 0) next.contextWindow = op.contextWindow;
@@ -208,6 +228,7 @@ export function applyModelPatch<P extends ProviderLike>(
 					...(op.capabilities !== undefined ? {capabilities: [...op.capabilities]} : {}),
 					...(op.contextWindow && op.contextWindow > 0 ? {contextWindow: op.contextWindow} : {}),
 					...(typeof op.temperature === 'number' ? {temperature: op.temperature} : {}),
+					...(typeof op.promptCacheKey === 'boolean' ? {promptCacheKey: op.promptCacheKey} : {}),
 					enabled: op.enabled ?? true,
 					source: 'manual'
 				});

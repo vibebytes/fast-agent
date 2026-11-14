@@ -229,7 +229,10 @@
       "toggleFree": "切換 {{name}} 的免費區",
       "freeBadge": "免費",
       "freeSwitch": "加入免費區",
-      "freeSwitchDesc": "勾選後進入免費區，固定顯示在模型選單頂端。"
+      "freeSwitchDesc": "勾選後進入免費區，固定顯示在模型選單頂端。",
+      "promptCacheKey": "啟用快取 ID 最佳化（prompt_cache_key）",
+      "promptCacheKeyDesc": "開啟後請求攜帶 prompt_cache_key（預設取工作階段 ID），提高上游前綴快取命中。",
+      "promptCacheKeyWarn": "啟用後，部分不支援該參數的模型廠商可能回報錯誤，可隨時關閉。"
     },
     "health": {
       "title": "System health",

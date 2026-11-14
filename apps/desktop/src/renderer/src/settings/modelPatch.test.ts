@@ -6,10 +6,12 @@ import {
 	applyModelPatch,
 	capabilityOp,
 	contextWindowOp,
+	defaultPromptCacheKey,
 	formatContextWindow,
 	freeOp,
 	imageInputOp,
 	parseContextWindow,
+	promptCacheKeyOp,
 	searchAddOps,
 	temperatureOp,
 	visibilityOp
@@ -267,4 +269,45 @@ test('temperature: blank add omits the field', () => {
 		capabilities: []
 	});
 	assert.equal('temperature' in add, false);
+});
+
+test('defaultPromptCacheKey defaults on only for api.openai.com and openrouter.ai', () => {
+	assert.equal(defaultPromptCacheKey('https://api.openai.com/v1'), true);
+	assert.equal(defaultPromptCacheKey('HTTPS://API.OPENAI.COM/V1'), true);
+	assert.equal(defaultPromptCacheKey('https://openrouter.ai/api/v1'), true);
+	assert.equal(defaultPromptCacheKey(undefined, 'openai'), true);
+	assert.equal(defaultPromptCacheKey('', 'OpenRouter'), true);
+	assert.equal(defaultPromptCacheKey('https://api.deepseek.com/v1', 'deepseek'), false);
+	assert.equal(defaultPromptCacheKey('https://api.deepseek.com/v1'), false);
+	assert.equal(defaultPromptCacheKey(), false);
+});
+
+test('promptCacheKeyOp emits an enable op with the boolean flag', () => {
+	assert.deepEqual(promptCacheKeyOp('m', true), {op: 'enable', modelId: 'm', promptCacheKey: true});
+	assert.deepEqual(promptCacheKeyOp('m', false), {op: 'enable', modelId: 'm', promptCacheKey: false});
+});
+
+test('prompt cache key: add carries it, enable toggles it, other patches leave it', () => {
+	const add = addModelOp({
+		modelId: 'm', displayName: '', supportsThinking: false, supportedEfforts: [], supportsImage: false,
+		capabilities: [], promptCacheKey: true
+	});
+	assert.equal(add.promptCacheKey, true);
+	const added = applyModelPatch([mkProvider([])], 'p1', [add]);
+	assert.equal(added![0].models![0].promptCacheKey, true);
+	const off = applyModelPatch(added!, 'p1', [promptCacheKeyOp('m', false)]);
+	assert.equal(off![0].models![0].promptCacheKey, false);
+	assert.equal(off![0].models![0].enabled, true);
+	const on = applyModelPatch(off!, 'p1', [promptCacheKeyOp('m', true)]);
+	assert.equal(on![0].models![0].promptCacheKey, true);
+	const untouched = applyModelPatch(on!, 'p1', [visibilityOp('m', false)]);
+	assert.equal(untouched![0].models![0].promptCacheKey, true);
+});
+
+test('add without promptCacheKey omits the field', () => {
+	const add = addModelOp({
+		modelId: 'm', displayName: '', supportsThinking: false, supportedEfforts: [], supportsImage: false,
+		capabilities: []
+	});
+	assert.equal('promptCacheKey' in add, false);
 });

@@ -229,7 +229,10 @@
       "toggleFree": "{{name}} 무료 영역 전환",
       "freeBadge": "무료",
       "freeSwitch": "무료 영역에 추가",
-      "freeSwitchDesc": "무료 영역의 모델은 모델 메뉴 맨 위에 고정됩니다."
+      "freeSwitchDesc": "무료 영역의 모델은 모델 메뉴 맨 위에 고정됩니다.",
+      "promptCacheKey": "캐시 ID 최적화 사용 (prompt_cache_key)",
+      "promptCacheKeyDesc": "요청에 prompt_cache_key(기본값: 세션 ID)를 포함하여 업스트림 접두사 캐시 적중률을 높입니다.",
+      "promptCacheKeyWarn": "이 파라미터를 지원하지 않는 일부 공급자는 오류가 발생할 수 있습니다. 언제든지 끌 수 있습니다."
     },
     "health": {
       "title": "System health",

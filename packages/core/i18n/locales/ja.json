@@ -229,7 +229,10 @@
       "toggleFree": "{{name}} の無料枠を切り替え",
       "freeBadge": "無料",
       "freeSwitch": "無料枠に追加",
-      "freeSwitchDesc": "無料枠のモデルはモデルメニューの先頭に固定されます。"
+      "freeSwitchDesc": "無料枠のモデルはモデルメニューの先頭に固定されます。",
+      "promptCacheKey": "キャッシュ ID 最適化を有効化（prompt_cache_key）",
+      "promptCacheKeyDesc": "リクエストに prompt_cache_key（既定はセッション ID）を付与し、上流のプレフィックスキャッシュの命中率を高めます。",
+      "promptCacheKeyWarn": "このパラメーターに対応していないプロバイダーではエラーになる場合があります。いつでもオフにできます。"
     },
     "health": {
       "title": "System health",
