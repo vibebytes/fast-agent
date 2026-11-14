@@ -238,7 +238,7 @@
       "freeBadge": "Free",
       "freeSwitch": "Add to free zone",
       "freeSwitchDesc": "Free-zone models stay pinned at the top of the model menu.",
-      "promptCacheKey": "Enable cache ID optimization (prompt_cache_key)",
+      "promptCacheKey": "Enable cache key optimization",
       "promptCacheKeyDesc": "Sends prompt_cache_key (session id by default) with requests to improve upstream prefix-cache hits.",
       "promptCacheKeyWarn": "Some providers that do not support this parameter may return errors; you can turn it off anytime.",
       "addModelDescription": "Add an upstream model id to this provider.",

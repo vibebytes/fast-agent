@@ -230,7 +230,7 @@
       "freeBadge": "Kostenlos",
       "freeSwitch": "Zum Kostenlos-Bereich hinzufügen",
       "freeSwitchDesc": "Modelle im Kostenlos-Bereich bleiben oben im Modellmenü angeheftet.",
-      "promptCacheKey": "Cache-ID-Optimierung aktivieren (prompt_cache_key)",
+      "promptCacheKey": "Cache-Key-Optimierung aktivieren",
       "promptCacheKeyDesc": "Sendet prompt_cache_key (standardmäßig die Session-ID) mit Anfragen, um Prefix-Cache-Treffer am Upstream zu verbessern.",
       "promptCacheKeyWarn": "Manche Anbieter ohne Unterstützung dieses Parameters können Fehler liefern; jederzeit abschaltbar."
     },
