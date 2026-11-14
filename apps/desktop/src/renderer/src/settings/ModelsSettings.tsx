@@ -14,7 +14,7 @@ import {useSettings} from './useSettings';
 import {useProviders, type Provider, type SeedModel} from './useProviders';
 import {clampEffort} from '../effortClamp';
 import {AddModelDialog} from './AddModelDialog';
-import {addModelOps, capabilityOp, contextWindowOp, defaultPromptCacheKey, freeOp, imageInputOp, temperatureOp, visibilityOp} from './modelPatch';
+import {addModelOps, capabilityOp, contextWindowOp, defaultPromptCacheKey, freeOp, imageInputOp, promptCacheKeyOp, temperatureOp, visibilityOp} from './modelPatch';
 import {ChooseDefaultDialog} from './ChooseDefaultDialog';
 import {ProviderModelsGroup} from './ProviderModelsGroup';
 import {SearchAddDialog} from './SearchAddDialog';
@@ -351,6 +351,9 @@ export function ModelsSettings({engineReady, focusProviderId}: Props) {
 								}}
 								onToggleImage={(model, image) => {
 									void providers.patchModels(provider.id, [imageInputOp(model.modelId, image)]);
+								}}
+								onToggleCacheKey={(model, on) => {
+									void providers.patchModels(provider.id, [promptCacheKeyOp(model.modelId, on)]);
 								}}
 								onToggleCapability={(model, capability, on) => {
 									void providers.patchModels(provider.id, [

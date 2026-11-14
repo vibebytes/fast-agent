@@ -1,11 +1,11 @@
 import {useState} from 'react';
 import {useTranslation} from 'react-i18next';
-import {BrainCircuit, Image as ImageIcon, Pin, Plus, Ruler, Sparkles, Thermometer, Trash2} from 'lucide-react';
+import {BrainCircuit, Image as ImageIcon, Pin, Plus, Ruler, Sparkles, Thermometer, Trash2, Zap} from 'lucide-react';
 import {Badge} from '@fast-ide/ui/components/badge';
 import {Input} from '@fast-ide/ui/components/input';
 import {Popover, PopoverContent, PopoverTrigger} from '@fast-ide/ui/components/popover';
 import {Switch} from '@fast-ide/ui/components/switch';
-import {OUTPUT_CAPABILITIES, formatContextWindow, parseContextWindow, parseTemperature} from './modelPatch';
+import {OUTPUT_CAPABILITIES, defaultPromptCacheKey, formatContextWindow, parseContextWindow, parseTemperature} from './modelPatch';
 import {cn} from '@fast-ide/ui/lib/utils';
 import {MonoTag, SettingsButton} from './SettingsPrimitives';
 import {type ModelsDoc} from './useSettings';
@@ -18,6 +18,7 @@ export function ProviderModelsGroup({
 	onPin,
 	onToggle,
 	onToggleImage,
+	onToggleCacheKey,
 	onToggleCapability,
 	onToggleFree,
 	onSetContextWindow,
@@ -31,6 +32,7 @@ export function ProviderModelsGroup({
 	onPin: (model: SeedModel) => void;
 	onToggle: (model: SeedModel, enabled: boolean) => void;
 	onToggleImage: (model: SeedModel, image: boolean) => void;
+	onToggleCacheKey: (model: SeedModel, on: boolean) => void;
 	onToggleCapability: (model: SeedModel, capability: string, on: boolean) => void;
 	onToggleFree: (model: SeedModel, free: boolean) => void;
 	onSetContextWindow: (model: SeedModel, tokens: number) => void;
@@ -98,6 +100,7 @@ export function ProviderModelsGroup({
 				{(provider.models ?? []).map(model => {
 					const isDefault =
 						defaults.defaultPlatform === provider.id && defaults.defaultModel === model.modelId;
+					const cacheOn = model.promptCacheKey ?? defaultPromptCacheKey(provider.baseUrl, provider.id);
 
 					return (
 						<div
@@ -206,6 +209,22 @@ export function ProviderModelsGroup({
 									title={t('settings.models.toggleImage')}
 								>
 									<ImageIcon className="size-3.5" />
+								</SettingsButton>
+
+								<SettingsButton
+									size="icon-xs"
+									variant="ghost"
+									className={cn(
+										'cursor-pointer transition-opacity duration-150',
+										cacheOn
+											? 'text-primary opacity-100'
+											: 'opacity-0 group-hover:opacity-100 focus-visible:opacity-100 text-muted-foreground hover:text-foreground'
+									)}
+									disabled={disconnected}
+									onClick={() => onToggleCacheKey(model, !cacheOn)}
+									title={t('settings.models.promptCacheKey')}
+								>
+									<Zap className="size-3.5" />
 								</SettingsButton>
 
 								<Popover>
