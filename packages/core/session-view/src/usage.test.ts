@@ -247,3 +247,62 @@ test('context_pruned with remainingTokens rescales context_used and breakdown im
 	assert.equal(afterManual?.percent, 13);
 });
 
+test('starting a new turn in the same session keeps previous context usage until new usage_reported arrives', () => {
+	let state = createTranscriptState();
+	state = applyBridgeEvent(state, {
+		type: 'turn_started',
+		turnId: 'c1',
+		clientMessageId: 'c1',
+		text: 'hello'
+	});
+	state = applyBridgeEvent(state, {
+		type: 'input_accepted',
+		turnId: 'r1',
+		clientMessageId: 'c1'
+	});
+	state = applyBridgeEvent(state, {
+		type: 'usage_reported',
+		runId: 'r1',
+		turnId: 'r1',
+		buckets: {
+			input: 48_000,
+			output: 800,
+			context_used: 48_000,
+			context_window: 128_000
+		}
+	});
+	state = applyBridgeEvent(state, {type: 'turn_finished', turnId: 'r1', success: true});
+
+	// Next user turn starts (turn_started + input_accepted) before LLM responds.
+	state = applyBridgeEvent(state, {
+		type: 'turn_started',
+		turnId: 'c2',
+		clientMessageId: 'c2',
+		text: 'follow up'
+	});
+	assert.equal(contextUsage(state, {modelContextWindow: 128_000})?.usedTokens, 48_000);
+
+	state = applyBridgeEvent(state, {
+		type: 'input_accepted',
+		turnId: 'r2',
+		clientMessageId: 'c2'
+	});
+	const whileWaiting = contextUsage(state, {modelContextWindow: 128_000});
+	assert.equal(whileWaiting?.usedTokens, 48_000);
+	assert.equal(whileWaiting?.percent, 38);
+
+	// New usage_reported overwrites once the second turn's LLM call settles.
+	state = applyBridgeEvent(state, {
+		type: 'usage_reported',
+		runId: 'r2',
+		turnId: 'r2',
+		buckets: {
+			input: 56_000,
+			output: 900,
+			context_used: 56_000,
+			context_window: 128_000
+		}
+	});
+	assert.equal(contextUsage(state, {modelContextWindow: 128_000})?.usedTokens, 56_000);
+});
+

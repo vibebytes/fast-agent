@@ -40,9 +40,9 @@ function liveFrom(
 	};
 }
 
-/** Per-run delta views (usage / prune notices) must not leak into the next turn. */
-const freshRunDeltas: Pick<TranscriptState, 'usage' | 'contextPrunes' | 'compacting'> = {
-	usage: undefined,
+/** Per-run compaction chrome (prune notices / in-flight spinner) must not leak into the next turn;
+ *  `usage` carries the session's live context-window occupancy until overwritten or pruned. */
+const freshRunDeltas: Pick<TranscriptState, 'contextPrunes' | 'compacting'> = {
 	contextPrunes: undefined,
 	compacting: undefined
 };
