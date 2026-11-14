@@ -19,7 +19,7 @@ import {useTranslation} from 'react-i18next';
 import {catalogProvider, groupCatalogEntries} from '../catalogGroup';
 import type {ModelCatalogEntry} from '../env';
 import {getModelCapabilityBadges} from '../modelBrand';
-import {matchCatalogEntry} from '@fast-ide/session-view';
+import {catalogEntryFor} from '@fast-ide/session-view';
 
 const EFFORT_LABEL: Record<string, string> = {
 	low: 'Low',
@@ -65,6 +65,12 @@ export function ModelCatalogContent({
 		});
 	}, [modelCatalog, modelSearch]);
 	const groupedCatalog = useMemo(() => groupCatalogEntries(filteredCatalog), [filteredCatalog]);
+	// Resolve the current ref to ONE entry (exact id first), then compare by id —
+	// same-name models from other providers must never share the selected state.
+	const activeEntry = useMemo(
+		() => catalogEntryFor(modelCatalog, effectiveModel),
+		[modelCatalog, effectiveModel]
+	);
 
 	return (
 		<PopoverContent
@@ -185,7 +191,7 @@ export function ModelCatalogContent({
 
 								<div className="space-y-0.5">
 									{group.items.map(({entry, cleanName}) => {
-										const isSelected = matchCatalogEntry(entry, effectiveModel);
+										const isSelected = activeEntry !== undefined && entry.id === activeEntry.id;
 										const badges = getModelCapabilityBadges(entry, cleanName);
 
 										return (

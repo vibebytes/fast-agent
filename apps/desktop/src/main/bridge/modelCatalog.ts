@@ -37,13 +37,12 @@ export function catalogFromProviders(
 			const id = `${p.id}/${m.modelId}`;
 			const display = (m.displayName || m.modelId).trim() || m.modelId;
 			const aliases = uniqueAliases(m.modelId, m.aliases, id, display);
-			const keys = [id, display, m.modelId, ...aliases].map(s => s.toLowerCase());
 			const free = !loggedInOauth && m.free === true;
 			entries.push({
 				id,
 				display,
 				aliases,
-				current: cur.length > 0 && keys.includes(cur),
+				current: false,
 				providerId: p.id,
 				providerName: p.name.trim() || p.id,
 				supportsThinking: m.supportsThinking === true,
@@ -57,17 +56,30 @@ export function catalogFromProviders(
 			});
 		}
 	}
+	if (cur) {
+		// Fully-qualified current id wins; a bare current name (engine sticky ref) resolves
+		// to the first matching row so same-name providers never mark current twice.
+		const hit =
+			entries.find(e => e.id.toLowerCase() === cur) ??
+			entries.find(e => [e.id, e.display, ...e.aliases].some(k => k.toLowerCase() === cur));
+		if (hit) hit.current = true;
+	}
 	return entries;
 }
 
-/** First catalog row that matches a chrome id / display / alias. */
+/** First catalog row that matches a chrome id / display / alias. Exact id wins so
+ * same-name rows from other providers cannot hijack a fully-qualified ref. */
 export function catalogEntryFor(
 	entries: ModelCatalogEntry[],
 	ref: string | undefined
 ): ModelCatalogEntry | undefined {
 	const t = (ref ?? '').trim();
 	if (!t) return undefined;
-	return entries.find(e => matchCatalogEntry(e, t));
+	const id = t.toLowerCase();
+	return (
+		entries.find(e => e.id.trim().toLowerCase() === id) ??
+		entries.find(e => matchCatalogEntry(e, t))
+	);
 }
 
 /**

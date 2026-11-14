@@ -207,6 +207,46 @@ function provider(partial: Partial<ProviderRow> & Pick<ProviderRow, 'id'>): Prov
 	};
 }
 
+test('catalogFromProviders marks only the exact provider row current for same-name models', () => {
+	const entries = catalogFromProviders(
+		[
+			provider({
+				id: 'zhipu',
+				models: [{modelId: 'glm-3.5-flash', displayName: '', enabled: true, source: 'catalog'}]
+			}),
+			provider({
+				id: 'other',
+				models: [{modelId: 'glm-3.5-flash', displayName: '', enabled: true, source: 'catalog'}]
+			})
+		],
+		'other/glm-3.5-flash'
+	);
+	assert.deepEqual(
+		entries.filter(e => e.current).map(e => e.id),
+		['other/glm-3.5-flash']
+	);
+});
+
+test('catalogFromProviders disambiguates a bare current model id to a single row', () => {
+	const entries = catalogFromProviders(
+		[
+			provider({
+				id: 'zhipu',
+				models: [{modelId: 'glm-3.5-flash', displayName: '', enabled: true, source: 'catalog'}]
+			}),
+			provider({
+				id: 'other',
+				models: [{modelId: 'glm-3.5-flash', displayName: '', enabled: true, source: 'catalog'}]
+			})
+		],
+		'glm-3.5-flash'
+	);
+	assert.deepEqual(
+		entries.filter(e => e.current).map(e => e.id),
+		['zhipu/glm-3.5-flash']
+	);
+});
+
 test('catalogFromProviders drops an oauth provider until it has a token', () => {
 	const entries = catalogFromProviders([
 		provider({id: 'kilo', authType: 'oauth', hasSecret: false}),

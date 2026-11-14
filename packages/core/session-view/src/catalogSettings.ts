@@ -34,14 +34,19 @@ export function parseRunMode(raw?: string | null): RunMode {
 	return 'agent';
 }
 
-/** First catalog row that matches a chrome id / display / alias. */
+/** First catalog row that matches a chrome id / display / alias. Exact id wins so
+ * same-name rows from other providers cannot hijack a fully-qualified ref. */
 export function catalogEntryFor(
 	entries: ModelCatalogEntry[],
 	ref: string | undefined
 ): ModelCatalogEntry | undefined {
 	const t = (ref ?? '').trim();
 	if (!t) return undefined;
-	return entries.find(e => matchCatalogEntry(e, t));
+	const id = t.toLowerCase();
+	return (
+		entries.find(e => e.id.trim().toLowerCase() === id) ??
+		entries.find(e => matchCatalogEntry(e, t))
+	);
 }
 
 /**
@@ -188,7 +193,7 @@ export function createCatalogSettings<T extends CatalogSettingsTaskLike>(
 		const taskThinking = hasTarget ? targetTask.thinking : thinking;
 		if (taskThinking !== undefined) return taskThinking;
 		const ref = hasTarget ? targetTask.model : model;
-		const entry = modelCatalog.find(e => matchCatalogEntry(e, ref));
+		const entry = catalogEntryFor(modelCatalog, ref);
 		if (entry?.supportsThinking) return true;
 		return undefined;
 	};
@@ -225,7 +230,7 @@ export function createCatalogSettings<T extends CatalogSettingsTaskLike>(
 		const pick = resolveComposerChrome(entries, model, modelDisplay);
 		modelCatalog = entries.map(e => ({
 			...e,
-			current: pick ? matchCatalogEntry(e, pick.id) || matchCatalogEntry(e, pick.display) : false
+			current: pick ? e.id === pick.id : false
 		}));
 		if (pick && (model !== pick.id || modelDisplay !== pick.display)) {
 			applyModel(pick.id, pick.display);
@@ -266,7 +271,7 @@ export function createCatalogSettings<T extends CatalogSettingsTaskLike>(
 	): {resolvedId: string; resolvedDisplay: string} | null => {
 		const id = modelId.trim();
 		if (!id) return null;
-		const entry = modelCatalog.find(e => matchCatalogEntry(e, id));
+		const entry = catalogEntryFor(modelCatalog, id);
 		const resolvedId = entry?.id ?? id;
 		const resolvedDisplay =
 			entry?.display ?? (id.includes('/') ? id.slice(id.lastIndexOf('/') + 1) : id);
@@ -275,7 +280,7 @@ export function createCatalogSettings<T extends CatalogSettingsTaskLike>(
 		if (isActive) {
 			modelCatalog = modelCatalog.map(e => ({
 				...e,
-				current: matchCatalogEntry(e, resolvedId) || matchCatalogEntry(e, resolvedDisplay)
+				current: e.id === resolvedId
 			}));
 		}
 		return {resolvedId, resolvedDisplay};

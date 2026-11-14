@@ -48,7 +48,7 @@ import {
 	concreteModelDisplay,
 	contextUsage,
 	isUnresolvedModelDisplay,
-	matchCatalogEntry,
+	catalogEntryFor,
 	sameModelRef,
 	type DeltaSurfaces,
 	type DshDeltaCaps
@@ -351,9 +351,9 @@ export const DialogueComposer = memo(function DialogueComposer({
 	const effectiveModel = optimisticModelId ?? model;
 	const activeModelEntry = useMemo(
 		() =>
-			modelCatalog.find(e => matchCatalogEntry(e, effectiveModel)) ??
+			catalogEntryFor(modelCatalog, effectiveModel) ??
 			(!optimisticModelId && modelDisplay
-				? modelCatalog.find(e => matchCatalogEntry(e, modelDisplay))
+				? catalogEntryFor(modelCatalog, modelDisplay)
 				: undefined) ??
 			(!optimisticModelId ? modelCatalog.find(e => e.current) : undefined),
 		[modelCatalog, effectiveModel, optimisticModelId, modelDisplay]
@@ -419,8 +419,7 @@ export const DialogueComposer = memo(function DialogueComposer({
 		setOptimisticModelId(id);
 		setModelPopOpen(false);
 		setModelSearch('');
-		const entry =
-			modelCatalog.find(e => matchCatalogEntry(e, id)) ?? modelCatalog.find(e => e.id === id);
+		const entry = catalogEntryFor(modelCatalog, id);
 		if (!entry) {
 			void window.fastIde.selectModel(id);
 			return;
