@@ -19,6 +19,13 @@ test('inactive without Finished is muted; live Finished may check', () => {
 	assert.equal(live.tone, 'success');
 });
 
+test('subagentCardChrome distinguishes delegation from execution', () => {
+	const delegation = subagentCardChrome({mode: 'one-shot', activity: 'running', kind: 'delegation'});
+	assert.equal(delegation.kindLabel, '委托');
+	const execution = subagentCardChrome({mode: 'one-shot', activity: 'running', kind: 'execution'});
+	assert.equal(execution.kindLabel, '执行');
+});
+
 test('subagentPreviewLines keeps the last 12 plain-text lines', () => {
 	const lines = Array.from({length: 12}, (_, i) => `L${i + 1}`);
 	assert.equal(subagentPreviewLines(lines.join('\n'), 12), lines.join('\n'));

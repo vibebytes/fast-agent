@@ -9,6 +9,7 @@ import {highlightCode} from './highlightCode';
 import {ArtifactCard} from './ArtifactCard';
 import {tintOutputLine} from './outputTint';
 import {ToolOutputPreview} from './ToolOutputPreview';
+import type {SubagentKind} from './session/SubagentWorkCard';
 import {StreamingMarkdownMessage} from './MarkdownMessage';
 import {MediaStage} from './MediaStage';
 import {extractMediaArtifact} from './toolMedia';
@@ -398,6 +399,9 @@ function SubagentCard({item}: {item: ToolItem}) {
 	const promptText = parsed.prompt ?? '';
 	const promptLine = promptText.replace(/\s+/g, ' ').trim();
 
+	const kind: SubagentKind = item.tool.startsWith('agent: ') || item.agentRunId ? 'execution' : 'delegation';
+	const kindLabel = kind === 'delegation' ? '委托' : '执行';
+
 	return (
 		<WindowFrame
 			variant="editor"
@@ -409,7 +413,7 @@ function SubagentCard({item}: {item: ToolItem}) {
 			}
 			title={
 				<span className="flex min-w-0 items-center gap-1.5 font-normal text-muted-foreground">
-					<span>Subagent</span>
+					<span>{kindLabel}</span>
 					<span>·</span>
 					<span className="truncate font-medium text-foreground">{subagentName}</span>
 				</span>
