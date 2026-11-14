@@ -73,6 +73,52 @@ export interface SessionEventHostDeps {
  */
 export function createSessionEventHost(deps: SessionEventHostDeps) {
 	let pendingCompletionCue: CompletionCue | null = null;
+	const pendingModelBySession = new Map<
+		string,
+		{model: string; modelDisplay?: string; resolvedOnly: boolean}
+	>();
+
+	function applySessionModel(
+		model: string | undefined,
+		modelDisplay: string | undefined,
+		resolvedOnly: boolean,
+		targetTask: TaskRecord | null | undefined
+	): void {
+		if (resolvedOnly) {
+			deps.model.applyResolvedModel(model, modelDisplay, targetTask);
+		} else if (model) {
+			deps.model.applyModel(model, modelDisplay ?? model, targetTask);
+		}
+	}
+
+	function applyOrStageSessionModel(
+		event: {sessionId?: string; model?: string; modelDisplay?: string},
+		resolvedOnly: boolean
+	): void {
+		const sid = typeof event.sessionId === 'string' && event.sessionId ? event.sessionId : undefined;
+		const targetTask = sid ? deps.taskBySessionId(sid) : undefined;
+		if (sid && !targetTask) {
+			if (event.model) {
+				pendingModelBySession.set(sid, {
+					model: event.model,
+					modelDisplay: event.modelDisplay,
+					resolvedOnly
+				});
+			}
+			return;
+		}
+		if (sid) pendingModelBySession.delete(sid);
+		applySessionModel(event.model, event.modelDisplay, resolvedOnly, targetTask);
+	}
+
+	function flushStagedSessionModel(sessionId: string): void {
+		const staged = pendingModelBySession.get(sessionId);
+		if (!staged) return;
+		const targetTask = deps.taskBySessionId(sessionId);
+		if (!targetTask) return;
+		pendingModelBySession.delete(sessionId);
+		applySessionModel(staged.model, staged.modelDisplay, staged.resolvedOnly, targetTask);
+	}
 
 	function consumeCompletionCue(): CompletionCue | null {
 		const cue = pendingCompletionCue;
@@ -203,7 +249,7 @@ export function createSessionEventHost(deps: SessionEventHostDeps) {
 		if (event.type === 'ready') {
 			// Catalog comes from ListProviders (Hub.applyProviderCatalog). Do not pull yaml `/model`
 			// here — that dump races ListProviders and paints Settings-disabled yaml rows.
-			deps.model.applyResolvedModel(event.model, event.modelDisplay);
+			applyOrStageSessionModel(event, true);
 		}
 
 		if (event.type === 'sessions_list') {
@@ -212,7 +258,7 @@ export function createSessionEventHost(deps: SessionEventHostDeps) {
 		}
 
 		if (event.type === 'model_changed') {
-			deps.model.applyModel(event.model, event.modelDisplay ?? event.model);
+			applyOrStageSessionModel(event, false);
 		}
 
 		if (event.type === 'commands_available') {
@@ -308,6 +354,7 @@ export function createSessionEventHost(deps: SessionEventHostDeps) {
 				getActiveTask: () => deps.getActiveTask(),
 				settleTask: task => deps.tasks.set(task.id, task)
 			});
+			flushStagedSessionModel(event.sessionId);
 			// Slash catalog: composer pulls on menu open — not on every Attached.
 			// Model catalog: Hub ListProviders, not yaml `/model`.
 		}

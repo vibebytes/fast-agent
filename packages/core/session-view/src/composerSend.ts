@@ -11,6 +11,9 @@ export type ComposerTaskLike = {
 	modelDisplay: string | null;
 	/** Per-Run mode sent with each SubmitUserMessage; omit → engine sticky. */
 	runMode?: string;
+	engineKind?: 'fast' | 'dsh';
+	effort?: string;
+	thinking?: boolean;
 };
 
 export type ComposerSampling = {useModel?: string; effort?: string; thinking?: boolean};
@@ -36,12 +39,11 @@ export type ComposerSendDeps<T extends ComposerTaskLike> = {
 	requestModelList: () => boolean;
 	setHelpNotice: (notice: string) => void;
 	applyRunMode: (mode: 'agent' | 'plan' | 'ask' | 'yolo' | 'free') => void;
-	effort: () => string | undefined;
 	onClearSlash: () => boolean;
 	touchLastModified: (task: T) => void;
 	useModelOf: (model: string | null, modelDisplay: string | null) => string | null | undefined;
 	catalogHas: (ref: string | null) => boolean;
-	submitThinking: () => boolean | undefined;
+	submitThinking: (task?: T | null) => boolean | undefined;
 	titleGenRequested: Set<string>;
 	seedHostSlashCatalog: () => boolean;
 	slashCatalogLive: () => boolean;
@@ -61,17 +63,18 @@ export function createComposerSend<T extends ComposerTaskLike>(deps: ComposerSen
 	let silentSkillsInFlight = 0;
 	let silentSkillsStartedAt = 0;
 
-	const composerSampling = (): ComposerSampling => {
-		const task = deps.getActiveTask();
+	const composerSampling = (targetTask?: T | null): ComposerSampling => {
+		const task = targetTask ?? deps.getActiveTask();
 		if (!task) return {};
 		const useModel =
 			deps.useModelOf(task.model, task.modelDisplay) ??
 			(task.model && deps.catalogHas(task.model) ? task.model.trim() : undefined) ??
 			(task.modelDisplay && deps.catalogHas(task.modelDisplay) ? task.modelDisplay.trim() : undefined);
-		const thinking = deps.submitThinking();
+		const effort = task.effort;
+		const thinking = deps.submitThinking(task);
 		return {
 			...(useModel ? {useModel} : {}),
-			...(deps.effort() ? {effort: deps.effort()} : {}),
+			...(effort ? {effort} : {}),
 			...(thinking !== undefined ? {thinking} : {})
 		};
 	};
@@ -92,8 +95,8 @@ export function createComposerSend<T extends ComposerTaskLike>(deps: ComposerSen
 		const sessionId = task.sessionId;
 		const visibleMode = planBuild ? undefined : asRunMode(opts?.runMode);
 		const runMode = planBuild ? 'agent' : (visibleMode ?? task.runMode);
-		const sampling = composerSampling();
-		const engineKind = deps.engineKind();
+		const sampling = composerSampling(task);
+		const engineKind = task.engineKind;
 		const clientMessageId = deps.createId();
 		const ok = deps.send({
 			type: 'SubmitUserMessage',

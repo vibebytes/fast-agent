@@ -175,18 +175,21 @@ export type TaskCommands = {
 	applyProviderCatalog(entries: ModelCatalogEntry[]): void;
 	/** Silent `/skills` → fill `slashCatalog` from `commands_available`. */
 	requestSlashCatalog(): boolean;
-	selectModel(modelId: string): boolean;
+	selectModel(modelId: string, expectedTaskId?: string | null): boolean;
 	/** Sticky RunMode via Bridge SetMode (agent/plan/ask/yolo). */
 	setRunMode(mode: string, expectedTaskId?: string | null): boolean;
 	/** Sticky engine Fast | DSH via SetEngineKind (existing session) or CreateSession (new). */
 	setEngineKind(kind: string, expectedTaskId?: string | null): boolean;
 	/** Sticky model_settings (platform/model/effort/thinking). */
-	setModelSettings(settings: {
-		platform: string;
-		model: string;
-		effort?: string;
-		thinking?: boolean;
-	}): boolean;
+	setModelSettings(
+		settings: {
+			platform: string;
+			model: string;
+			effort?: string;
+			thinking?: boolean;
+		},
+		expectedTaskId?: string | null
+	): boolean;
 	removeQueueItem(itemId: string): boolean;
 	clearQueue(): boolean;
 	reorderQueue(fromIndex: number, toIndex: number): boolean;

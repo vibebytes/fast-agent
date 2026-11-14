@@ -538,23 +538,33 @@ export class SessionController implements TaskCommands, SessionLifecycle, TaskVi
 		this.catalog.applyProviderCatalog(entries);
 	}
 
-	selectModel(modelId: string): boolean {
-		const pick = this.catalog.selectModel(modelId);
+	private resolveCommandTarget(expectedTaskId?: string | null): {
+		target: TaskRecord | undefined;
+		sessionId: string | undefined;
+	} | null {
+		if (expectedTaskId) {
+			const target = this.tasks.get(expectedTaskId);
+			if (!target) return null;
+			return {target, sessionId: target.sessionId ?? undefined};
+		}
+		const active = this.getActiveTask();
+		return {target: active ?? undefined, sessionId: active?.sessionId ?? this.commandSessionId()};
+	}
+
+	selectModel(modelId: string, expectedTaskId?: string | null): boolean {
+		const resolved = this.resolveCommandTarget(expectedTaskId);
+		if (!resolved) return false;
+		const pick = this.catalog.selectModel(modelId, resolved.target);
 		if (!pick) return false;
-		const sessionId = this.commandSessionId();
-		if (sessionId) {
-			this.composer.sendPinnedCommand('model', pick.resolvedId, sessionId);
+		if (resolved.sessionId) {
+			this.composer.sendPinnedCommand('model', pick.resolvedId, resolved.sessionId);
 		}
 		return true;
 	}
 
 	setRunMode(mode: string, expectedTaskId?: string | null): boolean {
 		const active = this.getActiveTask();
-		if (
-			expectedTaskId &&
-			active?.id !== expectedTaskId &&
-			active?.sessionId !== expectedTaskId
-		) {
+		if (expectedTaskId && active?.id !== expectedTaskId && active?.sessionId !== expectedTaskId) {
 			return false;
 		}
 		const m = mode.trim().toLowerCase();
@@ -563,7 +573,7 @@ export class SessionController implements TaskCommands, SessionLifecycle, TaskVi
 		if (sessionId) {
 			this.sendFn({type: 'SetMode', sessionId, mode: m});
 		}
-		this.applyRunMode(m as TaskRecord['runMode']);
+		this.catalog.applyRunMode(m as TaskRecord['runMode'], active ?? undefined);
 		return true;
 	}
 
@@ -579,24 +589,16 @@ export class SessionController implements TaskCommands, SessionLifecycle, TaskVi
 	setEngineKind(kind: string, expectedTaskId?: string | null): boolean {
 		const k = parseEngineKind(kind);
 		if (!this.availableIds.has(k)) return false;
-		const active = this.getActiveTask();
-		const target = expectedTaskId
-			? (this.tasks.get(expectedTaskId) ?? this.taskBySessionId(expectedTaskId) ?? null)
-			: active;
-		if (expectedTaskId && !target) return false;
-		const sessionId = target?.sessionId ?? this.commandSessionId();
+		const resolved = this.resolveCommandTarget(expectedTaskId);
+		if (!resolved) return false;
 		// Picker is the next-turn promise. Submit still carries engineKind.
 		// Idle SetEngine rebinds so session.models / skill.list hit DSH
 		// before the first submit. Chrome ignores a stale command_result.
-		if (sessionId) {
-			this.lifecycle.stageEngineChange(sessionId, k);
-			this.sendFn({type: 'SetEngine', sessionId, kind: k});
+		if (resolved.sessionId) {
+			this.lifecycle.stageEngineChange(resolved.sessionId, k);
+			this.sendFn({type: 'SetEngine', sessionId: resolved.sessionId, kind: k});
 		}
-		if (target && target.id !== active?.id) {
-			target.engineKind = k;
-			this.tasks.set(target.id, target);
-		}
-		this.applyEngineKind(k);
+		this.catalog.applyEngineKind(k, resolved.target);
 		return true;
 	}
 
@@ -609,18 +611,22 @@ export class SessionController implements TaskCommands, SessionLifecycle, TaskVi
 		this.sendFn({type: 'SetEngine', sessionId, kind: k});
 	}
 
-	setModelSettings(settings: {
-		platform: string;
-		model: string;
-		effort?: string;
-		thinking?: boolean;
-	}): boolean {
+	setModelSettings(
+		settings: {
+			platform: string;
+			model: string;
+			effort?: string;
+			thinking?: boolean;
+		},
+		expectedTaskId?: string | null
+	): boolean {
 		const platform = settings.platform.trim();
 		const model = settings.model.trim();
 		if (!platform || !model) return false;
-		const sessionId = this.commandSessionId();
-		if (sessionId) {
-			this.lifecycle.stageModelSettings(sessionId, {
+		const resolved = this.resolveCommandTarget(expectedTaskId);
+		if (!resolved) return false;
+		if (resolved.sessionId) {
+			this.lifecycle.stageModelSettings(resolved.sessionId, {
 				platform,
 				model,
 				...(settings.effort ? {effort: settings.effort} : {}),
@@ -628,14 +634,14 @@ export class SessionController implements TaskCommands, SessionLifecycle, TaskVi
 			});
 			this.sendFn({
 				type: 'SetModelSettings',
-				sessionId,
+				sessionId: resolved.sessionId,
 				platform,
 				model,
 				...(settings.effort ? {effort: settings.effort} : {}),
 				...(settings.thinking !== undefined ? {thinking: settings.thinking} : {})
 			});
 		}
-		this.applySampling(settings.effort, settings.thinking);
+		this.catalog.applySampling(settings.effort, settings.thinking, resolved.target);
 		return true;
 	}
 

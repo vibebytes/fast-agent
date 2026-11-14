@@ -176,7 +176,6 @@ export function createSessionGlue(h: SessionGlueHost): SessionGlue {
 			h.helpNotice = notice;
 		},
 		applyRunMode: mode => h.applyRunMode(mode),
-		effort: () => h.effort,
 		onClearSlash: () => {
 			const task = h.getActiveTask();
 			if (!task) return false;
@@ -200,7 +199,7 @@ export function createSessionGlue(h: SessionGlueHost): SessionGlue {
 			return fallback ? (wireUseModel(fallback.id, fallback.display) ?? fallback.id) : undefined;
 		},
 		catalogHas: ref => h.catalog.catalogHas(ref ?? ''),
-		submitThinking: () => h.catalog.submitThinking(),
+		submitThinking: task => h.catalog.submitThinking(task),
 		titleGenRequested: h.titleGenRequested,
 		seedHostSlashCatalog: () => h.slashModule.seedHostSlashCatalog(),
 		slashCatalogLive: () => h.slashModule.bridgeArrived && h.slashModule.entries.length > 0,

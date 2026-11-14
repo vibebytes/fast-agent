@@ -86,82 +86,109 @@ export function createCatalogSettings<T extends CatalogSettingsTaskLike>(
 		return modelCatalog.some(e => matchCatalogEntry(e, t));
 	};
 
-	const applyModel = (nextModel: string, nextDisplay: string): void => {
+	const resolveTarget = (targetTask?: T | null): {target: T | null; isActive: boolean} => {
+		const active = deps.getActiveTask();
+		const target = targetTask !== undefined ? targetTask : active;
+		const isActive =
+			targetTask === undefined ? true : target !== null && target.id === active?.id;
+		return {target, isActive};
+	};
+
+	const healPlaceholderTasks = (
+		nextModel: string,
+		key: string,
+		resolved: string,
+		excludeId?: string
+	): void => {
+		if (isUnresolvedModelDisplay(resolved)) return;
+		for (const t of deps.tasks.values()) {
+			if (t.id === excludeId) continue;
+			if (!isUnresolvedModelDisplay(t.modelDisplay)) continue;
+			const sameKey =
+				t.model === nextModel ||
+				t.model === key ||
+				(isPlaceholderModelDisplay(t.model) && isPlaceholderModelDisplay(nextModel));
+			if (!sameKey) continue;
+			t.model = key;
+			t.modelDisplay = resolved;
+			deps.tasks.set(t.id, t);
+		}
+	};
+
+	const applyModel = (nextModel: string, nextDisplay: string, targetTask?: T | null): void => {
+		const {target, isActive} = resolveTarget(targetTask);
 		let resolved = concreteModelDisplay(nextModel, nextDisplay);
 		if (!resolved) {
 			const raw = nextDisplay.trim() || nextModel.trim();
 			if (catalogHas(raw) || catalogHas(nextModel)) resolved = raw;
 		}
 		if (!resolved) {
-			if (!isUnresolvedModelDisplay(modelDisplay)) return;
-			model = 'default';
-			modelDisplay = '';
-			const active = deps.getActiveTask();
-			if (active && isUnresolvedModelDisplay(active.modelDisplay)) {
-				active.model = 'default';
-				active.modelDisplay = '';
-				deps.tasks.set(active.id, active);
+			if (target && isUnresolvedModelDisplay(target.modelDisplay)) {
+				target.model = 'default';
+				target.modelDisplay = '';
+				deps.tasks.set(target.id, target);
+			}
+			if (isActive && isUnresolvedModelDisplay(modelDisplay)) {
+				model = 'default';
+				modelDisplay = '';
 			}
 			return;
 		}
 		const key = wireUseModel(nextModel, resolved) ?? (catalogHas(resolved) ? resolved : nextModel);
-		model = key;
-		modelDisplay = resolved;
-		const active = deps.getActiveTask();
-		if (active) {
-			active.model = key;
-			active.modelDisplay = resolved;
-			deps.tasks.set(active.id, active);
+		if (target) {
+			target.model = key;
+			target.modelDisplay = resolved;
+			deps.tasks.set(target.id, target);
 		}
-		if (!isUnresolvedModelDisplay(resolved)) {
-			for (const t of deps.tasks.values()) {
-				if (t.id === active?.id) continue;
-				if (!isUnresolvedModelDisplay(t.modelDisplay)) continue;
-				const sameKey =
-					t.model === nextModel ||
-					t.model === key ||
-					(isPlaceholderModelDisplay(t.model) && isPlaceholderModelDisplay(nextModel));
-				if (!sameKey) continue;
-				t.model = key;
-				t.modelDisplay = resolved;
-				deps.tasks.set(t.id, t);
-			}
+		if (isActive) {
+			model = key;
+			modelDisplay = resolved;
 		}
+		healPlaceholderTasks(nextModel, key, resolved, target?.id);
 	};
 
-	const applyRunMode = (mode: RunMode): void => {
-		runMode = mode;
-		const task = deps.getActiveTask();
-		if (!task) return;
-		task.runMode = mode;
-		deps.tasks.set(task.id, task);
+	const applyRunMode = (mode: RunMode, targetTask?: T | null): void => {
+		const {target, isActive} = resolveTarget(targetTask);
+		if (isActive) runMode = mode;
+		if (!target) return;
+		target.runMode = mode;
+		deps.tasks.set(target.id, target);
 	};
 
-	const applyEngineKind = (kind: EngineKind): void => {
-		engineKind = kind;
-		const task = deps.getActiveTask();
-		if (!task) return;
-		task.engineKind = kind;
-		deps.tasks.set(task.id, task);
+	const applyEngineKind = (kind: EngineKind, targetTask?: T | null): void => {
+		const {target, isActive} = resolveTarget(targetTask);
+		if (isActive) engineKind = kind;
+		if (!target) return;
+		target.engineKind = kind;
+		deps.tasks.set(target.id, target);
 	};
 
-	const applySampling = (nextEffort?: string, nextThinking?: boolean): void => {
-		if (nextEffort !== undefined) effort = nextEffort || undefined;
-		if (nextThinking !== undefined) thinking = nextThinking;
-		const task = deps.getActiveTask();
-		if (!task) return;
+	const applySampling = (
+		nextEffort?: string,
+		nextThinking?: boolean,
+		targetTask?: T | null
+	): void => {
+		const {target, isActive} = resolveTarget(targetTask);
+		if (isActive) {
+			if (nextEffort !== undefined) effort = nextEffort || undefined;
+			if (nextThinking !== undefined) thinking = nextThinking;
+		}
+		if (!target) return;
 		if (nextEffort !== undefined) {
-			if (nextEffort) task.effort = nextEffort;
-			else delete task.effort;
+			if (nextEffort) target.effort = nextEffort;
+			else delete target.effort;
 		}
-		if (nextThinking !== undefined) task.thinking = nextThinking;
-		deps.tasks.set(task.id, task);
+		if (nextThinking !== undefined) target.thinking = nextThinking;
+		deps.tasks.set(target.id, target);
 	};
 
 	/** Composer chrome: supportsThinking models default thinking On when sticky unset. */
-	const submitThinking = (): boolean | undefined => {
-		if (thinking !== undefined) return thinking;
-		const entry = modelCatalog.find(e => matchCatalogEntry(e, model));
+	const submitThinking = (targetTask?: T | null): boolean | undefined => {
+		const hasTarget = targetTask !== undefined && targetTask !== null;
+		const taskThinking = hasTarget ? targetTask.thinking : thinking;
+		if (taskThinking !== undefined) return taskThinking;
+		const ref = hasTarget ? targetTask.model : model;
+		const entry = modelCatalog.find(e => matchCatalogEntry(e, ref));
 		if (entry?.supportsThinking) return true;
 		return undefined;
 	};
@@ -179,7 +206,13 @@ export function createCatalogSettings<T extends CatalogSettingsTaskLike>(
 		const currentUnresolved =
 			isUnresolvedModelDisplay(modelDisplay) || isPlaceholderModelDisplay(model);
 		const notInCatalog = modelCatalog.length > 0 && !catalogHas(model) && !catalogHas(modelDisplay);
-		if (!currentUnresolved && !notInCatalog && modelDisplay !== display) return false;
+		if (!currentUnresolved && !notInCatalog && modelDisplay !== display) {
+			const resolved = concreteModelDisplay(nextModel, display);
+			const key = wireUseModel(nextModel, resolved) ?? (catalogHas(resolved) ? resolved : nextModel);
+			healPlaceholderTasks(nextModel, key, resolved, deps.getActiveTask()?.id);
+			deps.onChange?.();
+			return false;
+		}
 		applyModel(nextModel, display);
 		deps.onChange?.();
 		return true;
@@ -227,18 +260,24 @@ export function createCatalogSettings<T extends CatalogSettingsTaskLike>(
 		return send(sessionId);
 	};
 
-	const selectModel = (modelId: string): {resolvedId: string; resolvedDisplay: string} | null => {
+	const selectModel = (
+		modelId: string,
+		targetTask?: T | null
+	): {resolvedId: string; resolvedDisplay: string} | null => {
 		const id = modelId.trim();
 		if (!id) return null;
 		const entry = modelCatalog.find(e => matchCatalogEntry(e, id));
 		const resolvedId = entry?.id ?? id;
 		const resolvedDisplay =
 			entry?.display ?? (id.includes('/') ? id.slice(id.lastIndexOf('/') + 1) : id);
-		applyModel(resolvedId, resolvedDisplay);
-		modelCatalog = modelCatalog.map(e => ({
-			...e,
-			current: matchCatalogEntry(e, resolvedId) || matchCatalogEntry(e, resolvedDisplay)
-		}));
+		applyModel(resolvedId, resolvedDisplay, targetTask);
+		const {isActive} = resolveTarget(targetTask);
+		if (isActive) {
+			modelCatalog = modelCatalog.map(e => ({
+				...e,
+				current: matchCatalogEntry(e, resolvedId) || matchCatalogEntry(e, resolvedDisplay)
+			}));
+		}
 		return {resolvedId, resolvedDisplay};
 	};
 

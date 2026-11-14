@@ -108,25 +108,16 @@ export function createSessionModelSettings(deps: SessionModelSettingsDeps) {
 		return catalog.healDefaultModelDisplay(model, display);
 	}
 
-	function applyModel(model: string, modelDisplay: string): void {
-		catalog.applyModel(model, modelDisplay);
-	}
-
 	/** ready/hello: never bind the yaml stub or the bare `default` alias as resolved. */
-	function applyResolvedModel(model: string | undefined, modelDisplay: string | undefined): void {
+	function applyResolvedModel(
+		model: string | undefined,
+		modelDisplay: string | undefined,
+		targetTask?: TaskRecord | null
+	): void {
 		if (!model) return;
 		const display = modelDisplay ?? model;
 		if (isUnresolvedModelDisplay(display) || isPlaceholderModelDisplay(model)) return;
-		catalog.applyModel(model, display);
-	}
-
-	function applyRunMode(mode: RunMode): void {
-		catalog.applyRunMode(mode);
-	}
-
-	/** Match Composer chrome: supportsThinking models default thinking On when sticky unset. */
-	function submitThinking(): boolean | undefined {
-		return catalog.submitThinking();
+		catalog.applyModel(model, display, targetTask);
 	}
 
 	function restoreChromeFromTask(task: TaskRecord): void {
@@ -164,10 +155,10 @@ export function createSessionModelSettings(deps: SessionModelSettingsDeps) {
 		setEngineKind,
 		setModelSettings,
 		healDefaultModelDisplay,
-		applyModel,
+		applyModel: catalog.applyModel,
 		applyResolvedModel,
-		applyRunMode,
-		submitThinking,
+		applyRunMode: catalog.applyRunMode,
+		submitThinking: catalog.submitThinking,
 		restoreChromeFromTask,
 		modelCommandResult
 	};

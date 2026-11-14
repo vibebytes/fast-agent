@@ -466,3 +466,246 @@ test('submit on a task with unresolved model falls back to the catalog model sho
 	}
 });
 
+test('SessionController keeps model and sampling strictly isolated per parallel task', () => {
+	const sent: BridgeCommand[] = [];
+	let idSeq = 0;
+	const controller = new SessionController({
+		clientId: 'cli',
+		send: command => {
+			sent.push(command);
+			return true;
+		},
+		now: () => 4600,
+		createId: () => `msg-iso-${++idSeq}`
+	});
+	controller.applyProviderCatalog([
+		{
+			id: 'deepseek/deepseek-v4-flash',
+			display: 'DeepSeek V4 Flash',
+			aliases: ['deepseek-v4-flash'],
+			current: true,
+			supportsThinking: false
+		},
+		{
+			id: 'openrouter/gemini-4-arogen',
+			display: 'Gemini 4 Arogen',
+			aliases: ['gemini-4-arogen'],
+			current: false,
+			supportsThinking: true
+		}
+	]);
+
+	const taskA = controller.createTask('Session A');
+	const taskB = controller.createTask('Session B');
+	controller.acceptNewSession('sess-a', taskA.id);
+	controller.handleEvent({type: 'Attached', sessionId: 'sess-a', clientId: 'cli'});
+	controller.acceptNewSession('sess-b', taskB.id);
+	controller.handleEvent({type: 'Attached', sessionId: 'sess-b', clientId: 'cli'});
+
+	controller.selectTask(taskA.id);
+	assert.equal(controller.selectModel('deepseek/deepseek-v4-flash', taskA.id), true);
+	assert.equal(
+		controller.setModelSettings(
+			{platform: 'deepseek', model: 'deepseek-v4-flash', effort: 'low', thinking: false},
+			taskA.id
+		),
+		true
+	);
+
+	controller.selectTask(taskB.id);
+	assert.equal(controller.selectModel('openrouter/gemini-4-arogen', taskB.id), true);
+	assert.equal(
+		controller.setModelSettings(
+			{platform: 'openrouter', model: 'gemini-4-arogen', effort: 'high', thinking: true},
+			taskB.id
+		),
+		true
+	);
+
+	controller.selectTask(taskA.id);
+	controller.handleEvent({
+		type: 'model_changed',
+		sessionId: 'sess-b',
+		model: 'openrouter/gemini-4-arogen',
+		modelDisplay: 'Gemini 4 Arogen'
+	});
+	assert.equal(controller.model, 'deepseek/deepseek-v4-flash');
+	assert.equal(controller.modelDisplay, 'DeepSeek V4 Flash');
+
+	sent.length = 0;
+	assert.equal(controller.sendMessage('run on A'), true);
+	const submitA = sent.find(c => c.type === 'SubmitUserMessage');
+	assert.ok(submitA);
+	if (submitA?.type === 'SubmitUserMessage') {
+		assert.equal(submitA.sessionId, 'sess-a');
+		assert.equal(submitA.useModel, 'deepseek/deepseek-v4-flash');
+		assert.equal(submitA.effort, 'low');
+		assert.equal(submitA.thinking, false);
+	}
+
+	controller.selectTask(taskB.id);
+	sent.length = 0;
+	assert.equal(controller.sendMessage('run on B'), true);
+	const submitB = sent.find(c => c.type === 'SubmitUserMessage');
+	assert.ok(submitB);
+	if (submitB?.type === 'SubmitUserMessage') {
+		assert.equal(submitB.sessionId, 'sess-b');
+		assert.equal(submitB.useModel, 'openrouter/gemini-4-arogen');
+		assert.equal(submitB.effort, 'high');
+		assert.equal(submitB.thinking, true);
+	}
+});
+
+test('setEngineKind with expectedTaskId targeting non-active session does not mutate active session engineKind', () => {
+	const sent: BridgeCommand[] = [];
+	const controller = new SessionController({
+		clientId: 'cli',
+		send: cmd => {
+			sent.push(cmd);
+			return true;
+		}
+	});
+	controller.setAvailableEngines(['fast', 'dsh']);
+
+	const taskA = controller.createTask('Session A');
+	const taskB = controller.createTask('Session B');
+	controller.acceptNewSession('sess-a', taskA.id);
+	controller.handleEvent({type: 'Attached', sessionId: 'sess-a', clientId: 'cli'});
+	controller.acceptNewSession('sess-b', taskB.id);
+	controller.handleEvent({type: 'Attached', sessionId: 'sess-b', clientId: 'cli'});
+
+	controller.selectTask(taskA.id);
+	assert.equal(controller.engineKind, 'fast');
+	assert.equal(taskA.engineKind, 'fast');
+	assert.equal(taskB.engineKind, 'fast');
+
+	sent.length = 0;
+	assert.equal(controller.setEngineKind('dsh', taskB.id), true);
+	assert.equal(taskB.engineKind, 'dsh');
+	assert.equal(taskA.engineKind, 'fast');
+	assert.equal(controller.engineKind, 'fast');
+	assert.deepEqual(sent, [{type: 'SetEngine', sessionId: 'sess-b', kind: 'dsh'}]);
+});
+
+test('composerSampling and sendMessage on task B do not inherit task A sticky effort, thinking, or engineKind', () => {
+	const sent: BridgeCommand[] = [];
+	const controller = new SessionController({
+		clientId: 'cli',
+		send: cmd => {
+			sent.push(cmd);
+			return true;
+		}
+	});
+	controller.setAvailableEngines(['fast', 'dsh']);
+	controller.applyProviderCatalog([
+		{
+			id: 'anthropic/claude-sonnet-4-6',
+			display: 'Claude Sonnet 4.6',
+			aliases: ['claude-sonnet-4-6'],
+			current: true,
+			supportsThinking: true,
+			defaultEffort: 'medium'
+		}
+	]);
+
+	const taskA = controller.createTask('Session A');
+	const taskB = controller.createTask('Session B');
+	controller.acceptNewSession('sess-a', taskA.id);
+	controller.handleEvent({type: 'Attached', sessionId: 'sess-a', clientId: 'cli'});
+	controller.acceptNewSession('sess-b', taskB.id);
+	controller.handleEvent({type: 'Attached', sessionId: 'sess-b', clientId: 'cli'});
+
+	controller.selectTask(taskA.id);
+	assert.equal(
+		controller.setModelSettings(
+			{platform: 'anthropic', model: 'claude-sonnet-4-6', effort: 'high', thinking: false},
+			taskA.id
+		),
+		true
+	);
+	assert.equal(controller.setEngineKind('dsh', taskA.id), true);
+
+	assert.equal(taskB.effort, undefined);
+	assert.equal(taskB.thinking, undefined);
+	assert.equal(taskB.engineKind, 'fast');
+
+	controller.selectTask(taskB.id);
+	sent.length = 0;
+	assert.equal(controller.sendMessage('hello from B', undefined, taskB.id), true);
+	const submitB = sent.find(c => c.type === 'SubmitUserMessage');
+	assert.ok(submitB);
+	if (submitB?.type === 'SubmitUserMessage') {
+		assert.equal(submitB.sessionId, 'sess-b');
+		assert.equal(submitB.effort, undefined);
+		assert.equal(submitB.thinking, true);
+		assert.equal(submitB.engineKind, 'fast');
+	}
+});
+
+test('resolving active model heals other tasks still on placeholder default without overwriting resolved tasks', () => {
+	const controller = new SessionController({
+		clientId: 'cli',
+		send: () => true
+	});
+	const taskA = controller.createTask('Session A');
+	const taskB = controller.createTask('Session B');
+	const taskC = controller.createTask('Session C');
+	controller.acceptNewSession('sess-a', taskA.id);
+	controller.acceptNewSession('sess-b', taskB.id);
+	controller.acceptNewSession('sess-c', taskC.id);
+
+	controller.selectModel('openrouter/gemini-4-arogen', taskC.id);
+	assert.equal(taskB.model, 'default');
+	assert.equal(taskC.model, 'openrouter/gemini-4-arogen');
+
+	controller.selectTask(taskA.id);
+	assert.equal(controller.healDefaultModelDisplay('default', 'Claude Sonnet 4.6'), true);
+
+	assert.equal(taskA.model, 'Claude Sonnet 4.6');
+	assert.equal(taskB.model, 'Claude Sonnet 4.6');
+	assert.equal(taskB.modelDisplay, 'Claude Sonnet 4.6');
+	assert.equal(taskC.model, 'openrouter/gemini-4-arogen');
+});
+
+test('early model_changed for a sessionId not yet bound is replayed when that session attaches', () => {
+	const controller = new SessionController({
+		clientId: 'cli',
+		send: () => true
+	});
+	const taskA = controller.createTask('Session A');
+	controller.acceptNewSession('sess-a', taskA.id);
+	controller.handleEvent({type: 'Attached', sessionId: 'sess-a', clientId: 'cli'});
+	controller.selectModel('deepseek/deepseek-v4-flash', taskA.id);
+
+	const taskB = controller.createTask('Session B');
+	controller.handleEvent({
+		type: 'model_changed',
+		sessionId: 'sess-b',
+		model: 'openrouter/gemini-4-arogen',
+		modelDisplay: 'Gemini 4 Arogen'
+	});
+
+	assert.equal(taskA.model, 'deepseek/deepseek-v4-flash');
+
+	controller.acceptNewSession('sess-b', taskB.id);
+	controller.handleEvent({type: 'Attached', sessionId: 'sess-b', clientId: 'cli'});
+
+	assert.equal(taskB.model, 'openrouter/gemini-4-arogen');
+	assert.equal(taskB.modelDisplay, 'Gemini 4 Arogen');
+});
+
+test('healDefaultModelDisplay heals sibling placeholder tasks when global chrome is already resolved', () => {
+	const controller = new SessionController({
+		clientId: 'cli',
+		send: () => true
+	});
+	const taskA = controller.createTask('Session A');
+	const taskB = controller.createTask('Session B');
+	controller.selectTask(taskA.id);
+	controller.selectModel('openai/gpt-5.6-luna', taskA.id);
+	assert.equal(controller.model, 'openai/gpt-5.6-luna');
+	assert.equal(taskB.model, 'default');
+	controller.healDefaultModelDisplay('default', 'deepseek/deepseek-v4-flash');
+	assert.equal(taskB.modelDisplay, 'deepseek/deepseek-v4-flash');
+	assert.equal(taskA.model, 'openai/gpt-5.6-luna');
+});

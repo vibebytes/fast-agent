@@ -201,8 +201,9 @@ test('setEngineKind applies when expectedTaskId is the pane task even if focus l
 	controller.selectTask(a.id);
 	controller.setAvailableEngines(['fast', 'dsh']);
 	assert.equal(controller.setEngineKind('dsh', b.id), true);
-	assert.equal(controller.engineKind, 'dsh');
+	assert.equal(controller.engineKind, 'fast');
 	assert.equal(b.engineKind, 'dsh');
+	assert.equal(a.engineKind, 'fast');
 });
 
 test('setEngineKind dsh without available does not send SetEngine and stays fast', () => {

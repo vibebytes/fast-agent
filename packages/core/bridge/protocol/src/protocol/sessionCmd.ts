@@ -417,6 +417,11 @@ export const sessionCmdEventSchemas = [
 			})
 		)
 	}),
-	z.object({type: z.literal('model_changed'), model: z.string(), modelDisplay: z.string().optional()}),
+	z.object({
+		type: z.literal('model_changed'),
+		model: z.string(),
+		modelDisplay: z.string().optional(),
+		sessionId: z.string().optional()
+	}),
 	z.object({type: z.literal('commands_available'), commands: z.array(commandInfo)})
 ] as const
