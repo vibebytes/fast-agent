@@ -378,6 +378,8 @@ export type ProviderRow = {
 	modelCount: number;
 	enabledModelCount: number;
 	enabled: boolean;
+	/** Compaction fallback budget when a model row has no contextWindow. */
+	defaultContextWindow?: number;
 	meta?: unknown;
 	models?: ProviderModel[];
 	updatedAt?: string | null;

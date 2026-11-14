@@ -101,6 +101,7 @@ export function ProviderModelsGroup({
 					const isDefault =
 						defaults.defaultPlatform === provider.id && defaults.defaultModel === model.modelId;
 					const cacheOn = model.promptCacheKey ?? defaultPromptCacheKey(provider.baseUrl, provider.id);
+					const contextWindow = model.contextWindow ?? provider.defaultContextWindow;
 
 					return (
 						<div
@@ -151,15 +152,18 @@ export function ProviderModelsGroup({
 										{t('settings.models.imageBadge')}
 									</Badge>
 								) : null}
-								{model.contextWindow ? (
+								{contextWindow ? (
 									<Badge
 										variant="secondary"
-										className="text-[10px] px-1.5 py-0 font-mono font-medium shrink-0"
+										className={cn(
+											'text-[10px] px-1.5 py-0 font-mono font-medium shrink-0',
+											!model.contextWindow && 'opacity-60'
+										)}
 										title={t('settings.models.contextWindowTitle', {
-											tokens: model.contextWindow.toLocaleString()
+											tokens: contextWindow.toLocaleString()
 										})}
 									>
-										{formatContextWindow(model.contextWindow)}
+										{formatContextWindow(contextWindow)}
 									</Badge>
 								) : null}
 								{typeof model.temperature === 'number' ? (
