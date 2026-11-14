@@ -151,3 +151,177 @@ export function childTranscriptText(
 	const view = state.childTranscripts?.[id];
 	return view?.text ?? null;
 }
+
+export type ContextUsageLevel = 'normal' | 'warning' | 'danger';
+
+export type ContextBreakdownCategory = 'system' | 'tools' | 'summary' | 'messages';
+
+export type ContextBreakdownItem = {
+	key: ContextBreakdownCategory;
+	tokens: number;
+	/** Percentage of contextWindow when known, otherwise percentage of usedTokens. */
+	percent: number;
+};
+
+export type ContextUsageView = {
+	runId?: string;
+	turnId?: string;
+	/** Current context tokens occupied by prompt/window (`context_used` or `input`). */
+	usedTokens: number;
+	/** Model context window size in tokens (`context_window` or catalog `contextWindow`). */
+	contextWindow?: number;
+	/** Auto-compaction threshold budget in tokens (`context_budget`). */
+	contextBudget?: number;
+	/** Rounded 0..100+ usage percentage when `contextWindow` is known. */
+	percent?: number;
+	level: ContextUsageLevel;
+	/** Input/Output/Cache billing counters from the latest turn. */
+	inputTokens: number;
+	outputTokens: number;
+	cacheReadTokens: number;
+	cacheWriteTokens: number;
+	totalTokens: number;
+	/** Rounded 0..100 cache hit rate (`cache_read / input`). */
+	cacheHitPercent?: number;
+	/** Context composition segments (system+memory, tools, summary, messages). */
+	breakdown: ContextBreakdownItem[];
+	/** Raw metadata (model, provider, cost). */
+	raw?: Record<string, string>;
+};
+
+export type ContextUsageOptions = {
+	/** Fallback contextWindow from the active ModelCatalogEntry. */
+	modelContextWindow?: number;
+	/** DSH delta capability bits; only explicit `usage === false` suppresses the meter. */
+	caps?: DshDeltaCaps;
+};
+
+/** Format token count as compact human string (`850`, `1.2k`, `128k`, `1.0M`). */
+export function formatCompactTokens(n: number): string {
+	const v = Math.max(0, Math.round(n));
+	if (v >= 1_000_000) {
+		return `${(v / 1_000_000).toFixed(1)}M`;
+	}
+	if (v >= 10_000) {
+		const k = v / 1000;
+		const rounded1 = Math.round(k * 10) / 10;
+		return Number.isInteger(rounded1) || v >= 100_000
+			? `${Math.round(k)}k`
+			: `${rounded1.toFixed(1)}k`;
+	}
+	if (v >= 1_000) {
+		const k = Math.round((v / 1000) * 10) / 10;
+		return Number.isInteger(k) ? `${k}k` : `${k.toFixed(1)}k`;
+	}
+	return `${v}`;
+}
+
+/**
+ * Compute unified context window & token usage view for both Fast and DSH engines.
+ * Unlike `usageFooter`, this is permissive when `caps` is undefined (Fast engine)
+ * and falls back to `modelContextWindow` from the model catalog.
+ */
+export function contextUsage(
+	state: DeltaSurfaces,
+	options?: ContextUsageOptions
+): ContextUsageView | null {
+	if (options?.caps?.usage === false) return null;
+	const usage = state.usage;
+	const fallbackWindow =
+		typeof options?.modelContextWindow === 'number' && options.modelContextWindow > 0
+			? options.modelContextWindow
+			: undefined;
+
+	if (!usage) {
+		if (!fallbackWindow) return null;
+		return {
+			usedTokens: 0,
+			contextWindow: fallbackWindow,
+			percent: 0,
+			level: 'normal',
+			inputTokens: 0,
+			outputTokens: 0,
+			cacheReadTokens: 0,
+			cacheWriteTokens: 0,
+			totalTokens: 0,
+			breakdown: []
+		};
+	}
+
+	const b = usage.buckets;
+	const inputTokens = Math.max(0, b.input ?? 0);
+	const outputTokens = Math.max(0, b.output ?? 0);
+	const cacheReadTokens = Math.max(0, b.cache_read ?? 0);
+	const cacheWriteTokens = Math.max(0, b.cache_write ?? 0);
+	const totalTokens = Math.max(0, b.total ?? inputTokens + outputTokens);
+
+	const usedTokens = Math.max(0, b.context_used ?? inputTokens);
+	const rawWindow = b.context_window ?? fallbackWindow;
+	const contextWindow = typeof rawWindow === 'number' && rawWindow > 0 ? rawWindow : undefined;
+	const rawBudget = b.context_budget;
+	const contextBudget = typeof rawBudget === 'number' && rawBudget > 0 ? rawBudget : undefined;
+
+	const percent =
+		contextWindow !== undefined && contextWindow > 0
+			? Math.min(100, Math.max(0, Math.round((usedTokens / contextWindow) * 100)))
+			: undefined;
+
+	const level: ContextUsageLevel =
+		percent === undefined
+			? 'normal'
+			: percent >= 85
+				? 'danger'
+				: percent >= 65
+					? 'warning'
+					: 'normal';
+
+	const cacheHitPercent =
+		inputTokens > 0 && cacheReadTokens > 0
+			? Math.min(100, Math.round((cacheReadTokens / inputTokens) * 100))
+			: undefined;
+
+	const sysTokens = Math.max(0, (b.ctx_system ?? 0) + (b.ctx_memory ?? 0));
+	const toolsTokens = Math.max(0, b.ctx_tools ?? 0);
+	const summaryTokens = Math.max(0, b.ctx_summary ?? 0);
+	const messagesTokens = Math.max(0, b.ctx_messages ?? 0);
+	const breakdownSum = sysTokens + toolsTokens + summaryTokens + messagesTokens;
+	const denominator = contextWindow ?? (breakdownSum > 0 ? breakdownSum : usedTokens || 1);
+
+	const breakdown: ContextBreakdownItem[] = [];
+	if (breakdownSum > 0) {
+		const rawItems: Array<[ContextBreakdownCategory, number]> = [
+			['system', sysTokens],
+			['tools', toolsTokens],
+			['summary', summaryTokens],
+			['messages', messagesTokens]
+		];
+		for (const [key, tokens] of rawItems) {
+			if (tokens > 0) {
+				breakdown.push({
+					key,
+					tokens,
+					percent: Math.min(100, Math.max(0, Math.round((tokens / denominator) * 1000) / 10))
+				});
+			}
+		}
+	}
+
+	return {
+		runId: usage.runId,
+		...(usage.turnId ? {turnId: usage.turnId} : {}),
+		usedTokens,
+		...(contextWindow !== undefined ? {contextWindow} : {}),
+		...(contextBudget !== undefined ? {contextBudget} : {}),
+		...(percent !== undefined ? {percent} : {}),
+		level,
+		inputTokens,
+		outputTokens,
+		cacheReadTokens,
+		cacheWriteTokens,
+		totalTokens,
+		...(cacheHitPercent !== undefined ? {cacheHitPercent} : {}),
+		breakdown,
+		...(usage.raw ? {raw: usage.raw} : {})
+	};
+}
+

@@ -50,7 +50,8 @@ import {
 	isUnresolvedModelDisplay,
 	matchCatalogEntry,
 	sameModelRef,
-	type TranscriptState
+	type DeltaSurfaces,
+	type DshDeltaCaps
 } from '@fast-ide/session-view';
 import {
 	chromeEngineKind,
@@ -120,8 +121,8 @@ export type DialogueComposerProps = {
 	pendingSlashInsert?: SlashItem | null;
 	onPendingSlashConsumed?: () => void;
 	sessionId?: string;
-	transcript?: TranscriptState;
-	dshDeltaCaps?: boolean;
+	transcript?: DeltaSurfaces | null;
+	dshDeltaCaps?: DshDeltaCaps;
 	compacting?: boolean;
 };
 
@@ -653,6 +654,25 @@ export const DialogueComposer = memo(function DialogueComposer({
 		setSending(false);
 	}
 
+	/** UI-triggered slash commands (e.g. /compact) must not touch the user's
+	 * draft, attachments or app contexts — unlike submitText, which clears them. */
+	async function submitSlashCommand(command: string) {
+		setSending(true);
+		onError?.(null, taskId);
+		const result = await window.fastIde.sendMessage(command, undefined, taskId, undefined, runMode);
+		if (!result.ok) {
+			onError?.(helpNoticeText(result.notice ?? 'errors.send.failed', t), taskId);
+		} else if (result.notice) {
+			onError?.(helpNoticeText(result.notice, t), taskId);
+		}
+		if (result.openModelPicker) {
+			setModelSearch('');
+			setModelPopOpen(true);
+			void window.fastIde.requestModelList();
+		}
+		setSending(false);
+	}
+
 	async function onSubmit(event: FormEvent) {
 		event.preventDefault();
 		if (!canChat || sending || composerLocked || dshBlocked || (!canSubmitNow && !canEnqueue)) return;
@@ -835,7 +855,7 @@ export const DialogueComposer = memo(function DialogueComposer({
 							onCompact:
 								engineKind !== 'dsh'
 									? () => {
-											void submitText('/compact', null, []);
+											void submitSlashCommand('/compact');
 										}
 									: undefined
 						}}

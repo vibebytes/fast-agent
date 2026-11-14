@@ -105,6 +105,8 @@ export type ModelCatalogEntry = {
 	inputModalities?: string[];
 	/** Free zone row (vendor `free`, or user-locked) — picker pins these first. */
 	free?: boolean;
+	/** Model context window size in tokens (e.g. 128000, 200000). */
+	contextWindow?: number;
 };
 
 /** Structured @ mention chip — Submit passthrough (no Mentions.resolve). */

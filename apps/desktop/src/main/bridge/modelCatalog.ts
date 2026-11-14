@@ -50,7 +50,10 @@ export function catalogFromProviders(
 				supportedEfforts: m.supportedEfforts ?? [],
 				...(m.defaultEffort ? {defaultEffort: m.defaultEffort} : {}),
 				...(m.inputModalities?.length ? {inputModalities: m.inputModalities} : {}),
-				...(free ? {free: true} : {})
+				...(free ? {free: true} : {}),
+				...(typeof m.contextWindow === 'number' && m.contextWindow > 0
+					? {contextWindow: m.contextWindow}
+					: {})
 			});
 		}
 	}

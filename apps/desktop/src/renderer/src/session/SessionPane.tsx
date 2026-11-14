@@ -11,7 +11,7 @@ import {
 	type ProfilerOnRenderCallback,
 	type ReactNode
 } from 'react';
-import {compactionNotice, splitForeignColumns, usageFooter, type TimelineItem} from '@fast-ide/session-view';
+import {compactionNotice, splitForeignColumns, type TimelineItem} from '@fast-ide/session-view';
 import {Alert, AlertDescription, AlertTitle} from '@fast-ide/ui/components/alert';
 import {cn} from '@fast-ide/ui/lib/utils';
 import {CircleAlert} from 'lucide-react';
@@ -208,11 +208,6 @@ export const SessionPane = memo(function SessionPane({
 	const transcript = isStreamingToken
 		? currentTranscript
 		: deferredValueForTask(activeTaskId, currentTranscript, deferredFrame);
-	// DSH delta surfaces: last-run token/cost footer + context-prune banner.
-	const usageFooterView = useMemo(
-		() => usageFooter(transcript, dshCaps?.delta),
-		[transcript, dshCaps]
-	);
 	const pruneNotice = useMemo(
 		() => compactionNotice(transcript, dshCaps?.delta),
 		[transcript, dshCaps]
@@ -559,25 +554,6 @@ export const SessionPane = memo(function SessionPane({
 
 			<Profiler id="composer" onRender={profileCommit}>
 				<div className="shrink-0 px-4 pb-4 pt-2">
-					{usageFooterView ? (
-						<div
-							data-slot="session-usage-footer"
-							className="mb-2 flex flex-wrap items-center justify-end gap-x-3 gap-y-1 pr-1 text-[11px] text-muted-foreground"
-						>
-							{usageFooterView.buckets.map(bucket => (
-								<span key={bucket.key}>
-									{bucket.key} {bucket.value.toLocaleString()}
-								</span>
-							))}
-							{usageFooterView.raw
-								? Object.entries(usageFooterView.raw).map(([key, value]) => (
-										<span key={key}>
-											{key} {value}
-										</span>
-									))
-								: null}
-						</div>
-					) : null}
 					<div
 						data-slot="composer-surface"
 					className={cn(
@@ -615,6 +591,9 @@ export const SessionPane = memo(function SessionPane({
 						onSubmitSuccess={onSubmitSuccess}
 						onError={onComposerError}
 						sessionId={sessionId}
+						transcript={transcript}
+						dshDeltaCaps={dshCaps?.delta}
+						compacting={Boolean(transcript.compacting)}
 					/>
 				</div>
 			</div>

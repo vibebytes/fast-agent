@@ -157,9 +157,17 @@ export {
 	compactionNotice,
 	contextPruneNotice,
 	contextPruneText,
+	contextUsage,
+	formatCompactTokens,
 	tokenSpan,
 	usageFooter,
 	type CompactionNotice,
+	type ContextBreakdownCategory,
+	type ContextBreakdownItem,
+	type ContextUsageLevel,
+	type ContextUsageOptions,
+	type ContextUsageView,
+	type DeltaSurfaces,
 	type UsageBucketRow,
 	type UsageFooterView
 } from './transcript/usage.js';

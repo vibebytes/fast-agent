@@ -1,7 +1,13 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {applyBridgeEvent, createTranscriptState} from './index.js';
-import {childTranscriptText, contextPruneNotice, usageFooter} from './transcript/usage.js';
+import {
+	childTranscriptText,
+	contextPruneNotice,
+	contextUsage,
+	formatCompactTokens,
+	usageFooter
+} from './transcript/usage.js';
 
 const CAPS_ON = {usage: true, childTranscript: true, goalDelta: true, contextPrune: true};
 const CAPS_OFF = {usage: false, childTranscript: false, goalDelta: false, contextPrune: false};
@@ -96,3 +102,136 @@ test('childTranscriptText returns the tail only when caps allow it', () => {
 	assert.equal(childTranscriptText(state, 'missing', CAPS_ON), null);
 	assert.equal(childTranscriptText(state, '  ', CAPS_ON), null);
 });
+
+test('formatCompactTokens formats small, k, and M token counts cleanly', () => {
+	assert.equal(formatCompactTokens(0), '0');
+	assert.equal(formatCompactTokens(850), '850');
+	assert.equal(formatCompactTokens(1200), '1.2k');
+	assert.equal(formatCompactTokens(128000), '128k');
+	assert.equal(formatCompactTokens(54120), '54.1k');
+	assert.equal(formatCompactTokens(1048576), '1.0M');
+});
+
+test('contextUsage computes percentage, level, breakdown, and cache hit rate', () => {
+	const state = applyBridgeEvent(createTranscriptState(), {
+		type: 'usage_reported',
+		runId: 'r1',
+		turnId: 't1',
+		buckets: {
+			input: 64000,
+			output: 1200,
+			cache_read: 48000,
+			cache_write: 4000,
+			total: 65200,
+			context_used: 64000,
+			context_window: 128000,
+			context_budget: 102400,
+			ctx_system: 4000,
+			ctx_memory: 2000,
+			ctx_tools: 8000,
+			ctx_summary: 10000,
+			ctx_messages: 40000
+		},
+		raw: {model: 'deepseek-v4', provider: 'deepseek', cost: '$0.012'}
+	});
+
+	const view = contextUsage(state);
+	assert.ok(view);
+	assert.equal(view.usedTokens, 64000);
+	assert.equal(view.contextWindow, 128000);
+	assert.equal(view.contextBudget, 102400);
+	assert.equal(view.percent, 50);
+	assert.equal(view.level, 'normal');
+	assert.equal(view.cacheHitPercent, 75);
+	assert.equal(view.inputTokens, 64000);
+	assert.equal(view.outputTokens, 1200);
+	assert.equal(view.cacheReadTokens, 48000);
+	assert.equal(view.cacheWriteTokens, 4000);
+	assert.equal(view.totalTokens, 65200);
+	assert.equal(view.breakdown.length, 4);
+	assert.deepEqual(
+		view.breakdown.map(b => [b.key, b.tokens]),
+		[
+			['system', 6000],
+			['tools', 8000],
+			['summary', 10000],
+			['messages', 40000]
+		]
+	);
+});
+
+test('contextUsage falls back to modelContextWindow option and classifies warning/danger levels', () => {
+	const warnState = applyBridgeEvent(createTranscriptState(), {
+		type: 'usage_reported',
+		runId: 'r1',
+		buckets: {input: 140000, output: 1000, total: 141000}
+	});
+	const warnView = contextUsage(warnState, {modelContextWindow: 200000});
+	assert.ok(warnView);
+	assert.equal(warnView.usedTokens, 140000);
+	assert.equal(warnView.contextWindow, 200000);
+	assert.equal(warnView.percent, 70);
+	assert.equal(warnView.level, 'warning');
+
+	const dangerState = applyBridgeEvent(createTranscriptState(), {
+		type: 'usage_reported',
+		runId: 'r1',
+		buckets: {input: 180000, output: 1000, total: 181000}
+	});
+	const dangerView = contextUsage(dangerState, {modelContextWindow: 200000});
+	assert.equal(dangerView?.percent, 90);
+	assert.equal(dangerView?.level, 'danger');
+});
+
+test('contextUsage returns idle window view when no usage_reported yet but modelContextWindow is known', () => {
+	const empty = createTranscriptState();
+	assert.equal(contextUsage(empty), null);
+
+	const idleView = contextUsage(empty, {modelContextWindow: 128000});
+	assert.ok(idleView);
+	assert.equal(idleView.usedTokens, 0);
+	assert.equal(idleView.contextWindow, 128000);
+	assert.equal(idleView.percent, 0);
+	assert.equal(idleView.level, 'normal');
+});
+
+test('context_pruned with remainingTokens rescales context_used and breakdown immediately', () => {
+	let state = applyBridgeEvent(createTranscriptState(), {
+		type: 'usage_reported',
+		runId: 'r1',
+		turnId: 't1',
+		buckets: {
+			input: 100_000,
+			output: 4_000,
+			total: 104_000,
+			context_used: 100_000,
+			context_window: 128_000,
+			context_budget: 96_000,
+			ctx_system: 5_000,
+			ctx_tools: 8_000,
+			ctx_summary: 2_000,
+			ctx_messages: 85_000
+		}
+	});
+	const before = contextUsage(state);
+	assert.equal(before?.usedTokens, 100_000);
+	assert.equal(before?.percent, 78);
+
+	state = applyBridgeEvent(state, {
+		type: 'context_pruned',
+		runId: 'r1',
+		prunedIds: ['a', 'b'],
+		reason: 'summary',
+		remainingTokens: 32_000
+	});
+	const after = contextUsage(state);
+	assert.equal(after?.usedTokens, 32_000);
+	assert.equal(after?.percent, 25);
+	assert.equal(after?.contextWindow, 128_000);
+	const breakdownSum = after?.breakdown.reduce((acc, item) => acc + item.tokens, 0) ?? 0;
+	assert.ok(
+		Math.abs(breakdownSum - 32_000) <= 4,
+		`breakdown must rescale to the remaining context, got ${breakdownSum}`
+	);
+});
+

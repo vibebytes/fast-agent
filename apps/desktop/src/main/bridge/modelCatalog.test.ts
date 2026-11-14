@@ -253,3 +253,31 @@ test('catalogFromProviders flags free rows for api_key and openrouter providers'
 	assert.equal(entries[0]?.free, true);
 	assert.equal(entries[1]?.free, undefined);
 });
+
+test('catalogFromProviders forwards positive contextWindow to ModelCatalogEntry', () => {
+	const entries = catalogFromProviders([
+		provider({
+			id: 'deepseek',
+			authType: 'api_key',
+			hasSecret: true,
+			models: [
+				{
+					modelId: 'deepseek-v4',
+					displayName: 'DeepSeek V4',
+					enabled: true,
+					source: 'catalog',
+					contextWindow: 128000
+				},
+				{
+					modelId: 'no-window',
+					displayName: 'No Window',
+					enabled: true,
+					source: 'catalog'
+				}
+			]
+		})
+	]);
+	assert.equal(entries[0]?.contextWindow, 128000);
+	assert.equal(entries[1]?.contextWindow, undefined);
+});
+

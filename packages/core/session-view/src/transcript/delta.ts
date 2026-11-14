@@ -144,6 +144,26 @@ export function applyContextPruned(
 	const closed = patchAssistant(base, runId, entry =>
 		entry.waitState?.reason === COMPACTION_WAIT_REASON ? withoutWait(entry) : entry
 	);
+	// A prune produces no new usage_reported (no LLM call happened); rescale the
+	// meter to the remaining window so the ring drops the moment compaction lands.
+	const usage = closed.usage;
+	if (remaining !== undefined && usage && sameRunId(usage.runId, runId)) {
+		const prevUsed = usage.buckets.context_used ?? 0;
+		const scale = prevUsed > 0 ? remaining / prevUsed : 0;
+		const rescaled: Record<string, number> = {};
+		for (const [key, value] of Object.entries(usage.buckets)) {
+			rescaled[key] =
+				key !== 'context_used' && key.startsWith('ctx_')
+					? Math.max(0, Math.round(value * scale))
+					: value;
+		}
+		rescaled.context_used = remaining;
+		return {
+			...closed,
+			usage: {...usage, buckets: rescaled},
+			contextPrunes: [...prev, notice].slice(-CONTEXT_PRUNE_MAX)
+		};
+	}
 	return {...closed, contextPrunes: [...prev, notice].slice(-CONTEXT_PRUNE_MAX)};
 }
 
