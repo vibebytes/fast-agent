@@ -5,6 +5,7 @@ import {
 	drawerChildWork,
 	drawerTasks,
 	goalDetailChildWork,
+	hasComposerDrawer,
 	isGoalStepWork
 } from './backgroundTasks';
 
@@ -106,3 +107,44 @@ describe('goalDetailChildWork', () => {
 		);
 	});
 });
+
+describe('hasComposerDrawer', () => {
+	it('returns false when reviewDiffOn is off even if review changes or files exist', () => {
+		assert.equal(
+			hasComposerDrawer({
+				reviewDiffOn: false,
+				reviewChangesCount: 2,
+				reviewFilesCount: 1
+			}),
+			false
+		);
+	});
+
+	it('returns true when reviewDiffOn is on and review rows exist', () => {
+		assert.equal(
+			hasComposerDrawer({
+				reviewDiffOn: true,
+				reviewChangesCount: 1,
+				reviewFilesCount: 0
+			}),
+			true
+		);
+	});
+
+	it('ignores exited procs and cancelled/expired tasks so empty drawer wrapper never mounts', () => {
+		assert.equal(
+			hasComposerDrawer({
+				procs: [{status: 'exited'}],
+				tasks: [task('cancelled', 'c'), task('expired', 'e')]
+			}),
+			false
+		);
+		assert.equal(
+			hasComposerDrawer({
+				procs: [{status: 'running'}]
+			}),
+			true
+		);
+	});
+});
+

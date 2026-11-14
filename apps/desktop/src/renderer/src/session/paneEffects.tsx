@@ -17,7 +17,7 @@ import {
 import type {DshCaps, DshGoalView, DshQueueItem, QueueItem} from '../env';
 import type {TranscriptSlice, WorkspaceStore} from '../workspaceStore';
 import {BackgroundToolsSection} from './BackgroundTools';
-import {drawerChildWork} from './backgroundTasks';
+import {drawerChildWork, hasComposerDrawer} from './backgroundTasks';
 import {QueueDock} from '../dsh/queue/QueueDock';
 import {GoalIsland} from '../dsh/goal/GoalIsland';
 import {reviewListForSession} from '../review/agentReview';
@@ -211,7 +211,9 @@ export function usePaneEffects(h: PaneEffectsHost) {
 		() => reviewListForSession(review.list, sessionRunIds),
 		[review.list, sessionRunIds]
 	);
-	const hasReviewRows = sessionReviewList.changes.length > 0 || reviewFileList.length > 0;
+	const hasReviewRows =
+		Boolean(review.reviewDiffOn) &&
+		(sessionReviewList.changes.length > 0 || reviewFileList.length > 0);
 
 	const timelineUndo = useUndoFlow(review);
 	const [restoreFiles, setRestoreFiles] = useState(true);
@@ -570,15 +572,21 @@ export function usePaneEffects(h: PaneEffectsHost) {
 			onOpenReviewDiff
 		]
 	);
-	const hasComposerStack =
-		liveProcs.length > 0 ||
-		liveTasks.length > 0 ||
-		childWork.length > 0 ||
-		transcript.goalCard != null ||
-		queue.length > 0 ||
-		(dshCaps?.queue === true && dshQueue.length > 0) ||
-		(dshCaps?.goal === true && dshGoal != null) ||
-		hasReviewRows;
+	const hasComposerStack = hasComposerDrawer({
+		procs: liveProcs,
+		tasks: liveTasks,
+		childWork,
+		goalCard: transcript.goalCard,
+		queueCount: queue.length,
+		queuePaused,
+		dshQueueEnabled: dshCaps?.queue === true,
+		dshQueueCount: dshQueue.length,
+		dshGoalEnabled: dshCaps?.goal === true,
+		hasDshGoal: dshGoal != null,
+		reviewDiffOn: review.reviewDiffOn,
+		reviewChangesCount: sessionReviewList.changes.length,
+		reviewFilesCount: reviewFileList.length
+	});
 
 	// Tab-switch trace: sample each focused render + a post-paint rAF so long
 	// threads show whether cost is deferred release, projection, or layout.

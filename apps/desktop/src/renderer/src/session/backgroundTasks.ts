@@ -75,3 +75,58 @@ export function goalStepDisplayName(
 	if (title && !title.toLowerCase().startsWith('goal-step:')) return title;
 	return work.id;
 }
+
+export type ComposerDrawerCheckInput = {
+	procs?: Array<{status: string}>;
+	tasks?: LiveTask[];
+	childWork?: LiveChildWork[];
+	goalCard?: {phase: string} | null;
+	queueCount?: number;
+	queuePaused?: boolean;
+	dshQueueEnabled?: boolean;
+	dshQueueCount?: number;
+	dshGoalEnabled?: boolean;
+	hasDshGoal?: boolean;
+	reviewDiffOn?: boolean;
+	reviewChangesCount?: number;
+	reviewFilesCount?: number;
+};
+
+const GOAL_DRAWER_PHASES = new Set([
+	'awaiting_confirm',
+	'started',
+	'paused',
+	'escalated',
+	'finished'
+]);
+
+/** Whether any top-of-composer drawer section actually renders DOM.
+ *  Must stay in lockstep with BackgroundToolsSection, GoalIsland, QueueDock,
+ *  QueuedMessagesSection, and ReviewChangesStrip so an empty wrapper never
+ *  strips the composer's top rounded corners. */
+export function hasComposerDrawer(input: ComposerDrawerCheckInput): boolean {
+	const hasRunningProcs = Boolean(input.procs?.some(p => p.status === 'running'));
+	const hasActiveTasks = Boolean(input.tasks && drawerTasks(input.tasks).length > 0);
+	const hasChildWork = Boolean(input.childWork && input.childWork.length > 0);
+	const hasGoalDrawer = Boolean(
+		input.goalCard && GOAL_DRAWER_PHASES.has(input.goalCard.phase)
+	);
+	const hasQueueDrawer = input.dshQueueEnabled
+		? (input.dshQueueCount ?? 0) > 0
+		: (input.queueCount ?? 0) > 0 || Boolean(input.queuePaused);
+	const hasDshGoalDrawer = Boolean(input.dshGoalEnabled && input.hasDshGoal);
+	const hasReviewDrawer =
+		Boolean(input.reviewDiffOn) &&
+		((input.reviewChangesCount ?? 0) > 0 || (input.reviewFilesCount ?? 0) > 0);
+
+	return (
+		hasRunningProcs ||
+		hasActiveTasks ||
+		hasChildWork ||
+		hasGoalDrawer ||
+		hasQueueDrawer ||
+		hasDshGoalDrawer ||
+		hasReviewDrawer
+	);
+}
+
