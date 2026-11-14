@@ -228,6 +228,8 @@ export type UsageView = {
 	cacheStartedAt?: number;
 	/** Client epoch ms when `cache_read > 0` or `cache_write > 0` was last observed. */
 	lastCacheHitAt?: number;
+	/** Client epoch ms of the last substantive cache change (established, rebuilt, or lost). Steady hits do not move it. */
+	lastCacheChangeAt?: number;
 	/** Consecutive usage updates that hit or warmed the current prompt cache without rebuild. */
 	cacheHitStreak?: number;
 	/** Method-A inferred prompt cache status on the latest turn. */

@@ -123,6 +123,8 @@ export type CacheFreshnessInfo = {
 	status: PromptCacheStatus;
 	/** Elapsed ms since the last cache hit/write. */
 	idleElapsedMs?: number;
+	/** Elapsed ms since the last substantive cache change (establish/rebuild/loss); steady hits do not move it. */
+	changeElapsedMs?: number;
 	/** Total ms the current cached prefix has stayed alive without rebuild. */
 	activeSpanMs?: number;
 	/** True when `idleElapsedMs >= PROMPT_CACHE_IDLE_TTL_MS`, meaning server cache likely expired from inactivity. */
@@ -130,17 +132,13 @@ export type CacheFreshnessInfo = {
 	streak: number;
 };
 
-/** Format millisecond span into compact Chinese/English friendly duration (`12s`, `3m 20s`, `18m`). */
+/** Format millisecond span as a single magnitude-appropriate unit (`12s`, `2m`, `18m`, `1h`). */
 export function formatCompactElapsed(ms: number): string {
 	const totalSec = Math.max(0, Math.floor(ms / 1000));
 	if (totalSec < 60) return `${totalSec}s`;
 	const mins = Math.floor(totalSec / 60);
-	const secs = totalSec % 60;
-	if (mins < 10 && secs > 0) return `${mins}m ${secs}s`;
 	if (mins < 60) return `${mins}m`;
-	const hours = Math.floor(mins / 60);
-	const remMins = mins % 60;
-	return remMins > 0 ? `${hours}h ${remMins}m` : `${hours}h`;
+	return `${Math.floor(mins / 60)}h`;
 }
 
 /** Compute Method-A prompt cache freshness & status descriptor at timestamp `nowMs`. */
@@ -162,6 +160,10 @@ export function computeCacheFreshness(
 		typeof view.lastCacheHitAt === 'number' && view.lastCacheHitAt > 0
 			? Math.max(0, nowMs - view.lastCacheHitAt)
 			: undefined;
+	const changeElapsedMs =
+		typeof view.lastCacheChangeAt === 'number' && view.lastCacheChangeAt > 0
+			? Math.max(0, nowMs - view.lastCacheChangeAt)
+			: undefined;
 	const activeSpanMs =
 		typeof view.cacheStartedAt === 'number' && view.cacheStartedAt > 0
 			? Math.max(0, nowMs - view.cacheStartedAt)
@@ -175,6 +177,7 @@ export function computeCacheFreshness(
 	return {
 		status,
 		...(idleElapsedMs !== undefined ? {idleElapsedMs} : {}),
+		...(changeElapsedMs !== undefined ? {changeElapsedMs} : {}),
 		...(activeSpanMs !== undefined ? {activeSpanMs} : {}),
 		likelyExpired,
 		streak
@@ -207,6 +210,11 @@ export function ContextUsageMeter(props: {
 	const segments = usage ? buildBreakdownSegments(usage) : [];
 	const costLabel = usage ? formatUsageCost(usage.raw) : null;
 	const cacheFreshness = usage ? computeCacheFreshness(usage, nowMs) : null;
+	// "ago" tracks the last substantive cache change; legacy views without
+	// lastCacheChangeAt fall back to the last-hit timestamp.
+	const cacheStateElapsedMs = cacheFreshness
+		? (cacheFreshness.changeElapsedMs ?? cacheFreshness.idleElapsedMs)
+		: undefined;
 
 	const ringColorClass =
 		effectiveLevel === 'danger'
@@ -448,10 +456,10 @@ export function ContextUsageMeter(props: {
 															count: cacheFreshness.streak,
 															defaultValue: `连续命中 ${cacheFreshness.streak} 轮`
 														})}
-										{cacheFreshness.idleElapsedMs !== undefined
+										{cacheStateElapsedMs !== undefined
 											? ` · ${t('shell.composer.contextCacheIdleAgo', {
-													elapsed: formatCompactElapsed(cacheFreshness.idleElapsedMs),
-													defaultValue: `${formatCompactElapsed(cacheFreshness.idleElapsedMs)}前更新`
+													elapsed: formatCompactElapsed(cacheStateElapsedMs),
+													defaultValue: `${formatCompactElapsed(cacheStateElapsedMs)}前更新`
 												})}`
 											: ''}
 									</span>

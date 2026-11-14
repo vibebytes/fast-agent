@@ -80,9 +80,13 @@ test('formatUsageCost reads costAmount/costCurrency and the legacy cost key', ()
 
 test('formatCompactElapsed and computeCacheFreshness track active streak, rebuild, and TTL expiry', () => {
 	assert.equal(formatCompactElapsed(12_000), '12s');
-	assert.equal(formatCompactElapsed(140_000), '2m 20s');
+	assert.equal(formatCompactElapsed(59_000), '59s');
+	assert.equal(formatCompactElapsed(60_000), '1m');
+	assert.equal(formatCompactElapsed(140_000), '2m');
 	assert.equal(formatCompactElapsed(720_000), '12m');
-	assert.equal(formatCompactElapsed(3_900_000), '1h 5m');
+	assert.equal(formatCompactElapsed(3_600_000), '1h');
+	assert.equal(formatCompactElapsed(3_900_000), '1h');
+	assert.equal(formatCompactElapsed(7_200_000), '2h');
 
 	const baseNow = 1_700_000_000_000;
 	const active = computeCacheFreshness(
@@ -123,5 +127,27 @@ test('formatCompactElapsed and computeCacheFreshness track active streak, rebuil
 		baseNow
 	);
 	assert.equal(cold, null);
+});
+
+test('computeCacheFreshness exposes changeElapsedMs while idle TTL keeps using lastCacheHitAt', () => {
+	const baseNow = 1_700_000_000_000;
+	const fresh = computeCacheFreshness(
+		{
+			...sampleView,
+			cacheStatus: 'hit',
+			cacheHitStreak: 4,
+			cacheStartedAt: baseNow - 600_000,
+			lastCacheChangeAt: baseNow - 600_000,
+			lastCacheHitAt: baseNow - 30_000
+		},
+		baseNow
+	);
+	assert.equal(fresh?.changeElapsedMs, 600_000);
+	assert.equal(fresh?.idleElapsedMs, 30_000);
+	assert.equal(
+		fresh?.likelyExpired,
+		false,
+		'idle TTL follows lastCacheHitAt, not the last cache change'
+	);
 });
 

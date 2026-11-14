@@ -109,6 +109,7 @@ export function applyUsageReported(
 	let cacheHitStreak: number;
 	let cacheStartedAt: number | undefined;
 	let lastCacheHitAt: number | undefined;
+	let lastCacheChangeAt: number | undefined;
 	let prevCacheReadTokens: number | undefined;
 
 	// A sharp drop in cache_read (< 50% of the prior cached prefix, when prior prefix was non-trivial)
@@ -121,6 +122,7 @@ export function applyUsageReported(
 		cacheHitStreak = hasCurrCache ? 1 : 0;
 		cacheStartedAt = hasCurrCache ? now : undefined;
 		lastCacheHitAt = hasCurrCache ? now : prev?.lastCacheHitAt;
+		lastCacheChangeAt = now;
 		prevCacheReadTokens = prevCachedPrefix;
 	} else if (currRead > 0) {
 		const hadActiveCache = (prev?.cacheHitStreak ?? 0) > 0 && prevCachedPrefix > 0;
@@ -128,16 +130,22 @@ export function applyUsageReported(
 		cacheHitStreak = hadActiveCache ? (prev?.cacheHitStreak ?? 0) + 1 : 1;
 		cacheStartedAt = hadActiveCache ? (prev?.cacheStartedAt ?? now) : now;
 		lastCacheHitAt = now;
+		// A continued hit on the same prefix is not a cache change; only establish/rebuild moves it.
+		lastCacheChangeAt = hadActiveCache
+			? (prev?.lastCacheChangeAt ?? prev?.cacheStartedAt ?? now)
+			: now;
 	} else if (currWrite > 0) {
 		cacheStatus = 'warmed';
 		cacheHitStreak = 1;
 		cacheStartedAt = now;
 		lastCacheHitAt = now;
+		lastCacheChangeAt = now;
 	} else {
 		cacheStatus = prevCachedPrefix > 0 ? 'rebuilt' : 'miss';
 		cacheHitStreak = 0;
 		cacheStartedAt = undefined;
 		lastCacheHitAt = prev?.lastCacheHitAt;
+		lastCacheChangeAt = prevCachedPrefix > 0 ? now : prev?.lastCacheChangeAt;
 		if (prevCachedPrefix > 0) {
 			prevCacheReadTokens = prevCachedPrefix;
 		}
@@ -151,6 +159,7 @@ export function applyUsageReported(
 		updatedAt: now,
 		...(cacheStartedAt !== undefined ? {cacheStartedAt} : {}),
 		...(lastCacheHitAt !== undefined ? {lastCacheHitAt} : {}),
+		...(lastCacheChangeAt !== undefined ? {lastCacheChangeAt} : {}),
 		cacheHitStreak,
 		cacheStatus,
 		...(prevCacheReadTokens !== undefined ? {prevCacheReadTokens} : {})

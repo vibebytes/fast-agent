@@ -359,4 +359,69 @@ test('Method-A prompt cache tracking infers warmed -> hit streak -> rebuilt acro
 	assert.equal(u4?.prevCacheReadTokens, 2_000);
 });
 
+test('usage tracking exposes lastCacheChangeAt that only moves on real cache changes', async () => {
+	let state = createTranscriptState();
+
+	// Turn 1: warm-up establishes the cache -> change time == hit time.
+	state = applyBridgeEvent(state, {
+		type: 'usage_reported',
+		runId: 'r1',
+		turnId: 't1',
+		buckets: {input: 20_000, output: 500, cache_read: 16_000}
+	});
+	const u1 = contextUsage(state);
+	assert.equal(typeof u1?.lastCacheChangeAt, 'number');
+	assert.equal(u1?.lastCacheChangeAt, u1?.lastCacheHitAt);
+
+	// Turn 2: a continued hit refreshes lastCacheHitAt but is NOT a cache change.
+	await new Promise(r => setTimeout(r, 10));
+	state = applyBridgeEvent(state, {
+		type: 'usage_reported',
+		runId: 'r2',
+		turnId: 't2',
+		buckets: {input: 25_000, output: 600, cache_read: 20_000}
+	});
+	const u2 = contextUsage(state);
+	assert.equal(u2?.cacheStatus, 'hit');
+	assert.equal(u2?.cacheHitStreak, 2);
+	assert.equal(
+		u2?.lastCacheChangeAt,
+		u1?.lastCacheChangeAt,
+		'a continued hit is not a cache change'
+	);
+	assert.ok(
+		(u2?.lastCacheHitAt ?? 0) > (u1?.lastCacheHitAt ?? 0),
+		'hit timestamp still refreshes'
+	);
+
+	// Turn 3: sharp drop -> rebuild moves the change time.
+	await new Promise(r => setTimeout(r, 10));
+	state = applyBridgeEvent(state, {
+		type: 'usage_reported',
+		runId: 'r3',
+		turnId: 't3',
+		buckets: {input: 28_000, output: 400, cache_read: 2_000}
+	});
+	const u3 = contextUsage(state);
+	assert.equal(u3?.cacheStatus, 'rebuilt');
+	assert.ok(
+		(u3?.lastCacheChangeAt ?? 0) > (u1?.lastCacheChangeAt ?? 0),
+		'rebuild is a cache change'
+	);
+
+	// Turn 4: losing the cache entirely is also a change.
+	await new Promise(r => setTimeout(r, 10));
+	state = applyBridgeEvent(state, {
+		type: 'usage_reported',
+		runId: 'r4',
+		turnId: 't4',
+		buckets: {input: 30_000, output: 400, cache_read: 0}
+	});
+	const u4 = contextUsage(state);
+	assert.ok(
+		(u4?.lastCacheChangeAt ?? 0) > (u3?.lastCacheChangeAt ?? 0),
+		'losing the cache is a cache change'
+	);
+});
+
 

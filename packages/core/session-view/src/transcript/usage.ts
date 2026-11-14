@@ -191,6 +191,8 @@ export type ContextUsageView = {
 	cacheStartedAt?: number;
 	/** Client epoch ms when `cache_read > 0` or `cache_write > 0` was last observed. */
 	lastCacheHitAt?: number;
+	/** Client epoch ms of the last substantive cache change (established, rebuilt, or lost). Steady hits do not move it. */
+	lastCacheChangeAt?: number;
 	/** Previous turn's cached prefix tokens when a cache rebuild/invalidation was detected. */
 	prevCacheReadTokens?: number;
 	/** Context composition segments (system+memory, tools, summary, messages). */
@@ -334,6 +336,7 @@ export function contextUsage(
 		...(usage.cacheHitStreak !== undefined ? {cacheHitStreak: usage.cacheHitStreak} : {}),
 		...(usage.cacheStartedAt !== undefined ? {cacheStartedAt: usage.cacheStartedAt} : {}),
 		...(usage.lastCacheHitAt !== undefined ? {lastCacheHitAt: usage.lastCacheHitAt} : {}),
+		...(usage.lastCacheChangeAt !== undefined ? {lastCacheChangeAt: usage.lastCacheChangeAt} : {}),
 		...(usage.prevCacheReadTokens !== undefined ? {prevCacheReadTokens: usage.prevCacheReadTokens} : {}),
 		breakdown,
 		...(usage.raw ? {raw: usage.raw} : {})
