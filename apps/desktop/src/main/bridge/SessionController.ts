@@ -558,7 +558,7 @@ export class SessionController implements TaskCommands, SessionLifecycle, TaskVi
 			return false;
 		}
 		const m = mode.trim().toLowerCase();
-		if (!['agent', 'plan', 'ask', 'yolo'].includes(m)) return false;
+		if (!['agent', 'plan', 'ask', 'yolo', 'free'].includes(m)) return false;
 		const sessionId = active ? active.sessionId : this.commandSessionId();
 		if (sessionId) {
 			this.sendFn({type: 'SetMode', sessionId, mode: m});

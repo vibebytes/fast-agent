@@ -15,7 +15,7 @@ export type ComposerTaskLike = {
 
 export type ComposerSampling = {useModel?: string; effort?: string; thinking?: boolean};
 
-const VISIBLE_RUN_MODES = ['agent', 'plan', 'ask', 'yolo'] as const;
+const VISIBLE_RUN_MODES = ['agent', 'plan', 'ask', 'yolo', 'free'] as const;
 type VisibleRunMode = (typeof VISIBLE_RUN_MODES)[number];
 
 const asRunMode = (raw: string | undefined): VisibleRunMode | undefined =>
@@ -35,7 +35,7 @@ export type ComposerSendDeps<T extends ComposerTaskLike> = {
 	selectModel: (id: string) => boolean;
 	requestModelList: () => boolean;
 	setHelpNotice: (notice: string) => void;
-	applyRunMode: (mode: 'agent' | 'plan' | 'ask' | 'yolo') => void;
+	applyRunMode: (mode: 'agent' | 'plan' | 'ask' | 'yolo' | 'free') => void;
 	effort: () => string | undefined;
 	onClearSlash: () => boolean;
 	touchLastModified: (task: T) => void;

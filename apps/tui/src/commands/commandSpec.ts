@@ -44,7 +44,7 @@ export const COMMAND_SPECS: CommandSpec[] = [
 	{name: 'copy', owner: 'engine', availability: 'ready', description: 'Copy last response', usage: '/copy'},
 	{name: 'undo', owner: 'hybrid', availability: 'ready', description: 'Undo last exchange', usage: '/undo'},
 	{name: 'title', owner: 'engine', availability: 'ready', description: 'Set session title', usage: '/title <name>', requiresArgs: true},
-	{name: 'mode', owner: 'engine', availability: 'ready', description: 'Set sticky RunMode', usage: '/mode <agent|plan|ask|yolo>', requiresArgs: true},
+	{name: 'mode', owner: 'engine', availability: 'ready', description: 'Set sticky RunMode', usage: '/mode <agent|plan|ask|yolo|free>', requiresArgs: true},
 	{name: 'exit-plan', owner: 'engine', availability: 'ready', description: 'Exit plan mode (alias of /mode agent)', usage: '/exit-plan', aliases: ['exit_plan']},
 	{name: 'sandbox', owner: 'engine', availability: 'ready', description: 'Show or configure the sandbox', usage: '/sandbox status | /sandbox mode [seatbelt|srt|off] | /sandbox network on|off|status|allow <domain...>'},
 	{name: 'agents', owner: 'engine', availability: 'ready', description: 'List active agents', usage: '/agents'},

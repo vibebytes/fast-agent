@@ -175,6 +175,36 @@ trait DshAskSpec:
     remote.replies.head._2.hcursor.get[String]("outcome").toOption.get shouldBe "rejected"
     payloadTypes(await(loop.events(Sid, 0))) should not contain "ApprovalRequested"
 
+  test("free mode allows credential roots and external paths without card, but still refuses blacklisted shell commands"):
+    val remote = FakeClient()
+    val loop = DshLoop(remote, _ => Cwd)
+    val secret = s"${System.getProperty("user.home")}/.aws/credentials"
+    await(loop.submit(submitAs("c1", "hi", "free")))
+    remote.emit(
+      Sid,
+      ev(
+        "tool/call",
+        1,
+        s"""{"turn":1,"callId":"call-f1","name":"read","arguments":"{\\"file_path\\":\\"$secret\\"}"}"""
+      )
+    )
+    remote.emitAsked(Sid, "rpc-f1", "ap-f1", "read", Some("outside"), Some("call-f1"))
+    remote.replies.map(_._1) shouldBe Vector("rpc-f1")
+    remote.replies.head._2.hcursor.get[String]("outcome").toOption.get shouldBe "allowed-once"
+    payloadTypes(await(loop.events(Sid, 0))) should not contain "ApprovalRequested"
+
+    remote.emit(
+      Sid,
+      ev(
+        "tool/call",
+        2,
+        """{"turn":1,"callId":"call-f2","name":"shell","arguments":"{\"command\":\"sudo rm -rf /tmp/x\"}"}"""
+      )
+    )
+    remote.emitAsked(Sid, "rpc-f2", "ap-f2", "shell", Some("shell"), Some("call-f2"))
+    remote.replies.map(_._1) shouldBe Vector("rpc-f1", "rpc-f2")
+    remote.replies.last._2.hcursor.get[String]("outcome").toOption.get shouldBe "rejected"
+
   test("agent mode still asks: yolo does not leak across turns"):
     val remote = FakeClient()
     val loop = DshLoop(remote, _ => Cwd)

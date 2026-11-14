@@ -79,7 +79,7 @@ export type SessionPaneProps = {
 	modelDisplay: string;
 	modelCatalog: ModelCatalogEntry[];
 	modelCatalogReady?: boolean;
-	runMode?: 'agent' | 'plan' | 'ask' | 'yolo';
+	runMode?: 'agent' | 'plan' | 'ask' | 'yolo' | 'free';
 	engineKind?: 'fast' | 'dsh';
 	availableEngineIds?: string[];
 	effort?: string;

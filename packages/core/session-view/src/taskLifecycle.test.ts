@@ -139,6 +139,19 @@ test('CreateSession carries the composer-visible runMode so the session never op
 	assert.equal(create.runMode, 'yolo');
 });
 
+test('CreateSession carries free runMode onto the wire', () => {
+	const {deps, sent} = makeDeps();
+	const base = deps.buildEntry;
+	deps.buildEntry = (id, kind, title, listOrder) => ({
+		...base(id, kind, title, listOrder),
+		runMode: 'free'
+	});
+	const lc = createTaskLifecycle(deps);
+	lc.createTask('Free please');
+	const create = sent.find(c => c.type === 'CreateSession') as {runMode?: string};
+	assert.equal(create.runMode, 'free');
+});
+
 test('acceptNewSession re-sends the mode picked while CreateSession was in flight', () => {
 	const {deps, sent} = makeDeps();
 	const lc = createTaskLifecycle(deps);

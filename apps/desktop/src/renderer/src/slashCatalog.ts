@@ -39,7 +39,7 @@ export const HOST_SLASH_COMMANDS: SlashItem[] = [
 	{name: 'help', label: 'help', description: 'Show available slash commands', kind: 'command'},
 	{name: 'clear', label: 'clear', description: 'Clear conversation and session', kind: 'command'},
 	{name: 'model', label: 'model', description: 'Show or switch model', kind: 'command'},
-	{name: 'mode', label: 'mode', description: 'Set RunMode: /mode agent|plan|ask|yolo', kind: 'command'}
+	{name: 'mode', label: 'mode', description: 'Set RunMode: /mode agent|plan|ask|yolo|free', kind: 'command'}
 	// plan / agent / team are SkillSlash (builtin); exit-plan is never exposed in IDE
 ];
 

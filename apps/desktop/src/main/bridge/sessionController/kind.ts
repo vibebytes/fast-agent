@@ -514,4 +514,12 @@ test('CreateSession stamps the mode the composer shows at New Task time', () => 
 	const create = sent.find(c => c.type === 'CreateSession');
 	assert.ok(create?.type === 'CreateSession');
 	if (create?.type === 'CreateSession') assert.equal(create.runMode, 'yolo');
+
+	assert.equal(controller.setRunMode('free'), true);
+	sent.length = 0;
+	const freeTask = controller.createTask('Free task');
+	assert.equal(freeTask.runMode, 'free');
+	const createFree = sent.find(c => c.type === 'CreateSession');
+	assert.ok(createFree?.type === 'CreateSession');
+	if (createFree?.type === 'CreateSession') assert.equal(createFree.runMode, 'free');
 });

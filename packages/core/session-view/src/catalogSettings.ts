@@ -9,7 +9,7 @@ import {parseEngineKind} from './taskLifecycle.js';
 import type {EngineKind} from './taskLifecycle.js';
 import type {ModelCatalogEntry} from './wire.js';
 
-export type RunMode = 'agent' | 'plan' | 'ask' | 'yolo';
+export type RunMode = 'agent' | 'plan' | 'ask' | 'yolo' | 'free';
 export type {EngineKind};
 
 export type CatalogSettingsTaskLike = {
@@ -30,7 +30,7 @@ export type CatalogSettingsDeps<T extends CatalogSettingsTaskLike> = {
 
 export function parseRunMode(raw?: string | null): RunMode {
 	const m = (raw ?? '').trim().toLowerCase();
-	if (m === 'plan' || m === 'ask' || m === 'yolo' || m === 'agent') return m;
+	if (m === 'plan' || m === 'ask' || m === 'yolo' || m === 'free' || m === 'agent') return m;
 	return 'agent';
 }
 

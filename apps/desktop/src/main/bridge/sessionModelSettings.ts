@@ -55,14 +55,14 @@ export function createSessionModelSettings(deps: SessionModelSettingsDeps) {
 		return true;
 	}
 
-	/** Sticky RunMode via Bridge SetMode (agent/plan/ask/yolo). */
+	/** Sticky RunMode via Bridge SetMode (agent/plan/ask/yolo/free). */
 	function setRunMode(mode: string, expectedTaskId?: string | null): boolean {
 		const active = deps.getActiveTask();
 		if (expectedTaskId && active?.id !== expectedTaskId && active?.sessionId !== expectedTaskId) {
 			return false;
 		}
 		const m = mode.trim().toLowerCase();
-		if (!['agent', 'plan', 'ask', 'yolo'].includes(m)) return false;
+		if (!['agent', 'plan', 'ask', 'yolo', 'free'].includes(m)) return false;
 		const sessionId = active ? active.sessionId : deps.commandSessionId();
 		if (sessionId) deps.send({type: 'SetMode', sessionId, mode: m});
 		catalog.applyRunMode(m as TaskRecord['runMode']);

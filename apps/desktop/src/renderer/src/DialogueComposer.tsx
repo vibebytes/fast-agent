@@ -68,7 +68,7 @@ import {handleComposerKeyDown} from './composer/keys';
 const SYSTEM_BLUE_CHIP =
 	'bg-[#007AFF]/10 text-[#007AFF] dark:bg-[#0A84FF]/15 dark:text-[#0A84FF]';
 
-const RUN_MODES = ['agent', 'plan', 'ask', 'yolo'] as const;
+const RUN_MODES = ['agent', 'plan', 'ask', 'yolo', 'free'] as const;
 type RunModeName = (typeof RUN_MODES)[number];
 
 export type DialogueComposerProps = {
@@ -549,9 +549,7 @@ export const DialogueComposer = memo(function DialogueComposer({
 		if (!body && !hasImages && appImages.length === 0) return;
 		// Hand-typed `/plan …` or `/mode <m>` keeps Mode UI in sync with Engine sticky SetMode.
 		const slashName = body.match(/^\/([^\s]+)/)?.[1]?.toLowerCase();
-		const modeArg = body.match(/^\/mode\s+(agent|plan|ask|yolo)\b/i)?.[1]?.toLowerCase() as
-			| RunModeName
-			| undefined;
+		const modeArg = body.match(/^\/mode\s+(agent|plan|ask|yolo|free)\b/i)?.[1]?.toLowerCase() as RunModeName | undefined;
 		if (engineKind !== 'dsh') {
 			if (modeArg && modeArg !== runMode) {
 				setRunMode(modeArg);

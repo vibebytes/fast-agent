@@ -7,12 +7,12 @@ export function parseEngineKind(raw?: string | null): EngineKind {
 	return (raw ?? '').trim().toLowerCase() === 'dsh' ? 'dsh' : 'fast';
 }
 
-type WireRunMode = 'agent' | 'plan' | 'ask' | 'yolo';
+type WireRunMode = 'agent' | 'plan' | 'ask' | 'yolo' | 'free';
 
-/** Only the four composer modes travel: anything else would be parsed as agent. */
+/** Only the five composer modes travel: anything else would be parsed as agent. */
 function visibleRunMode(raw?: string | null): WireRunMode | undefined {
 	const mode = (raw ?? '').trim().toLowerCase();
-	return mode === 'agent' || mode === 'plan' || mode === 'ask' || mode === 'yolo'
+	return mode === 'agent' || mode === 'plan' || mode === 'ask' || mode === 'yolo' || mode === 'free'
 		? mode
 		: undefined;
 }

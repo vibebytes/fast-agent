@@ -57,14 +57,15 @@ trait DshAsk:
             case NonFatal(e) =>
               RouteResult("rejected", "", Option(e.getMessage).filter(_.nonEmpty).getOrElse("respond"))
 
-  /** Yolo is unattended: answer the engine's ask here instead of surfacing a card.
-    * The deny list is the whole policy: blacklisted shell commands and credential
+  /** Yolo and Free are unattended: answer the engine's ask here instead of surfacing a card.
+    * The deny list is the whole policy: blacklisted shell commands and (in Yolo only) credential
     * roots stay refused; everything else is allowed once.
     * The river still settles on the engine's `approval/done`, exactly as a manual answer.
     */
   private def yoloApproval(parent: String, b: Binding, asked: Mux.ApprovalAsked): Unit =
     val context = asked.callId.flatMap(b.toolArgs.get).getOrElse("")
-    val blocked = yoloRefusal(dshTool(asked.tool), context)
+    val allowSensitive = b.mode == RunMode.Free
+    val blocked = yoloRefusal(dshTool(asked.tool), context, allowSensitive = allowSensitive)
     val outcome = if blocked.isDefined then "rejected" else "allowed-once"
     if blocked.isDefined then log.warn(s"[yolo] refused ${asked.tool} sid=$parent: ${blocked.get}")
     else log.info(s"[yolo] approved ${asked.tool} sid=$parent context=${context.take(120)}")
@@ -80,14 +81,16 @@ trait DshAsk:
       .failed
       .foreach(e => log.error(s"[yolo] approval reply failed sid=$parent: ${e.getMessage}"))
 
-  /** Deny-list only: the reason a yolo ask is refused, or None to allow it once.
+  /** Deny-list only: the reason a yolo/free ask is refused, or None to allow it once.
     * `context` is already the tool's path or command ([[dshContext]]), not the args JSON. */
-  private def yoloRefusal(tool: String, context: String): Option[String] =
+  private def yoloRefusal(tool: String, context: String, allowSensitive: Boolean = false): Option[String] =
     val raw = context.trim
     if raw.isEmpty then None
     else if tool == "shell" then
       val words = raw.split("\\s+").toList.map(bareWord)
-      DangerousCommands.denyReason(raw).orElse(credentialPath(words))
+      val deny = DangerousCommands.denyReason(raw, allowSensitiveRead = allowSensitive)
+      if allowSensitive then deny else deny.orElse(credentialPath(words))
+    else if allowSensitive then None
     else credentialPath(List(bareWord(raw)))
 
   private def credentialPath(candidates: List[String]): Option[String] =
@@ -98,8 +101,8 @@ trait DshAsk:
   private[dsh] def onAsked(asked: Mux.ApprovalAsked): Unit =
     resolveHost(asked.sessionId): parent =>
       lock.synchronized:
-        val yolo = bindings.get(parent).exists(_.mode == RunMode.Yolo)
-        if yolo then bindings.get(parent).foreach(b => yoloApproval(parent, b, asked))
+        val unattended = bindings.get(parent).exists(b => b.mode == RunMode.Yolo || b.mode == RunMode.Free)
+        if unattended then bindings.get(parent).foreach(b => yoloApproval(parent, b, asked))
         else bindings.get(parent).foreach: b =>
           val runId = if asked.sessionId == parent then b.liveRunId.getOrElse("") else ""
           val pending = PendingApproval(asked.approvalId, asked.rpcId, asked.sessionId)

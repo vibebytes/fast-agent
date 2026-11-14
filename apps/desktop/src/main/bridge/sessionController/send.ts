@@ -283,6 +283,16 @@ test('first submit carries the composer-visible mode onto the wire', () => {
 	const next = controller.createTask('Next');
 	assert.equal(controller.getActiveTask()?.id, next.id);
 	assert.equal(next.runMode, 'yolo');
+
+	controller.acceptNewSession('sess-free', next.id);
+	controller.handleEvent({type: 'Attached', sessionId: 'sess-free', clientId: 'cli'});
+	sent.length = 0;
+	assert.equal(controller.sendMessage('hi free', undefined, next.id, undefined, 'free'), true);
+	const submitFree = sent.find(c => c.type === 'SubmitUserMessage');
+	assert.ok(submitFree && submitFree.type === 'SubmitUserMessage');
+	if (submitFree?.type === 'SubmitUserMessage') assert.equal(submitFree.mode, 'free');
+	assert.equal(controller.runMode, 'free');
+	assert.equal(controller.getActiveTask()?.runMode, 'free');
 });
 test('SubmitUserMessage passthrough mentions; busy submit keeps chips', () => {
 	const sent: BridgeCommand[] = [];

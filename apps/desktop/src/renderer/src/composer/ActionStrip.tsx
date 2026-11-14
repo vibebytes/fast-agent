@@ -25,7 +25,7 @@ import type {MentionRichInputHandle} from '../MentionRichInput';
 import type {ModelCatalogEntry} from '../env';
 import type {RefObject} from 'react';
 
-const RUN_MODES = ['agent', 'plan', 'ask', 'yolo'] as const;
+const RUN_MODES = ['agent', 'plan', 'ask', 'yolo', 'free'] as const;
 type RunModeName = (typeof RUN_MODES)[number];
 
 export function ActionStrip(p: {

@@ -247,4 +247,10 @@ test('submitUserText sends the composer-visible runMode and keeps plan builds in
 	composer.submitUserText('ship it', undefined, {planId: 'p1'}, undefined, {runMode: 'yolo'});
 	assert.equal(sent[0]?.mode, 'agent');
 	assert.deepEqual(applied, ['yolo']);
+
+	sent.length = 0;
+	applied.length = 0;
+	composer.submitUserText('run in vm', undefined, undefined, undefined, {runMode: 'free'});
+	assert.equal(sent[0]?.mode, 'free');
+	assert.deepEqual(applied, ['free']);
 });

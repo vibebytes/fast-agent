@@ -58,7 +58,7 @@ export type TaskRecord = {
 	model: string;
 	modelDisplay: string;
 	/** Sticky Composer Mode / sampling (IDE chrome; mirrors session sticky). */
-	runMode: 'agent' | 'plan' | 'ask' | 'yolo';
+	runMode: 'agent' | 'plan' | 'ask' | 'yolo' | 'free';
 	/** Conversation engine: Fast (default) or DSH. */
 	engineKind: 'fast' | 'dsh';
 	effort?: string;
@@ -259,7 +259,7 @@ export type TaskView = {
 	readonly tasksHydrated: boolean;
 	model: string;
 	modelDisplay: string;
-	runMode: 'agent' | 'plan' | 'ask' | 'yolo';
+	runMode: 'agent' | 'plan' | 'ask' | 'yolo' | 'free';
 	engineKind: 'fast' | 'dsh';
 	availableEngineIds(): string[];
 	effort?: string;
