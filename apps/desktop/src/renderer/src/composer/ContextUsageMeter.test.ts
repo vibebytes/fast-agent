@@ -5,7 +5,10 @@ import {
 	buildMeterRingGeometry,
 	buildMeterPillLabel,
 	buildBreakdownSegments,
-	formatUsageCost
+	computeCacheFreshness,
+	formatCompactElapsed,
+	formatUsageCost,
+	PROMPT_CACHE_IDLE_TTL_MS
 } from './ContextUsageMeter.js';
 
 const sampleView: ContextUsageView = {
@@ -74,3 +77,51 @@ test('formatUsageCost reads costAmount/costCurrency and the legacy cost key', ()
 	assert.equal(formatUsageCost({costAmount: '', costCurrency: 'USD'}), null);
 	assert.equal(formatUsageCost(undefined), null);
 });
+
+test('formatCompactElapsed and computeCacheFreshness track active streak, rebuild, and TTL expiry', () => {
+	assert.equal(formatCompactElapsed(12_000), '12s');
+	assert.equal(formatCompactElapsed(140_000), '2m 20s');
+	assert.equal(formatCompactElapsed(720_000), '12m');
+	assert.equal(formatCompactElapsed(3_900_000), '1h 5m');
+
+	const baseNow = 1_700_000_000_000;
+	const active = computeCacheFreshness(
+		{
+			...sampleView,
+			cacheStatus: 'hit',
+			cacheHitStreak: 4,
+			cacheStartedAt: baseNow - 180_000,
+			lastCacheHitAt: baseNow - 30_000
+		},
+		baseNow
+	);
+	assert.ok(active);
+	assert.equal(active.status, 'hit');
+	assert.equal(active.streak, 4);
+	assert.equal(active.idleElapsedMs, 30_000);
+	assert.equal(active.activeSpanMs, 180_000);
+	assert.equal(active.likelyExpired, false);
+
+	const expired = computeCacheFreshness(
+		{
+			...sampleView,
+			cacheStatus: 'hit',
+			cacheHitStreak: 2,
+			lastCacheHitAt: baseNow - PROMPT_CACHE_IDLE_TTL_MS - 5_000
+		},
+		baseNow
+	);
+	assert.equal(expired?.likelyExpired, true);
+
+	const cold = computeCacheFreshness(
+		{
+			...sampleView,
+			cacheReadTokens: 0,
+			cacheWriteTokens: 0,
+			cacheStatus: 'miss'
+		},
+		baseNow
+	);
+	assert.equal(cold, null);
+});
+

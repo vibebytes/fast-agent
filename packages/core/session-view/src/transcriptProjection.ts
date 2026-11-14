@@ -81,6 +81,7 @@ export type {
 	PendingApproval,
 	PendingQuestion,
 	PendingQuestionBatch,
+	PromptCacheStatus,
 	QuestionBatchIntent,
 	QuestionBatchItem,
 	QuestionBatchOption,

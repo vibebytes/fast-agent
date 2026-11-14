@@ -1,5 +1,5 @@
 import type {DshDeltaCaps} from '../wire/session.js';
-import type {ContextPruneView, TranscriptState, UsageView} from './state.js';
+import type {ContextPruneView, PromptCacheStatus, TranscriptState, UsageView} from './state.js';
 
 /** One token/cost bucket row for the footer tooltip. */
 export type UsageBucketRow = {
@@ -183,6 +183,16 @@ export type ContextUsageView = {
 	totalTokens: number;
 	/** Rounded 0..100 cache hit rate (`cache_read / input`). */
 	cacheHitPercent?: number;
+	/** Method-A inferred prompt cache status across turns (`hit` | `warmed` | `rebuilt` | `miss`). */
+	cacheStatus?: PromptCacheStatus;
+	/** Consecutive usage updates hitting/warming the current cached prefix without rebuild. */
+	cacheHitStreak?: number;
+	/** Client epoch ms when the current prompt-cache prefix was established or rebuilt. */
+	cacheStartedAt?: number;
+	/** Client epoch ms when `cache_read > 0` or `cache_write > 0` was last observed. */
+	lastCacheHitAt?: number;
+	/** Previous turn's cached prefix tokens when a cache rebuild/invalidation was detected. */
+	prevCacheReadTokens?: number;
 	/** Context composition segments (system+memory, tools, summary, messages). */
 	breakdown: ContextBreakdownItem[];
 	/** Raw metadata (model, provider, cost). */
@@ -320,6 +330,11 @@ export function contextUsage(
 		cacheWriteTokens,
 		totalTokens,
 		...(cacheHitPercent !== undefined ? {cacheHitPercent} : {}),
+		...(usage.cacheStatus !== undefined ? {cacheStatus: usage.cacheStatus} : {}),
+		...(usage.cacheHitStreak !== undefined ? {cacheHitStreak: usage.cacheHitStreak} : {}),
+		...(usage.cacheStartedAt !== undefined ? {cacheStartedAt: usage.cacheStartedAt} : {}),
+		...(usage.lastCacheHitAt !== undefined ? {lastCacheHitAt: usage.lastCacheHitAt} : {}),
+		...(usage.prevCacheReadTokens !== undefined ? {prevCacheReadTokens: usage.prevCacheReadTokens} : {}),
 		breakdown,
 		...(usage.raw ? {raw: usage.raw} : {})
 	};

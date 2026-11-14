@@ -4,6 +4,7 @@ import type {
 	CompactingView,
 	ContextPruneView,
 	GoalFlowMember,
+	PromptCacheStatus,
 	TranscriptEntry,
 	TranscriptState,
 	UsageView
@@ -94,11 +95,65 @@ export function applyUsageReported(
 			? event.turnId.trim()
 			: undefined;
 	const raw = stringRaw((event as {raw?: unknown}).raw);
+	const buckets = numericBuckets((event as {buckets?: unknown}).buckets);
+	const now = Date.now();
+	const prev = state.usage;
+	const prevRead = Math.max(0, prev?.buckets.cache_read ?? 0);
+	const prevWrite = Math.max(0, prev?.buckets.cache_write ?? 0);
+	const prevCachedPrefix = Math.max(prevRead, prevWrite);
+	const currRead = Math.max(0, buckets.cache_read ?? 0);
+	const currWrite = Math.max(0, buckets.cache_write ?? 0);
+	const hasCurrCache = currRead > 0 || currWrite > 0;
+
+	let cacheStatus: PromptCacheStatus;
+	let cacheHitStreak: number;
+	let cacheStartedAt: number | undefined;
+	let lastCacheHitAt: number | undefined;
+	let prevCacheReadTokens: number | undefined;
+
+	// A sharp drop in cache_read (< 50% of the prior cached prefix, when prior prefix was non-trivial)
+	// indicates the server-side prompt cache prefix/ID was invalidated or expired and rebuilt.
+	const droppedSharply =
+		prevCachedPrefix >= 1024 && currRead < prevCachedPrefix * 0.5;
+
+	if (droppedSharply) {
+		cacheStatus = 'rebuilt';
+		cacheHitStreak = hasCurrCache ? 1 : 0;
+		cacheStartedAt = hasCurrCache ? now : undefined;
+		lastCacheHitAt = hasCurrCache ? now : prev?.lastCacheHitAt;
+		prevCacheReadTokens = prevCachedPrefix;
+	} else if (currRead > 0) {
+		const hadActiveCache = (prev?.cacheHitStreak ?? 0) > 0 && prevCachedPrefix > 0;
+		cacheStatus = hadActiveCache ? 'hit' : 'warmed';
+		cacheHitStreak = hadActiveCache ? (prev?.cacheHitStreak ?? 0) + 1 : 1;
+		cacheStartedAt = hadActiveCache ? (prev?.cacheStartedAt ?? now) : now;
+		lastCacheHitAt = now;
+	} else if (currWrite > 0) {
+		cacheStatus = 'warmed';
+		cacheHitStreak = 1;
+		cacheStartedAt = now;
+		lastCacheHitAt = now;
+	} else {
+		cacheStatus = prevCachedPrefix > 0 ? 'rebuilt' : 'miss';
+		cacheHitStreak = 0;
+		cacheStartedAt = undefined;
+		lastCacheHitAt = prev?.lastCacheHitAt;
+		if (prevCachedPrefix > 0) {
+			prevCacheReadTokens = prevCachedPrefix;
+		}
+	}
+
 	const usage: UsageView = {
 		runId,
 		...(turnId ? {turnId} : {}),
-		buckets: numericBuckets((event as {buckets?: unknown}).buckets),
-		...(raw ? {raw} : {})
+		buckets,
+		...(raw ? {raw} : {}),
+		updatedAt: now,
+		...(cacheStartedAt !== undefined ? {cacheStartedAt} : {}),
+		...(lastCacheHitAt !== undefined ? {lastCacheHitAt} : {}),
+		cacheHitStreak,
+		cacheStatus,
+		...(prevCacheReadTokens !== undefined ? {prevCacheReadTokens} : {})
 	};
 	return {...state, usage};
 }

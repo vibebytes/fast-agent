@@ -1,14 +1,15 @@
-import {useState} from 'react';
+import {useEffect, useState} from 'react';
 import {useTranslation} from 'react-i18next';
 import {
 	formatCompactTokens,
 	type ContextBreakdownCategory,
-	type ContextUsageView
+	type ContextUsageView,
+	type PromptCacheStatus
 } from '@fast-ide/session-view';
 import {InputGroupButton} from '@fast-ide/ui/components/input-group';
 import {Popover, PopoverContent, PopoverTrigger} from '@fast-ide/ui/components/popover';
 import {cn} from '@fast-ide/ui/lib/utils';
-import { Minimize2, Sparkles } from 'lucide-react';
+import { Minimize2, RefreshCw, Sparkles } from 'lucide-react';
 
 export type BreakdownKey = ContextBreakdownCategory;
 
@@ -115,6 +116,71 @@ export function formatUsageCost(raw: Record<string, string> | undefined): string
 	return currency ? `${amount} ${currency}` : amount;
 }
 
+/** Standard server-side prompt cache idle TTL window (5 minutes across OpenAI / Anthropic / DeepSeek). */
+export const PROMPT_CACHE_IDLE_TTL_MS = 5 * 60 * 1000;
+
+export type CacheFreshnessInfo = {
+	status: PromptCacheStatus;
+	/** Elapsed ms since the last cache hit/write. */
+	idleElapsedMs?: number;
+	/** Total ms the current cached prefix has stayed alive without rebuild. */
+	activeSpanMs?: number;
+	/** True when `idleElapsedMs >= PROMPT_CACHE_IDLE_TTL_MS`, meaning server cache likely expired from inactivity. */
+	likelyExpired: boolean;
+	streak: number;
+};
+
+/** Format millisecond span into compact Chinese/English friendly duration (`12s`, `3m 20s`, `18m`). */
+export function formatCompactElapsed(ms: number): string {
+	const totalSec = Math.max(0, Math.floor(ms / 1000));
+	if (totalSec < 60) return `${totalSec}s`;
+	const mins = Math.floor(totalSec / 60);
+	const secs = totalSec % 60;
+	if (mins < 10 && secs > 0) return `${mins}m ${secs}s`;
+	if (mins < 60) return `${mins}m`;
+	const hours = Math.floor(mins / 60);
+	const remMins = mins % 60;
+	return remMins > 0 ? `${hours}h ${remMins}m` : `${hours}h`;
+}
+
+/** Compute Method-A prompt cache freshness & status descriptor at timestamp `nowMs`. */
+export function computeCacheFreshness(
+	view: ContextUsageView,
+	nowMs = Date.now()
+): CacheFreshnessInfo | null {
+	const status: PromptCacheStatus | undefined =
+		view.cacheStatus ??
+		(view.cacheReadTokens > 0
+			? 'hit'
+			: view.cacheWriteTokens > 0
+				? 'warmed'
+				: undefined);
+	if (!status || (status === 'miss' && !view.lastCacheHitAt && !view.prevCacheReadTokens)) {
+		return null;
+	}
+	const idleElapsedMs =
+		typeof view.lastCacheHitAt === 'number' && view.lastCacheHitAt > 0
+			? Math.max(0, nowMs - view.lastCacheHitAt)
+			: undefined;
+	const activeSpanMs =
+		typeof view.cacheStartedAt === 'number' && view.cacheStartedAt > 0
+			? Math.max(0, nowMs - view.cacheStartedAt)
+			: undefined;
+	const likelyExpired =
+		idleElapsedMs !== undefined && idleElapsedMs >= PROMPT_CACHE_IDLE_TTL_MS;
+	const streak = Math.max(
+		0,
+		view.cacheHitStreak ?? (view.cacheReadTokens > 0 || view.cacheWriteTokens > 0 ? 1 : 0)
+	);
+	return {
+		status,
+		...(idleElapsedMs !== undefined ? {idleElapsedMs} : {}),
+		...(activeSpanMs !== undefined ? {activeSpanMs} : {}),
+		likelyExpired,
+		streak
+	};
+}
+
 export function ContextUsageMeter(props: {
 	usage: ContextUsageView | null;
 	compacting?: boolean;
@@ -124,6 +190,14 @@ export function ContextUsageMeter(props: {
 	const {usage, compacting = false, canCompact = false, onCompact} = props;
 	const {t} = useTranslation();
 	const [open, setOpen] = useState(false);
+	const [nowMs, setNowMs] = useState(() => Date.now());
+
+	useEffect(() => {
+		if (!open) return;
+		setNowMs(Date.now());
+		const timer = setInterval(() => setNowMs(Date.now()), 5_000);
+		return () => clearInterval(timer);
+	}, [open, usage?.lastCacheHitAt, usage?.runId]);
 
 	if (!usage && !compacting) return null;
 
@@ -132,6 +206,7 @@ export function ContextUsageMeter(props: {
 	const pill = usage ? buildMeterPillLabel(usage) : null;
 	const segments = usage ? buildBreakdownSegments(usage) : [];
 	const costLabel = usage ? formatUsageCost(usage.raw) : null;
+	const cacheFreshness = usage ? computeCacheFreshness(usage, nowMs) : null;
 
 	const ringColorClass =
 		effectiveLevel === 'danger'
@@ -323,16 +398,61 @@ export function ContextUsageMeter(props: {
 									{formatCompactTokens(usage.inputTokens)} / {formatCompactTokens(usage.outputTokens)}
 								</span>
 							</div>
-							{usage.cacheReadTokens > 0 ? (
+							{usage.cacheReadTokens > 0 || usage.cacheWriteTokens > 0 ? (
 								<div className="flex items-center justify-between text-muted-foreground">
 									<span className="flex items-center gap-1">
 										<Sparkles className="size-3 text-emerald-500" />
 										<span>{t('shell.composer.contextCacheHit', {defaultValue: '缓存命中'})}</span>
 									</span>
 									<span className="font-medium text-emerald-600 dark:text-emerald-400">
-										{formatCompactTokens(usage.cacheReadTokens)}
+										{usage.cacheReadTokens > 0
+											? formatCompactTokens(usage.cacheReadTokens)
+											: formatCompactTokens(usage.cacheWriteTokens)}
 										{typeof usage.cacheHitPercent === 'number'
 											? ` (${Math.round(usage.cacheHitPercent)}%)`
+											: ''}
+									</span>
+								</div>
+							) : null}
+							{cacheFreshness ? (
+								<div className="flex items-center justify-between gap-2 text-muted-foreground">
+									<span className="flex items-center gap-1 shrink-0">
+										{cacheFreshness.status === 'rebuilt' || cacheFreshness.likelyExpired ? (
+											<RefreshCw className="size-3 text-amber-500" />
+										) : (
+											<span className="size-1.5 rounded-full bg-emerald-500 mx-0.5" />
+										)}
+										<span>{t('shell.composer.contextCacheState', {defaultValue: '缓存状态'})}</span>
+									</span>
+									<span
+										className={cn(
+											'font-medium truncate text-right',
+											cacheFreshness.status === 'rebuilt' || cacheFreshness.likelyExpired
+												? 'text-amber-600 dark:text-amber-400'
+												: 'text-foreground/90'
+										)}
+									>
+										{cacheFreshness.status === 'rebuilt'
+											? t('shell.composer.contextCacheRebuilt', {
+													defaultValue: '已重建'
+												})
+											: cacheFreshness.likelyExpired
+												? t('shell.composer.contextCacheLikelyExpired', {
+														defaultValue: '可能已过期'
+													})
+												: cacheFreshness.status === 'warmed'
+													? t('shell.composer.contextCacheWarmed', {
+															defaultValue: '刚建立'
+														})
+													: t('shell.composer.contextCacheActiveStreak', {
+															count: cacheFreshness.streak,
+															defaultValue: `连续命中 ${cacheFreshness.streak} 轮`
+														})}
+										{cacheFreshness.idleElapsedMs !== undefined
+											? ` · ${t('shell.composer.contextCacheIdleAgo', {
+													elapsed: formatCompactElapsed(cacheFreshness.idleElapsedMs),
+													defaultValue: `${formatCompactElapsed(cacheFreshness.idleElapsedMs)}前更新`
+												})}`
 											: ''}
 									</span>
 								</div>

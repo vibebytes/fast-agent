@@ -306,3 +306,57 @@ test('starting a new turn in the same session keeps previous context usage until
 	assert.equal(contextUsage(state, {modelContextWindow: 128_000})?.usedTokens, 56_000);
 });
 
+test('Method-A prompt cache tracking infers warmed -> hit streak -> rebuilt across turns', () => {
+	let state = createTranscriptState();
+
+	// Turn 1: initial cache warm-up
+	state = applyBridgeEvent(state, {
+		type: 'usage_reported',
+		runId: 'r1',
+		turnId: 't1',
+		buckets: {input: 20_000, output: 500, cache_read: 16_000}
+	});
+	const u1 = contextUsage(state);
+	assert.equal(u1?.cacheStatus, 'warmed');
+	assert.equal(u1?.cacheHitStreak, 1);
+	assert.equal(typeof u1?.cacheStartedAt, 'number');
+	assert.equal(typeof u1?.lastCacheHitAt, 'number');
+
+	// Turn 2: prefix grows, cache hit continues
+	state = applyBridgeEvent(state, {
+		type: 'usage_reported',
+		runId: 'r2',
+		turnId: 't2',
+		buckets: {input: 25_000, output: 600, cache_read: 20_000}
+	});
+	const u2 = contextUsage(state);
+	assert.equal(u2?.cacheStatus, 'hit');
+	assert.equal(u2?.cacheHitStreak, 2);
+	assert.equal(u2?.cacheStartedAt, u1?.cacheStartedAt);
+
+	// Turn 3: cache_read drops sharply (e.g., TTL expired or prefix mutated) -> rebuilt
+	state = applyBridgeEvent(state, {
+		type: 'usage_reported',
+		runId: 'r3',
+		turnId: 't3',
+		buckets: {input: 28_000, output: 400, cache_read: 2_000}
+	});
+	const u3 = contextUsage(state);
+	assert.equal(u3?.cacheStatus, 'rebuilt');
+	assert.equal(u3?.cacheHitStreak, 1);
+	assert.equal(u3?.prevCacheReadTokens, 20_000);
+
+	// Turn 4: complete cache miss after prior cache -> rebuilt with streak 0
+	state = applyBridgeEvent(state, {
+		type: 'usage_reported',
+		runId: 'r4',
+		turnId: 't4',
+		buckets: {input: 30_000, output: 400, cache_read: 0}
+	});
+	const u4 = contextUsage(state);
+	assert.equal(u4?.cacheStatus, 'rebuilt');
+	assert.equal(u4?.cacheHitStreak, 0);
+	assert.equal(u4?.prevCacheReadTokens, 2_000);
+});
+
+

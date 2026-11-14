@@ -142,6 +142,7 @@ export {
 	type PendingApproval,
 	type PendingQuestion,
 	type PendingQuestionBatch,
+	type PromptCacheStatus,
 	type TranscriptSubagent,
 	type QuestionBatchItem,
 	type QuestionBatchIntent,

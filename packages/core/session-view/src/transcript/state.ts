@@ -205,6 +205,15 @@ export type LiveChildWork = {
 	startedAt: number;
 };
 
+/**
+ * Method-A client-side prompt cache state inferred across turns within the session:
+ * - `hit`: `cache_read` continued or grew from the prior cached prefix
+ * - `warmed`: first turn establishing cache (`cache_read > 0` or `cache_write > 0` from cold state)
+ * - `rebuilt`: prior turn had a cached prefix, and this turn's `cache_read` dropped sharply (<50% of previous cached tokens or 0), indicating prefix/cache-id invalidation or TTL expiry
+ * - `miss`: no cache hit and no prior cached prefix
+ */
+export type PromptCacheStatus = 'hit' | 'warmed' | 'rebuilt' | 'miss';
+
 /** Token/cost buckets from `usage_reported` (Bridge DSH delta). */
 export type UsageView = {
 	runId: string;
@@ -213,6 +222,18 @@ export type UsageView = {
 	buckets: Record<string, number>;
 	/** Free-form raw fields the engine attached (model, provider, …). */
 	raw?: Record<string, string>;
+	/** Client epoch ms when this usage report arrived. */
+	updatedAt?: number;
+	/** Client epoch ms when the current prompt-cache prefix was first established or rebuilt. */
+	cacheStartedAt?: number;
+	/** Client epoch ms when `cache_read > 0` or `cache_write > 0` was last observed. */
+	lastCacheHitAt?: number;
+	/** Consecutive usage updates that hit or warmed the current prompt cache without rebuild. */
+	cacheHitStreak?: number;
+	/** Method-A inferred prompt cache status on the latest turn. */
+	cacheStatus?: PromptCacheStatus;
+	/** Previous turn's `cache_read` tokens when a transition occurred (useful when `rebuilt`). */
+	prevCacheReadTokens?: number;
 };
 
 /** One `context_pruned` notice — ids dropped from the model window. */
