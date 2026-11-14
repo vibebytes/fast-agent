@@ -12,6 +12,7 @@ import {
 	createComposerSend,
 	createTaskLifecycle,
 	parseEngineKind,
+	resolveComposerChrome,
 	wireUseModel,
 	type SessionMetaInfo
 } from '@fast-ide/session-view';
@@ -188,7 +189,16 @@ export function createSessionGlue(h: SessionGlueHost): SessionGlue {
 			return true;
 		},
 		touchLastModified: task => h.touchLastModified(task),
-		useModelOf: (model, modelDisplay) => wireUseModel(model ?? '', modelDisplay ?? ''),
+		useModelOf: (model, modelDisplay) => {
+			const explicit = wireUseModel(model ?? '', modelDisplay ?? '');
+			if (explicit) return explicit;
+			const fallback = resolveComposerChrome(
+				h.catalog.modelCatalog,
+				model ?? '',
+				modelDisplay ?? ''
+			);
+			return fallback ? (wireUseModel(fallback.id, fallback.display) ?? fallback.id) : undefined;
+		},
 		catalogHas: ref => h.catalog.catalogHas(ref ?? ''),
 		submitThinking: () => h.catalog.submitThinking(),
 		titleGenRequested: h.titleGenRequested,

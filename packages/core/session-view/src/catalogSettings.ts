@@ -197,6 +197,15 @@ export function createCatalogSettings<T extends CatalogSettingsTaskLike>(
 		if (pick && (model !== pick.id || modelDisplay !== pick.display)) {
 			applyModel(pick.id, pick.display);
 		}
+		if (pick) {
+			for (const t of deps.tasks.values()) {
+				if (isPlaceholderModelDisplay(t.model) && isUnresolvedModelDisplay(t.modelDisplay)) {
+					t.model = pick.id;
+					t.modelDisplay = pick.display;
+					deps.tasks.set(t.id, t);
+				}
+			}
+		}
 		deps.onChange?.();
 	};
 

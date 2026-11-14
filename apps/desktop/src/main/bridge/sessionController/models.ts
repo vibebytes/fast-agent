@@ -408,3 +408,61 @@ test('model selection is remembered per task across selectTask', () => {
 	assert.equal(controller.modelDisplay, 'gpt-4o');
 	assert.equal(controller.getActiveTask()?.model, 'gpt-4o');
 });
+
+test('submit on a task with unresolved model falls back to the catalog model shown in Composer', () => {
+	const sent: BridgeCommand[] = [];
+	const controller = new SessionController({
+		clientId: 'cli',
+		send: cmd => {
+			sent.push(cmd);
+			return true;
+		},
+		createId: () => 'msg-cat-fallback'
+	});
+	const first = controller.createTask('First');
+	const second = controller.createTask('Second');
+	controller.acceptNewSession('sess-1', first.id);
+	controller.handleEvent({type: 'Attached', sessionId: 'sess-1', clientId: 'cli'});
+	controller.acceptNewSession('sess-2', second.id);
+	controller.handleEvent({type: 'Attached', sessionId: 'sess-2', clientId: 'cli'});
+
+	// First task already has a non-default model when catalog arrives, leaving Second at 'default'
+	controller.selectTask(first.id);
+	controller.requestModelList();
+	controller.handleEvent({
+		type: 'command_result',
+		name: 'model',
+		message: '* default\n  zhipu/glm-5.2\n',
+		status: 'success'
+	});
+	assert.equal(controller.selectModel('zhipu/glm-5.2'), true);
+	controller.applyProviderCatalog([
+		{
+			id: 'deepseek/deepseek-v4-flash',
+			display: 'DeepSeek V4 Flash',
+			aliases: ['deepseek-v4-flash'],
+			current: false
+		},
+		{
+			id: 'zhipu/glm-5.2',
+			display: 'GLM-5.2',
+			aliases: ['glm-5.2'],
+			current: true
+		}
+	]);
+
+	// Switch to Second (still at 'default'), then create a brand new session without re-selecting model
+	controller.selectTask(second.id);
+	const third = controller.createTask('New Session');
+	controller.acceptNewSession('sess-3', third.id);
+	controller.handleEvent({type: 'Attached', sessionId: 'sess-3', clientId: 'cli'});
+
+	sent.length = 0;
+	assert.equal(controller.sendMessage('hello from new session'), true);
+	const submit = sent.find(c => c.type === 'SubmitUserMessage');
+	assert.ok(submit);
+	if (submit?.type === 'SubmitUserMessage') {
+		assert.equal(submit.useModel, 'zhipu/glm-5.2');
+	}
+});
+
