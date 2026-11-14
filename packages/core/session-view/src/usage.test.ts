@@ -502,3 +502,33 @@ test('context_pruned from a child run does not rescale the parent meter', () => 
 	assert.equal(contextUsage(state)?.usedTokens, 16_000);
 });
 
+test('usage_reported uses server reportedAt timestamp from raw so restored sessions compute real elapsed time', () => {
+	let state = createTranscriptState();
+	const serverReportedAt = 1_700_000_123_456;
+	state = applyBridgeEvent(state, {
+		type: 'usage_reported',
+		runId: 'r1',
+		turnId: 't1',
+		buckets: {input: 50_000, output: 500, cache_read: 48_000},
+		raw: {model: 'k3.1-pro', reportedAt: String(serverReportedAt)}
+	});
+	const u1 = contextUsage(state);
+	assert.equal(u1?.lastCacheHitAt, serverReportedAt);
+	assert.equal(u1?.lastCacheChangeAt, serverReportedAt);
+	assert.equal(u1?.cacheStartedAt, serverReportedAt);
+
+	// Subsequent hit with a later server timestamp updates lastCacheHitAt to the new server timestamp
+	const nextReportedAt = serverReportedAt + 65_000;
+	state = applyBridgeEvent(state, {
+		type: 'usage_reported',
+		runId: 'r2',
+		turnId: 't2',
+		buckets: {input: 55_000, output: 400, cache_read: 50_000},
+		raw: {model: 'k3.1-pro', reportedAt: String(nextReportedAt)}
+	});
+	const u2 = contextUsage(state);
+	assert.equal(u2?.lastCacheHitAt, nextReportedAt);
+	assert.equal(u2?.lastCacheChangeAt, serverReportedAt);
+});
+
+

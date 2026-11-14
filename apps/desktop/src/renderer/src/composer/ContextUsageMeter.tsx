@@ -198,9 +198,9 @@ export function ContextUsageMeter(props: {
 	useEffect(() => {
 		if (!open) return;
 		setNowMs(Date.now());
-		const timer = setInterval(() => setNowMs(Date.now()), 5_000);
+		const timer = setInterval(() => setNowMs(Date.now()), 1_000);
 		return () => clearInterval(timer);
-	}, [open, usage?.lastCacheHitAt, usage?.runId]);
+	}, [open, usage?.lastCacheHitAt, usage?.lastCacheChangeAt, usage?.runId, usage?.turnId]);
 
 	if (!usage && !compacting) return null;
 
@@ -210,10 +210,9 @@ export function ContextUsageMeter(props: {
 	const segments = usage ? buildBreakdownSegments(usage) : [];
 	const costLabel = usage ? formatUsageCost(usage.raw) : null;
 	const cacheFreshness = usage ? computeCacheFreshness(usage, nowMs) : null;
-	// "ago" tracks the last substantive cache change; legacy views without
-	// lastCacheChangeAt fall back to the last-hit timestamp.
+	// "ago" tracks the latest usage/cache update in real time; falls back to changeElapsedMs.
 	const cacheStateElapsedMs = cacheFreshness
-		? (cacheFreshness.changeElapsedMs ?? cacheFreshness.idleElapsedMs)
+		? (cacheFreshness.idleElapsedMs ?? cacheFreshness.changeElapsedMs)
 		: undefined;
 
 	const ringColorClass =

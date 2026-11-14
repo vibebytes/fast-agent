@@ -98,7 +98,8 @@ export function applyUsageReported(
 			: undefined;
 	const raw = stringRaw((event as {raw?: unknown}).raw);
 	const buckets = numericBuckets((event as {buckets?: unknown}).buckets);
-	const now = Date.now();
+	const reportedAtMs = raw?.reportedAt ? Number(raw.reportedAt) : NaN;
+	const now = Number.isFinite(reportedAtMs) && reportedAtMs > 0 ? reportedAtMs : Date.now();
 	const prev = state.usage;
 	const prevRead = Math.max(0, prev?.buckets.cache_read ?? 0);
 	const prevWrite = Math.max(0, prev?.buckets.cache_write ?? 0);
