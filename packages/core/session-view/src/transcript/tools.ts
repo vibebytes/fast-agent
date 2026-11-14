@@ -169,6 +169,18 @@ export function applyAgentCallStarted(
 	event: Extract<BridgeEvent, {type: 'agent_call_started'}>
 ): TranscriptState {
 	const runId = event.runId ?? '';
+	const next = applyAgentCallStartedRow(state, event);
+	if (!runId) return next;
+	// Register the delegation run so meter events keyed to it (usage_reported /
+	// context_pruned / context_compacting) never move the session meter.
+	return {...next, childRunIds: {...(state.childRunIds ?? {}), [runId]: true as const}};
+}
+
+function applyAgentCallStartedRow(
+	state: TranscriptState,
+	event: Extract<BridgeEvent, {type: 'agent_call_started'}>
+): TranscriptState {
+	const runId = event.runId ?? '';
 	const goalId = eventGoalId(event);
 	if (goalId) {
 		return upsertGoalFlowMember(state, {

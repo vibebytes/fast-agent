@@ -90,6 +90,8 @@ export function applyUsageReported(
 ): TranscriptState {
 	const runId = typeof event.runId === 'string' ? event.runId.trim() : '';
 	if (!runId) return state;
+	// Child runs share the session river; their usage never moves the session meter.
+	if (state.childRunIds?.[runId]) return state;
 	const turnId =
 		typeof event.turnId === 'string' && event.turnId.trim()
 			? event.turnId.trim()
@@ -173,6 +175,7 @@ export function applyContextPruned(
 ): TranscriptState {
 	const runId = typeof event.runId === 'string' ? event.runId.trim() : '';
 	if (!runId) return state;
+	if (state.childRunIds?.[runId]) return state;
 	const prunedIds = Array.isArray(event.prunedIds)
 		? event.prunedIds.filter((id): id is string => typeof id === 'string' && !!id.trim())
 		: [];
@@ -243,6 +246,7 @@ export function applyContextCompacting(
 ): TranscriptState {
 	const runId = typeof event.runId === 'string' ? event.runId.trim() : '';
 	if (!runId) return state;
+	if (state.childRunIds?.[runId]) return state;
 	const tokensBefore =
 		typeof event.tokensBefore === 'number' && Number.isFinite(event.tokensBefore)
 			? event.tokensBefore

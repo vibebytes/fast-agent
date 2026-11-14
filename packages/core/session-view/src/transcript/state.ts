@@ -371,6 +371,8 @@ export type TranscriptState = {
 	compacting?: CompactingView;
 	/** Per-child rolling transcript tails from `child_transcript_delta`. */
 	childTranscripts?: Record<string, ChildTranscriptView>;
+	/** Known subagent/child run ids (agent_call_started); their meter events never move the session meter. */
+	childRunIds?: Record<string, true>;
 };
 
 export function createTranscriptState(): TranscriptState {
@@ -384,7 +386,8 @@ export function createTranscriptState(): TranscriptState {
 		hasMoreOlder: false,
 		liveProcs: [],
 		liveTasks: [],
-		childWork: []
+		childWork: [],
+		childRunIds: {}
 	};
 }
 

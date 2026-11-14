@@ -424,4 +424,81 @@ test('usage tracking exposes lastCacheChangeAt that only moves on real cache cha
 	);
 });
 
+test('usage_reported from a child run does not overwrite the parent meter', () => {
+	let state = createTranscriptState();
+	state = applyBridgeEvent(state, {type: 'turn_started', turnId: 't1', clientMessageId: 't1', text: 'hi'});
+	state = applyBridgeEvent(state, {type: 'input_accepted', turnId: 'r-parent', clientMessageId: 't1'});
+	state = applyBridgeEvent(state, {
+		type: 'usage_reported',
+		runId: 'r-parent',
+		turnId: 'r-parent',
+		buckets: {input: 48_000, output: 800, context_used: 48_000, context_window: 128_000}
+	});
+	state = applyBridgeEvent(state, {
+		type: 'agent_call_started', turnId: 't1', agentId: 'a1', name: 'analyst', depth: 1, runId: 'run-child'
+	});
+	// Child run usage (small context) must not move the session meter.
+	state = applyBridgeEvent(state, {
+		type: 'usage_reported',
+		runId: 'run-child',
+		turnId: 'run-child',
+		buckets: {input: 300, output: 50, context_used: 300, context_window: 128_000}
+	});
+	assert.equal(contextUsage(state)?.usedTokens, 48_000);
+	assert.equal(contextUsage(state)?.runId, 'r-parent');
+
+	// Root-run usage still applies.
+	state = applyBridgeEvent(state, {
+		type: 'usage_reported',
+		runId: 'r-parent',
+		turnId: 'r-parent',
+		buckets: {input: 49_000, output: 900, context_used: 49_000, context_window: 128_000}
+	});
+	assert.equal(contextUsage(state)?.usedTokens, 49_000);
+});
+
+test('context_compacting from a child run does not touch the parent compacting state', () => {
+	let state = createTranscriptState();
+	state = applyBridgeEvent(state, {type: 'turn_started', turnId: 't1', clientMessageId: 't1', text: 'hi'});
+	state = applyBridgeEvent(state, {type: 'input_accepted', turnId: 'r-parent', clientMessageId: 't1'});
+	state = applyBridgeEvent(state, {
+		type: 'agent_call_started', turnId: 't1', agentId: 'a1', name: 'analyst', depth: 1, runId: 'run-child'
+	});
+	// Root run begins compacting…
+	state = applyBridgeEvent(state, {
+		type: 'context_compacting', runId: 'r-parent', trigger: 'auto', tokensBefore: 48_000
+	});
+	assert.equal(state.compacting?.runId, 'r-parent');
+
+	// …a child run's compacting must not overwrite it.
+	state = applyBridgeEvent(state, {
+		type: 'context_compacting', runId: 'run-child', trigger: 'auto', tokensBefore: 300
+	});
+	assert.equal(state.compacting?.runId, 'r-parent');
+	assert.equal(state.compacting?.tokensBefore, 48_000);
+});
+
+test('context_pruned from a child run does not rescale the parent meter', () => {
+	let state = createTranscriptState();
+	state = applyBridgeEvent(state, {type: 'turn_started', turnId: 't1', clientMessageId: 't1', text: 'hi'});
+	state = applyBridgeEvent(state, {
+		type: 'usage_reported',
+		runId: 'r-parent',
+		turnId: 'r-parent',
+		buckets: {input: 48_000, output: 800, context_used: 48_000, context_window: 128_000}
+	});
+	state = applyBridgeEvent(state, {
+		type: 'agent_call_started', turnId: 't1', agentId: 'a1', name: 'analyst', depth: 1, runId: 'run-child'
+	});
+	state = applyBridgeEvent(state, {
+		type: 'context_pruned', runId: 'run-child', prunedIds: ['c'], reason: 'manual', remainingTokens: 4_000
+	});
+	assert.equal(contextUsage(state)?.usedTokens, 48_000);
+
+	// Root-run prune still rescales the meter.
+	state = applyBridgeEvent(state, {
+		type: 'context_pruned', runId: 'r-parent', prunedIds: ['a', 'b'], reason: 'manual', remainingTokens: 16_000
+	});
+	assert.equal(contextUsage(state)?.usedTokens, 16_000);
+});
 
