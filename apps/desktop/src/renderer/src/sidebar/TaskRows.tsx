@@ -1,5 +1,5 @@
 import {shellT as t} from '../i18n/t';
-import {memo} from 'react';
+import {memo, useEffect, useState} from 'react';
 import {Button} from '@fast-ide/ui/components/button';
 import {
 	ContextMenu,
@@ -68,7 +68,14 @@ export function taskMenuPropsOf(
 
 function RowTime({iso}: {iso?: string}) {
 	const {i18n} = useTranslation();
-	const label = relativeLabel(iso, Date.now(), i18n.language);
+	const [nowMs, setNowMs] = useState(() => Date.now());
+	useEffect(() => {
+		if (!iso) return;
+		setNowMs(Date.now());
+		const timer = setInterval(() => setNowMs(Date.now()), 30_000);
+		return () => clearInterval(timer);
+	}, [iso]);
+	const label = relativeLabel(iso, nowMs, i18n.language);
 	if (!label) return null;
 	return (
 		<span className="pointer-events-none absolute top-1/2 right-2 max-w-[42%] -translate-y-1/2 truncate text-xs text-sidebar-muted-foreground group-hover/task:opacity-0">
