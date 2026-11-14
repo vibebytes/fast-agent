@@ -153,6 +153,8 @@ export type TimelineItem =
 			startedAt?: number;
 			/** Live wait/retry note from the workload wire (running subagent rows). */
 			statusNote?: string;
+			/** Delegation run id (agent_call_*); marks child-run routed tool rows. */
+			agentRunId?: string;
 			dshCard?: ToolCallView['dshCard'];
 	  }
 	| {

@@ -61,7 +61,11 @@ export function SubagentWorkCard({
 	caps?: DshDeltaCaps;
 }) {
 	const {t} = useTranslation();
-	const chrome = subagentCardChrome(item);
+	const chrome = subagentCardChrome({
+		mode: item.mode,
+		activity: item.activity,
+		status: item.status
+	});
 	const title = item.label.trim() || t('shell.subagent.untitled');
 	const preview = subagentPreviewLines(item.preview, 12);
 	const subscribeChildTail = useCallback(

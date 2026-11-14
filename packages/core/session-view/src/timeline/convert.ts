@@ -371,6 +371,7 @@ export function pushToolItem(items: TimelineItem[], tool: ToolCallView): void {
 		summary: formatToolArgs(tool.tool, tool.args),
 		startedAt: tool.startedAt,
 		...(tool.statusNote ? {statusNote: tool.statusNote} : {}),
+		...(tool.agentRunId ? {agentRunId: tool.agentRunId} : {}),
 		...(tool.dshCard ? {dshCard: tool.dshCard} : {})
 	});
 }
