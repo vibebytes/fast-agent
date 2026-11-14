@@ -233,5 +233,17 @@ test('context_pruned with remainingTokens rescales context_used and breakdown im
 		Math.abs(breakdownSum - 32_000) <= 4,
 		`breakdown must rescale to the remaining context, got ${breakdownSum}`
 	);
+
+	// Manual /compact runs under a fresh runId (r2) while state.usage still holds r1.
+	state = applyBridgeEvent(state, {
+		type: 'context_pruned',
+		runId: 'r2',
+		prunedIds: ['c'],
+		reason: 'manual',
+		remainingTokens: 16_000
+	});
+	const afterManual = contextUsage(state);
+	assert.equal(afterManual?.usedTokens, 16_000);
+	assert.equal(afterManual?.percent, 13);
 });
 

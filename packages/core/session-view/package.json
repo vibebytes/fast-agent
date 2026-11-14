@@ -9,7 +9,7 @@
 	"scripts": {
 		"build": "tsc -p tsconfig.build.json",
 		"typecheck": "tsc -p tsconfig.json --noEmit",
-		"test": "tsx --test src/*.test.ts && tsx --test src/perf/*.test.ts"
+		"test": "tsx --test src/*.test.ts src/timeline/*.test.ts && tsx --test src/perf/*.test.ts"
 	},
   "dependencies": {
     "@fastllm/bridge-protocol": "workspace:*"

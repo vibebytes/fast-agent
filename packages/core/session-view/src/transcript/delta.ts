@@ -145,9 +145,9 @@ export function applyContextPruned(
 		entry.waitState?.reason === COMPACTION_WAIT_REASON ? withoutWait(entry) : entry
 	);
 	// A prune produces no new usage_reported (no LLM call happened); rescale the
-	// meter to the remaining window so the ring drops the moment compaction lands.
+	// session-level meter to the remaining window (including manual /compact under a fresh runId).
 	const usage = closed.usage;
-	if (remaining !== undefined && usage && sameRunId(usage.runId, runId)) {
+	if (remaining !== undefined && usage) {
 		const prevUsed = usage.buckets.context_used ?? 0;
 		const scale = prevUsed > 0 ? remaining / prevUsed : 0;
 		const rescaled: Record<string, number> = {};
