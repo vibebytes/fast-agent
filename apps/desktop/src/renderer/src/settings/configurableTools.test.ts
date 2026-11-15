@@ -1,10 +1,16 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
+import {fileURLToPath} from 'node:url';
 import test from 'node:test';
 import type {ConfigurableTool} from '@fast-ide/session-view';
 import {visiblePluginTabs} from './pluginTabs.js';
 import {dialogControls, draftsFrom, modelRefOptions, submitToolForm, toolsSurface} from './toolForm.js';
+
+const LOCALES_DIR = path.resolve(
+	path.dirname(fileURLToPath(import.meta.url)),
+	'../../../../../../packages/core/i18n/locales'
+);
 
 function tool(patch: Partial<ConfigurableTool> = {}): ConfigurableTool {
 	return {
@@ -227,7 +233,7 @@ test('a model ref without a form still offers a dropdown', () => {
 
 test('origin labels exist in every locale', () => {
 	const locales = ['en', 'zh-CN', 'zh-TW', 'ja', 'ko', 'de', 'fr', 'es', 'pt-BR', 'ru'];
-	const dir = path.resolve(import.meta.dirname, '../../../../../../packages/core/i18n/locales');
+	const dir = LOCALES_DIR;
 	for (const locale of locales) {
 		const origin = JSON.parse(fs.readFileSync(path.join(dir, `${locale}.json`), 'utf8')).settings.plugins.tools.origin;
 		assert.equal(typeof origin?.builtin, 'string', `${locale} origin.builtin`);
@@ -243,7 +249,7 @@ test('origin labels exist in every locale', () => {
 test('media tool titles exist in every locale', () => {
 	const names = ['imageToImage', 'editImage', 'textToSpeech', 'transcribeAudio', 'generateVideo', 'imageToVideo', 'ocr', 'videoCaption'];
 	const locales = ['en', 'zh-CN', 'zh-TW', 'ja', 'ko', 'de', 'fr', 'es', 'pt-BR', 'ru'];
-	const dir = path.resolve(import.meta.dirname, '../../../../../../packages/core/i18n/locales');
+	const dir = LOCALES_DIR;
 	for (const locale of locales) {
 		const tools = JSON.parse(fs.readFileSync(path.join(dir, `${locale}.json`), 'utf8')).settings.plugins.tools;
 		for (const name of names) {
