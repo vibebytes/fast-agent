@@ -151,3 +151,25 @@ test('computeCacheFreshness exposes changeElapsedMs while idle TTL keeps using l
 	);
 });
 
+test('cache state age measures since the last cache change, not the last hit', () => {
+	const baseNow = 1_700_000_000_000;
+	const active = computeCacheFreshness(
+		{
+			...sampleView,
+			cacheStatus: 'hit',
+			cacheHitStreak: 20,
+			cacheStartedAt: baseNow - 600_000,
+			lastCacheChangeAt: baseNow - 600_000,
+			lastCacheHitAt: baseNow - 12_000
+		},
+		baseNow
+	);
+	assert.equal(active?.stateElapsedMs, 600_000);
+
+	const legacy = computeCacheFreshness(
+		{...sampleView, cacheStatus: 'hit', cacheHitStreak: 1, lastCacheHitAt: baseNow - 12_000},
+		baseNow
+	);
+	assert.equal(legacy?.stateElapsedMs, 12_000);
+});
+

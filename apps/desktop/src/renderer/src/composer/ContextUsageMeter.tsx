@@ -125,6 +125,8 @@ export type CacheFreshnessInfo = {
 	idleElapsedMs?: number;
 	/** Elapsed ms since the last substantive cache change (establish/rebuild/loss); steady hits do not move it. */
 	changeElapsedMs?: number;
+	/** Elapsed ms since the last cache change; legacy views fall back to the last hit. */
+	stateElapsedMs?: number;
 	/** Total ms the current cached prefix has stayed alive without rebuild. */
 	activeSpanMs?: number;
 	/** True when `idleElapsedMs >= PROMPT_CACHE_IDLE_TTL_MS`, meaning server cache likely expired from inactivity. */
@@ -174,10 +176,12 @@ export function computeCacheFreshness(
 		0,
 		view.cacheHitStreak ?? (view.cacheReadTokens > 0 || view.cacheWriteTokens > 0 ? 1 : 0)
 	);
+	const stateElapsedMs = changeElapsedMs ?? idleElapsedMs;
 	return {
 		status,
 		...(idleElapsedMs !== undefined ? {idleElapsedMs} : {}),
 		...(changeElapsedMs !== undefined ? {changeElapsedMs} : {}),
+		...(stateElapsedMs !== undefined ? {stateElapsedMs} : {}),
 		...(activeSpanMs !== undefined ? {activeSpanMs} : {}),
 		likelyExpired,
 		streak
@@ -210,10 +214,7 @@ export function ContextUsageMeter(props: {
 	const segments = usage ? buildBreakdownSegments(usage) : [];
 	const costLabel = usage ? formatUsageCost(usage.raw) : null;
 	const cacheFreshness = usage ? computeCacheFreshness(usage, nowMs) : null;
-	// "ago" tracks the latest usage/cache update in real time; falls back to changeElapsedMs.
-	const cacheStateElapsedMs = cacheFreshness
-		? (cacheFreshness.idleElapsedMs ?? cacheFreshness.changeElapsedMs)
-		: undefined;
+	const cacheStateElapsedMs = cacheFreshness?.stateElapsedMs;
 
 	const ringColorClass =
 		effectiveLevel === 'danger'
