@@ -6,6 +6,7 @@ import type {BridgeEvent} from '@fastllm/bridge-protocol';
 import type {
 	ComposerGate,
 	TaskBodySnapshot,
+	TaskSummary,
 	TasksMeta,
 	TasksSnapshot,
 	TranscriptPatch,
@@ -46,17 +47,16 @@ export type UiPublisherDeps = {
 };
 
 function mapEntry(
-	entry: {
-		id: string;
-		title: string;
+	entry: Pick<
+		TaskSummary,
+		'id' | 'title' | 'lastModified' | 'sessionType' | 'effort' | 'thinking'
+	> & {
 		kind: 'task' | 'chat';
 		sessionId: string | null;
-		lastModified?: string;
-		sessionType?: string;
 	},
 	activeId: string | null,
 	taskRunState?: ((taskId: string) => 'running' | 'completed-unseen' | null) | null
-) {
+): TaskSummary & {kind: 'task' | 'chat'; sessionId: string | null; active: boolean} {
 	const runState = taskRunState?.(entry.id) ?? null;
 	return {
 		id: entry.id,
@@ -66,7 +66,9 @@ function mapEntry(
 		active: activeId === entry.id,
 		...(runState ? {runState} : {}),
 		...(entry.lastModified ? {lastModified: entry.lastModified} : {}),
-		...(entry.sessionType ? {sessionType: entry.sessionType} : {})
+		...(entry.sessionType ? {sessionType: entry.sessionType} : {}),
+		...(entry.effort ? {effort: entry.effort} : {}),
+		...(entry.thinking !== undefined ? {thinking: entry.thinking} : {})
 	};
 }
 

@@ -275,3 +275,58 @@ test('cold pull fills body without owning focus', () => {
 	assert.equal(transcriptForTask(state, 'task-a').entries[0]?.text, 'from pull');
 	assert.equal(state.tasksMetaFromPush, false);
 });
+
+test('tasks:changed updates TaskSummary effort and thinking when only sampling changed', () => {
+	const state = fold([
+		{
+			type: 'tasks:changed',
+			payload: {
+				tasks: [{id: 'task-a', title: 'A', kind: 'task', sessionId: 's1', active: true}],
+				chats: [],
+				defaultTasks: [],
+				activeTaskId: 'task-a',
+				activeKind: 'task',
+				gate: idleGate,
+				model: 'default',
+				modelDisplay: 'Default',
+				modelCatalog: [],
+				slashCatalog: [],
+				slashCatalogHydrated: false,
+				queue: [],
+				queuePaused: false
+			}
+		},
+		{
+			type: 'tasks:changed',
+			payload: {
+				tasks: [
+					{
+						id: 'task-a',
+						title: 'A',
+						kind: 'task',
+						sessionId: 's1',
+						active: true,
+						effort: 'high',
+						thinking: false
+					}
+				],
+				chats: [],
+				defaultTasks: [],
+				activeTaskId: 'task-a',
+				activeKind: 'task',
+				gate: idleGate,
+				model: 'default',
+				modelDisplay: 'Default',
+				modelCatalog: [],
+				slashCatalog: [],
+				slashCatalogHydrated: false,
+				queue: [],
+				queuePaused: false
+			}
+		}
+	]);
+	const row = state.tasks.find(t => t.id === 'task-a');
+	assert.equal(row?.effort, 'high');
+	assert.equal(row?.thinking, false);
+});
+

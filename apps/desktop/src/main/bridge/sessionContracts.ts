@@ -1,6 +1,6 @@
 import type {BridgeCommand, BridgeEvent} from '@fastllm/bridge-protocol';
 import {pickIdList} from '@fastllm/bridge-protocol';
-import type {MentionChip} from '@fast-ide/session-view';
+import type {MentionChip, ModelSettingsInput} from '@fast-ide/session-view';
 import {
 	composerGate,
 	goalKeepsBusy,
@@ -94,12 +94,7 @@ export type SessionListInfo = {
 	/** Sticky session.engine_kind from Engine sessions_list (`dsh` or omitted). */
 	engineKind?: string | null;
 	/** Sticky session.model_settings from Engine sessions_list. */
-	modelSettings?: {
-		platform: string;
-		model: string;
-		effort?: string;
-		thinking?: boolean;
-	} | null;
+	modelSettings?: ModelSettingsInput | null;
 };
 
 /** Map a RerunRun rejection detail to a stable error code (renderer i18n key suffix). */
@@ -181,15 +176,7 @@ export type TaskCommands = {
 	/** Sticky engine Fast | DSH via SetEngineKind (existing session) or CreateSession (new). */
 	setEngineKind(kind: string, expectedTaskId?: string | null): boolean;
 	/** Sticky model_settings (platform/model/effort/thinking). */
-	setModelSettings(
-		settings: {
-			platform: string;
-			model: string;
-			effort?: string;
-			thinking?: boolean;
-		},
-		expectedTaskId?: string | null
-	): boolean;
+	setModelSettings(settings: ModelSettingsInput, expectedTaskId?: string | null): boolean;
 	removeQueueItem(itemId: string): boolean;
 	clearQueue(): boolean;
 	reorderQueue(fromIndex: number, toIndex: number): boolean;

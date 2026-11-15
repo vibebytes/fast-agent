@@ -36,7 +36,9 @@ export function sameTask(a: TaskSummary, b: TaskSummary): boolean {
 		a.sessionId === b.sessionId &&
 		Boolean(a.active) === Boolean(b.active) &&
 		(a.runState ?? null) === (b.runState ?? null) &&
-		(a.lastModified ?? null) === (b.lastModified ?? null)
+		(a.lastModified ?? null) === (b.lastModified ?? null) &&
+		(a.effort ?? null) === (b.effort ?? null) &&
+		(a.thinking ?? null) === (b.thinking ?? null)
 	);
 }
 

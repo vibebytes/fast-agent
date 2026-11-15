@@ -421,7 +421,7 @@ export const DialogueComposer = memo(function DialogueComposer({
 		setModelSearch('');
 		const entry = catalogEntryFor(modelCatalog, id);
 		if (!entry) {
-			void window.fastIde.selectModel(id);
+			void window.fastIde.selectModel(id, taskId);
 			return;
 		}
 		const {platform, model: catalogModel} = platformModel(entry);
@@ -430,8 +430,8 @@ export const DialogueComposer = memo(function DialogueComposer({
 		setEffort(nextEffort);
 		setThinking(nextThinking);
 		void Promise.all([
-			window.fastIde.selectModel(entry.id),
-			persistModelSettings(platform, catalogModel, nextEffort, nextThinking)
+			window.fastIde.selectModel(entry.id, taskId),
+			persistModelSettings(platform, catalogModel, nextEffort, nextThinking, taskId)
 		]);
 	}
 
@@ -469,7 +469,7 @@ export const DialogueComposer = memo(function DialogueComposer({
 		const entry = activeModelEntry;
 		if (!entry) return;
 		const {platform, model: catalogModel} = platformModel(entry);
-		void persistModelSettings(platform, catalogModel, next, thinking);
+		void persistModelSettings(platform, catalogModel, next, thinking, taskId);
 	}
 
 	async function toggleThinking(next: boolean) {
@@ -477,7 +477,7 @@ export const DialogueComposer = memo(function DialogueComposer({
 		const entry = activeModelEntry;
 		if (!entry) return;
 		const {platform, model: catalogModel} = platformModel(entry);
-		void persistModelSettings(platform, catalogModel, effort, next);
+		void persistModelSettings(platform, catalogModel, effort, next, taskId);
 	}
 
 	function pickSlash(item: SlashItem) {

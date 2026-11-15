@@ -4,6 +4,7 @@
 import type {EngineCallResult, DshModelsResult, DshSelection, DshSettingsOp, EngineCallError} from './desktop.js';
 import type {
 	MentionChip,
+	ModelSettingsInput,
 	SendMessageResult,
 	TaskMutationResult,
 	TaskSelectTrace,
@@ -108,18 +109,11 @@ export type InvokeSession = {
 	'task:killProc': {args: [procId: string, reason?: string, sessionId?: string]; result: boolean};
 	'task:requestOlderHistory': {args: []; result: boolean};
 	'model:list': {args: []; result: boolean};
-	'model:select': {args: [modelId: string]; result: boolean};
+	'model:select': {args: [modelId: string, expectedTaskId?: string | null]; result: boolean};
 	'mode:set': {args: [mode: string, expectedTaskId?: string | null]; result: boolean};
 	'engineKind:set': {args: [kind: string, expectedTaskId?: string | null]; result: boolean};
 	'model:settings': {
-		args: [
-			settings: {
-				platform: string;
-				model: string;
-				effort?: string;
-				thinking?: boolean;
-			}
-		];
+		args: [settings: ModelSettingsInput, expectedTaskId?: string | null];
 		result: boolean;
 	};
 	/** Refresh slash Skills via Bridge `/skills` (silent list → `commands_available`). */

@@ -104,6 +104,46 @@ test('publishTasksMeta: only tasks:changed (no projects rebuild)', () => {
 	);
 });
 
+function metaHarness(label: string) {
+	const home = tempDir(`home-${label}`);
+	const projectRoot = tempDir(`proj-${label}`);
+	const commands: BridgeCommand[] = [];
+	const sent: Array<{channel: string; payload: unknown}> = [];
+	const hub = new WorkspaceHub({
+		homeDir: home,
+		createBridge: () => fakeBridge(commands),
+		createId: (() => {
+			let n = 0;
+			return () => `id-${++n}`;
+		})(),
+		createClientId: () => 'cli'
+	});
+	const publisher = createUiPublisher({
+		hub,
+		send: ((channel, payload) => sent.push({channel, payload})) as UiSend
+	});
+	hub.openProject(projectRoot, {onEvent: () => {}, onError: () => {}, onExit: () => {}});
+	return {hub, publisher, commands, sent};
+}
+
+test('publishTasksMeta rows carry per-task sampling without leaking across tasks', () => {
+	const {hub, publisher} = metaHarness('sampling');
+	const sessions = hub.getActive()!.sessions;
+	const a = sessions.createTask('A');
+	const b = sessions.createTask('B');
+	sessions.setModelSettings(
+		{platform: 'openrouter', model: 'm1', effort: 'high', thinking: false},
+		a.id
+	);
+	const meta = publisher.buildTasksMeta();
+	const rowA = meta.tasks.find(t => t.id === a.id);
+	const rowB = meta.tasks.find(t => t.id === b.id);
+	assert.equal(rowA?.effort, 'high');
+	assert.equal(rowA?.thinking, false);
+	assert.equal(rowB?.effort, undefined);
+	assert.equal(rowB?.thinking, undefined);
+});
+
 test('content events coalesce into one transcript patch', () => {
 	const home = tempDir('home-c');
 	const projectRoot = tempDir('proj-c');

@@ -63,6 +63,16 @@ export type TaskSummary = {
 	lastModified?: string;
 	/** Engine `session_type`. `automation` runs stay out of the chat tree. */
 	sessionType?: string;
+	/** Per-task sticky sampling (effort / thinking) for per-session composer chrome. */
+	effort?: string;
+	thinking?: boolean;
+};
+
+export type ModelSettingsInput = {
+	platform: string;
+	model: string;
+	effort?: string;
+	thinking?: boolean;
 };
 
 /** Main-process wall times for one `task:select` (tab-switch diagnosis). */

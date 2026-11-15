@@ -3,9 +3,7 @@ import {
 	createCatalogSettings,
 	isPlaceholderModelDisplay,
 	isUnresolvedModelDisplay,
-	parseEngineKind,
-	type EngineKind,
-	type RunMode
+	type EngineKind
 } from '@fast-ide/session-view';
 import {parseModelCatalog, type ModelCatalogEntry} from './modelCatalog.js';
 import type {TaskRecord} from './sessionContracts.js';
@@ -47,28 +45,6 @@ export function createSessionModelSettings(deps: SessionModelSettingsDeps) {
 		catalog.applyProviderCatalog(entries);
 	}
 
-	function selectModel(modelId: string): boolean {
-		const pick = catalog.selectModel(modelId);
-		if (!pick) return false;
-		const sessionId = deps.commandSessionId();
-		if (sessionId) deps.sendPinnedCommand('model', pick.resolvedId, sessionId);
-		return true;
-	}
-
-	/** Sticky RunMode via Bridge SetMode (agent/plan/ask/yolo/free). */
-	function setRunMode(mode: string, expectedTaskId?: string | null): boolean {
-		const active = deps.getActiveTask();
-		if (expectedTaskId && active?.id !== expectedTaskId && active?.sessionId !== expectedTaskId) {
-			return false;
-		}
-		const m = mode.trim().toLowerCase();
-		if (!['agent', 'plan', 'ask', 'yolo', 'free'].includes(m)) return false;
-		const sessionId = active ? active.sessionId : deps.commandSessionId();
-		if (sessionId) deps.send({type: 'SetMode', sessionId, mode: m});
-		catalog.applyRunMode(m as TaskRecord['runMode']);
-		return true;
-	}
-
 	function setAvailableEngines(ids: string[]): void {
 		availableIds = new Set(ids);
 		if (availableIds.size === 0) availableIds.add('fast');
@@ -76,32 +52,6 @@ export function createSessionModelSettings(deps: SessionModelSettingsDeps) {
 
 	function availableEngineIds(): string[] {
 		return [...availableIds];
-	}
-
-	function setEngineKind(kind: string, expectedTaskId?: string | null): boolean {
-		const k = parseEngineKind(kind);
-		if (!k) return false;
-		if (expectedTaskId) {
-			const active = deps.getActiveTask();
-			if (active?.id !== expectedTaskId && active?.sessionId !== expectedTaskId) return false;
-		}
-		const sessionId = deps.commandSessionId();
-		if (sessionId) deps.stageEngineChange(sessionId, k);
-		catalog.applyEngineKind(k);
-		return true;
-	}
-
-	function setModelSettings(settings: {platform: string; model: string; effort?: string; thinking?: boolean}): boolean {
-		const sessionId = deps.commandSessionId();
-		if (!sessionId) return false;
-		return deps.send({
-			type: 'SetModelSettings',
-			sessionId,
-			platform: settings.platform,
-			model: settings.model,
-			effort: settings.effort,
-			thinking: settings.thinking
-		});
 	}
 
 	function healDefaultModelDisplay(model: string, display: string): boolean {
@@ -148,12 +98,8 @@ export function createSessionModelSettings(deps: SessionModelSettingsDeps) {
 		catalog,
 		requestModelList,
 		applyProviderCatalog,
-		selectModel,
-		setRunMode,
 		setAvailableEngines,
 		availableEngineIds,
-		setEngineKind,
-		setModelSettings,
 		healDefaultModelDisplay,
 		applyModel: catalog.applyModel,
 		applyResolvedModel,

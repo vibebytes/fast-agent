@@ -1,5 +1,5 @@
 import {dirname, join} from 'node:path';
-import type {InvokeChannels} from '@fast-ide/session-view';
+import type {InvokeChannels, ModelSettingsInput} from '@fast-ide/session-view';
 import type {WorkspaceHub, WorkspaceProjectHandlers} from '../WorkspaceHub.js';
 import type {TaskCommands} from '../sessionContracts.js';
 import type {ProductInvokeMap, UiPublisher} from '../desktopHost.js';
@@ -12,6 +12,15 @@ function activeFsRoot(hub: WorkspaceHub): string | null {
 
 function activeCommands(hub: WorkspaceHub): TaskCommands | null {
 	return hub.getActive()?.sessions ?? null;
+}
+
+function commandsForTask(hub: WorkspaceHub, expectedTaskId?: string | null): TaskCommands | null {
+	if (expectedTaskId) {
+		const resolved = hub.resolveTaskRef(expectedTaskId, expectedTaskId);
+		const project = resolved?.project ?? hub.findProjectForTask(expectedTaskId);
+		if (project) return project.sessions;
+	}
+	return activeCommands(hub);
 }
 
 export function hostSession(input: {
@@ -292,16 +301,16 @@ export function hostSession(input: {
 			return ok;
 		},
 
-		'model:select': (modelId: string) => {
-			const sessions = activeCommands(hub);
+		'model:select': (modelId: string, expectedTaskId?: string | null) => {
+			const sessions = commandsForTask(hub, expectedTaskId);
 			if (!sessions) return false;
-			const ok = sessions.selectModel(modelId);
+			const ok = sessions.selectModel(modelId, expectedTaskId);
 			if (ok) publisher.publishTasksMeta();
 			return ok;
 		},
 
 		'mode:set': (mode: string, expectedTaskId?: string | null) => {
-			const sessions = activeCommands(hub);
+			const sessions = commandsForTask(hub, expectedTaskId);
 			if (!sessions) return false;
 			const ok = sessions.setRunMode(mode, expectedTaskId);
 			if (ok) publisher.publishTasksMeta();
@@ -309,22 +318,17 @@ export function hostSession(input: {
 		},
 
 		'engineKind:set': (kind: string, expectedTaskId?: string | null) => {
-			const sessions = activeCommands(hub);
+			const sessions = commandsForTask(hub, expectedTaskId);
 			if (!sessions) return false;
 			const ok = sessions.setEngineKind(kind, expectedTaskId);
 			if (ok) publisher.publishTasksMeta();
 			return ok;
 		},
 
-		'model:settings': (settings: {
-			platform: string;
-			model: string;
-			effort?: string;
-			thinking?: boolean;
-		}) => {
-			const sessions = activeCommands(hub);
+		'model:settings': (settings: ModelSettingsInput, expectedTaskId?: string | null) => {
+			const sessions = commandsForTask(hub, expectedTaskId);
 			if (!sessions) return false;
-			const ok = sessions.setModelSettings(settings);
+			const ok = sessions.setModelSettings(settings, expectedTaskId);
 			if (ok) publisher.publishTasksMeta();
 			return ok;
 		},

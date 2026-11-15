@@ -6,14 +6,30 @@ export async function persistModelSettings(
 	platform: string,
 	modelId: string,
 	nextEffort?: string,
-	nextThinking?: boolean
+	nextThinking?: boolean,
+	taskId?: string | null
 ): Promise<void> {
-	await window.fastIde.setModelSettings({
-		platform,
-		model: modelId,
-		...(nextEffort ? {effort: nextEffort} : {}),
-		...(nextThinking !== undefined ? {thinking: nextThinking} : {})
-	});
+	await window.fastIde.setModelSettings(
+		{
+			platform,
+			model: modelId,
+			...(nextEffort ? {effort: nextEffort} : {}),
+			...(nextThinking !== undefined ? {thinking: nextThinking} : {})
+		},
+		taskId
+	);
+}
+
+/**
+ * Per-task sampling: the task's own record wins (unset stays unset) so another
+ * session's active chrome never leaks in. Only a missing record falls back.
+ */
+export function taskSampling(
+	entry: {effort?: string; thinking?: boolean} | null | undefined,
+	fallback: {effort?: string; thinking?: boolean}
+): {effort?: string; thinking?: boolean} {
+	if (!entry) return {effort: fallback.effort, thinking: fallback.thinking};
+	return {effort: entry.effort, thinking: entry.thinking};
 }
 
 export async function openModelPicker(args: {

@@ -32,6 +32,7 @@ import type {EdgesList} from '@fast-ide/session-view';
 import {type LayoutPreference, type SettingsSectionId, type SettingsSuite} from './Settings2';
 import {RightWorkbench} from './RightWorkbench';
 import {SessionPane} from './session/SessionPane';
+import {taskSampling} from './composer/modelSettings';
 import {ScheduledPlans} from './sidebar/ScheduledSidebar';
 import type {OpenTeamsRequest} from './TeamsWorkbench';
 import {AppChrome} from './shell/AppChrome';
@@ -336,6 +337,7 @@ export function App({store}: {store: WorkspaceStore}) {
 			: null) ??
 		null;
 	const canChat = project?.status === 'ready' && Boolean(activeEntry) && Boolean(paneTaskId);
+	const sampling = taskSampling(activeEntry, {effort, thinking});
 	const engineReady = engineStatus === 'ready' || project?.status === 'ready';
 	useCompletionSound(engineReady);
 	useApprovalSound(store, engineReady);
@@ -686,8 +688,8 @@ export function App({store}: {store: WorkspaceStore}) {
 							runMode={runMode}
 							engineKind={engineKind}
 							availableEngineIds={availableEngineIds}
-							effort={effort}
-							thinking={thinking}
+							effort={sampling.effort}
+							thinking={sampling.thinking}
 							slashCatalog={slashCatalog}
 							slashCatalogHydrated={slashCatalogHydrated}
 							activeTaskId={paneTaskId}

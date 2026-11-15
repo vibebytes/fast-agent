@@ -32,6 +32,7 @@ import type {
 	MentionChip,
 	MobilePairingInfo,
 	ModelCatalogEntry,
+	ModelSettingsInput,
 	ProjectGetResult,
 	ProjectSnapshot,
 	ProjectState,
@@ -651,15 +652,10 @@ export type FastIdeApi = {
 	requestModelList: () => Promise<boolean>;
 	/** Refresh Skills for composer slash menu (Bridge `/skills` → commands_available). */
 	requestSlashCatalog: () => Promise<boolean>;
-	selectModel: (modelId: string) => Promise<boolean>;
+	selectModel: (modelId: string, expectedTaskId?: string | null) => Promise<boolean>;
 	setRunMode: (mode: string, expectedTaskId?: string | null) => Promise<boolean>;
 	setEngineKind: (kind: string, expectedTaskId?: string | null) => Promise<boolean>;
-	setModelSettings: (settings: {
-		platform: string;
-		model: string;
-		effort?: string;
-		thinking?: boolean;
-	}) => Promise<boolean>;
+	setModelSettings: (settings: ModelSettingsInput, expectedTaskId?: string | null) => Promise<boolean>;
 	removeQueueItem: (itemId: string) => Promise<boolean>;
 	clearQueue: () => Promise<boolean>;
 	reorderQueue: (fromIndex: number, toIndex: number) => Promise<boolean>;

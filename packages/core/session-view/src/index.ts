@@ -414,6 +414,7 @@ export type {
 	CloudflareTunnelStatus,
 	MobilePairingInfo,
 	ModelCatalogEntry,
+	ModelSettingsInput,
 	ProjectGetResult,
 	ProjectSnapshot,
 	ProjectState,
