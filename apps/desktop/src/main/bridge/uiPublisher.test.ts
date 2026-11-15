@@ -144,6 +144,19 @@ test('publishTasksMeta rows carry per-task sampling without leaking across tasks
 	assert.equal(rowB?.thinking, undefined);
 });
 
+test('publishTasksMeta rows carry per-task runMode without leaking across tasks', () => {
+	const {hub, publisher} = metaHarness('runmode');
+	const sessions = hub.getActive()!.sessions;
+	const a = sessions.createTask('A');
+	const b = sessions.createTask('B');
+	sessions.acceptNewSession('sess-a', a.id);
+	sessions.acceptNewSession('sess-b', b.id);
+	assert.equal(sessions.setRunMode('yolo', a.id), true);
+	const meta = publisher.buildTasksMeta();
+	assert.equal(meta.tasks.find(t => t.id === a.id)?.runMode, 'yolo');
+	assert.equal(meta.tasks.find(t => t.id === b.id)?.runMode, 'agent');
+});
+
 test('content events coalesce into one transcript patch', () => {
 	const home = tempDir('home-c');
 	const projectRoot = tempDir('proj-c');

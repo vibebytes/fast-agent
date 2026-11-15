@@ -66,6 +66,8 @@ export type TaskSummary = {
 	/** Per-task sticky sampling (effort / thinking) for per-session composer chrome. */
 	effort?: string;
 	thinking?: boolean;
+	/** Per-task sticky RunMode for per-session composer chrome. */
+	runMode?: 'agent' | 'plan' | 'ask' | 'yolo' | 'free';
 };
 
 export type ModelSettingsInput = {

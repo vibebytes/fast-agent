@@ -1,6 +1,7 @@
 import {useEffect} from 'react';
 import {clampEffort} from '../effortClamp';
 import type {ModelCatalogEntry} from '../env';
+import type {RunModeName} from './runModeRisk';
 
 export async function persistModelSettings(
 	platform: string,
@@ -21,15 +22,26 @@ export async function persistModelSettings(
 }
 
 /**
- * Per-task sampling: the task's own record wins (unset stays unset) so another
- * session's active chrome never leaks in. Only a missing record falls back.
+ * Per-task chrome: the task's own record wins — runMode/effort/thinking are read
+ * from the pane's task so another session's active chrome never leaks in. Only a
+ * missing record (no pane task) falls back to the active-task chrome.
  */
-export function taskSampling(
-	entry: {effort?: string; thinking?: boolean} | null | undefined,
-	fallback: {effort?: string; thinking?: boolean}
-): {effort?: string; thinking?: boolean} {
-	if (!entry) return {effort: fallback.effort, thinking: fallback.thinking};
-	return {effort: entry.effort, thinking: entry.thinking};
+export function taskChrome(
+	entry: {
+		runMode?: RunModeName;
+		effort?: string;
+		thinking?: boolean;
+	} | null | undefined,
+	fallback: {runMode: RunModeName; effort?: string; thinking?: boolean}
+): {runMode: RunModeName; effort?: string; thinking?: boolean} {
+	if (!entry) {
+		return {runMode: fallback.runMode, effort: fallback.effort, thinking: fallback.thinking};
+	}
+	return {
+		runMode: entry.runMode ?? fallback.runMode,
+		effort: entry.effort,
+		thinking: entry.thinking
+	};
 }
 
 export async function openModelPicker(args: {

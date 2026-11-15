@@ -38,7 +38,8 @@ export function sameTask(a: TaskSummary, b: TaskSummary): boolean {
 		(a.runState ?? null) === (b.runState ?? null) &&
 		(a.lastModified ?? null) === (b.lastModified ?? null) &&
 		(a.effort ?? null) === (b.effort ?? null) &&
-		(a.thinking ?? null) === (b.thinking ?? null)
+		(a.thinking ?? null) === (b.thinking ?? null) &&
+		(a.runMode ?? null) === (b.runMode ?? null)
 	);
 }
 

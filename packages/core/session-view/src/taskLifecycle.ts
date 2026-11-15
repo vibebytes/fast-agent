@@ -119,6 +119,7 @@ export function createTaskLifecycle<T extends LifecycleTask>(deps: TaskLifecycle
 		string,
 		NonNullable<SessionMetaInfo['modelSettings']>
 	>();
+	const pendingRunModeBySession = new Map<string, string>();
 	/** Soft-delete waiters keyed by Engine sessionId. */
 	const pendingDeleteBySession = new Map<
 		string,
@@ -394,6 +395,10 @@ export function createTaskLifecycle<T extends LifecycleTask>(deps: TaskLifecycle
 		pendingModelSettingsBySession.set(sessionId, {...settings});
 	};
 
+	const stageRunMode = (sessionId: string, mode: string): void => {
+		pendingRunModeBySession.set(sessionId, mode);
+	};
+
 	const rejectPendingDeletes = (notice: string): void => {
 		for (const pending of pendingDeleteBySession.values()) {
 			clearTimeout(pending.timer);
@@ -408,6 +413,7 @@ export function createTaskLifecycle<T extends LifecycleTask>(deps: TaskLifecycle
 		pendingTitleBySession.clear();
 		pendingEngineBySession.clear();
 		pendingModelSettingsBySession.clear();
+		pendingRunModeBySession.clear();
 		pendingDeleteBySession.clear();
 		tasks.clear();
 	};
@@ -466,6 +472,14 @@ export function createTaskLifecycle<T extends LifecycleTask>(deps: TaskLifecycle
 			}
 			if (pendingModelSettingsBySession.has(info.id)) {
 				stickyInfo = {...stickyInfo, modelSettings: undefined};
+			}
+
+			const ownedRunMode = pendingRunModeBySession.get(info.id);
+			if (ownedRunMode != null && info.runMode === ownedRunMode) {
+				pendingRunModeBySession.delete(info.id);
+			}
+			if (pendingRunModeBySession.has(info.id)) {
+				stickyInfo = {...stickyInfo, runMode: undefined};
 			}
 
 			const named = info.title?.trim() || '';
@@ -614,6 +628,7 @@ export function createTaskLifecycle<T extends LifecycleTask>(deps: TaskLifecycle
 		applyDeletedTask,
 		stageEngineChange,
 		stageModelSettings,
+		stageRunMode,
 		rejectPendingDeletes,
 		hydrateSessions,
 		reset,

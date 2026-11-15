@@ -100,7 +100,7 @@ export function createSessionGlue(h: SessionGlueHost): SessionGlue {
 		queuePaused: false,
 		model: h.model,
 		modelDisplay: h.modelDisplay,
-		runMode: h.runMode,
+		runMode: h.runMode === 'free' || h.runMode === 'yolo' ? 'agent' : h.runMode,
 		engineKind: h.engineKind,
 		...(h.effort ? {effort: h.effort} : {}),
 		...(h.thinking !== undefined ? {thinking: h.thinking} : {})

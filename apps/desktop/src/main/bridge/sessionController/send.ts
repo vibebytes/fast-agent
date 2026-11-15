@@ -223,7 +223,7 @@ test('SessionController emits DecideApproval AnswerQuestion CancelAssociated', (
 	assert.ok(cancel && cancel.type === 'CancelAssociated');
 	assert.equal(cancel.reason, 'stop');
 });
-test('send and implicit mode changes reject a stale expected Task', () => {
+test('send rejects a stale expected Task while setRunMode targets it precisely', () => {
 	const sent: BridgeCommand[] = [];
 	const controller = new SessionController({
 		clientId: 'cli',
@@ -244,9 +244,18 @@ test('send and implicit mode changes reject a stale expected Task', () => {
 	controller.handleEvent({type: 'Attached', sessionId: 'sess-b', clientId: 'cli'});
 	sent.length = 0;
 
+	// Message submit must still reject a stale expected Task (no cross-session send).
 	assert.equal(controller.sendMessage('belongs to A', undefined, a.id), false);
-	assert.equal(controller.setRunMode('plan', a.id), false);
-	assert.equal(sent.some(c => c.type === 'SubmitUserMessage' || c.type === 'SetMode'), false);
+	// setRunMode instead resolves the expected Task itself (like selectModel/setModelSettings).
+	assert.equal(controller.setRunMode('plan', a.id), true);
+	assert.equal(a.runMode, 'plan');
+	const mode = sent.find(c => c.type === 'SetMode');
+	assert.ok(mode?.type === 'SetMode');
+	if (mode?.type === 'SetMode') {
+		assert.equal(mode.sessionId, 'sess-a');
+		assert.equal(mode.mode, 'plan');
+	}
+	assert.equal(sent.some(c => c.type === 'SubmitUserMessage'), false);
 	assert.equal(controller.consumeHelpNotice(), 'errors.send.task_changed');
 
 	controller.selectTask(a.id);
@@ -282,7 +291,8 @@ test('first submit carries the composer-visible mode onto the wire', () => {
 	assert.equal(controller.getActiveTask()?.runMode, 'yolo');
 	const next = controller.createTask('Next');
 	assert.equal(controller.getActiveTask()?.id, next.id);
-	assert.equal(next.runMode, 'yolo');
+	// High-risk modes never propagate to a newly created task.
+	assert.equal(next.runMode, 'agent');
 
 	controller.acceptNewSession('sess-free', next.id);
 	controller.handleEvent({type: 'Attached', sessionId: 'sess-free', clientId: 'cli'});

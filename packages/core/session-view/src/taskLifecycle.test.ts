@@ -467,6 +467,42 @@ test('hydrateSessions drops deleted sessions and never claims unbound pending ro
 	assert.equal(deps.getActiveTaskId(), optimistic.id);
 });
 
+test('stageRunMode keeps the picked mode when a stale sessions_list arrives', () => {
+	const {deps} = makeDeps();
+	const lc = createTaskLifecycle(deps);
+	const task = lc.createTask('Mode');
+	lc.acceptNewSession('sess-mode', task.id);
+	lc.stageRunMode('sess-mode', 'yolo');
+	task.runMode = 'yolo';
+	const opts = {
+		model: () => 'm-1',
+		modelDisplay: () => 'Model One',
+		applyStickyChrome: (t: {runMode?: string}, info: SessionMetaInfo) => {
+			if (info.runMode) t.runMode = info.runMode;
+		},
+		buildStub: (id: string, info: SessionMetaInfo, listOrder: number, model: string) => ({
+			id,
+			title: info.title ?? info.id,
+			kind: 'task' as const,
+			sessionId: info.id,
+			listOrder,
+			pendingNew: false,
+			model
+		}),
+		restoreChrome: () => undefined
+	};
+	lc.hydrateSessions(
+		[{id: 'sess-mode', title: 'Mode', runMode: 'agent', lastModified: iso(1_600_000_000_000)}],
+		opts
+	);
+	assert.equal(task.runMode, 'yolo');
+	lc.hydrateSessions(
+		[{id: 'sess-mode', title: 'Mode', runMode: 'yolo', lastModified: iso(1_600_000_001_000)}],
+		opts
+	);
+	assert.equal(task.runMode, 'yolo');
+});
+
 test('reset clears tasks, pending title/engine staging and attach bookkeeping', () => {
 	const {deps} = makeDeps();
 	const lc = createTaskLifecycle(deps);

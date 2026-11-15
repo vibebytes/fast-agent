@@ -563,17 +563,15 @@ export class SessionController implements TaskCommands, SessionLifecycle, TaskVi
 	}
 
 	setRunMode(mode: string, expectedTaskId?: string | null): boolean {
-		const active = this.getActiveTask();
-		if (expectedTaskId && active?.id !== expectedTaskId && active?.sessionId !== expectedTaskId) {
-			return false;
-		}
 		const m = mode.trim().toLowerCase();
 		if (!['agent', 'plan', 'ask', 'yolo', 'free'].includes(m)) return false;
-		const sessionId = active ? active.sessionId : this.commandSessionId();
-		if (sessionId) {
-			this.sendFn({type: 'SetMode', sessionId, mode: m});
+		const resolved = this.resolveCommandTarget(expectedTaskId);
+		if (!resolved) return false;
+		if (resolved.sessionId) {
+			this.lifecycle.stageRunMode(resolved.sessionId, m);
+			this.sendFn({type: 'SetMode', sessionId: resolved.sessionId, mode: m});
 		}
-		this.catalog.applyRunMode(m as TaskRecord['runMode'], active ?? undefined);
+		this.catalog.applyRunMode(m as TaskRecord['runMode'], resolved.target);
 		return true;
 	}
 

@@ -49,7 +49,7 @@ export type UiPublisherDeps = {
 function mapEntry(
 	entry: Pick<
 		TaskSummary,
-		'id' | 'title' | 'lastModified' | 'sessionType' | 'effort' | 'thinking'
+		'id' | 'title' | 'lastModified' | 'sessionType' | 'effort' | 'thinking' | 'runMode'
 	> & {
 		kind: 'task' | 'chat';
 		sessionId: string | null;
@@ -68,7 +68,8 @@ function mapEntry(
 		...(entry.lastModified ? {lastModified: entry.lastModified} : {}),
 		...(entry.sessionType ? {sessionType: entry.sessionType} : {}),
 		...(entry.effort ? {effort: entry.effort} : {}),
-		...(entry.thinking !== undefined ? {thinking: entry.thinking} : {})
+		...(entry.thinking !== undefined ? {thinking: entry.thinking} : {}),
+		runMode: entry.runMode ?? 'agent'
 	};
 }
 

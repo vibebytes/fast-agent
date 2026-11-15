@@ -62,7 +62,7 @@ function makeHarness(label: string) {
 			throw new Error('unused');
 		}
 	});
-	return {hub, publisher, handlers};
+	return {hub, publisher, handlers, commands};
 }
 
 test('model:settings targets the passed task instead of the active task', () => {
@@ -102,4 +102,35 @@ test('model:settings and model:select resolve tasks in the Default Project while
 	assert.equal(updated?.thinking, true);
 	assert.equal(updated?.model, 'zhipu/glm-5.3-flash');
 	assert.equal(activeSessions.getActiveTask()?.effort, undefined);
+});
+
+test('mode:set targets the passed task and sends SetMode to that task session', () => {
+	const {hub, handlers, commands} = makeHarness('mode-target');
+	const sessions = hub.getActive()!.sessions;
+	const a = sessions.createTask('A');
+	const b = sessions.createTask('B');
+	sessions.acceptNewSession('sess-a', a.id);
+	sessions.acceptNewSession('sess-b', b.id);
+	assert.equal(sessions.getActiveTask()?.id, b.id);
+	const ok = handlers['mode:set']('plan', a.id);
+	assert.equal(ok, true);
+	assert.equal(sessions.listTasks().find(t => t.id === a.id)?.runMode, 'plan');
+	assert.equal(sessions.getActiveTask()?.runMode, 'agent');
+	const setMode = commands.filter(c => c.type === 'SetMode').at(-1) as
+		| {sessionId?: string; mode?: string}
+		| undefined;
+	assert.equal(setMode?.sessionId, 'sess-a');
+	assert.equal(setMode?.mode, 'plan');
+});
+
+test('new tasks do not inherit free/yolo from the active task', () => {
+	const {hub} = makeHarness('new-mode');
+	const sessions = hub.getActive()!.sessions;
+	sessions.createTask('A');
+	assert.equal(sessions.setRunMode('free'), true);
+	assert.equal(sessions.createTask('New').runMode, 'agent');
+	assert.equal(sessions.setRunMode('yolo'), true);
+	assert.equal(sessions.createTask('New2').runMode, 'agent');
+	assert.equal(sessions.setRunMode('plan'), true);
+	assert.equal(sessions.createTask('New3').runMode, 'plan');
 });

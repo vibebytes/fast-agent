@@ -330,3 +330,47 @@ test('tasks:changed updates TaskSummary effort and thinking when only sampling c
 	assert.equal(row?.thinking, false);
 });
 
+test('tasks:changed updates TaskSummary runMode when only runMode changed', () => {
+	const state = fold([
+		{
+			type: 'tasks:changed',
+			payload: {
+				tasks: [{id: 'task-a', title: 'A', kind: 'task', sessionId: 's1', active: true}],
+				chats: [],
+				defaultTasks: [],
+				activeTaskId: 'task-a',
+				activeKind: 'task',
+				gate: idleGate,
+				model: 'default',
+				modelDisplay: 'Default',
+				modelCatalog: [],
+				slashCatalog: [],
+				slashCatalogHydrated: false,
+				queue: [],
+				queuePaused: false
+			}
+		},
+		{
+			type: 'tasks:changed',
+			payload: {
+				tasks: [
+					{id: 'task-a', title: 'A', kind: 'task', sessionId: 's1', active: true, runMode: 'yolo'}
+				],
+				chats: [],
+				defaultTasks: [],
+				activeTaskId: 'task-a',
+				activeKind: 'task',
+				gate: idleGate,
+				model: 'default',
+				modelDisplay: 'Default',
+				modelCatalog: [],
+				slashCatalog: [],
+				slashCatalogHydrated: false,
+				queue: [],
+				queuePaused: false
+			}
+		}
+	]);
+	assert.equal(state.tasks.find(t => t.id === 'task-a')?.runMode, 'yolo');
+});
+

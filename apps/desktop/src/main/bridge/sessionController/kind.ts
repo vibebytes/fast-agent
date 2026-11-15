@@ -495,7 +495,7 @@ test('SubmitUserMessage defaults thinking=true when catalog supportsThinking and
 	}
 });
 
-test('CreateSession stamps the mode the composer shows at New Task time', () => {
+test('CreateSession stamps non-risky modes but resets free/yolo to agent', () => {
 	const sent: BridgeCommand[] = [];
 	let n = 0;
 	const controller = new SessionController({
@@ -508,19 +508,27 @@ test('CreateSession stamps the mode the composer shows at New Task time', () => 
 		},
 		createId: () => `id-${++n}`
 	});
+	assert.equal(controller.setRunMode('plan'), true);
+	sent.length = 0;
+	const planTask = controller.createTask('Plan first');
+	assert.equal(planTask.runMode, 'plan');
+	const createPlan = sent.find(c => c.type === 'CreateSession');
+	assert.ok(createPlan?.type === 'CreateSession');
+	if (createPlan?.type === 'CreateSession') assert.equal(createPlan.runMode, 'plan');
+
 	assert.equal(controller.setRunMode('yolo'), true);
 	sent.length = 0;
-	const task = controller.createTask('Yolo first');
-	assert.equal(task.runMode, 'yolo');
-	const create = sent.find(c => c.type === 'CreateSession');
-	assert.ok(create?.type === 'CreateSession');
-	if (create?.type === 'CreateSession') assert.equal(create.runMode, 'yolo');
+	const yoloTask = controller.createTask('Yolo first');
+	assert.equal(yoloTask.runMode, 'agent');
+	const createYolo = sent.find(c => c.type === 'CreateSession');
+	assert.ok(createYolo?.type === 'CreateSession');
+	if (createYolo?.type === 'CreateSession') assert.equal(createYolo.runMode, 'agent');
 
 	assert.equal(controller.setRunMode('free'), true);
 	sent.length = 0;
 	const freeTask = controller.createTask('Free task');
-	assert.equal(freeTask.runMode, 'free');
+	assert.equal(freeTask.runMode, 'agent');
 	const createFree = sent.find(c => c.type === 'CreateSession');
 	assert.ok(createFree?.type === 'CreateSession');
-	if (createFree?.type === 'CreateSession') assert.equal(createFree.runMode, 'free');
+	if (createFree?.type === 'CreateSession') assert.equal(createFree.runMode, 'agent');
 });
