@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Relocatable engine + tui tree at staging/pack (agent sbt dist is engine-only).
-import {cpSync, copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync} from 'node:fs';
+import {cpSync, copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, symlinkSync, writeFileSync} from 'node:fs';
 import {execFileSync} from 'node:child_process';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
@@ -34,7 +34,15 @@ for (const [label, file] of [
 rmSync(dest, {recursive: true, force: true});
 mkdirSync(dest, {recursive: true});
 const engineDest = path.join(dest, 'engine');
-cpSync(engineSrc, engineDest, {recursive: true});
+// verbatimSymlinks: Node otherwise rewrites `bin/fast -> fast-cli` to an absolute
+// path on the build machine, and that link gets installed into Fast.app.
+cpSync(engineSrc, engineDest, {recursive: true, verbatimSymlinks: true});
+const stagedFast = path.join(engineDest, 'bin', 'fast');
+const stagedCli = path.join(engineDest, 'bin', 'fast-cli');
+if (existsSync(stagedCli)) {
+	rmSync(stagedFast, {force: true});
+	symlinkSync('fast-cli', stagedFast);
+}
 
 function stampEngineId(engineDir) {
 	const pom = readFileSync(path.join(root, 'extensions', 'pom.xml'), 'utf8');

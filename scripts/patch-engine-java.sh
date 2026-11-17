@@ -129,17 +129,29 @@ bridge_ws=()
 if [[ -n "${FAST_BRIDGE_WS_PORT:-}" ]]; then
 	bridge_ws=(-Dfast.bridge.ws="$FAST_BRIDGE_WS_PORT")
 fi
+# Desktop passes -Dfast.runtime.root as a program argument. CliApp rejects it.
+# Peel JVM flags off "$@" and hand them to java; everything else stays the app args.
+jvm_from_args=()
+app_args=()
+for arg in "$@"; do
+	case "$arg" in
+		-J*) jvm_from_args+=("${arg#-J}") ;;
+		-D*) jvm_from_args+=("$arg") ;;
+		*) app_args+=("$arg") ;;
+	esac
+done
 # bash 3.2: expanding an empty array under set -u aborts with "unbound variable".
 # ini first; env vars after it so a second engine can override packaged ports.
 exec "$java" --add-opens=java.base/java.nio=ALL-UNNAMED \
 	${ini_args[@]+"${ini_args[@]}"} \
+	${jvm_from_args[@]+"${jvm_from_args[@]}"} \
 	-Dfast.engines.yaml="$conf/engines.yaml" \
 	-Dfast.extensions.yaml="$conf/extensions.yaml" \
 	-Dfast.extensions="$exts" \
 	${runtime_root[@]+"${runtime_root[@]}"} ${agent_port[@]+"${agent_port[@]}"} ${agent_http[@]+"${agent_http[@]}"} \
 	${join_port[@]+"${join_port[@]}"} ${bridge_wss[@]+"${bridge_wss[@]}"} ${bridge_ws[@]+"${bridge_ws[@]}"} \
 	-cp "$root/lib/*" \
-	ai.fastllm.agent.cli.CliApp "$@"
+	ai.fastllm.agent.cli.CliApp ${app_args[@]+"${app_args[@]}"}
 EOF
 chmod +x "$bin/fast-cli"
 ln -sfn fast-cli "$bin/fast"
@@ -190,7 +202,22 @@ set "BRIDGE_WSS="
 if defined FAST_BRIDGE_WSS_PORT set "BRIDGE_WSS=-Dfast.bridge.wss=%FAST_BRIDGE_WSS_PORT%"
 set "BRIDGE_WS="
 if defined FAST_BRIDGE_WS_PORT set "BRIDGE_WS=-Dfast.bridge.ws=%FAST_BRIDGE_WS_PORT%"
-"%JAVA%" --add-opens=java.base/java.nio=ALL-UNNAMED %INI_ARGS% -Dfast.engines.yaml="%CONF%\engines.yaml" -Dfast.extensions.yaml="%CONF%\extensions.yaml" -Dfast.extensions="%EXTS%" %RUNTIME_ROOT% %AGENT_PORT% %AGENT_HTTP% %JOIN_PORT% %BRIDGE_WSS% %BRIDGE_WS% -cp "%ROOT%\lib\*" ai.fastllm.agent.cli.CliApp %*
+set "JVM_FROM_ARGS="
+set "APP_ARGS="
+:parse_args
+if "%~1"=="" goto run
+set "ARG=%~1"
+if /i "!ARG:~0,2!"=="-J" (
+	set "JVM_FROM_ARGS=!JVM_FROM_ARGS! !ARG:~2!"
+) else if /i "!ARG:~0,2!"=="-D" (
+	set "JVM_FROM_ARGS=!JVM_FROM_ARGS! !ARG!"
+) else (
+	set "APP_ARGS=!APP_ARGS! !ARG!"
+)
+shift
+goto parse_args
+:run
+"%JAVA%" --add-opens=java.base/java.nio=ALL-UNNAMED %INI_ARGS% !JVM_FROM_ARGS! -Dfast.engines.yaml="%CONF%\engines.yaml" -Dfast.extensions.yaml="%CONF%\extensions.yaml" -Dfast.extensions="%EXTS%" %RUNTIME_ROOT% %AGENT_PORT% %AGENT_HTTP% %JOIN_PORT% %BRIDGE_WSS% %BRIDGE_WS% -cp "%ROOT%\lib\*" ai.fastllm.agent.cli.CliApp !APP_ARGS!
 EOF
 cp -f "$bin/fast-cli.bat" "$bin/fast.bat"
 echo "patched $bin/fast-cli to use bundled jre"
