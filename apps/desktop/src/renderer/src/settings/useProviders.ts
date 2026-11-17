@@ -92,11 +92,20 @@ function removeLocal(list: Provider[], id: string): Provider[] {
 	return list.filter(p => p.id !== id);
 }
 
+type PendingModelPatch = {
+	patch: ModelPatch[];
+	resolve: (ok: boolean) => void;
+};
+
 class ProvidersStore {
 	private view: ProvidersView = viewOf([], 'loading', null, false);
 	private listeners = new Set<() => void>();
 	private inflight: Promise<void> | null = null;
 	private generation = 0;
+	private mutationVersion = 0;
+	private modelQueues = new Map<string, PendingModelPatch[]>();
+	private confirmedModels = new Map<string, Provider>();
+	private refreshPending = false;
 	private api: ProvidersApi = liveApi();
 
 	/** Test seam — swap IPC for an in-memory double. */
@@ -107,7 +116,11 @@ class ProvidersStore {
 	/** Test seam — clear cached view between cases. */
 	resetForTest(): void {
 		this.generation += 1;
+		this.mutationVersion += 1;
 		this.inflight = null;
+		this.modelQueues.clear();
+		this.confirmedModels.clear();
+		this.refreshPending = false;
 		this.view = viewOf([], 'loading', null, false);
 		this.publish();
 	}
@@ -144,6 +157,7 @@ class ProvidersStore {
 			return;
 		}
 		const gen = ++this.generation;
+		const version = this.mutationVersion;
 		// PatchModels fans out providers_changed — keep Models UI mounted (no loading flash).
 		const quiet = opts?.quiet === true && this.view.status === 'ready';
 		if (!quiet) {
@@ -155,12 +169,27 @@ class ProvidersStore {
 				this.setView(viewOf(this.view.providers, quiet ? 'ready' : 'error', res.notice, true));
 				return;
 			}
-			this.setView(viewOf(res.providers, 'ready', null, true));
+			if (version !== this.mutationVersion) {
+				this.refreshPending = true;
+				return;
+			}
+			let next = res.providers;
+			if (this.modelQueues.size > 0) {
+				this.refreshPending = true;
+				for (const id of this.modelQueues.keys()) {
+					const current = this.view.providers.find(p => p.id === id);
+					if (current) next = upsertLocal(next, current);
+				}
+			}
+			this.setView(viewOf(next, 'ready', null, true));
 		});
-		this.inflight = run.finally(() => {
+		this.inflight = run;
+		try {
+			await run;
+		} finally {
 			if (this.inflight === run) this.inflight = null;
-		});
-		await this.inflight;
+			this.flushRefresh();
+		}
 	};
 
 	retry = (): void => {
@@ -169,8 +198,20 @@ class ProvidersStore {
 
 	invalidate = (): void => {
 		if (!this.view.engineReady) return;
-		void this.list({quiet: true});
+		this.refreshPending = true;
+		this.flushRefresh();
 	};
+
+	private flushRefresh(): void {
+		if (
+			!this.refreshPending ||
+			!this.view.engineReady ||
+			this.modelQueues.size > 0 ||
+			this.inflight
+		) return;
+		this.refreshPending = false;
+		void this.list({quiet: true});
+	}
 
 	upsert = async (input: UpsertInput): Promise<Provider | null> => {
 		if (!this.view.engineReady || this.view.status === 'disabled') return null;
@@ -222,21 +263,57 @@ class ProvidersStore {
 		return true;
 	};
 
-	patchModels = async (id: string, patch: ModelPatch[]): Promise<boolean> => {
-		if (!this.view.engineReady || this.view.status === 'disabled') return false;
-		const prev = this.view;
-		const optimistic = applyModelPatch(prev.providers, id, patch);
-		if (optimistic) {
-			this.setView(viewOf(optimistic, 'ready', null, true));
-		}
-		const res = await this.api.patchProviderModels(id, patch);
-		if (!res.ok) {
-			this.setView({...prev, notice: res.notice, status: 'ready'});
-			return false;
-		}
-		this.setView(viewOf(upsertLocal(this.view.providers, res.provider), 'ready', null, true));
-		return true;
+	patchModels = (id: string, patch: ModelPatch[]): Promise<boolean> => {
+		if (!this.view.engineReady || this.view.status === 'disabled') return Promise.resolve(false);
+		return new Promise(resolve => {
+			const queue = this.modelQueues.get(id) ?? [];
+			if (queue.length === 0) {
+				const confirmed = this.view.providers.find(p => p.id === id);
+				if (confirmed) this.confirmedModels.set(id, confirmed);
+			}
+			const next = [...queue, {patch, resolve}];
+			this.modelQueues.set(id, next);
+			this.mutationVersion += 1;
+			const optimistic = applyModelPatch(this.view.providers, id, patch);
+			if (optimistic) {
+				this.setView(viewOf(optimistic, 'ready', null, true));
+			}
+			if (next.length === 1) void this.runModelPatch(id);
+		});
 	};
+
+	private async runModelPatch(id: string): Promise<void> {
+		const mutation = this.modelQueues.get(id)?.[0];
+		if (!mutation) return;
+		const res = await this.api.patchProviderModels(id, mutation.patch).catch(error => ({
+			ok: false as const,
+			notice: error instanceof Error ? error.message : String(error)
+		}));
+		const queue = this.modelQueues.get(id);
+		if (queue?.[0] !== mutation) return;
+		queue.shift();
+		if (res.ok) this.confirmedModels.set(id, res.provider);
+
+		const confirmed = this.confirmedModels.get(id);
+		let providers = this.view.providers;
+		if (confirmed) {
+			providers = upsertLocal(providers, confirmed);
+			const remaining = queue.flatMap(item => item.patch);
+			if (remaining.length > 0) {
+				providers = applyModelPatch(providers, id, remaining) ?? providers;
+			}
+		}
+		this.setView(viewOf(providers, 'ready', res.ok ? this.view.notice : res.notice, true));
+		mutation.resolve(res.ok);
+
+		if (queue.length > 0) {
+			void this.runModelPatch(id);
+		} else {
+			this.modelQueues.delete(id);
+			this.confirmedModels.delete(id);
+			this.flushRefresh();
+		}
+	}
 
 	searchModels = async (
 		id: string,

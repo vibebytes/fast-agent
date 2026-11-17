@@ -7,6 +7,7 @@ import {
 	capabilityOp,
 	contextWindowOp,
 	defaultPromptCacheKey,
+	editModelOps,
 	formatContextWindow,
 	freeOp,
 	imageInputOp,
@@ -83,6 +84,16 @@ test('add without media fields leaves them undefined', () => {
 	assert.ok(out);
 	assert.equal(out[0].models![0].inputModalities, undefined);
 	assert.equal(out[0].models![0].capabilities, undefined);
+});
+
+test('add omits a default effort that is not in the supported list', () => {
+	const op = addModelOp({
+		modelId: 'm', displayName: 'M', supportsThinking: true, supportedEfforts: [], defaultEffort: 'medium',
+		supportsImage: false, capabilities: []
+	});
+	assert.equal(op.defaultEffort, undefined);
+	const added = applyModelPatch([mkProvider([])], 'p1', [op]);
+	assert.equal(added![0].models![0].defaultEffort, undefined);
 });
 
 test('duplicate add is a no-op returning null', () => {
@@ -193,6 +204,119 @@ test('addModelOps emits add then setFree only when free is requested', () => {
 	]);
 	assert.deepEqual(addModelOps(base), [addModelOp(base)]);
 	assert.deepEqual(addModelOps({...base, free: false}), [addModelOp(base)]);
+});
+
+test('editModelOps sends every editable field without changing visibility', () => {
+	const ops = editModelOps({
+		modelId: 'm',
+		displayName: 'New name',
+		supportsThinking: true,
+		supportedEfforts: ['high', 'low'],
+		defaultEffort: 'high',
+		supportsImage: true,
+		capabilities: ['decisions', 'embeddings'],
+		free: true,
+		contextWindow: 128000,
+		temperature: 0.4,
+		promptCacheKey: false
+	});
+	assert.deepEqual(ops, [
+		{op: 'rename', modelId: 'm', displayName: 'New name'},
+		{
+			op: 'enable',
+			modelId: 'm',
+			supportsThinking: true,
+			supportedEfforts: ['high', 'low'],
+			defaultEffort: 'high',
+			inputModalities: ['text', 'image'],
+			capabilities: ['embeddings', 'decisions'],
+			contextWindow: 128000,
+			temperature: 0.4,
+			promptCacheKey: false
+		},
+		{op: 'setFree', modelId: 'm', free: true}
+	]);
+	assert.equal('enabled' in ops[1]!, false);
+});
+
+test('editModelOps clears optional fields and disables thinking cleanly', () => {
+	const ops = editModelOps({
+		modelId: 'm',
+		displayName: '',
+		supportsThinking: false,
+		supportedEfforts: ['high'],
+		defaultEffort: 'high',
+		supportsImage: false,
+		capabilities: [],
+		free: false,
+		promptCacheKey: true
+	}, {free: true});
+	assert.deepEqual(ops, [
+		{op: 'rename', modelId: 'm', displayName: 'm'},
+		{
+			op: 'enable',
+			modelId: 'm',
+			supportsThinking: false,
+			supportedEfforts: [],
+			inputModalities: ['text'],
+			capabilities: [],
+			contextWindow: 0,
+			temperature: null,
+			promptCacheKey: true
+		},
+		{op: 'setFree', modelId: 'm', free: false}
+	]);
+
+	const original = [mkProvider([{
+		modelId: 'm', displayName: 'Old', enabled: false, source: 'catalog', supportsThinking: true,
+		supportedEfforts: ['high'], defaultEffort: 'high', inputModalities: ['text', 'image'],
+		capabilities: ['decisions'], contextWindow: 128000, temperature: 0.4, promptCacheKey: false, free: true
+	}])];
+	const edited = applyModelPatch(original, 'p1', ops);
+	assert.ok(edited);
+	const row = edited[0].models![0];
+	assert.equal(row.displayName, 'm');
+	assert.equal(row.supportsThinking, false);
+	assert.deepEqual(row.supportedEfforts, []);
+	assert.equal('defaultEffort' in row, false);
+	assert.deepEqual(row.inputModalities, ['text']);
+	assert.deepEqual(row.capabilities, []);
+	assert.equal('contextWindow' in row, false);
+	assert.equal('temperature' in row, false);
+	assert.equal(row.promptCacheKey, true);
+	assert.equal(row.free, false);
+	assert.equal(row.enabled, false);
+	assert.equal(row.source, 'catalog');
+});
+
+test('editing efforts clears a default that is no longer supported', () => {
+	const ops = editModelOps({
+		modelId: 'm', displayName: 'M', supportsThinking: true, supportedEfforts: [], defaultEffort: 'high',
+		supportsImage: false, capabilities: [], free: false, promptCacheKey: false
+	});
+	assert.equal('defaultEffort' in ops[1]!, false);
+	const edited = applyModelPatch([mkProvider([{
+		modelId: 'm', displayName: 'M', enabled: true, source: 'catalog', supportsThinking: true,
+		supportedEfforts: ['high'], defaultEffort: 'high'
+	}])], 'p1', ops);
+	assert.ok(edited);
+	assert.deepEqual(edited[0].models![0].supportedEfforts, []);
+	assert.equal('defaultEffort' in edited[0].models![0], false);
+});
+
+test('editing unrelated fields does not lock an unchanged free setting', () => {
+	const input = {
+		modelId: 'm', displayName: 'M', supportsThinking: false, supportedEfforts: [],
+		supportsImage: false, capabilities: [], free: false, promptCacheKey: false
+	};
+	const ops = editModelOps(input, {free: false});
+	assert.deepEqual(ops.map(op => op.op), ['rename', 'enable']);
+	const original = [mkProvider([{
+		modelId: 'm', displayName: 'M', enabled: true, source: 'catalog', free: false, freeLocked: false
+	}])];
+	const edited = applyModelPatch(original, 'p1', ops);
+	assert.ok(edited);
+	assert.equal(edited[0].models![0].freeLocked, false);
 });
 
 test('remove and rename keep old behaviour and recount', () => {

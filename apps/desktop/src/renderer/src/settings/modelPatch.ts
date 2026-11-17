@@ -106,7 +106,10 @@ export function addModelOp(input: {
 		displayName: input.displayName || input.modelId,
 		supportsThinking: input.supportsThinking,
 		supportedEfforts: input.supportsThinking ? input.supportedEfforts : [],
-		defaultEffort: input.supportsThinking ? input.defaultEffort : undefined,
+		defaultEffort:
+			input.supportsThinking && input.defaultEffort && input.supportedEfforts.includes(input.defaultEffort)
+				? input.defaultEffort
+				: undefined,
 		...(input.supportsImage ? {inputModalities: ['text', 'image']} : {}),
 		capabilities: orderedCapabilities(input.capabilities),
 		...(input.contextWindow && input.contextWindow > 0 ? {contextWindow: input.contextWindow} : {}),
@@ -135,6 +138,44 @@ export function addModelOps(input: {
 }): ModelPatchOp[] {
 	const add = addModelOp(input);
 	return input.free === true ? [add, freeOp(input.modelId, true)] : [add];
+}
+
+export function editModelOps(
+	input: {
+		modelId: string;
+		displayName: string;
+		supportsThinking: boolean;
+		supportedEfforts: string[];
+		supportsImage: boolean;
+		defaultEffort?: string;
+		capabilities: readonly string[];
+		free: boolean;
+		contextWindow?: number;
+		temperature?: number;
+		promptCacheKey: boolean;
+	},
+	current: {free?: boolean} = {},
+	defaultFree = false
+): ModelPatchOp[] {
+	const ops: ModelPatchOp[] = [
+		{op: 'rename', modelId: input.modelId, displayName: input.displayName || input.modelId},
+		{
+			op: 'enable',
+			modelId: input.modelId,
+			supportsThinking: input.supportsThinking,
+			supportedEfforts: input.supportsThinking ? [...input.supportedEfforts] : [],
+			...(input.supportsThinking && input.defaultEffort && input.supportedEfforts.includes(input.defaultEffort)
+				? {defaultEffort: input.defaultEffort}
+				: {}),
+			inputModalities: input.supportsImage ? ['text', 'image'] : ['text'],
+			capabilities: orderedCapabilities(input.capabilities),
+			contextWindow: input.contextWindow ?? 0,
+			temperature: input.temperature ?? null,
+			promptCacheKey: input.promptCacheKey
+		}
+	];
+	const previousFree = current.free ?? defaultFree;
+	return input.free === previousFree ? ops : [...ops, freeOp(input.modelId, input.free)];
 }
 
 export function imageInputOp(modelId: string, image: boolean): ModelPatchOp {
@@ -189,6 +230,9 @@ export function applyModelPatch<P extends ProviderLike>(
 			const mi = models.findIndex((m) => m.modelId === op.modelId);
 			const hasPatch =
 				typeof op.enabled === 'boolean' ||
+				typeof op.supportsThinking === 'boolean' ||
+				op.supportedEfforts !== undefined ||
+				op.defaultEffort !== undefined ||
 				op.inputModalities !== undefined ||
 				op.capabilities !== undefined ||
 				op.contextWindow !== undefined ||
@@ -199,10 +243,23 @@ export function applyModelPatch<P extends ProviderLike>(
 				const next: PatchModelRow = {
 					...cur,
 					...(typeof op.enabled === 'boolean' ? {enabled: op.enabled} : {}),
+					...(typeof op.supportsThinking === 'boolean' ? {supportsThinking: op.supportsThinking} : {}),
+					...(op.supportedEfforts !== undefined ? {supportedEfforts: [...op.supportedEfforts]} : {}),
+					...(op.defaultEffort !== undefined ? {defaultEffort: op.defaultEffort} : {}),
 					...(op.inputModalities !== undefined ? {inputModalities: [...op.inputModalities]} : {}),
 					...(op.capabilities !== undefined ? {capabilities: [...op.capabilities]} : {}),
 					...(typeof op.promptCacheKey === 'boolean' ? {promptCacheKey: op.promptCacheKey} : {})
 				};
+				if (op.supportsThinking === false) {
+					next.supportedEfforts = [];
+					delete next.defaultEffort;
+				} else if (
+					op.supportedEfforts !== undefined &&
+					typeof next.defaultEffort === 'string' &&
+					!op.supportedEfforts.includes(next.defaultEffort)
+				) {
+					delete next.defaultEffort;
+				}
 				if (op.contextWindow !== undefined) {
 					if (op.contextWindow > 0) next.contextWindow = op.contextWindow;
 					else delete next.contextWindow;

@@ -14,7 +14,8 @@ import {useSettings} from './useSettings';
 import {useProviders, type Provider, type SeedModel} from './useProviders';
 import {clampEffort} from '../effortClamp';
 import {AddModelDialog} from './AddModelDialog';
-import {addModelOps, capabilityOp, contextWindowOp, defaultPromptCacheKey, freeOp, imageInputOp, promptCacheKeyOp, temperatureOp, visibilityOp} from './modelPatch';
+import {addModelOps, capabilityOp, contextWindowOp, defaultPromptCacheKey, editModelOps, freeOp, imageInputOp, promptCacheKeyOp, temperatureOp, visibilityOp} from './modelPatch';
+import {filterModelProviders} from './modelFilters';
 import {ChooseDefaultDialog} from './ChooseDefaultDialog';
 import {ProviderModelsGroup} from './ProviderModelsGroup';
 import {SearchAddDialog} from './SearchAddDialog';
@@ -35,6 +36,7 @@ export function ModelsSettings({engineReady, focusProviderId}: Props) {
 	const [providerFilter, setProviderFilter] = useState(focusProviderId ?? 'all');
 	const [query, setQuery] = useState('');
 	const [addFor, setAddFor] = useState<string | null>(null);
+	const [editing, setEditing] = useState<{providerId: string; model: SeedModel} | null>(null);
 	const [searchFor, setSearchFor] = useState<string | null>(null);
 	const [pickDefaultOpen, setPickDefaultOpen] = useState(false);
 
@@ -58,24 +60,10 @@ export function ModelsSettings({engineReady, focusProviderId}: Props) {
 		return row ? {provider, model: row} : null;
 	}, [providers.providers, settings.models.defaultPlatform, settings.models.defaultModel]);
 
-	const filteredProviders = useMemo(() => {
-		const q = query.trim().toLowerCase();
-		return providers.providers
-			.filter(p => providerFilter === 'all' || p.id === providerFilter)
-			.map(p => {
-				const models = (p.models ?? []).filter(m => {
-					if (filter === 'enabled' && !m.enabled) return false;
-					if (filter === 'hidden' && m.enabled) return false;
-					if (!q) return true;
-					return (
-						m.displayName.toLowerCase().includes(q) ||
-						m.modelId.toLowerCase().includes(q)
-					);
-				});
-				return {...p, models};
-			})
-			.filter(p => (filter === 'all' && !q ? true : (p.models?.length ?? 0) > 0) || providerFilter === p.id);
-	}, [providers.providers, providerFilter, filter, query]);
+	const filteredProviders = useMemo(
+		() => filterModelProviders(providers.providers, filter, providerFilter, query),
+		[providers.providers, providerFilter, filter, query]
+	);
 
 	const totals = useMemo(() => {
 		let enabled = 0;
@@ -90,6 +78,7 @@ export function ModelsSettings({engineReady, focusProviderId}: Props) {
 	}, [providers.providers]);
 
 	const addProvider = providers.providers.find(p => p.id === addFor);
+	const editingProvider = providers.providers.find(p => p.id === editing?.providerId);
 
 	const pinDefault = (provider: Provider, model: SeedModel) => {
 		const efforts = model.supportedEfforts ?? [];
@@ -370,6 +359,7 @@ export function ModelsSettings({engineReady, focusProviderId}: Props) {
 									void providers.patchModels(provider.id, [temperatureOp(model.modelId, temperature)]);
 								}}
 								onAdd={() => setAddFor(provider.id)}
+								onEdit={model => setEditing({providerId: provider.id, model})}
 								onSearch={() => setSearchFor(provider.id)}
 								onRemove={model =>
 									void providers.patchModels(provider.id, [
@@ -394,6 +384,27 @@ export function ModelsSettings({engineReady, focusProviderId}: Props) {
 					onSubmit={async input => {
 						const ok = await providers.patchModels(addFor, addModelOps(input));
 						if (ok) setAddFor(null);
+						return ok;
+					}}
+				/>
+			) : null}
+
+			{editing ? (
+				<AddModelDialog
+					open
+					model={editing.model}
+					providerName={editingProvider?.name}
+					defaultFree={editingProvider?.free === true}
+					defaultPromptCacheKey={defaultPromptCacheKey(editingProvider?.baseUrl, editingProvider?.id)}
+					onOpenChange={open => {
+						if (!open) setEditing(null);
+					}}
+					onSubmit={async input => {
+						const ok = await providers.patchModels(
+							editing.providerId,
+							editModelOps(input, editing.model, editingProvider?.free === true)
+						);
+						if (ok) setEditing(null);
 						return ok;
 					}}
 				/>

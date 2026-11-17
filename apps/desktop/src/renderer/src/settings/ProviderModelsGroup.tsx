@@ -24,6 +24,7 @@ export function ProviderModelsGroup({
 	onSetContextWindow,
 	onSetTemperature,
 	onAdd,
+	onEdit,
 	onSearch,
 	onRemove
 }: {
@@ -38,6 +39,7 @@ export function ProviderModelsGroup({
 	onSetContextWindow: (model: SeedModel, tokens: number) => void;
 	onSetTemperature: (model: SeedModel, temperature: number | null) => void;
 	onAdd: () => void;
+	onEdit: (model: SeedModel) => void;
 	onSearch: () => void;
 	onRemove: (model: SeedModel) => void;
 }) {
@@ -97,6 +99,11 @@ export function ProviderModelsGroup({
 			</div>
 
 			<div className="space-y-1">
+				{total === 0 ? (
+					<div className="rounded-lg border border-dashed border-border/70 px-3 py-4 text-center text-[12px] text-muted-foreground">
+						{t('settings.models.providerEmpty')}
+					</div>
+				) : null}
 				{(provider.models ?? []).map(model => {
 					const isDefault =
 						defaults.defaultPlatform === provider.id && defaults.defaultModel === model.modelId;
@@ -199,6 +206,18 @@ export function ProviderModelsGroup({
 							</div>
 
 							<div className="flex shrink-0 items-center gap-2">
+								{source !== 'managed' ? (
+									<SettingsButton
+										size="xs"
+										variant="ghost"
+										className="cursor-pointer px-2 text-[11px] text-muted-foreground hover:text-foreground"
+										disabled={disconnected}
+										onClick={() => onEdit(model)}
+									>
+										{t('settings.providers.edit')}
+									</SettingsButton>
+								) : null}
+
 								<SettingsButton
 									size="icon-xs"
 									variant="ghost"

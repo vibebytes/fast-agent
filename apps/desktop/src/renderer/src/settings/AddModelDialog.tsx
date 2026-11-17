@@ -14,10 +14,12 @@ import {
 	DialogTitle
 } from '@fast-ide/ui/components/dialog';
 import {SettingsButton} from './SettingsPrimitives';
+import type {SeedModel} from './useProviders';
 
 export function AddModelDialog({
 	open,
 	providerName,
+	model,
 	defaultFree,
 	defaultPromptCacheKey,
 	onOpenChange,
@@ -25,6 +27,7 @@ export function AddModelDialog({
 }: {
 	open: boolean;
 	providerName?: string;
+	model?: SeedModel;
 	defaultFree?: boolean;
 	defaultPromptCacheKey?: boolean;
 	onOpenChange: (open: boolean) => void;
@@ -43,20 +46,29 @@ export function AddModelDialog({
 	}) => Promise<boolean>;
 }) {
 	const {t} = useTranslation();
-	const [modelId, setModelId] = useState('');
-	const [displayName, setDisplayName] = useState('');
-	const [supportsThinking, setSupportsThinking] = useState(false);
-	const [supportsImage, setSupportsImage] = useState(false);
-	const [free, setFree] = useState(defaultFree ?? false);
-	const [promptCacheKey, setPromptCacheKey] = useState(defaultPromptCacheKey ?? false);
-	const [capabilities, setCapabilities] = useState<string[]>([]);
-	const [supportedEfforts, setSupportedEfforts] = useState<string[]>(['low', 'medium', 'high', 'max']);
-	const [defaultEffort, setDefaultEffort] = useState('medium');
+	const editing = model !== undefined;
+	const [modelId, setModelId] = useState(model?.modelId ?? '');
+	const [displayName, setDisplayName] = useState(model?.displayName ?? '');
+	const [supportsThinking, setSupportsThinking] = useState(model?.supportsThinking ?? false);
+	const [supportsImage, setSupportsImage] = useState(model?.inputModalities?.includes('image') ?? false);
+	const [free, setFree] = useState(model?.free ?? defaultFree ?? false);
+	const [promptCacheKey, setPromptCacheKey] = useState(model?.promptCacheKey ?? defaultPromptCacheKey ?? false);
+	const [capabilities, setCapabilities] = useState<string[]>(model?.capabilities ?? []);
+	const [supportedEfforts, setSupportedEfforts] = useState<string[]>(
+		model ? [...(model.supportedEfforts ?? [])] : ['low', 'medium', 'high', 'max']
+	);
+	const [defaultEffort, setDefaultEffort] = useState(
+		model?.defaultEffort ?? model?.supportedEfforts?.[0] ?? 'medium'
+	);
 	const [userToggledThinking, setUserToggledThinking] = useState(false);
 	const [saving, setSaving] = useState(false);
-	const [contextWindowText, setContextWindowText] = useState('');
+	const [contextWindowText, setContextWindowText] = useState(
+		model?.contextWindow ? String(model.contextWindow) : ''
+	);
 	const contextWindow = parseContextWindow(contextWindowText);
-	const [temperatureText, setTemperatureText] = useState('');
+	const [temperatureText, setTemperatureText] = useState(
+		typeof model?.temperature === 'number' ? String(model.temperature) : ''
+	);
 	const temperature = parseTemperature(temperatureText);
 
 	const onModelIdChange = (val: string) => {
@@ -97,30 +109,34 @@ export function AddModelDialog({
 
 	return (
 		<Dialog open={open} onOpenChange={onOpenChange}>
-			<DialogContent className="sm:max-w-md" showCloseButton>
-				<DialogHeader>
+			<DialogContent
+				className="flex max-h-[calc(100dvh-2rem)] min-w-0 flex-col overflow-hidden sm:max-w-md"
+				showCloseButton
+			>
+				<DialogHeader className="shrink-0">
 					<DialogTitle>
-						{t('settings.models.addModel')}
+						{t(editing ? 'settings.models.editModel' : 'settings.models.addModel')}
 						{providerName ? ` · ${providerName}` : ''}
 					</DialogTitle>
 					<DialogDescription>
-						{providerName
-							? t('settings.models.addModelDescriptionNamed', {
-									provider: providerName
-								})
-							: t('settings.models.addModelDescription')}
+						{editing
+							? t('settings.models.editModelDescription')
+							: providerName
+								? t('settings.models.addModelDescriptionNamed', {provider: providerName})
+								: t('settings.models.addModelDescription')}
 					</DialogDescription>
 				</DialogHeader>
 
-				<div className="space-y-4 py-1">
+				<div className="min-h-0 min-w-0 flex-1 space-y-4 overflow-y-auto overflow-x-hidden py-1 pr-1">
 					<label className="block space-y-1.5">
 						<span className="text-xs font-medium text-foreground">{t('settings.models.modelId')}</span>
 						<Input
 							value={modelId}
 							onChange={e => onModelIdChange(e.target.value)}
 							placeholder="e.g. glm-5.3, deepseek-reasoner, claude-3-7-sonnet..."
-							className="text-xs font-mono"
-							autoFocus
+							className={cn('min-w-0 text-xs font-mono', editing && 'bg-muted/40 text-muted-foreground')}
+							readOnly={editing}
+							autoFocus={!editing}
 						/>
 					</label>
 
@@ -351,7 +367,7 @@ export function AddModelDialog({
 					</div>
 				</div>
 
-				<DialogFooter className="gap-2">
+				<DialogFooter className="shrink-0 gap-2 border-t border-border/50 pt-4">
 					<SettingsButton variant="outline" onClick={() => onOpenChange(false)}>
 						{t('shell.common.cancel')}
 					</SettingsButton>
