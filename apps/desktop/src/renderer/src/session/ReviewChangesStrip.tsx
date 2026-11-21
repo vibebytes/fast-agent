@@ -10,7 +10,7 @@ import {
 import {cn} from '@fast-ide/ui/lib/utils';
 import {ChevronDown} from 'lucide-react';
 import {rememberReviewStats, reviewRowChangeIds, reviewRows} from '../review/agentReview';
-import {reviewRowOpenTarget} from '../review/openReviewDiff';
+import {routeReviewRowOpen} from '../review/openReviewDiff';
 import {ReviewRows} from '../review/ReviewRows';
 import {type AgentReview} from '../review/useAgentReview';
 import {UndoConfirm} from '../review/UndoConfirm';
@@ -123,13 +123,9 @@ export function ReviewChangesStrip({
 						rows={rows}
 						review={review}
 						className="max-h-56 overflow-y-auto"
-						onOpen={row => {
-							if (onOpenFile) onOpenFile(row.path);
-							else {
-								const target = reviewRowOpenTarget(row);
-								if (target) onOpenChange?.(target.changeId, target.path);
-							}
-						}}
+						onOpen={row =>
+							routeReviewRowOpen(row, list.available, onOpenChange, onOpenFile)
+						}
 						onOpenFile={onOpenFile}
 						onUndo={changeIds => undo.start({kind: 'changes', changeIds})}
 					/>

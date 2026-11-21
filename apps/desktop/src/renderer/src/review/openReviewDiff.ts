@@ -26,6 +26,20 @@ export function reviewRowOpenTarget(row: ReviewRow): {changeId: string; path: st
 	return {changeId: row.changeId, path: row.path};
 }
 
+export function routeReviewRowOpen(
+	row: ReviewRow,
+	reviewAvailable: boolean,
+	onOpenChange?: (changeId: string, path: string) => void,
+	onOpenFile?: (path: string) => void
+): void {
+	const target = reviewAvailable ? reviewRowOpenTarget(row) : null;
+	if (target && onOpenChange) {
+		onOpenChange(target.changeId, target.path);
+		return;
+	}
+	onOpenFile?.(row.path);
+}
+
 /**
  * Whether a strip/App open request has already been applied for this nonce.
  *

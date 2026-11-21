@@ -6,6 +6,7 @@ import {reviewRows} from './agentReview.js';
 import {
 	openReviewDiff,
 	reviewRowOpenTarget,
+	routeReviewRowOpen,
 	shouldApplyOpenDiffRequest,
 	type RailTabsState
 } from './openReviewDiff.js';
@@ -31,6 +32,50 @@ const change = (over: Partial<ReviewChange> = {}): ReviewChange => ({
 	kind: 'modified',
 	state: {kind: 'pending'},
 	...over
+});
+
+test('strip row prefers a recorded diff even when a plain file opener is present', () => {
+	const row = reviewRows(listOf([change()]), [])[0]!;
+	const opened: string[] = [];
+
+	routeReviewRowOpen(
+		row,
+		true,
+		(changeId, path) => opened.push(`diff:${changeId}:${path}`),
+		path => opened.push(`file:${path}`)
+	);
+
+	assert.deepEqual(opened, ['diff:chg-readme:agent/README.md']);
+});
+
+test('strip row falls back to the plain file while its diff is still capturing', () => {
+	const row = reviewRows(listOf([]), [
+		{id: 'live', path: 'README.md', add: 1, del: 0, status: 'running'}
+	])[0]!;
+	const opened: string[] = [];
+
+	routeReviewRowOpen(
+		row,
+		true,
+		changeId => opened.push(`diff:${changeId}`),
+		path => opened.push(`file:${path}`)
+	);
+
+	assert.deepEqual(opened, ['file:README.md']);
+});
+
+test('strip row does not request a diff while checkpoints are unavailable', () => {
+	const row = reviewRows(listOf([change()]), [])[0]!;
+	const opened: string[] = [];
+
+	routeReviewRowOpen(
+		row,
+		false,
+		changeId => opened.push(`diff:${changeId}`),
+		path => opened.push(`file:${path}`)
+	);
+
+	assert.deepEqual(opened, ['file:agent/README.md']);
 });
 
 test('opening a review row focuses a Diff tab (not Files / Changes)', () => {
