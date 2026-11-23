@@ -75,6 +75,7 @@ export function ActionStrip(p: {
 	canSteer: boolean;
 	canSubmitNow: boolean;
 	canSend: boolean;
+	sendAriaLabel?: string;
 	selectedSlash: SlashItem | null;
 	richRef: RefObject<MentionRichInputHandle | null>;
 	draft: string;
@@ -93,7 +94,7 @@ export function ActionStrip(p: {
 		composerLocked, canChat, setModelSearch, modelCatalog, modelCatalogReady, modelSearch, effectiveModel, pickModel,
 		thinkingPopOpen, setThinkingPopOpen, supportsThinking, supportedEfforts, thinking,
 		thinkingButtonLabel, effort, toggleThinking, pickEffort,
-		stopKind, canSteer, canSubmitNow, canSend, selectedSlash, richRef, draft, store,
+		stopKind, canSteer, canSubmitNow, canSend, sendAriaLabel, selectedSlash, richRef, draft, store,
 		contextUsageView = null, compacting = false, canCompact = false, onCompact
 	} = p;
 	const stopEchoBusy = useStopEcho(sessionId ?? null);
@@ -373,7 +374,8 @@ export function ActionStrip(p: {
 										variant="default"
 										className="size-7 cursor-pointer rounded-full bg-primary text-primary-foreground hover:opacity-90 active:scale-95 transition-all shadow-sm disabled:opacity-30 disabled:scale-100 disabled:cursor-not-allowed"
 										disabled={!canSend}
-										aria-label={t('shell.common.send')}
+										aria-label={sendAriaLabel ?? t('shell.common.send')}
+										title={sendAriaLabel ?? t('shell.common.send')}
 									>
 										<ArrowUp className="size-3.5 stroke-[2.2]" />
 									</InputGroupButton>

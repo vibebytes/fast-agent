@@ -364,6 +364,7 @@ export const SessionPane = memo(function SessionPane({
 		composerStack,
 		hasComposerStack,
 		composerStop,
+		runQueuedHead,
 		onSubmitSuccess,
 		onComposerError,
 		timelineUndo,
@@ -572,6 +573,7 @@ export const SessionPane = memo(function SessionPane({
 						stopKind={composerStop}
 						canSubmitNow={gate.canSubmitNow}
 						canEnqueue={gate.canEnqueue}
+						onRunQueuedHead={runQueuedHead}
 						canSteer={dshCaps?.queue === true}
 						model={model}
 						modelDisplay={modelDisplay}

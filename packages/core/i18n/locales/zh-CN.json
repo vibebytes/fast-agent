@@ -1138,7 +1138,9 @@
     "queue": {
       "interrupting": "正在插话…",
       "interruptTitle": "插话 — 取消当前工作，然后发送此消息",
-      "interruptAria": "插话"
+      "interruptAria": "插话",
+      "run": "执行",
+      "runTitle": "立即执行下一条排队消息"
     },
     "question": {
       "pleaseSelect": "请选择",

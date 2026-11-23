@@ -43,6 +43,7 @@ import {ensurePlanPrefix, stripAutoPlanPrefix} from './planPrefix';
 import {clampEffort} from './effortClamp';
 import {platformModel} from './composerPlatform';
 import {helpNoticeText} from './helpNoticeText';
+import {sendLightsForQueuedRun} from './session/queueRun';
 import {
 	composerModelLabel,
 	concreteModelDisplay,
@@ -96,6 +97,8 @@ export type DialogueComposerProps = {
 	stopKind?: 'run' | 'goal';
 	canSubmitNow: boolean;
 	canEnqueue: boolean;
+	/** Idle session with a Follow-up head — empty send runs that message. */
+	onRunQueuedHead?: () => void;
 	/** `dsh_caps.queue` — busy Enter still queues; this button is explicit steer. */
 	canSteer?: boolean;
 	model: string;
@@ -138,6 +141,7 @@ export const DialogueComposer = memo(function DialogueComposer({
 	stopKind,
 	canSubmitNow,
 	canEnqueue,
+	onRunQueuedHead,
 	canSteer = false,
 	model,
 	modelDisplay,
@@ -681,7 +685,10 @@ export const DialogueComposer = memo(function DialogueComposer({
 			: (snap?.text ?? draft).trim();
 		const chips = selectedSlash ? [] : (snap?.chips ?? mentionChips);
 		const hasImages = pendingImages.some(p => !p.rejectReason && p.data);
-		if (!text && !hasImages && appContexts.length === 0) return;
+		if (!text && !hasImages && appContexts.length === 0) {
+			if (onRunQueuedHead && canSubmitNow) onRunQueuedHead();
+			return;
+		}
 		await submitText(text, selectedSlash, chips, chips);
 	}
 
@@ -707,17 +714,23 @@ export const DialogueComposer = memo(function DialogueComposer({
 	}
 
 	const hasSendableImages = pendingImages.some(p => !p.rejectReason && p.data);
+	const hasDraft = Boolean(
+		selectedSlash ||
+			draft.trim() ||
+			mentionChips.length > 0 ||
+			hasSendableImages ||
+			appContexts.length > 0
+	);
+	const queueSendLit = sendLightsForQueuedRun({
+		affordance: onRunQueuedHead && canSubmitNow ? 'run' : 'none',
+		hasDraft,
+		composerDisabled: composerDisabled || dshBlocked
+	});
 	const canSend =
 		!composerDisabled &&
 		!dshBlocked &&
 		(canSubmitNow || canEnqueue) &&
-		Boolean(
-			selectedSlash ||
-				draft.trim() ||
-				mentionChips.length > 0 ||
-				hasSendableImages ||
-				appContexts.length > 0
-		);
+		(hasDraft || queueSendLit);
 
 	const slashCmdValue =
 		flatSlashMenu[slashHighlight] != null
@@ -847,6 +860,7 @@ export const DialogueComposer = memo(function DialogueComposer({
 							effectiveModel, pickModel, thinkingPopOpen, setThinkingPopOpen,
 							supportsThinking, supportedEfforts, thinking, thinkingButtonLabel, effort,
 							toggleThinking, pickEffort, stopKind, canSteer, canSubmitNow, canSend,
+							sendAriaLabel: queueSendLit ? t('shell.queue.runTitle') : undefined,
 							selectedSlash, richRef, draft, store,
 							contextUsageView,
 							compacting,

@@ -24,6 +24,7 @@ import {reviewListForSession} from '../review/agentReview';
 import type {AgentReview} from '../review/useAgentReview';
 import {useUndoFlow} from '../review/useUndoFlow';
 import {QueuedMessagesSection} from './QueuedMessages';
+import {queueAffordance} from './queueRun';
 import {isEchoExpired, isEchoReflected, makeQueueEcho, type QueueEcho} from './queueEcho';
 import {requestStop, settleStopEcho} from './stopEcho';
 import {pruneDecisions} from './pendingDecisions';
@@ -243,11 +244,25 @@ export function usePaneEffects(h: PaneEffectsHost) {
 	const rawChildWork = transcript.childWork ?? EMPTY_CHILD_WORK;
 	const goalCard = transcript.goalCard ?? null;
 	const goalFlow = transcript.goalFlow;
-	const composerStop: 'run' | 'goal' | undefined = gate.canCancel
+	const [interruptArmed, setInterruptArmed] = useState(false);
+	//「插话」must light Stop immediately. The bridge used to answer an idle click
+	// with turn_cancelled and the gate fell back to the gray send arrow.
+	useEffect(() => {
+		if (interruptArmed && gate.canCancel) setInterruptArmed(false);
+	}, [interruptArmed, gate.canCancel]);
+	const composerStop: 'run' | 'goal' | undefined = gate.canCancel || interruptArmed
 		? 'run'
 		: goalCard && STOPPABLE_GOAL_PHASES.has(goalCard.phase)
 			? 'goal'
 			: undefined;
+	const queuedAffordance = queueAffordance({
+		runState: gate.runState,
+		canSubmitNow: gate.canSubmitNow,
+		canEnqueue: gate.canEnqueue,
+		canCancel: gate.canCancel,
+		queuePaused,
+		queueLength: queue.length
+	});
 	// L1 Goal steps stay in childWork for GoalRow rich cards (BackgroundTools nests them).
 	const childWork = useMemo(() => drawerChildWork(rawChildWork), [rawChildWork]);
 
@@ -510,13 +525,22 @@ export function usePaneEffects(h: PaneEffectsHost) {
 	const onInterrupt = useCallback(
 		(item: QueueItem) => {
 			stickToBottomRef.current = true;
+			setInterruptArmed(true);
 			setEcho(makeQueueEcho(activeTaskId, item.text, timelineRef.current));
 		},
 		[activeTaskId]
 	);
+	/** Idle composer + a stuck Follow-up: the lit「执行」control runs the head. */
+	const runQueuedHead = useCallback(() => {
+		const item = queue[0];
+		if (!item || queuedAffordance !== 'run') return;
+		onInterrupt(item);
+		void window.fastIde.interruptQueueItem(item.id);
+	}, [queue, queuedAffordance, onInterrupt]);
 	/** Interrupt failed after the row was dropped — the queue row unhides
 	 *  itself; retire the optimistic bubble and surface why. */
 	const onInterruptError = useCallback((message: string) => {
+		setInterruptArmed(false);
 		setEcho(null);
 		setErrorLine(message);
 	}, []);
@@ -537,6 +561,8 @@ export function usePaneEffects(h: PaneEffectsHost) {
 					<QueuedMessagesSection
 						queue={queue}
 						queuePaused={queuePaused}
+						canRunHead={queuedAffordance === 'run'}
+						canInterrupt={queuedAffordance === 'interrupt'}
 						onInterrupt={onInterrupt}
 						onInterruptError={onInterruptError}
 					/>
@@ -560,6 +586,7 @@ export function usePaneEffects(h: PaneEffectsHost) {
 			onOpenTeams,
 			queue,
 			queuePaused,
+			queuedAffordance,
 			onInterrupt,
 			onInterruptError,
 			dshCaps,
@@ -632,6 +659,7 @@ export function usePaneEffects(h: PaneEffectsHost) {
 		composerStack,
 		hasComposerStack,
 		composerStop,
+		runQueuedHead: queuedAffordance === 'run' ? runQueuedHead : undefined,
 		onSubmitSuccess,
 		onComposerError,
 		timelineUndo,

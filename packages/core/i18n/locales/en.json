@@ -1143,7 +1143,9 @@
     "queue": {
       "interrupting": "Interrupting…",
       "interruptTitle": "Interrupt — cancel work, then send this",
-      "interruptAria": "Interrupt"
+      "interruptAria": "Interrupt",
+      "run": "Run",
+      "runTitle": "Run the next queued message"
     },
     "question": {
       "pleaseSelect": "Please select",

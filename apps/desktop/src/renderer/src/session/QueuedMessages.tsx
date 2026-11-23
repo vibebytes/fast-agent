@@ -23,11 +23,17 @@ import type {QueueItem} from '../env';
 export function QueuedMessagesSection({
 	queue,
 	queuePaused = false,
+	canRunHead = false,
+	canInterrupt = false,
 	onInterrupt,
 	onInterruptError
 }: {
 	queue: QueueItem[];
 	queuePaused?: boolean;
+	/** Session is idle — the head row's「执行」stays lit so a stuck queue can run. */
+	canRunHead?: boolean;
+	/** A turn is live —「插话」stays visible instead of appearing only on hover. */
+	canInterrupt?: boolean;
 	onInterrupt?: (item: QueueItem) => void;
 	onInterruptError?: (message: string) => void;
 }) {
@@ -55,6 +61,17 @@ export function QueuedMessagesSection({
 			next.delete(id);
 			return next;
 		});
+	}
+
+	function remove(item: QueueItem) {
+		if (hidden.has(item.id)) return;
+		setHidden(prev => new Set(prev).add(item.id));
+		window.fastIde
+			.removeQueueItem(item.id)
+			.then(ok => {
+				if (!ok) unhide(item.id);
+			})
+			.catch(() => unhide(item.id));
 	}
 
 	function interrupt(item: QueueItem) {
@@ -125,7 +142,12 @@ export function QueuedMessagesSection({
 									className="group/queue flex items-center gap-2 rounded-md px-1.5 py-1 hover:bg-muted/50"
 								>
 									<Circle
-										className="size-3.5 shrink-0 text-muted-foreground/70"
+										className={cn(
+											'size-3.5 shrink-0',
+											canRunHead && index === 0
+												? 'text-primary'
+												: 'text-muted-foreground/70'
+										)}
 										aria-hidden
 									/>
 									{editingId === item.id ? (
@@ -151,18 +173,59 @@ export function QueuedMessagesSection({
 											{item.text}
 										</span>
 									)}
-									<div className="flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity group-hover/queue:opacity-100 focus-within:opacity-100">
+									{canRunHead && index === 0 ? (
 										<Button
 											type="button"
-											variant="ghost"
-											size="icon-xs"
-											className="size-6 text-muted-foreground"
+											size="xs"
+											className="shrink-0 rounded-full"
+											aria-label={t('shell.queue.run')}
+											title={t('shell.queue.runTitle')}
+											onClick={() => interrupt(item)}
+										>
+											{t('shell.queue.run')}
+										</Button>
+									) : canRunHead || canInterrupt ? (
+										<Button
+											type="button"
+											size="xs"
+											className="shrink-0 rounded-full"
 											aria-label={t('shell.queue.interruptAria')}
 											title={t('shell.queue.interruptTitle')}
 											onClick={() => interrupt(item)}
 										>
-											<Zap className="size-3" />
+											{t('shell.queue.interruptAria')}
 										</Button>
+									) : null}
+									<Button
+										type="button"
+										variant="ghost"
+										size="icon-xs"
+										className="size-6 shrink-0 text-muted-foreground hover:text-destructive"
+										aria-label="Remove"
+										title="Remove"
+										onClick={() => remove(item)}
+									>
+										<Trash2 className="size-3" />
+									</Button>
+									<div
+										className={cn(
+											'flex shrink-0 items-center gap-0.5 transition-opacity',
+											'opacity-0 group-hover/queue:opacity-100 focus-within:opacity-100'
+										)}
+									>
+										{canRunHead || canInterrupt ? null : (
+											<Button
+												type="button"
+												variant="ghost"
+												size="icon-xs"
+												className="size-6 text-muted-foreground"
+												aria-label={t('shell.queue.interruptAria')}
+												title={t('shell.queue.interruptTitle')}
+												onClick={() => interrupt(item)}
+											>
+												<Zap className="size-3" />
+											</Button>
+										)}
 										<Button
 											type="button"
 											variant="ghost"
@@ -185,17 +248,6 @@ export function QueuedMessagesSection({
 											onClick={() => void window.fastIde.reorderQueue(index, index - 1)}
 										>
 											<ArrowUp className="size-3" />
-										</Button>
-										<Button
-											type="button"
-											variant="ghost"
-											size="icon-xs"
-											className="size-6 text-muted-foreground"
-											aria-label="Remove"
-											title="Remove"
-											onClick={() => void window.fastIde.removeQueueItem(item.id)}
-										>
-											<Trash2 className="size-3" />
 										</Button>
 									</div>
 								</li>
