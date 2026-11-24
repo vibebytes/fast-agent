@@ -33,6 +33,7 @@ import type {
 	ProviderRow,
 	ReadMediaResult,
 	SaveWorkspaceFileResult,
+	DeleteWorkspaceFileResult,
 	SearchModelRow,
 	SettingsDoc,
 	SettingsScope,
@@ -104,6 +105,10 @@ export type InvokeHost = {
 	saveWorkspaceFile: {
 		args: [relativePath: string, content: string, mtime?: number, bytes?: number];
 		result: SaveWorkspaceFileResult;
+	};
+	deleteWorkspaceFile: {
+		args: [relativePath: string, recursive?: boolean];
+		result: DeleteWorkspaceFileResult;
 	};
 	'fs:readMedia': {args: [relativePath: string]; result: ReadMediaResult};
 	'pet:getVisible': {args: []; result: boolean};

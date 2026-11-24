@@ -1,26 +1,27 @@
 import type {ReactNode} from 'react';
-import {ContextMenuItem} from '@fast-ide/ui/components/context-menu';
-import {Copy, FileText, FolderSymlink} from 'lucide-react';
+import {ContextMenuItem, ContextMenuSeparator} from '@fast-ide/ui/components/context-menu';
+import {Copy, FilePlus2, FileText, FolderSymlink, Trash2} from 'lucide-react';
 import {shellT as t} from '../i18n/t';
 import {joinWorkspacePath} from '../session/path';
 
-/**
- * The four file-path actions (open / reveal / copy paths) shared by the Files tree and the review
- * rows, so labels, icons and disabled states cannot drift between the two menus.
- */
 export function FilePathMenuItems({
 	relativePath,
 	projectPath,
 	onOpen,
 	openDisabled,
-	openIcon = <FileText className="size-3.5" />
+	openIcon = <FileText className="size-3.5" />,
+	onNewFile,
+	onDelete,
+	isDir = false
 }: {
 	relativePath: string;
-	/** Project root — null grays out "Copy Absolute Path" instead of copying a wrong path. */
 	projectPath: string | null;
 	onOpen: () => void;
 	openDisabled?: boolean;
 	openIcon?: ReactNode;
+	onNewFile?: () => void;
+	onDelete?: () => void;
+	isDir?: boolean;
 }) {
 	return (
 		<>
@@ -28,9 +29,13 @@ export function FilePathMenuItems({
 				{openIcon}
 				{t('shell.filesMenu.open')}
 			</ContextMenuItem>
-			<ContextMenuItem
-				onSelect={() => void window.fastIde.showWorkspacePathInFolder(relativePath)}
-			>
+			{onNewFile ? (
+				<ContextMenuItem onSelect={onNewFile}>
+					<FilePlus2 className="size-3.5" />
+					{t('shell.filesMenu.newFile')}
+				</ContextMenuItem>
+			) : null}
+			<ContextMenuItem onSelect={() => void window.fastIde.showWorkspacePathInFolder(relativePath)}>
 				<FolderSymlink className="size-3.5" />
 				{t('shell.filesMenu.revealInFolder')}
 			</ContextMenuItem>
@@ -48,6 +53,15 @@ export function FilePathMenuItems({
 				<Copy className="size-3.5" />
 				{t('shell.filesMenu.copyAbsolutePath')}
 			</ContextMenuItem>
+			{onDelete ? (
+				<>
+					<ContextMenuSeparator />
+					<ContextMenuItem variant="destructive" onSelect={onDelete}>
+						<Trash2 className="size-3.5" />
+						{t(isDir ? 'shell.filesMenu.deleteDirectory' : 'shell.filesMenu.deleteFile')}
+					</ContextMenuItem>
+				</>
+			) : null}
 		</>
 	);
 }

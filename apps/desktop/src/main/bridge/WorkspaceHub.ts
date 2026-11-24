@@ -26,6 +26,7 @@ import type {
 	ReviewRefusal,
 	ReviewRestored,
 	SaveWorkspaceFileResult,
+	DeleteWorkspaceFileResult,
 	SearchModelRow,
 	MobilePairingInfo,
 	SettingsDoc,
@@ -978,6 +979,9 @@ export class WorkspaceHub {
 	}
 	async saveWorkspaceFile(relativePath: string, content: string, mtime?: number, bytes?: number) {
 		return this.checkout.saveWorkspaceFile(relativePath, content, mtime, bytes);
+	}
+	async deleteWorkspaceFile(relativePath: string, recursive?: boolean): Promise<DeleteWorkspaceFileResult> {
+		return this.checkout.deleteWorkspaceFile(relativePath, recursive);
 	}
 	async gitWorkspaceStatus(force?: boolean) {
 		return this.checkout.gitWorkspaceStatus(force);

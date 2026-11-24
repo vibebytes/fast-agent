@@ -7,6 +7,7 @@ import type {
 	HostDirResult,
 	ListWorkspaceDirResult,
 	SaveWorkspaceFileResult,
+	DeleteWorkspaceFileResult,
 	WorkspaceFsCode
 } from '@fast-ide/session-view';
 import {CONNECT_DEADLINE_MS} from '../../remoteEdges.js';
@@ -55,6 +56,10 @@ export type WorkspaceCheckout = {
 		mtime?: number,
 		bytes?: number
 	) => Promise<SaveWorkspaceFileResult>;
+	deleteWorkspaceFile: (
+		relativePath: string,
+		recursive?: boolean
+	) => Promise<DeleteWorkspaceFileResult>;
 	gitWorkspaceStatus: (force?: boolean) => Promise<GitStatus | null>;
 	listHostDir: (dirPath?: string) => Promise<HostDirResult>;
 	createHostDir: (parent: string, name: string) => Promise<HostDirCreateResult>;
@@ -265,6 +270,39 @@ export function createCheckout(lane: CheckoutLane): WorkspaceCheckout {
 				}
 				lane.rememberSave(event.pathHash ?? ws.id, fs.relativePath ?? relativePath, fs.mtime);
 				return {ok: true, relativePath: fs.relativePath ?? relativePath, mtime: fs.mtime, bytes: fs.bytes};
+			} catch (e) {
+				return {ok: false, error: e instanceof Error ? e.message : String(e)};
+			}
+		},
+		async deleteWorkspaceFile(relativePath, recursive) {
+			const ws = workspaceIdOr(msg => ({ok: false as const, error: msg}));
+			if (!ws.ok) return ws.err;
+			if (!lane.ready()) return {ok: false, error: 'Engine not ready'};
+			const requestId = randomUUID();
+			const {token, promise} = lane.waitRequest(requestId);
+			if (
+				!lane.send({
+					type: 'DeleteWorkspaceFile',
+					requestId,
+					workspaceId: ws.id,
+					relativePath,
+					recursive: recursive === true
+				})
+			) {
+				lane.cancel(token);
+				return {ok: false, error: 'Failed to send DeleteWorkspaceFile'};
+			}
+			try {
+				const event = await promise;
+				const code = asFsCode(event.fs?.code);
+				if (event.status === 'error' || event.status === 'rejected' || code) {
+					return {
+						ok: false,
+						error: event.message || code || 'DeleteWorkspaceFile failed',
+						code
+					};
+				}
+				return {ok: true, relativePath: event.fs?.relativePath ?? relativePath};
 			} catch (e) {
 				return {ok: false, error: e instanceof Error ? e.message : String(e)};
 			}

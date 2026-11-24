@@ -286,6 +286,14 @@ export type CheckoutCommand =
 			bytes?: number;
 			tenantId?: string;
 	  }
+	| {
+			type: 'DeleteWorkspaceFile';
+			requestId: string;
+			workspaceId: string;
+			relativePath: string;
+			recursive?: boolean;
+			tenantId?: string;
+	  }
 	/** Host-level SCM chrome: branch + dirty files under a registered slot. */
 	| {
 			type: 'GitWorkspaceStatus';
@@ -419,6 +427,14 @@ export const checkoutCommandSchemas = [
 		mtime: z.number().optional(),
 		/** Size paired with mtime for coarse-FS CAS. */
 		bytes: z.number().optional(),
+		tenantId: z.string().optional()
+	}),
+	z.object({
+		type: z.literal('DeleteWorkspaceFile'),
+		requestId: z.string(),
+		workspaceId: z.string(),
+		relativePath: z.string(),
+		recursive: z.boolean().optional(),
 		tenantId: z.string().optional()
 	}),
 	z.object({

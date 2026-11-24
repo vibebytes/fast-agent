@@ -185,6 +185,8 @@ const api = {
 	getWorkspaceFile: (relativePath: string) => invoke('getWorkspaceFile', relativePath),
 	saveWorkspaceFile: (relativePath: string, content: string, mtime?: number, bytes?: number) =>
 		invoke('saveWorkspaceFile', relativePath, content, mtime, bytes),
+	deleteWorkspaceFile: (relativePath: string, recursive?: boolean) =>
+		invoke('deleteWorkspaceFile', relativePath, recursive),
 	readMedia: (relativePath: string) => invoke('fs:readMedia', relativePath),
 	getPathForFile: file => {
 		try {

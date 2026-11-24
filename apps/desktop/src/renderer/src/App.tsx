@@ -132,6 +132,7 @@ export function App({store}: {store: WorkspaceStore}) {
 	);
 	const rightRailOpenRef = useRef(rightRailOpen);
 	rightRailOpenRef.current = rightRailOpen;
+	const [railTabIntent, setRailTabIntent] = useState<'files' | 'content'>('files');
 	// Surface instances seen while the rail was up: once the user collapses the rail,
 	// replays of those instances must not pop it back open.
 	const railSeenSurfaceRef = useRef(new Set<string>());
@@ -363,6 +364,7 @@ export function App({store}: {store: WorkspaceStore}) {
 	const onOpenFile = useCallback((path: string, line?: number, endLine?: number) => {
 		const trimmed = path.trim();
 		if (!trimmed) return;
+		setRailTabIntent('content');
 		setRightRailOpen(true);
 		setOpenFileRequest({path: trimmed, line, endLine, nonce: Date.now()});
 	}, []);
@@ -377,7 +379,10 @@ export function App({store}: {store: WorkspaceStore}) {
 		[]
 	);
 	const collapseRightRail = useCallback(() => setRightRailOpen(false), []);
-	const expandRightRail = useCallback(() => setRightRailOpen(true), []);
+	const expandRightRail = useCallback(() => {
+		setRailTabIntent('files');
+		setRightRailOpen(true);
+	}, []);
 
 	// RightWorkbench unmounts while the rail is collapsed, so its surface_open handler is
 	// dead exactly when a web surface (e.g. vibe3d) appears. Watch here: a genuinely new
@@ -400,6 +405,7 @@ export function App({store}: {store: WorkspaceStore}) {
 		});
 	}, [expandRightRail]);
 	const onOpenReviewDiff = useCallback((changeId: string, path: string) => {
+		setRailTabIntent('content');
 		setRightRailOpen(true);
 		setOpenDiffRequest({changeId, path, nonce: Date.now()});
 	}, []);
@@ -746,6 +752,7 @@ export function App({store}: {store: WorkspaceStore}) {
 											project={project}
 											layout={layout}
 											onCollapse={collapseRightRail}
+											defaultFilesOnOpen={railTabIntent === 'files'}
 											openFileRequest={openFileRequest}
 											onOpenFileRequestHandled={clearOpenFileRequest}
 											openDiffRequest={openDiffRequest}

@@ -27,6 +27,13 @@ test('bridgeCommandSchema round-trips workspace FS host commands', () => {
 			mtime: 1_700_000_000_000,
 			bytes: 11
 		},
+		{
+			type: 'DeleteWorkspaceFile',
+			requestId: 'r4-delete',
+			workspaceId: 'abcdef123456',
+			relativePath: 'src',
+			recursive: true
+		},
 		{type: 'GitWorkspaceStatus', requestId: 'r5', workspaceId: 'abcdef123456'},
 		{type: 'ListHostDir', requestId: 'r6'},
 		{type: 'ListHostDir', requestId: 'r7', path: '/home/kai'},

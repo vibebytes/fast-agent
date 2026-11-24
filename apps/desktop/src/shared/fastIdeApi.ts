@@ -43,6 +43,7 @@ import type {
 	QueueItem,
 	ReadMediaResult,
 	SaveWorkspaceFileResult,
+	DeleteWorkspaceFileResult,
 	ReviewChangeDetail,
 	FileReviewDiff,
 	ReviewDiffSnapshot,
@@ -568,6 +569,10 @@ export type FastIdeApi = {
 		mtime?: number,
 		bytes?: number
 	) => Promise<SaveWorkspaceFileResult>;
+	deleteWorkspaceFile: (
+		relativePath: string,
+		recursive?: boolean
+	) => Promise<DeleteWorkspaceFileResult>;
 	readMedia: (relativePath: string) => Promise<ReadMediaResult>;
 	/** Absolute path of a pasted/dropped File ('' when synthetic — e.g. screenshot blob). */
 	getPathForFile: (file: HostFileRef) => string;

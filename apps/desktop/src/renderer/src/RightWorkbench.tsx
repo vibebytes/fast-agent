@@ -67,6 +67,7 @@ import {
 	TabKindIcon
 } from './railTabs';
 import {basename} from './session/path';
+import {initialHandledRequestNonce} from './railOpenRequest';
 
 export type {RailTabKind, RailTab};
 export {createRailTab};
@@ -76,6 +77,7 @@ function RightWorkbenchImpl({
 	project,
 	layout,
 	onCollapse,
+	defaultFilesOnOpen,
 	openFileRequest,
 	onOpenFileRequestHandled,
 	openDiffRequest,
@@ -92,6 +94,7 @@ function RightWorkbenchImpl({
 	project: ProjectState | null;
 	layout: 'coding' | 'general';
 	onCollapse: () => void;
+	defaultFilesOnOpen?: boolean;
 	/** When set (e.g. from chat file cards), open that path as a document tab. */
 	openFileRequest?: {
 		path: string;
@@ -456,7 +459,9 @@ function RightWorkbenchImpl({
 
 	// Track which App nonce we already applied. Do **not** clear App's openDiffRequest on
 	// success — Strict Mode remounts wipe rail state while a cleared request cannot re-open.
-	const handledDiffNonce = useRef<number | null>(null);
+	const handledDiffNonce = useRef<number | null>(
+		initialHandledRequestNonce(defaultFilesOnOpen === true, openDiffRequest?.nonce)
+	);
 	useLayoutEffect(() => {
 		if (!openDiffRequest?.changeId) return;
 		if (handledDiffNonce.current === openDiffRequest.nonce) return;
@@ -464,8 +469,13 @@ function RightWorkbenchImpl({
 		openDiffTab(openDiffRequest.changeId, openDiffRequest.path);
 	}, [openDiffRequest?.nonce]); // eslint-disable-line react-hooks/exhaustive-deps -- keyed by nonce only
 
+	const handledFileNonce = useRef<number | null>(
+		initialHandledRequestNonce(defaultFilesOnOpen === true, openFileRequest?.nonce)
+	);
 	useEffect(() => {
 		if (!openFileRequest?.path) return;
+		if (handledFileNonce.current === openFileRequest.nonce) return;
+		handledFileNonce.current = openFileRequest.nonce;
 		let cancelled = false;
 		void openFileTab(openFileRequest.path, openFileRequest.line, openFileRequest.endLine).finally(() => {
 			if (!cancelled) onOpenFileRequestHandled?.();

@@ -66,6 +66,7 @@ test('createDesktopHost has no electron import and serves project:get', async ()
 	assert.equal(typeof host.listWorkspaceDir, 'function');
 	assert.equal(typeof host.getWorkspaceFile, 'function');
 	assert.equal(typeof host.saveWorkspaceFile, 'function');
+	assert.equal(typeof host.deleteWorkspaceFile, 'function');
 	assert.equal(typeof host['project:gitStatus'], 'function');
 	assert.equal(typeof host['project:get'], 'function');
 	assert.equal(typeof host['task:send'], 'function');

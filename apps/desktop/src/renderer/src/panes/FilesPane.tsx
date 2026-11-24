@@ -24,6 +24,12 @@ import {ChevronRight, FileText, FolderOpen, RefreshCw} from 'lucide-react';
 import type {ProjectState} from '../env';
 import {FileTypeIcon} from '../files/FileTypeIcon';
 import {FilePathMenuItems} from '../files/FilePathMenuItems';
+import {deleteWorkspaceEntry, parentDirOf, prunedPaths} from '../files/fileTreeActions';
+import {
+	DeleteEntryDialog,
+	NewFileDialog,
+	type DeleteEntryRequest
+} from '../files/FileTreeDialogs';
 import {
 	agentDotClass,
 	agentDotLabel,
@@ -82,12 +88,15 @@ export function FilesPane({
 	/** True only after a short delay — avoids a 5s “Loading files…” when I/O is just slow to start. */
 	const [showLoadingLabel, setShowLoadingLabel] = useState(false);
 	const [reloadToken, setReloadToken] = useState(0);
+	const loadedProjectRef = useRef<string | null>(null);
 	const [expanded, setExpanded] = useState<Set<string>>(() => new Set());
 	const [childrenByPath, setChildrenByPath] = useState<Map<string, FsEntry[]>>(() => new Map());
 	const [truncatedDirs, setTruncatedDirs] = useState<Set<string>>(() => new Set());
 	const [rootTruncated, setRootTruncated] = useState(false);
 	const [dirErrors, setDirErrors] = useState<Map<string, string>>(() => new Map());
 	const [loadingDirs, setLoadingDirs] = useState<Set<string>>(() => new Set());
+	const [newFileRequest, setNewFileRequest] = useState<FsEntry | null>(null);
+	const [deleteRequest, setDeleteRequest] = useState<DeleteEntryRequest | null>(null);
 	const rowEls = useRef<Map<string, HTMLButtonElement>>(new Map());
 	const revealGen = useRef(0);
 	const childrenRef = useRef(childrenByPath);
@@ -197,11 +206,14 @@ export function FilesPane({
 			tipTimer = setTimeout(() => {
 				if (!cancelled) setShowLoadingLabel(true);
 			}, 120);
-			setExpanded(new Set());
-			setChildrenByPath(new Map());
-			setTruncatedDirs(new Set());
-			setRootTruncated(false);
-			setDirErrors(new Map());
+			if (loadedProjectRef.current !== projectPath) {
+				loadedProjectRef.current = projectPath;
+				setExpanded(new Set());
+				setChildrenByPath(new Map());
+				setTruncatedDirs(new Set());
+				setRootTruncated(false);
+				setDirErrors(new Map());
+			}
 			try {
 				const result = await window.fastIde.listWorkspaceDir('');
 				if (cancelled) return;
@@ -280,7 +292,50 @@ export function FilesPane({
 
 	function onRefresh() {
 		setReloadToken(n => n + 1);
+		for (const dir of expanded) {
+			if (dir !== '.') void loadDir(dir);
+		}
 		onRefreshGit?.();
+	}
+
+	async function refreshDir(parent: string) {
+		if (parent === '.') {
+			setReloadToken(n => n + 1);
+			return;
+		}
+		await loadDir(parent);
+	}
+
+	async function onFileCreated(relativePath: string) {
+		setNewFileRequest(null);
+		await refreshDir(parentDirOf(relativePath));
+		onOpenFile(relativePath);
+	}
+
+	function confirmDelete(entry: FsEntry): Promise<boolean> {
+		return new Promise(resolve => setDeleteRequest({entry, resolve}));
+	}
+
+	async function onDeleteEntry(entry: FsEntry) {
+		const result = await deleteWorkspaceEntry(entry, confirmDelete, window.fastIde);
+		if (!result) return;
+		if (!result.ok) {
+			setError(result.error);
+			return;
+		}
+		setError(null);
+		if (entry.kind === 'dir') {
+			const survivors = prunedPaths(expanded, entry.relativePath);
+			setExpanded(survivors);
+			setChildrenByPath(prev => {
+				const next = new Map<string, FsEntry[]>();
+				for (const [key, value] of prev) {
+					if (survivors.has(key)) next.set(key, value);
+				}
+				return next;
+			});
+		}
+		await refreshDir(parentDirOf(entry.relativePath));
 	}
 
 	if (!project || !projectPath) {
@@ -338,6 +393,8 @@ export function FilesPane({
 								agentMap={agentMap}
 								projectPath={projectPath}
 								onOpenFile={onOpenFile}
+								onNewFile={entry => setNewFileRequest(entry)}
+								onDelete={entry => void onDeleteEntry(entry)}
 								onToggleDir={path => void toggleDir(path)}
 								rowEls={rowEls}
 							/>
@@ -348,6 +405,19 @@ export function FilesPane({
 					</ul>
 				)}
 			</ScrollArea>
+			<NewFileDialog
+				request={newFileRequest}
+				onClose={() => setNewFileRequest(null)}
+				onCreated={onFileCreated}
+			/>
+			<DeleteEntryDialog
+				request={deleteRequest}
+				onResolve={confirmed => {
+					const pending = deleteRequest;
+					setDeleteRequest(null);
+					pending?.resolve(confirmed);
+				}}
+			/>
 		</div>
 	);
 }
@@ -365,6 +435,8 @@ function FileTreeNode({
 	agentMap,
 	projectPath,
 	onOpenFile,
+	onNewFile,
+	onDelete,
 	onToggleDir,
 	rowEls
 }: {
@@ -380,6 +452,8 @@ function FileTreeNode({
 	agentMap: Map<string, ReviewKind>;
 	projectPath: string;
 	onOpenFile: (relativePath: string) => void;
+	onNewFile: (entry: FsEntry) => void;
+	onDelete: (entry: FsEntry) => void;
 	onToggleDir: (relativePath: string) => void;
 	rowEls: MutableRefObject<Map<string, HTMLButtonElement>>;
 }) {
@@ -471,6 +545,9 @@ function FileTreeNode({
 						openIcon={
 							isDir ? <FolderOpen className="size-3.5" /> : <FileText className="size-3.5" />
 						}
+						onNewFile={() => onNewFile(entry)}
+						onDelete={() => onDelete(entry)}
+						isDir={isDir}
 					/>
 				</ContextMenuContent>
 			</ContextMenu>
@@ -507,6 +584,8 @@ function FileTreeNode({
 							agentMap={agentMap}
 							projectPath={projectPath}
 							onOpenFile={onOpenFile}
+							onNewFile={onNewFile}
+							onDelete={onDelete}
 							onToggleDir={onToggleDir}
 							rowEls={rowEls}
 						/>

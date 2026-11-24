@@ -393,6 +393,7 @@ export type {
 	ListWorkspaceDirResult,
 	GetWorkspaceFileResult,
 	SaveWorkspaceFileResult,
+	DeleteWorkspaceFileResult,
 	WorkspaceFsCode,
 	HostDirCode,
 	HostDirEntry,

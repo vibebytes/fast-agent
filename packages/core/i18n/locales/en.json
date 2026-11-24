@@ -1413,7 +1413,22 @@
       "open": "Open",
       "revealInFolder": "Reveal in Folder",
       "copyRelativePath": "Copy Relative Path",
-      "copyAbsolutePath": "Copy Absolute Path"
+      "copyAbsolutePath": "Copy Absolute Path",
+      "newFile": "New File",
+      "deleteFile": "Delete File",
+      "deleteDirectory": "Delete Directory",
+      "newFileTitle": "New file",
+      "newFileDescription": "Enter a file name. The empty file will open after it is created.",
+      "fileNameLabel": "File name",
+      "fileNamePlaceholder": "e.g. index.ts",
+      "createAction": "Create",
+      "creating": "Creating…",
+      "cancelAction": "Cancel",
+      "deleteFileTitle": "Delete file “{{name}}”?",
+      "deleteDirectoryTitle": "Delete directory “{{name}}”?",
+      "deleteFileDescription": "This permanently deletes the file. This action cannot be undone.",
+      "deleteDirectoryDescription": "This permanently deletes the directory and all files and subdirectories inside it. This action cannot be undone.",
+      "deleteAction": "Delete"
     },
     "sidebarDialog": {
       "renameProject": "Rename project",

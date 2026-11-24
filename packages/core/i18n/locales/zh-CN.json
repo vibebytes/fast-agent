@@ -1408,7 +1408,22 @@
       "open": "打开",
       "revealInFolder": "打开所在目录",
       "copyRelativePath": "拷贝相对路径",
-      "copyAbsolutePath": "拷贝绝对路径"
+      "copyAbsolutePath": "拷贝绝对路径",
+      "newFile": "新建文件",
+      "deleteFile": "删除文件",
+      "deleteDirectory": "删除目录",
+      "newFileTitle": "新建文件",
+      "newFileDescription": "输入文件名，创建空文件后将在编辑器中打开。",
+      "fileNameLabel": "文件名",
+      "fileNamePlaceholder": "例如 index.ts",
+      "createAction": "创建",
+      "creating": "创建中…",
+      "cancelAction": "取消",
+      "deleteFileTitle": "删除文件“{{name}}”？",
+      "deleteDirectoryTitle": "删除目录“{{name}}”？",
+      "deleteFileDescription": "此操作将永久删除该文件，且无法撤销。",
+      "deleteDirectoryDescription": "此操作将永久删除该目录及其中全部文件和子目录，且无法撤销。",
+      "deleteAction": "删除"
     },
     "sidebarDialog": {
       "renameProject": "重命名项目",
