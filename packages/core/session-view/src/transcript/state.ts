@@ -343,6 +343,8 @@ export type TranscriptState = {
 	};
 	/** True after at least one run_state for the current run — enables TTL. */
 	leaseAware?: boolean;
+	/** Correlates the first legacy terminal with the Turn replaced by an interrupt. */
+	pendingInterrupt?: {clientMessageId: string; priorTurnActive: boolean};
 	/** ADR-0012: older Turns remain beyond the loaded window. */
 	hasMoreOlder?: boolean;
 	/** ADR-0012: total MESSAGE-derived Turn count for the Session. */

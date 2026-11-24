@@ -123,6 +123,7 @@ export {
 export {
 	appendProcPreview,
 	applyBridgeEvent,
+	applyInterruptStart,
 	applyLocalCancel,
 	applyLeaseExpiry,
 	createTranscriptState,

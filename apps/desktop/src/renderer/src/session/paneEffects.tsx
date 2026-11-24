@@ -245,11 +245,14 @@ export function usePaneEffects(h: PaneEffectsHost) {
 	const goalCard = transcript.goalCard ?? null;
 	const goalFlow = transcript.goalFlow;
 	const [interruptArmed, setInterruptArmed] = useState(false);
-	//「插话」must light Stop immediately. The bridge used to answer an idle click
-	// with turn_cancelled and the gate fell back to the gray send arrow.
 	useEffect(() => {
-		if (interruptArmed && gate.canCancel) setInterruptArmed(false);
-	}, [interruptArmed, gate.canCancel]);
+		if (
+			interruptArmed &&
+			(echoReflected || !echo || echo.taskId !== activeTaskId || isEchoExpired(echo))
+		) {
+			setInterruptArmed(false);
+		}
+	}, [interruptArmed, echo, echoReflected, activeTaskId]);
 	const composerStop: 'run' | 'goal' | undefined = gate.canCancel || interruptArmed
 		? 'run'
 		: goalCard && STOPPABLE_GOAL_PHASES.has(goalCard.phase)

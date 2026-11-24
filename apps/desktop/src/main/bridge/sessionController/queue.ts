@@ -475,6 +475,110 @@ test('interrupt optimistic turn remaps engine echo then accepts server-run reaso
 	);
 });
 
+test('interrupt opener survives a prior id-less turn_finished after the server echo', () => {
+	const sent: BridgeCommand[] = [];
+	const controller = new SessionController({
+		clientId: 'cli',
+		send: cmd => {
+			sent.push(cmd);
+			return true;
+		},
+		createId: (() => {
+			let n = 0;
+			return () => `id-${++n}`;
+		})()
+	});
+	const task = controller.createTask('T');
+	controller.acceptNewSession('sess-int-finished', task.id);
+	controller.handleEvent({type: 'Attached', sessionId: 'sess-int-finished', clientId: 'cli'});
+	controller.handleEvent(withSid('sess-int-finished', {
+		type: 'turn_started',
+		turnId: 'run-old',
+		clientMessageId: 'm-old',
+		text: 'old'
+	}));
+	controller.handleEvent(withSid('sess-int-finished', {
+		type: 'assistant_delta',
+		turnId: 'run-old',
+		text: 'partial'
+	}));
+	controller.handleEvent(withSid('sess-int-finished', {
+		type: 'follow_up_changed',
+		paused: false,
+		itemsJson: JSON.stringify([{id: 'fu-1', text: 'new interrupt', order: 0}])
+	}));
+	assert.equal(controller.interruptQueueItem('fu-1'), true);
+	const clientMessageId = sent.find(c => c.type === 'InterruptWithMessage')?.clientMessageId;
+	assert.ok(clientMessageId);
+	controller.handleEvent(withSid('sess-int-finished', {
+		type: 'turn_started',
+		turnId: 'run-new',
+		clientMessageId,
+		text: ''
+	}));
+	assert.equal(composerGate(controller.getActiveTask()!.transcript, true).canCancel, true);
+
+	controller.handleEvent(withSid('sess-int-finished', {
+		type: 'turn_finished',
+		success: false,
+		reason: 'cancelled'
+	}));
+	const after = controller.getActiveTask()!.transcript;
+	assert.equal(after.entries.filter(e => e.role === 'assistant' && e.status === 'streaming').length, 1);
+	assert.equal(composerGate(after, true).canCancel, true);
+});
+
+test('interrupt legacy prior settlement is consumed once so the new turn can finish', () => {
+	const sent: BridgeCommand[] = [];
+	const controller = new SessionController({
+		clientId: 'cli',
+		send: cmd => {
+			sent.push(cmd);
+			return true;
+		},
+		createId: (() => {
+			let n = 0;
+			return () => `id-${++n}`;
+		})()
+	});
+	const task = controller.createTask('T');
+	controller.acceptNewSession('sess-int-two-settles', task.id);
+	controller.handleEvent({type: 'Attached', sessionId: 'sess-int-two-settles', clientId: 'cli'});
+	controller.handleEvent(withSid('sess-int-two-settles', {
+		type: 'turn_started',
+		turnId: 'run-old',
+		clientMessageId: 'm-old',
+		text: 'old'
+	}));
+	controller.handleEvent(withSid('sess-int-two-settles', {
+		type: 'follow_up_changed',
+		paused: false,
+		itemsJson: JSON.stringify([{id: 'fu-1', text: 'new interrupt', order: 0}])
+	}));
+	assert.equal(controller.interruptQueueItem('fu-1'), true);
+	const clientMessageId = sent.find(c => c.type === 'InterruptWithMessage')?.clientMessageId;
+	assert.ok(clientMessageId);
+	controller.handleEvent(withSid('sess-int-two-settles', {
+		type: 'turn_finished',
+		success: false,
+		reason: 'cancelled'
+	}));
+	controller.handleEvent(withSid('sess-int-two-settles', {
+		type: 'turn_started',
+		turnId: 'run-new',
+		clientMessageId,
+		text: ''
+	}));
+	assert.equal(composerGate(controller.getActiveTask()!.transcript, true).canCancel, true);
+	controller.handleEvent(withSid('sess-int-two-settles', {
+		type: 'turn_finished',
+		success: true
+	}));
+	const after = controller.getActiveTask()!.transcript;
+	assert.equal(after.entries.some(e => e.role === 'assistant' && e.status === 'streaming'), false);
+	assert.equal(composerGate(after, true).canCancel, false);
+});
+
 test('queued follow-up suppresses the completion cue', () => {
 	const {controller} = cueController();
 	controller.handleEvent(withSid('sess', {type: 'turn_started', turnId: 't1', text: 'hi'}));

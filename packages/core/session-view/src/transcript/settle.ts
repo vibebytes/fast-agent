@@ -86,6 +86,7 @@ export function applyLeaseExpiry(state: TranscriptState): TranscriptState {
 		chrome: runChromeTransition(state.chrome, {run: 'clear', postRun: true, awaiting: false}),
 		leaseAware: false,
 		runLease: {state: 'idle'},
+		pendingInterrupt: undefined,
 		entries: state.entries.map(entry => {
 			if (entry.role !== 'assistant' || entry.status !== 'streaming') return entry;
 			return {

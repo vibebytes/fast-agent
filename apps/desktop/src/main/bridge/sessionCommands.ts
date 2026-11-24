@@ -1,6 +1,7 @@
 import type {BridgeCommand} from '@fastllm/bridge-protocol';
 import {
 	applyBridgeEvent,
+	applyInterruptStart,
 	applyLocalCancel,
 	canStopSession,
 	goalKeepsBusy,
@@ -180,22 +181,23 @@ export function createSessionCommands(deps: SessionCommandsDeps) {
 		// Snapshot before local cancel + optimistic opener so a failed send rolls back cleanly.
 		const prevTranscript = active.task.transcript;
 		const streaming = prevTranscript.entries.some(e => e.status === 'streaming');
-		if (
-			canStopSession({
-				chrome: prevTranscript.chrome,
-				streaming,
-				goalBusy: goalKeepsBusy(active.task.goalCard)
-			})
-		) {
-			stageLocalCancel(active.task);
-		}
-		// Optimistic opener: clear postRun, light Stop; engine empty TurnStarted remaps onto this pair.
-		active.task.transcript = applyBridgeEvent(active.task.transcript, {
-			type: 'turn_started',
-			turnId: clientMessageId,
-			clientMessageId,
-			text: trimmed
+		const priorTurnActive = canStopSession({
+			chrome: prevTranscript.chrome,
+			streaming,
+			goalBusy: goalKeepsBusy(active.task.goalCard)
 		});
+		if (priorTurnActive) stageLocalCancel(active.task);
+		// Optimistic opener: clear postRun, light Stop; engine empty TurnStarted remaps onto this pair.
+		active.task.transcript = applyInterruptStart(
+			active.task.transcript,
+			{
+				type: 'turn_started',
+				turnId: clientMessageId,
+				clientMessageId,
+				text: trimmed
+			},
+			priorTurnActive
+		);
 		deps.settleTask(active.task);
 		// Optimistic turn clears awaiting — drop the timer stageLocalCancel just armed.
 		deps.syncCancelSettle(active.task);

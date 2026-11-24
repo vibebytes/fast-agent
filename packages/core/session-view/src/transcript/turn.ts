@@ -1,12 +1,7 @@
 import type {BridgeEvent} from '@fastllm/bridge-protocol';
 import {documentCard, forgetDocument, rememberDocument} from '../chatDocument.js';
 import {planBuildDisplayContent} from '../plan.js';
-import {
-	chromeAwaitingSettlement,
-	chromePostRun,
-	chromeRunId,
-	runChromeTransition
-} from '../runChrome.js';
+import {chromePostRun, chromeRunId, runChromeTransition} from '../runChrome.js';
 import {
 	entryMatchesKey,
 	entryTurnIdIs,
@@ -140,6 +135,17 @@ function finishesActiveRun(state: TranscriptState, turnId: string | undefined): 
 	);
 }
 
+export function applyInterruptStart(
+	state: TranscriptState,
+	event: Extract<BridgeEvent, {type: 'turn_started'}>,
+	priorTurnActive: boolean
+): TranscriptState {
+	const next = applyTurnStarted(state, event);
+	const clientMessageId = event.clientMessageId ?? event.turnId;
+	if (!clientMessageId) return next;
+	return {...next, pendingInterrupt: {clientMessageId, priorTurnActive}};
+}
+
 export function applyTurnStarted(
 	state: TranscriptState,
 	event: Extract<BridgeEvent, {type: 'turn_started'}>
@@ -224,13 +230,21 @@ export function applyTurnStarted(
 	if (existingAssistant) {
 		if (chromePostRun(state.chrome) && isRiverTurnStarted(event)) return state;
 		const victim = rerunVictim(event);
+		const interruptRunId =
+			state.pendingInterrupt?.clientMessageId === event.clientMessageId
+				? serverRunIdOf(event)
+				: undefined;
 		return {
 			...rememberDocument(
 				state,
-				existingAssistant.turnId ?? event.turnId ?? event.clientMessageId
+				interruptRunId ?? existingAssistant.turnId ?? event.turnId ?? event.clientMessageId
 			),
 			...(victim && event.turnId ? {superseded: {...state.superseded, [victim]: event.turnId}} : {}),
-			chrome: runChromeTransition(state.chrome, {postRun: false, awaiting: false}),
+			chrome: runChromeTransition(state.chrome, {
+				...(interruptRunId ? {run: {id: interruptRunId, fromServer: true}} : {}),
+				postRun: false,
+				awaiting: false
+			}),
 			entries: state.entries.map(entry => {
 				const matchesAssistant = entry === existingAssistant;
 				const matchesUser =
@@ -255,7 +269,7 @@ export function applyTurnStarted(
 					...entry,
 					...(matchesUser && text !== entry.text ? {text} : {}),
 					...(matchesAssistant && entry.status === 'done' ? {status: 'streaming' as const} : {}),
-					turnId: entry.turnId ?? event.turnId,
+					turnId: interruptRunId ?? entry.turnId ?? event.turnId,
 					clientMessageId: event.clientMessageId ?? entry.clientMessageId,
 					...(schedOrigin ? {origin: schedOrigin} : {}),
 					...(matchesUser ? liveFrom(event) : {}),
@@ -352,47 +366,75 @@ export function applyInputAccepted(
 	};
 }
 
+function clearPendingInterrupt(state: TranscriptState): TranscriptState {
+	if (!state.pendingInterrupt) return state;
+	const {pendingInterrupt: _pending, ...rest} = state;
+	return rest;
+}
+
+function consumeLegacyPriorTerminal(
+	state: TranscriptState,
+	turnId: string | undefined
+): TranscriptState | null {
+	const pending = state.pendingInterrupt;
+	if (turnId || !pending?.priorTurnActive) return null;
+	const openerLive = state.entries.some(
+		e => e.role === 'assistant' && e.status === 'streaming' && entryMatchesKey(e, pending.clientMessageId)
+	);
+	return openerLive ? clearPendingInterrupt(state) : null;
+}
+
 export function applyTurnFinished(
 	state: TranscriptState,
 	event: Extract<BridgeEvent, {type: 'turn_finished'}>
 ): TranscriptState {
+	const legacyPrior = consumeLegacyPriorTerminal(state, event.turnId);
+	if (legacyPrior) return legacyPrior;
+	state = clearPendingInterrupt(state);
 	const finishesActive = finishesActiveRun(state, event.turnId);
 	// A compaction that never got its context_pruned (run died) must not keep spinning.
 	const {compacting: _c, ...withoutCompacting} = state;
-	const patched = patchAssistant(
-		{
-			...(state.compacting && sameRunId(state.compacting.runId, event.turnId) ? withoutCompacting : state),
-			chrome: runChromeTransition(
-				state.chrome,
-				finishesActive
-					? {run: 'clear', postRun: true, awaiting: false}
-					: {postRun: true, awaiting: false}
-			),
-			approvals: state.approvals.filter(a => !a.runId),
-			questions: [],
-			questionBatches: state.questionBatches.filter(q => !q.runId)
-		},
-		event.turnId,
-		entry => {
-			if (entry.status === 'cancelled') return entry;
-			const sealed = sealOpenThinking(entry);
-			const {waitState: _w, ...rest} = sealed;
-			const failReason =
-				!event.success && 'reason' in event && typeof event.reason === 'string'
-					? event.reason.trim()
-					: '';
-			return {
-				...rest,
-				status: event.success ? 'done' : 'error',
-				text: rest.text.trim() || failReason || rest.text,
-				tools: (entry.tools ?? []).map(t =>
-					t.status === 'running' && !t.agentRunId
-						? {...t, status: event.success ? 'success' : 'error'}
-						: t
+	const finishEntry = (entry: TranscriptEntry): TranscriptEntry => {
+		if (entry.status === 'cancelled') return entry;
+		const sealed = sealOpenThinking(entry);
+		const {waitState: _w, ...rest} = sealed;
+		const failReason =
+			!event.success && 'reason' in event && typeof event.reason === 'string'
+				? event.reason.trim()
+				: '';
+		return {
+			...rest,
+			status: event.success ? 'done' : 'error',
+			text: rest.text.trim() || failReason || rest.text,
+			tools: (entry.tools ?? []).map(t =>
+				t.status === 'running' && !t.agentRunId
+					? {...t, status: event.success ? 'success' : 'error'}
+					: t
+			)
+		};
+	};
+	const next = {
+		...(state.compacting && sameRunId(state.compacting.runId, event.turnId) ? withoutCompacting : state),
+		chrome: runChromeTransition(
+			state.chrome,
+			finishesActive
+				? {run: 'clear', postRun: true, awaiting: false}
+				: {postRun: true, awaiting: false}
+		),
+		approvals: state.approvals.filter(a => !a.runId),
+		questions: [],
+		questionBatches: state.questionBatches.filter(q => !q.runId)
+	};
+	const patched = event.turnId && !finishesActive
+		? {
+				...next,
+				entries: next.entries.map(entry =>
+					entry.role === 'assistant' && entryMatchesKey(entry, event.turnId)
+						? finishEntry(entry)
+						: entry
 				)
-			};
-		}
-	);
+			}
+		: patchAssistant(next, event.turnId, finishEntry);
 	const stillStreaming = patched.entries.some(
 		e => e.role === 'assistant' && e.status === 'streaming'
 	);
@@ -411,6 +453,9 @@ export function applyTurnCancelled(
 	state: TranscriptState,
 	event: Extract<BridgeEvent, {type: 'turn_cancelled'}>
 ): TranscriptState {
+	const legacyPrior = consumeLegacyPriorTerminal(state, event.turnId);
+	if (legacyPrior) return legacyPrior;
+	state = clearPendingInterrupt(state);
 	if (event.turnId && !finishesActiveRun(state, event.turnId)) {
 		return {
 			...state,
@@ -431,17 +476,6 @@ export function applyTurnCancelled(
 					)
 				};
 			})
-		};
-	}
-	// Bridge cancel settlement often omits turnId. After InterruptWithMessage the client
-	// already opened a live optimistic turn (awaiting cleared) — that ack must not seal it.
-	const liveStreaming = state.entries.some(
-		e => e.role === 'assistant' && e.status === 'streaming'
-	);
-	if (!event.turnId && !chromeAwaitingSettlement(state.chrome) && liveStreaming) {
-		return {
-			...state,
-			chrome: runChromeTransition(state.chrome, {awaiting: false, postRun: false})
 		};
 	}
 	return {

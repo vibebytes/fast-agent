@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import {
 	appendProcPreview,
 	applyBridgeEvent,
+	applyInterruptStart,
 	applyLocalCancel,
 	composerGate,
 	createTranscriptState,
@@ -492,12 +493,12 @@ test('id-less turn_cancelled after interrupt optimistic opener keeps Stop lit', 
 	});
 	state = applyLocalCancel(state);
 	assert.equal(chromeAwaitingSettlement(state.chrome), true);
-	state = applyBridgeEvent(state, {
+	state = applyInterruptStart(state, {
 		type: 'turn_started',
 		turnId: 'm-interrupt',
 		clientMessageId: 'm-interrupt',
 		text: '继续开发啊'
-	});
+	}, true);
 	assert.equal(chromePostRun(state.chrome), false);
 	assert.equal(composerGate(state, true).canCancel, true);
 
@@ -548,6 +549,63 @@ test('id-less turn_cancelled while awaiting local cancel still settles Stop off'
 		state.entries.some(e => e.role === 'assistant' && e.status === 'streaming'),
 		false
 	);
+});
+
+test('identified prior turn_finished after interrupt echo preserves the new turn', () => {
+	let state = createTranscriptState();
+	state = applyBridgeEvent(state, {
+		type: 'turn_started',
+		turnId: 'run-old',
+		clientMessageId: 'm-old',
+		text: 'old'
+	});
+	state = applyLocalCancel(state);
+	state = applyInterruptStart(state, {
+		type: 'turn_started',
+		turnId: 'm-interrupt',
+		clientMessageId: 'm-interrupt',
+		text: 'interrupt'
+	}, true);
+	state = applyBridgeEvent(state, {
+		type: 'turn_started',
+		turnId: 'run-new',
+		clientMessageId: 'm-interrupt',
+		text: ''
+	});
+	state = applyBridgeEvent(state, {type: 'turn_finished', turnId: 'run-old', success: false});
+	assert.equal(
+		state.entries.find(e => e.role === 'assistant' && e.clientMessageId === 'm-interrupt')?.status,
+		'streaming'
+	);
+	assert.equal(composerGate(state, true).canCancel, true);
+	state = applyBridgeEvent(state, {type: 'turn_finished', turnId: 'run-new', success: true});
+	assert.equal(composerGate(state, true).canCancel, false);
+});
+
+test('idle interrupt lets its own first legacy terminal settle the new turn', () => {
+	let state = createTranscriptState();
+	state = applyInterruptStart(state, {
+		type: 'turn_started',
+		turnId: 'm-idle-interrupt',
+		clientMessageId: 'm-idle-interrupt',
+		text: 'idle interrupt'
+	}, false);
+	state = applyBridgeEvent(state, {type: 'turn_finished', success: true});
+	assert.equal(state.entries.some(e => e.role === 'assistant' && e.status === 'streaming'), false);
+	assert.equal(composerGate(state, true).canCancel, false);
+});
+
+test('ordinary id-less turn_cancelled settles the active turn', () => {
+	let state = createTranscriptState();
+	state = applyBridgeEvent(state, {
+		type: 'turn_started',
+		turnId: 'run-ordinary',
+		clientMessageId: 'm-ordinary',
+		text: 'hello'
+	});
+	state = applyBridgeEvent(state, {type: 'turn_cancelled', reason: 'cancelled'});
+	assert.equal(state.entries.some(e => e.role === 'assistant' && e.status === 'streaming'), false);
+	assert.equal(composerGate(state, true).canCancel, false);
 });
 
 test('turn_finished resolves orphan running tools', () => {

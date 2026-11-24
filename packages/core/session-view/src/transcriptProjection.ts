@@ -92,6 +92,7 @@ export type {
 	UsageView
 } from './transcript/state.js';
 export {applyLeaseExpiry, applyLocalCancel} from './transcript/settle.js';
+export {applyInterruptStart} from './transcript/turn.js';
 
 const CONTENT_EVENTS = new Set([
 	'reasoning_delta', 'assistant_delta', 'checkpoint', 'final_answer',
