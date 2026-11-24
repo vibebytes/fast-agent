@@ -231,7 +231,7 @@ export function applyTurnStarted(
 		if (chromePostRun(state.chrome) && isRiverTurnStarted(event)) return state;
 		const victim = rerunVictim(event);
 		const interruptRunId =
-			state.pendingInterrupt?.clientMessageId === event.clientMessageId
+			state.pendingInterrupt && sameTurn(state.pendingInterrupt, event)
 				? serverRunIdOf(event)
 				: undefined;
 		return {
@@ -240,6 +240,9 @@ export function applyTurnStarted(
 				interruptRunId ?? existingAssistant.turnId ?? event.turnId ?? event.clientMessageId
 			),
 			...(victim && event.turnId ? {superseded: {...state.superseded, [victim]: event.turnId}} : {}),
+			...(interruptRunId && state.pendingInterrupt
+				? {pendingInterrupt: {...state.pendingInterrupt, serverTurnId: interruptRunId}}
+				: {}),
 			chrome: runChromeTransition(state.chrome, {
 				...(interruptRunId ? {run: {id: interruptRunId, fromServer: true}} : {}),
 				postRun: false,
@@ -346,8 +349,15 @@ export function applyInputAccepted(
 	if (chromePostRun(state.chrome) && !state.entries.some(e => e.status === 'streaming'))
 		return state;
 	const serverRunId = serverRunIdOf(event);
+	const interruptRunId =
+		state.pendingInterrupt && sameTurn(state.pendingInterrupt, event)
+			? serverRunId
+			: undefined;
 	return {
 		...rememberDocument(state, serverRunId ?? event.turnId ?? event.clientMessageId),
+		...(interruptRunId && state.pendingInterrupt
+			? {pendingInterrupt: {...state.pendingInterrupt, serverTurnId: interruptRunId}}
+			: {}),
 		...freshRunDeltas,
 		chrome: serverRunId
 			? runChromeTransition(state.chrome, {run: {id: serverRunId, fromServer: true}})
@@ -374,21 +384,35 @@ function clearPendingInterrupt(state: TranscriptState): TranscriptState {
 
 function consumeLegacyPriorTerminal(
 	state: TranscriptState,
-	turnId: string | undefined
+	event: Extract<BridgeEvent, {type: 'turn_finished' | 'turn_cancelled'}>
 ): TranscriptState | null {
 	const pending = state.pendingInterrupt;
-	if (turnId || !pending?.priorTurnActive) return null;
+	if (!pending || event.turnId) return null;
 	const openerLive = state.entries.some(
 		e => e.role === 'assistant' && e.status === 'streaming' && entryMatchesKey(e, pending.clientMessageId)
 	);
-	return openerLive ? clearPendingInterrupt(state) : null;
+	if (!openerLive) return null;
+	const reason = event.reason?.trim().toLowerCase();
+	const hasServerEcho = pending.serverTurnId !== undefined;
+	if (event.type === 'turn_cancelled') {
+		if (reason === 'no active turn') return clearPendingInterrupt(state);
+		// Only a pre-echo legacy cancel is safe to attribute to the replaced Turn.
+		return pending.priorTurnActive && !hasServerEcho ? clearPendingInterrupt(state) : null;
+	}
+	// Before echo, a busy interrupt's only terminal belongs to the replaced Turn.
+	// Idle interrupts and post-echo terminals belong to the new interrupt Turn.
+	if (pending.priorTurnActive && !hasServerEcho) return clearPendingInterrupt(state);
+	if (event.success) return null;
+	return reason === 'cancelled' || reason === 'cancelled by user' || reason === 'no active turn'
+		? clearPendingInterrupt(state)
+		: null;
 }
 
 export function applyTurnFinished(
 	state: TranscriptState,
 	event: Extract<BridgeEvent, {type: 'turn_finished'}>
 ): TranscriptState {
-	const legacyPrior = consumeLegacyPriorTerminal(state, event.turnId);
+	const legacyPrior = consumeLegacyPriorTerminal(state, event);
 	if (legacyPrior) return legacyPrior;
 	state = clearPendingInterrupt(state);
 	const finishesActive = finishesActiveRun(state, event.turnId);
@@ -453,7 +477,7 @@ export function applyTurnCancelled(
 	state: TranscriptState,
 	event: Extract<BridgeEvent, {type: 'turn_cancelled'}>
 ): TranscriptState {
-	const legacyPrior = consumeLegacyPriorTerminal(state, event.turnId);
+	const legacyPrior = consumeLegacyPriorTerminal(state, event);
 	if (legacyPrior) return legacyPrior;
 	state = clearPendingInterrupt(state);
 	if (event.turnId && !finishesActiveRun(state, event.turnId)) {

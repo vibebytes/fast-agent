@@ -595,6 +595,142 @@ test('idle interrupt lets its own first legacy terminal settle the new turn', ()
 	assert.equal(composerGate(state, true).canCancel, false);
 });
 
+test('idle interrupt survives a legacy no-active-turn cancel but still settles its own terminal', () => {
+	let state = createTranscriptState();
+	state = applyInterruptStart(state, {
+		type: 'turn_started',
+		turnId: 'm-idle-interrupt',
+		clientMessageId: 'm-idle-interrupt',
+		text: 'idle interrupt'
+	}, false);
+	state = applyBridgeEvent(state, {type: 'turn_cancelled', reason: 'no active turn'});
+	assert.equal(composerGate(state, true).canCancel, true);
+	state = applyBridgeEvent(state, {type: 'turn_finished', success: true});
+	assert.equal(composerGate(state, true).canCancel, false);
+});
+
+test('successful prior terminal before interrupt echo does not settle the new opener', () => {
+	let state = createTranscriptState();
+	state = applyBridgeEvent(state, {
+		type: 'turn_started',
+		turnId: 'run-old',
+		clientMessageId: 'm-old',
+		text: 'old'
+	});
+	state = applyLocalCancel(state);
+	state = applyInterruptStart(state, {
+		type: 'turn_started',
+		turnId: 'm-interrupt',
+		clientMessageId: 'm-interrupt',
+		text: 'interrupt'
+	}, true);
+	state = applyBridgeEvent(state, {type: 'turn_finished', success: true});
+	assert.equal(composerGate(state, true).canCancel, true);
+	state = applyBridgeEvent(state, {
+		type: 'turn_started',
+		turnId: 'run-new',
+		clientMessageId: 'm-interrupt',
+		text: ''
+	});
+	state = applyBridgeEvent(state, {type: 'turn_finished', success: true});
+	assert.equal(composerGate(state, true).canCancel, false);
+});
+
+test('new interrupt turn can complete before the prior legacy terminal arrives', () => {
+	let state = createTranscriptState();
+	state = applyBridgeEvent(state, {
+		type: 'turn_started',
+		turnId: 'run-old',
+		clientMessageId: 'm-old',
+		text: 'old'
+	});
+	state = applyLocalCancel(state);
+	state = applyInterruptStart(state, {
+		type: 'turn_started',
+		turnId: 'm-interrupt',
+		clientMessageId: 'm-interrupt',
+		text: 'interrupt'
+	}, true);
+	state = applyBridgeEvent(state, {
+		type: 'turn_started',
+		turnId: 'run-new',
+		clientMessageId: 'm-interrupt',
+		text: ''
+	});
+	state = applyBridgeEvent(state, {type: 'turn_finished', success: true});
+	assert.equal(composerGate(state, true).canCancel, false);
+});
+
+test('new interrupt turn failure is not mistaken for the prior cancellation', () => {
+	let state = createTranscriptState();
+	state = applyBridgeEvent(state, {
+		type: 'turn_started',
+		turnId: 'run-old',
+		clientMessageId: 'm-old',
+		text: 'old'
+	});
+	state = applyLocalCancel(state);
+	state = applyInterruptStart(state, {
+		type: 'turn_started',
+		turnId: 'm-interrupt',
+		clientMessageId: 'm-interrupt',
+		text: 'interrupt'
+	}, true);
+	state = applyBridgeEvent(state, {
+		type: 'turn_started',
+		turnId: 'run-new',
+		clientMessageId: 'm-interrupt',
+		text: ''
+	});
+	state = applyBridgeEvent(state, {type: 'turn_finished', success: false, reason: 'insufficient_quota'});
+	assert.equal(composerGate(state, true).canCancel, false);
+});
+
+test('local cancel of the new interrupt turn is not consumed as the prior terminal', () => {
+	let state = createTranscriptState();
+	state = applyBridgeEvent(state, {
+		type: 'turn_started',
+		turnId: 'run-old',
+		clientMessageId: 'm-old',
+		text: 'old'
+	});
+	state = applyLocalCancel(state);
+	state = applyInterruptStart(state, {
+		type: 'turn_started',
+		turnId: 'm-interrupt',
+		clientMessageId: 'm-interrupt',
+		text: 'interrupt'
+	}, true);
+	state = applyLocalCancel(state);
+	state = applyBridgeEvent(state, {type: 'turn_cancelled', reason: 'cancelled'});
+	assert.equal(composerGate(state, true).canCancel, false);
+});
+
+test('remote cancel of the new interrupt turn after echo is not treated as the prior cancel', () => {
+	let state = createTranscriptState();
+	state = applyBridgeEvent(state, {
+		type: 'turn_started',
+		turnId: 'run-old',
+		clientMessageId: 'm-old',
+		text: 'old'
+	});
+	state = applyLocalCancel(state);
+	state = applyInterruptStart(state, {
+		type: 'turn_started',
+		turnId: 'm-interrupt',
+		clientMessageId: 'm-interrupt',
+		text: 'interrupt'
+	}, true);
+	state = applyBridgeEvent(state, {
+		type: 'turn_started',
+		turnId: 'run-new',
+		clientMessageId: 'm-interrupt',
+		text: ''
+	});
+	state = applyBridgeEvent(state, {type: 'turn_cancelled', reason: 'cancelled'});
+	assert.equal(composerGate(state, true).canCancel, false);
+});
+
 test('ordinary id-less turn_cancelled settles the active turn', () => {
 	let state = createTranscriptState();
 	state = applyBridgeEvent(state, {
