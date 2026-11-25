@@ -5,6 +5,7 @@ import type {FileReviewDiff} from '@fast-ide/session-view';
 import {cn} from '@fast-ide/ui/lib/utils';
 import {languageLabel} from './languageLabel';
 import {useReviewOverlay} from './review/useReviewOverlay';
+import {EditorDirtyBaseline, sameEditorText} from './editorDirty';
 
 loader.config({monaco});
 
@@ -92,11 +93,6 @@ export function languageFromPath(filePath?: string | null): string {
 	return EXT_LANG[ext] ?? 'plaintext';
 }
 
-/** Monaco may rewrite CRLF to LF on load — that is not a user edit. */
-function sameEditorText(a: string, b: string): boolean {
-	return a.replace(/\r\n/g, '\n') === b.replace(/\r\n/g, '\n');
-}
-
 export function useIsDark(): boolean {
 	const [dark, setDark] = useState(() =>
 		typeof document !== 'undefined' ? document.documentElement.classList.contains('dark') : false
@@ -168,8 +164,9 @@ export const MonacoEditor = forwardRef<
 	languageRef.current = language;
 	const editorRef = useRef<monaco.editor.IStandaloneCodeEditor | null>(null);
 	const seed = defaultValue ?? value ?? '';
-	const seedRef = useRef(seed);
-	seedRef.current = seed;
+	const baselineRef = useRef<EditorDirtyBaseline | null>(null);
+	if (!baselineRef.current) baselineRef.current = new EditorDirtyBaseline(seed);
+	baselineRef.current.sync(seed);
 	const uncontrolled = defaultValue !== undefined && value === undefined;
 
 	const getEditor = useCallback(() => editorRef.current, []);
@@ -190,6 +187,7 @@ export const MonacoEditor = forwardRef<
 			const model = editor.getModel();
 			if (!model) return;
 			if (model.getValue() === next) return;
+			baselineRef.current?.programmatic(next);
 			const pos = editor.getPosition();
 			const scrollTop = editor.getScrollTop();
 			model.setValue(next);
@@ -296,7 +294,7 @@ export const MonacoEditor = forwardRef<
 				value={uncontrolled ? undefined : value}
 				onChange={next => {
 					const text = next ?? '';
-					if (uncontrolled && !sameEditorText(text, seedRef.current)) onDirtyRef.current?.();
+					if (uncontrolled && baselineRef.current?.isUserEdit(text)) onDirtyRef.current?.();
 					onChange?.(text);
 				}}
 				onMount={handleMount}
