@@ -12,6 +12,10 @@ files:
   - package.json
   - "!**/node_modules/**"
 extraResources:
+  - from: build/trayTemplate.png
+    to: tray/trayTemplate.png
+  - from: build/trayTemplate@2x.png
+    to: tray/trayTemplate@2x.png
   - from: ../../staging/pack/engine
     to: engine
   - from: ../../staging/pack/tui

@@ -2,6 +2,7 @@ import {existsSync} from 'node:fs';
 import {join} from 'node:path';
 import {app, Menu, Tray, nativeImage} from 'electron';
 import {mainI18n} from './i18n';
+import {resolveTrayIconPath} from './trayIcon';
 
 /** `apps/desktop/build/icon.png` — from `out/main` in electron-vite. */
 export function unpackagedIcon(): string | undefined {
@@ -14,14 +15,14 @@ let tray: Tray | null = null;
 
 function trayImage() {
 	if (process.platform === 'darwin') {
-		try {
-			const named = nativeImage.createFromNamedImage('NSActionTemplate', [18, 18]);
-			if (!named.isEmpty()) {
-				named.setTemplateImage(true);
-				return named;
-			}
-		} catch {
-			/* fall through */
+		const image = nativeImage.createFromPath(resolveTrayIconPath({
+			isPackaged: app.isPackaged,
+			resourcesPath: process.resourcesPath,
+			mainDir: __dirname
+		}));
+		if (!image.isEmpty()) {
+			image.setTemplateImage(true);
+			return image;
 		}
 	}
 	return nativeImage.createEmpty();

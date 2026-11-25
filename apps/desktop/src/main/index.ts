@@ -32,6 +32,11 @@ import {
 	unpackagedIcon
 } from './appTray';
 import {
+	ensureEnabledAppTray,
+	handleMainWindowClose,
+	syncAppTrayAfterPetChange
+} from './shellLifecycle';
+import {
 	applyLocalePref,
 	asLocalePref,
 	loadLocalePref,
@@ -190,13 +195,14 @@ function createWindow(): void {
 	}
 
 	mainWindow.on('close', event => {
-		if (isQuitting) return;
-		if (loadPetVisible() && (isPetVisible() || hasPetWindow())) {
-			event.preventDefault();
-			mainWindow?.hide();
-			ensureDockVisible();
-			installCompanionTray();
-		}
+		handleMainWindowClose(event, {
+			platform: process.platform,
+			isQuitting,
+			petCompanionActive: loadPetVisible() && (isPetVisible() || hasPetWindow()),
+			hide: () => mainWindow?.hide(),
+			ensureDock: ensureDockVisible,
+			installTray: installCompanionTray
+		});
 	});
 
 	mainWindow.on('closed', () => {
@@ -649,18 +655,13 @@ app.whenReady().then(async () => {
 	handleInvoke('pet:getVisible', () => loadPetVisible());
 	handleInvoke('pet:setVisible', (next: boolean) => {
 		const applied = setPetVisible(Boolean(next));
-		if (applied) {
-			ensureDockVisible();
-			installCompanionTray();
-		} else if (
-			mainWindow &&
-			!mainWindow.isDestroyed() &&
-			!mainWindow.isVisible()
-		) {
-			quitApp();
-		} else {
-			destroyAppTray();
-		}
+		if (applied) ensureDockVisible();
+		syncAppTrayAfterPetChange(process.platform, applied, {
+			hidden: () => Boolean(mainWindow && !mainWindow.isDestroyed() && !mainWindow.isVisible()),
+			installTray: installCompanionTray,
+			destroyTray: destroyAppTray,
+			quit: quitApp
+		});
 		return applied;
 	});
 	handleInvoke('locale:getSystem', () => app.getLocale());
@@ -668,7 +669,7 @@ app.whenReady().then(async () => {
 		const pref = asLocalePref(payload?.pref);
 		saveLocalePref(pref);
 		await applyLocalePref(pref);
-		if (loadPetVisible()) installCompanionTray();
+		ensureEnabledAppTray(process.platform, loadPetVisible(), installCompanionTray);
 		return true;
 	});
 	ipcMain.on('pet:activate', () => {
@@ -703,9 +704,7 @@ app.whenReady().then(async () => {
 	createWindow();
 	initPetFromPrefs();
 	beginWorkspaceRestore();
-	if (loadPetVisible()) {
-		installCompanionTray();
-	}
+	ensureEnabledAppTray(process.platform, loadPetVisible(), installCompanionTray);
 
 	app.on('activate', () => {
 		showMainWindow();
