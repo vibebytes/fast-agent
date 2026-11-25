@@ -1,6 +1,6 @@
 import type {ReactNode} from 'react';
 import {ContextMenuItem, ContextMenuSeparator} from '@fast-ide/ui/components/context-menu';
-import {Copy, FilePlus2, FileText, FolderSymlink, Trash2} from 'lucide-react';
+import {Copy, FilePlus2, FolderPlus, FileText, FolderSymlink, Trash2} from 'lucide-react';
 import {shellT as t} from '../i18n/t';
 import {joinWorkspacePath} from '../session/path';
 
@@ -11,6 +11,7 @@ export function FilePathMenuItems({
 	openDisabled,
 	openIcon = <FileText className="size-3.5" />,
 	onNewFile,
+	onNewFolder,
 	onDelete,
 	isDir = false
 }: {
@@ -20,6 +21,7 @@ export function FilePathMenuItems({
 	openDisabled?: boolean;
 	openIcon?: ReactNode;
 	onNewFile?: () => void;
+	onNewFolder?: () => void;
 	onDelete?: () => void;
 	isDir?: boolean;
 }) {
@@ -33,6 +35,12 @@ export function FilePathMenuItems({
 				<ContextMenuItem onSelect={onNewFile}>
 					<FilePlus2 className="size-3.5" />
 					{t('shell.filesMenu.newFile')}
+				</ContextMenuItem>
+			) : null}
+			{onNewFolder ? (
+				<ContextMenuItem onSelect={onNewFolder}>
+					<FolderPlus className="size-3.5" />
+					{t('shell.filesMenu.newFolder')}
 				</ContextMenuItem>
 			) : null}
 			<ContextMenuItem onSelect={() => void window.fastIde.showWorkspacePathInFolder(relativePath)}>

@@ -394,6 +394,7 @@ export type {
 	GetWorkspaceFileResult,
 	SaveWorkspaceFileResult,
 	DeleteWorkspaceFileResult,
+	CreateWorkspaceDirResult,
 	WorkspaceFsCode,
 	HostDirCode,
 	HostDirEntry,

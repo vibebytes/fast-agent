@@ -24,10 +24,10 @@ import {ChevronRight, FileText, FolderOpen, RefreshCw} from 'lucide-react';
 import type {ProjectState} from '../env';
 import {FileTypeIcon} from '../files/FileTypeIcon';
 import {FilePathMenuItems} from '../files/FilePathMenuItems';
-import {deleteWorkspaceEntry, parentDirOf, prunedPaths} from '../files/fileTreeActions';
+import {deleteWorkspaceEntry, parentDirOf, prunedPaths, withExpandedDir} from '../files/fileTreeActions';
 import {
 	DeleteEntryDialog,
-	NewFileDialog,
+	NewEntryDialog,
 	type DeleteEntryRequest
 } from '../files/FileTreeDialogs';
 import {
@@ -96,6 +96,7 @@ export function FilesPane({
 	const [dirErrors, setDirErrors] = useState<Map<string, string>>(() => new Map());
 	const [loadingDirs, setLoadingDirs] = useState<Set<string>>(() => new Set());
 	const [newFileRequest, setNewFileRequest] = useState<FsEntry | null>(null);
+	const [newFolderRequest, setNewFolderRequest] = useState<FsEntry | null>(null);
 	const [deleteRequest, setDeleteRequest] = useState<DeleteEntryRequest | null>(null);
 	const rowEls = useRef<Map<string, HTMLButtonElement>>(new Map());
 	const revealGen = useRef(0);
@@ -312,6 +313,13 @@ export function FilesPane({
 		onOpenFile(relativePath);
 	}
 
+	async function onFolderCreated(relativePath: string) {
+		setNewFolderRequest(null);
+		const parent = parentDirOf(relativePath);
+		setExpanded(prev => withExpandedDir(prev, parent));
+		await refreshDir(parent);
+	}
+
 	function confirmDelete(entry: FsEntry): Promise<boolean> {
 		return new Promise(resolve => setDeleteRequest({entry, resolve}));
 	}
@@ -394,6 +402,7 @@ export function FilesPane({
 								projectPath={projectPath}
 								onOpenFile={onOpenFile}
 								onNewFile={entry => setNewFileRequest(entry)}
+								onNewFolder={entry => setNewFolderRequest(entry)}
 								onDelete={entry => void onDeleteEntry(entry)}
 								onToggleDir={path => void toggleDir(path)}
 								rowEls={rowEls}
@@ -405,10 +414,17 @@ export function FilesPane({
 					</ul>
 				)}
 			</ScrollArea>
-			<NewFileDialog
+			<NewEntryDialog
+				kind="file"
 				request={newFileRequest}
 				onClose={() => setNewFileRequest(null)}
 				onCreated={onFileCreated}
+			/>
+			<NewEntryDialog
+				kind="folder"
+				request={newFolderRequest}
+				onClose={() => setNewFolderRequest(null)}
+				onCreated={onFolderCreated}
 			/>
 			<DeleteEntryDialog
 				request={deleteRequest}
@@ -436,6 +452,7 @@ function FileTreeNode({
 	projectPath,
 	onOpenFile,
 	onNewFile,
+	onNewFolder,
 	onDelete,
 	onToggleDir,
 	rowEls
@@ -453,6 +470,7 @@ function FileTreeNode({
 	projectPath: string;
 	onOpenFile: (relativePath: string) => void;
 	onNewFile: (entry: FsEntry) => void;
+	onNewFolder: (entry: FsEntry) => void;
 	onDelete: (entry: FsEntry) => void;
 	onToggleDir: (relativePath: string) => void;
 	rowEls: MutableRefObject<Map<string, HTMLButtonElement>>;
@@ -546,6 +564,7 @@ function FileTreeNode({
 							isDir ? <FolderOpen className="size-3.5" /> : <FileText className="size-3.5" />
 						}
 						onNewFile={() => onNewFile(entry)}
+						onNewFolder={() => onNewFolder(entry)}
 						onDelete={() => onDelete(entry)}
 						isDir={isDir}
 					/>
@@ -585,6 +604,7 @@ function FileTreeNode({
 							projectPath={projectPath}
 							onOpenFile={onOpenFile}
 							onNewFile={onNewFile}
+							onNewFolder={onNewFolder}
 							onDelete={onDelete}
 							onToggleDir={onToggleDir}
 							rowEls={rowEls}

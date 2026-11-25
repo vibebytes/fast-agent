@@ -269,6 +269,10 @@ export type DeleteWorkspaceFileResult =
 	| {ok: true; relativePath: string}
 	| {ok: false; error: string; code?: WorkspaceFsCode};
 
+export type CreateWorkspaceDirResult =
+	| {ok: true; relativePath: string}
+	| {ok: false; error: string; code?: WorkspaceFsCode};
+
 export type ReadMediaResult =
 	| {
 			ok: true;

@@ -294,6 +294,13 @@ export type CheckoutCommand =
 			recursive?: boolean;
 			tenantId?: string;
 	  }
+	| {
+			type: 'CreateWorkspaceDir';
+			requestId: string;
+			workspaceId: string;
+			relativePath: string;
+			tenantId?: string;
+	  }
 	/** Host-level SCM chrome: branch + dirty files under a registered slot. */
 	| {
 			type: 'GitWorkspaceStatus';
@@ -435,6 +442,13 @@ export const checkoutCommandSchemas = [
 		workspaceId: z.string(),
 		relativePath: z.string(),
 		recursive: z.boolean().optional(),
+		tenantId: z.string().optional()
+	}),
+	z.object({
+		type: z.literal('CreateWorkspaceDir'),
+		requestId: z.string(),
+		workspaceId: z.string(),
+		relativePath: z.string(),
 		tenantId: z.string().optional()
 	}),
 	z.object({

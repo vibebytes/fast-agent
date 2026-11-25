@@ -27,6 +27,7 @@ import type {
 	ReviewRestored,
 	SaveWorkspaceFileResult,
 	DeleteWorkspaceFileResult,
+	CreateWorkspaceDirResult,
 	SearchModelRow,
 	MobilePairingInfo,
 	SettingsDoc,
@@ -982,6 +983,9 @@ export class WorkspaceHub {
 	}
 	async deleteWorkspaceFile(relativePath: string, recursive?: boolean): Promise<DeleteWorkspaceFileResult> {
 		return this.checkout.deleteWorkspaceFile(relativePath, recursive);
+	}
+	async createWorkspaceDir(relativePath: string): Promise<CreateWorkspaceDirResult> {
+		return this.checkout.createWorkspaceDir(relativePath);
 	}
 	async gitWorkspaceStatus(force?: boolean) {
 		return this.checkout.gitWorkspaceStatus(force);

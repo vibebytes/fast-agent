@@ -80,6 +80,8 @@ export function hostSession(input: {
 		deleteWorkspaceFile: (relativePath: string, recursive?: boolean) =>
 			hub.deleteWorkspaceFile(relativePath, recursive),
 
+		createWorkspaceDir: (relativePath: string) => hub.createWorkspaceDir(relativePath),
+
 		'fs:readMedia': async (relativePath: string) => {
 			const root = activeFsRoot(hub);
 			if (!root) {

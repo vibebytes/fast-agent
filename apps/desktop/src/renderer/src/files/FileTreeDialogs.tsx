@@ -20,19 +20,21 @@ import {
 } from '@fast-ide/ui/components/dialog';
 import {Input} from '@fast-ide/ui/components/input';
 import {shellT as t} from '../i18n/t';
-import {createWorkspaceFile, newFilePath, type FileTreeEntry} from './fileTreeActions';
+import {createWorkspaceFile, createWorkspaceFolder, newFilePath, type FileTreeEntry} from './fileTreeActions';
 
 export type DeleteEntryRequest = {
 	entry: FileTreeEntry;
 	resolve: (confirmed: boolean) => void;
 };
 
-export function NewFileDialog({
+export function NewEntryDialog({
 	request,
+	kind,
 	onClose,
 	onCreated
 }: {
 	request: FileTreeEntry | null;
+	kind: 'file' | 'folder';
 	onClose: () => void;
 	onCreated: (relativePath: string) => void;
 }) {
@@ -53,7 +55,9 @@ export function NewFileDialog({
 		setBusy(true);
 		setError(null);
 		try {
-			const result = await createWorkspaceFile(request, name, window.fastIde);
+			const result = await (kind === 'folder'
+				? createWorkspaceFolder(request, name, window.fastIde)
+				: createWorkspaceFile(request, name, window.fastIde));
 			if (!result.ok) {
 				setError(result.error);
 				setBusy(false);
@@ -75,12 +79,20 @@ export function NewFileDialog({
 		>
 			<DialogContent className="sm:max-w-md" showCloseButton={!busy}>
 				<DialogHeader>
-					<DialogTitle>{t('shell.filesMenu.newFileTitle')}</DialogTitle>
-					<DialogDescription>{t('shell.filesMenu.newFileDescription')}</DialogDescription>
+					<DialogTitle>
+						{t(kind === 'folder' ? 'shell.filesMenu.newFolderTitle' : 'shell.filesMenu.newFileTitle')}
+					</DialogTitle>
+					<DialogDescription>
+						{t(
+							kind === 'folder'
+								? 'shell.filesMenu.newFolderDescription'
+								: 'shell.filesMenu.newFileDescription'
+						)}
+					</DialogDescription>
 				</DialogHeader>
 				<div className="space-y-2">
 					<label htmlFor={inputId} className="text-xs font-medium">
-						{t('shell.filesMenu.fileNameLabel')}
+						{t(kind === 'folder' ? 'shell.filesMenu.folderNameLabel' : 'shell.filesMenu.fileNameLabel')}
 					</label>
 					<Input
 						id={inputId}
@@ -88,7 +100,11 @@ export function NewFileDialog({
 						disabled={busy}
 						autoFocus
 						autoComplete="off"
-						placeholder={t('shell.filesMenu.fileNamePlaceholder')}
+						placeholder={t(
+							kind === 'folder'
+								? 'shell.filesMenu.folderNamePlaceholder'
+								: 'shell.filesMenu.fileNamePlaceholder'
+						)}
 						onChange={event => setName(event.target.value)}
 						onKeyDown={event => {
 							if (event.key === 'Enter') {

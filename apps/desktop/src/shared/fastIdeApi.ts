@@ -44,6 +44,7 @@ import type {
 	ReadMediaResult,
 	SaveWorkspaceFileResult,
 	DeleteWorkspaceFileResult,
+	CreateWorkspaceDirResult,
 	ReviewChangeDetail,
 	FileReviewDiff,
 	ReviewDiffSnapshot,
@@ -573,6 +574,7 @@ export type FastIdeApi = {
 		relativePath: string,
 		recursive?: boolean
 	) => Promise<DeleteWorkspaceFileResult>;
+	createWorkspaceDir: (relativePath: string) => Promise<CreateWorkspaceDirResult>;
 	readMedia: (relativePath: string) => Promise<ReadMediaResult>;
 	/** Absolute path of a pasted/dropped File ('' when synthetic — e.g. screenshot blob). */
 	getPathForFile: (file: HostFileRef) => string;

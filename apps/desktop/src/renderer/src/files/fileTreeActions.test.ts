@@ -2,8 +2,10 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
 	createWorkspaceFile,
+	createWorkspaceFolder,
 	deleteWorkspaceEntry,
 	newFilePath,
+	withExpandedDir,
 	parentDirOf,
 	prunedPaths,
 	type FileTreeEntry
@@ -94,4 +96,42 @@ test('prunedPaths drops the deleted directory and everything under it', () => {
 	assert.deepEqual([...prunedPaths(expanded, 'a')].sort(), ['a-keep', 'keep']);
 	assert.deepEqual([...prunedPaths(new Set(['a', 'b']), '.')].sort(), ['a', 'b']);
 	assert.deepEqual([...prunedPaths(new Set(['a']), 'missing')], ['a']);
+});
+
+test('createWorkspaceFolder creates an empty directory inside a directory entry', async () => {
+	const calls: unknown[][] = [];
+	const result = await createWorkspaceFolder(dir, 'assets', {
+		createWorkspaceDir: async (...args: unknown[]) => {
+			calls.push(args);
+			return {ok: true, relativePath: 'src/assets'};
+		}
+	});
+	assert.deepEqual(calls, [['src/assets']]);
+	assert.deepEqual(result, {ok: true, relativePath: 'src/assets'});
+});
+
+test('createWorkspaceFolder places a file sibling folder next to the file', async () => {
+	const calls: unknown[][] = [];
+	await createWorkspaceFolder(file, 'assets', {
+		createWorkspaceDir: async (...args: unknown[]) => {
+			calls.push(args);
+			return {ok: true, relativePath: 'src/assets'};
+		}
+	});
+	assert.deepEqual(calls, [['src/assets']]);
+});
+
+test('createWorkspaceFolder rejects invalid folder names', () => {
+	assert.throws(() =>
+		createWorkspaceFolder(dir, '../escape', {
+			createWorkspaceDir: async () => ({ok: true, relativePath: 'x'})
+		})
+	);
+});
+
+test('withExpandedDir expands the parent dir but never the root', () => {
+	assert.deepEqual([...withExpandedDir(new Set(), '.')], []);
+	assert.deepEqual([...withExpandedDir(new Set(['a']), 'src')].sort(), ['a', 'src']);
+	assert.deepEqual([...withExpandedDir(new Set(['src']), 'src')], ['src']);
+	assert.deepEqual([...withExpandedDir(new Set(['a']), './src')].sort(), ['a', 'src']);
 });

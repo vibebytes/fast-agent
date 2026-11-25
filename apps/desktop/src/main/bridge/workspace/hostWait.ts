@@ -120,6 +120,7 @@ export const HostWaitCommands = new Set([
 	'GetWorkspaceFile',
 	'SaveWorkspaceFile',
 	'DeleteWorkspaceFile',
+	'CreateWorkspaceDir',
 	'GitWorkspaceStatus',
 	'EngineCall'
 ]);

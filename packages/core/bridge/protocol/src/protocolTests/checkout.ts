@@ -34,6 +34,12 @@ test('bridgeCommandSchema round-trips workspace FS host commands', () => {
 			relativePath: 'src',
 			recursive: true
 		},
+		{
+			type: 'CreateWorkspaceDir',
+			requestId: 'r4-mkdir',
+			workspaceId: 'abcdef123456',
+			relativePath: 'src/new-dir'
+		},
 		{type: 'GitWorkspaceStatus', requestId: 'r5', workspaceId: 'abcdef123456'},
 		{type: 'ListHostDir', requestId: 'r6'},
 		{type: 'ListHostDir', requestId: 'r7', path: '/home/kai'},

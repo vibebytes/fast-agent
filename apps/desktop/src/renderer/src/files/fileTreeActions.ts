@@ -1,4 +1,5 @@
 import type {
+	CreateWorkspaceDirResult,
 	DeleteWorkspaceFileResult,
 	SaveWorkspaceFileResult
 } from '@fast-ide/session-view';
@@ -17,6 +18,18 @@ type CreateFileApi = {
 		bytes?: number
 	) => Promise<SaveWorkspaceFileResult>;
 };
+
+type CreateDirApi = {
+	createWorkspaceDir: (relativePath: string) => Promise<CreateWorkspaceDirResult>;
+};
+
+export function createWorkspaceFolder(
+	entry: FileTreeEntry,
+	name: string,
+	api: CreateDirApi
+): Promise<CreateWorkspaceDirResult> {
+	return api.createWorkspaceDir(newFilePath(entry, name));
+}
 
 type DeleteFileApi = {
 	deleteWorkspaceFile: (
@@ -72,6 +85,13 @@ export function parentDirOf(relativePath: string): string {
 	const normalized = normalizeTreePath(relativePath);
 	const idx = normalized.lastIndexOf('/');
 	return idx <= 0 ? '.' : normalized.slice(0, idx);
+}
+
+export function withExpandedDir(expanded: Iterable<string>, dir: string): Set<string> {
+	const next = new Set(expanded);
+	const key = normalizeTreePath(dir);
+	if (key) next.add(key);
+	return next;
 }
 
 export function prunedPaths(paths: Iterable<string>, deleted: string): Set<string> {
