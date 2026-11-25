@@ -162,6 +162,34 @@ export function applySurfaceOpen(tabs: RailTab[], open: SurfaceOpenIntent, close
 	return {tabs: next, focusId: id};
 }
 
+/** Latest open intent per surface, registered from passive `surface_open` replays. */
+export function registerAvailableSurface(
+	available: ReadonlyMap<string, SurfaceOpenIntent>,
+	open: SurfaceOpenIntent
+): Map<string, SurfaceOpenIntent> {
+	const next = new Map(available);
+	next.set(surfaceTabId(open.extId, open.surfaceId), open);
+	return next;
+}
+
+/** Surfaces offered in the "+" menu, sorted by display title. */
+export function availableSurfaceList(available: ReadonlyMap<string, SurfaceOpenIntent>): SurfaceOpenIntent[] {
+	return [...available.values()].sort((a, b) =>
+		(a.title ?? a.surfaceId).localeCompare(b.title ?? b.surfaceId)
+	);
+}
+
+/** Passive open: refresh the instance only if the surface already has a visible tab; never create one. */
+export function refreshOpenSurfaceTab(
+	tabs: RailTab[],
+	open: SurfaceOpenIntent,
+	closedKeys: ReadonlySet<string>
+): RailTab[] {
+	const id = surfaceTabId(open.extId, open.surfaceId);
+	if (!tabs.some(tab => tab.id === id)) return tabs;
+	return applySurfaceOpen(tabs, open, closedKeys).tabs;
+}
+
 export function dropSurfaceTabs(tabs: RailTab[], extId: string): RailTab[] {
 	return tabs.filter(tab => tab.surface?.extId !== extId);
 }

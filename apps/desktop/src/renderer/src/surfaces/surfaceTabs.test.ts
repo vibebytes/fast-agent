@@ -3,8 +3,11 @@ import test from 'node:test';
 import type {ExtRow, SurfaceWire} from '@fastllm/bridge-client';
 import {
 	applySurfaceOpen,
+	availableSurfaceList,
 	dropSurfaceTabs,
 	patchSurfaceState,
+	refreshOpenSurfaceTab,
+	registerAvailableSurface,
 	surfaceCloseKey,
 	surfaceEntries,
 	surfaceRunnable,
@@ -13,6 +16,7 @@ import {
 	upsertSurfaceTab
 } from './surfaceTabs.js';
 import type {RailTab} from '../railTabs.js';
+import type {SurfaceOpenIntent} from './surfaceTabs.js';
 
 function surface(partial: Partial<SurfaceWire>): SurfaceWire {
 	return {
@@ -213,4 +217,26 @@ test('applySurfaceOpen merges roomId on a replay without stealing focus', () => 
 	const second = applySurfaceOpen(first.tabs, {...OPEN, roomId: 'r_ab12cd34'}, new Set());
 	assert.equal(second.focusId, null);
 	assert.equal(second.tabs[0].surface?.roomId, 'r_ab12cd34');
+});
+
+test('registerAvailableSurface records the latest open intent per surface', () => {
+	let available = new Map<string, SurfaceOpenIntent>();
+	available = registerAvailableSurface(available, OPEN);
+	available = registerAvailableSurface(available, {...OPEN, url: 'http://127.0.0.1:8000/?t=tok2'});
+	assert.equal(available.size, 1);
+	assert.equal(available.get('surface:vibe3d:vibe3d.editor')?.url, 'http://127.0.0.1:8000/?t=tok2');
+});
+
+test('availableSurfaceList sorts by title for the + menu', () => {
+	let available = new Map<string, SurfaceOpenIntent>();
+	available = registerAvailableSurface(available, OPEN);
+	available = registerAvailableSurface(available, {...OPEN, extId: 'other', surfaceId: 'other.pane', title: 'Alpha'});
+	assert.deepEqual(availableSurfaceList(available).map(o => o.title), ['Alpha', 'Vibe3D']);
+});
+
+test('refreshOpenSurfaceTab only refreshes a surface already on the rail', () => {
+	assert.deepEqual(refreshOpenSurfaceTab([], OPEN, new Set()), []);
+	const shown = applySurfaceOpen([], OPEN, new Set()).tabs;
+	const next = refreshOpenSurfaceTab(shown, {...OPEN, url: 'http://127.0.0.1:8000/?t=tok2'}, new Set());
+	assert.equal(next[0].surface?.url, 'http://127.0.0.1:8000/?t=tok2');
 });

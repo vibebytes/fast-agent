@@ -46,9 +46,19 @@ import {onOpenMcpApp} from './mcpApp/openRequest';
 import {parseSurfaceOpen, parseSurfaceState} from './surfaces/surfaceEvents';
 import type {SurfaceOpen} from './surfaces/surfaceEvents';
 import {onSurfaceOpen} from './surfaces/openRequest';
-import {applySurfaceOpen, dropSurfaceTabs, patchSurfaceState, surfaceCloseKey} from './surfaces/surfaceTabs';
+import {
+	applySurfaceOpen,
+	dropSurfaceTabs,
+	patchSurfaceState,
+	refreshOpenSurfaceTab,
+	registerAvailableSurface,
+	surfaceCloseKey,
+	surfaceTabId,
+	type SurfaceOpenIntent
+} from './surfaces/surfaceTabs';
 import {unlistedSurfaceExtIds} from './surfaces/surfaceSweep';
-import {loadSurfaceTabs, restoreSurfaceTabs, saveSurfaceTabs} from './surfaces/surfacePersistence';
+import {loadSurfaceTabs, readSurfaceTabs, saveSurfaceTabs} from './surfaces/surfacePersistence';
+import {SurfaceMenuItems} from './surfaces/SurfaceMenuItems';
 import {useSurfaces} from './surfaces/useSurfaces';
 import {
 	createRailTab,
@@ -124,12 +134,23 @@ function RightWorkbenchImpl({
 	onReviewDirtyPaths?: (paths: readonly string[]) => void;
 	onRefreshGit?: () => void;
 }) {
-	const [tabs, setTabs] = useState<RailTab[]>(() =>
-		restoreSurfaceTabs(
-			[filesTab(), createRailTab(layout === 'coding' ? 'changes' : 'context')],
-			loadSurfaceTabs()
-		)
-	);
+	const [tabs, setTabs] = useState<RailTab[]>(() => [
+		filesTab(),
+		createRailTab(layout === 'coding' ? 'changes' : 'context')
+	]);
+	const [availableSurfaces, setAvailableSurfaces] = useState<Map<string, SurfaceOpenIntent>>(() => {
+		const map = new Map<string, SurfaceOpenIntent>();
+		for (const row of readSurfaceTabs(loadSurfaceTabs())) {
+			map.set(surfaceTabId(row.extId, row.surfaceId), {
+				extId: row.extId,
+				surfaceId: row.surfaceId,
+				title: row.title,
+				url: row.url ?? '',
+				roomId: row.roomId
+			});
+		}
+		return map;
+	});
 	const [activeId, setActiveId] = useState(FILES_TAB_ID);
 	const [menuOpen, setMenuOpen] = useState(false);
 	const [lastDocumentPath, setLastDocumentPath] = useState<string | null>(null);
@@ -155,12 +176,6 @@ function RightWorkbenchImpl({
 	);
 
 	// Panel tabs survive a restart; a dead extension is dropped by the withdraw sweep below.
-	useEffect(() => {
-		const raw = loadSurfaceTabs();
-		if (!raw) return;
-		setTabs(prev => restoreSurfaceTabs(prev, raw));
-	}, []);
-
 	useEffect(() => {
 		saveSurfaceTabs(tabs);
 	}, [tabs]);
@@ -588,19 +603,21 @@ function RightWorkbenchImpl({
 		return window.fastIde.onBridgeEvent(payload => {
 			const open = parseSurfaceOpen(payload.event);
 			if (open) {
-				openSurface(open);
+				setAvailableSurfaces(prev => registerAvailableSurface(prev, open));
+				setTabs(prev => refreshOpenSurfaceTab(prev, open, surfaceClosedKeysRef.current));
 				return;
 			}
 			const state = parseSurfaceState(payload.event);
 			if (state) setTabs(prev => patchSurfaceState(prev, state));
 		});
-	}, [openSurface]);
+	}, []);
 
 	// An artifact-card click is explicit, so drop the "the user closed this" memory first: the
 	// same room must reopen. Everything else goes through the reducer above.
 	useEffect(() => {
 		return onSurfaceOpen(open => {
 			surfaceClosedKeysRef.current.delete(surfaceCloseKey(open));
+			setAvailableSurfaces(prev => registerAvailableSurface(prev, open));
 			openSurface(open);
 		});
 	}, [openSurface]);
@@ -679,6 +696,11 @@ function RightWorkbenchImpl({
 			// last reload is missing from it even though it is running — refresh instead of closing.
 			if (alive) surfaces.reload();
 			if (gone.size === 0) return;
+			setAvailableSurfaces(prev => {
+				const nextAvail = new Map(prev);
+				for (const [k, v] of nextAvail) if (gone.has(v.extId)) nextAvail.delete(k);
+				return nextAvail;
+			});
 			const next = [...gone].reduce(dropSurfaceTabs, tabsRef.current);
 			if (next.length === tabsRef.current.length) return;
 			setTabs(next);
@@ -768,6 +790,14 @@ function RightWorkbenchImpl({
 											<span className="flex-1">{option.label}</span>
 										</CommandItem>
 									))}
+									<SurfaceMenuItems
+										available={availableSurfaces}
+										onSelect={open => {
+											surfaceClosedKeysRef.current.delete(surfaceCloseKey(open));
+											openSurface(open);
+											setMenuOpen(false);
+										}}
+									/>
 								</CommandGroup>
 							</CommandList>
 						</Command>

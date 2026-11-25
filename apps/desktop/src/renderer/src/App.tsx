@@ -37,9 +37,7 @@ import {ScheduledPlans} from './sidebar/ScheduledSidebar';
 import type {OpenTeamsRequest} from './TeamsWorkbench';
 import {AppChrome} from './shell/AppChrome';
 import {readStored, readStoredBool} from './shell/layoutPrefs';
-import {parseSurfaceOpen} from './surfaces/surfaceEvents';
 import {onSurfaceOpenRequest} from './surfaces/openRequest';
-import {railOpenIntent} from './surfaces/railAutoOpen';
 import {useAppWindow} from './shell/useAppWindow';
 
 // Heavy, low-frequency surfaces load on first use (perf doc P1-9): Teams pulls
@@ -133,9 +131,6 @@ export function App({store}: {store: WorkspaceStore}) {
 	const rightRailOpenRef = useRef(rightRailOpen);
 	rightRailOpenRef.current = rightRailOpen;
 	const [railTabIntent, setRailTabIntent] = useState<'files' | 'content'>('files');
-	// Surface instances seen while the rail was up: once the user collapses the rail,
-	// replays of those instances must not pop it back open.
-	const railSeenSurfaceRef = useRef(new Set<string>());
 	const {paletteId, setPaletteId} = useThemePrefs();
 	const {localePref, setLocalePref} = useLocalePrefs();
 	const {t} = useTranslation();
@@ -387,16 +382,6 @@ export function App({store}: {store: WorkspaceStore}) {
 	// RightWorkbench unmounts while the rail is collapsed, so its surface_open handler is
 	// dead exactly when a web surface (e.g. vibe3d) appears. Watch here: a genuinely new
 	// instance expands the rail; replays of instances we already saw stay silent.
-	useEffect(() => {
-		return window.fastIde.onBridgeEvent(payload => {
-			const open = parseSurfaceOpen(payload.event);
-			if (!open) return;
-			if (railOpenIntent(railSeenSurfaceRef.current, open) && !rightRailOpenRef.current) {
-				expandRightRail();
-			}
-		});
-	}, [expandRightRail]);
-
 	// An artifact-card click arrives outside the bridge, so this watcher is the only chance to
 	// un-collapse the rail before the tab owner mounts and drains its backlog.
 	useEffect(() => {

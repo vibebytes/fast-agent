@@ -5,6 +5,7 @@
   ],
   "exclude": [
 		"src/renderer/src/**/*.test.ts",
+		"src/renderer/src/**/*.test.tsx",
 		"src/renderer/src/workspaceStore/**",
 		"src/shared/**/*.test.ts"
   ],
