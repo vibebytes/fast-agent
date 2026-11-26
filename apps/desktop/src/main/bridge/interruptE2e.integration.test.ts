@@ -103,6 +103,27 @@ test('插话 interrupts a streaming turn and starts the interrupt turn (frontend
 		assert.ok((interrupt as Extract<BridgeCommand, {type: 'InterruptWithMessage'}>).itemId?.startsWith('fu_'));
 
 		const indexOf = (match: (e: BridgeEvent) => boolean) => events.findIndex(match);
+		const interruptAckIdx = indexOf(
+			e => e.type === 'command_result' && (e as {name?: string}).name === 'InterruptWithMessage'
+		);
+		assert.ok(interruptAckIdx >= 0, 'interrupt command result arrived');
+		const staleQueuedAfterInterrupt = events
+			.slice(interruptAckIdx + 1)
+			.filter(e => e.type === 'follow_up_changed')
+			.filter(e => {
+				try {
+					return (
+						(JSON.parse(String((e as {itemsJson?: string}).itemsJson ?? '[]')) as unknown[]).length > 0
+					);
+				} catch {
+					return false;
+				}
+			});
+		assert.equal(
+			staleQueuedAfterInterrupt.length,
+			0,
+			'stale non-empty follow-up projection after interrupt'
+		);
 		const cancelledIdx = indexOf(e => e.type === 'run_cancelled');
 		const turn1FinishedIdx = indexOf(e => e.type === 'turn_finished' && e.success === false);
 		const turn2StartedIdx = indexOf(
