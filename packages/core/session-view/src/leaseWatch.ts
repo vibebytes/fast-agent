@@ -135,12 +135,13 @@ export function createLeaseWatch<T extends LeaseWatchTask>(deps: LeaseWatchDeps<
 	};
 
 	/**
-	 * Host-owned TTL: attach reconcile, then local settle if the snapshot stays silent.
+	 * Host-owned TTL: re-Attach stale Sessions without treating heartbeat silence as a terminal.
 	 *
 	 * The watchdog keys off local busy state, never off `leaseAware`. `run_state` is a
 	 * droppable wire event (BridgeConnection.Droppable) — if the engine sheds it under
 	 * backpressure, a leaseAware-gated scan would never arm and the Composer would stay
-	 * locked forever. A locally busy task with no renewal event at all still expires.
+	 * locked forever. A locally busy task with no renewal event at all still reconciles.
+	 * Attached work needs an explicit terminal or idle snapshot; only detached local residue expires.
 	 */
 	const tickRunLeases = (): void => {
 		const now = deps.now();
@@ -154,6 +155,11 @@ export function createLeaseWatch<T extends LeaseWatchTask>(deps: LeaseWatchDeps<
 			const reconcileAt = leaseReconcileAt.get(task.id);
 			if (reconcileAt != null) {
 				if (now - reconcileAt < RUN_LEASE_INTERVAL_MS) continue;
+				if (deps.sessionIdOf(task)) {
+					deps.onReconcile(task);
+					leaseReconcileAt.set(task.id, now);
+					continue;
+				}
 				deps.onExpire(task);
 				leaseReconcileAt.delete(task.id);
 				changed = true;

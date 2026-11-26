@@ -259,7 +259,7 @@ test('cancel settlement timers are per-task: arming B does not disarm A', async 
 	assert.equal(chromeAwaitingSettlement(controller.listTasks().find(t => t.id === b.id)?.transcript.chrome), false);
 });
 
-test('run lease expiry attaches then locally settles after grace', () => {
+test('run lease silence keeps Composer busy until an authoritative idle snapshot', () => {
 	const sent: BridgeCommand[] = [];
 	let now = 1_000;
 	const controller = new SessionController({
@@ -305,10 +305,16 @@ test('run lease expiry attaches then locally settles after grace', () => {
 
 	now += 5_000;
 	controller.tickRunLeases();
-	assert.equal(chromeRunId(controller.getActiveTask()?.transcript.chrome), undefined);
+	assert.equal(chromeRunId(controller.getActiveTask()?.transcript.chrome), 'run-1');
+	assert.equal(controller.gate().runState, 'running');
+	assert.equal(controller.canSubmitNow(), false);
+	assert.equal(controller.canEnqueue(), true);
+	assert.equal(sent.filter(c => c.type === 'AttachSession').length, 2, 'retry the authoritative snapshot');
+	assert.equal(controller.consumeHelpNotice(), null);
+
+	controller.handleEvent(withSid('sess', {type: 'run_state', state: 'idle', ts: now}));
 	assert.equal(controller.gate().runState, 'idle');
 	assert.equal(controller.canSubmitNow(), true);
-	assert.equal(controller.consumeHelpNotice(), 'errors.lease.expired');
 	controller.reset();
 });
 
@@ -386,7 +392,7 @@ test('run lease heartbeat during grace renews and does not settle', () => {
 	controller.reset();
 });
 
-test('run lease expires a Goal-only overlay after grace', () => {
+test('run lease silence keeps a Goal-only overlay busy until its terminal event', () => {
 	const sent: BridgeCommand[] = [];
 	let now = 1_000;
 	const controller = new SessionController({
@@ -426,10 +432,21 @@ test('run lease expires a Goal-only overlay after grace', () => {
 
 	now += 5_000;
 	controller.tickRunLeases();
-	assert.equal(controller.getActiveTask()?.goalCard, undefined);
+	assert.equal(controller.getActiveTask()?.goalCard?.goalId, 'g1');
+	assert.equal(controller.gate().runState, 'running');
+	assert.equal(controller.canSubmitNow(), true, 'Goal busy keeps direct submit for steer');
+	assert.equal(controller.canEnqueue(), false);
+	assert.equal(controller.consumeHelpNotice(), null);
+
+	controller.handleEvent(withSid('sess', {
+		type: 'goal_updated',
+		goalId: 'g1',
+		phase: 'finished',
+		status: 'succeeded'
+	}));
+	assert.equal(controller.getActiveTask()?.goalCard?.status, 'succeeded', 'terminal Goal card stays available for acknowledgement');
 	assert.equal(controller.gate().runState, 'idle');
 	assert.equal(controller.canSubmitNow(), true);
-	assert.equal(controller.consumeHelpNotice(), 'errors.lease.expired');
 	controller.reset();
 });
 

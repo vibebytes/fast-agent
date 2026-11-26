@@ -132,6 +132,23 @@ test('stopping → enqueue allowed, cancel stays, no direct submit, Composer unl
 	});
 });
 
+test('running proc alone does not occupy Composer BusyRoots', () => {
+	const g = gate({
+		liveProcs: [
+			{
+				procId: 'proc-1',
+				command: 'shell_wait',
+				status: 'running',
+				startedAt: 1
+			}
+		]
+	});
+	assert.equal(g.runState, 'idle');
+	assert.equal(g.canSubmitNow, true);
+	assert.equal(g.canEnqueue, false);
+	assert.equal(g.canCancel, false);
+});
+
 test('stopping without activeRunId still Stopping', () => {
 	const g = gate({chrome: runChromeTransition(IDLE_RUN_CHROME, {awaiting: true})});
 	assert.equal(g.runState, 'stopping');

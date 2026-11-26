@@ -145,7 +145,7 @@ test('cancel-settle timer fires force settlement once, then clears', () => {
 	assert.equal(watch.pendingCancelSettleCount, 0, 'settled chrome must not arm');
 });
 
-test('tickRunLeases reconciles then settles expired leases', () => {
+test('tickRunLeases keeps attached work busy and retries reconciliation under silence', () => {
 	const timers = fakeTimers();
 	let t = task();
 	const reconciled: string[] = [];
@@ -186,8 +186,9 @@ test('tickRunLeases reconciles then settles expired leases', () => {
 
 	timers.advance(RUN_LEASE_INTERVAL_MS + 1);
 	watch.tickRunLeases();
-	assert.deepEqual(expired, ['t1'], 'silence past reconcile window settles locally');
-	assert.equal(changeCount, 1);
+	assert.deepEqual(expired, [], 'an attached Session requires an authoritative terminal or idle snapshot');
+	assert.deepEqual(reconciled, ['t1', 't1', 't1'], 'silent reconcile is retried without inventing idle');
+	assert.equal(changeCount, 0);
 });
 
 test('tickRunLeases ignores tasks that are not busy', () => {
