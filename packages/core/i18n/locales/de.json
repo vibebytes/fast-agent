@@ -71,6 +71,7 @@
       "stop": "Stop",
       "disconnect": "Disconnect",
       "notConfigured": "Not configured",
+      "cancel": "Abbrechen",
       "unknown": "Unknown",
       "exact": "Exact",
       "estimated": "Estimated",
@@ -764,6 +765,11 @@
         "formAutoApprove": "Genehmigungsabfragen überspringen",
         "formAutoApproveHint": "Modell- und Seitenaufrufe an diesen Server laufen ohne Rückfrage.",
         "formMcpApps": "MCP Apps (interaktive Seite)",
+        "apps": {
+          "title": "App-Ansichten",
+          "description": "Tools mit einer ui://-Seite. Beim Öffnen wird die Seite rechts im Arbeitsbereich angeheftet, pro Seite ein Tab.",
+          "open": "Ansicht öffnen"
+        },
         "formMcpAppsHint": "Erlaubt diesem Server, eine UI-Seite im rechten Bereich zu öffnen. Nur lokale Server.",
         "formTransport": "Transport",
         "transportStdio": "Local process (stdio)",
@@ -1072,6 +1078,8 @@
       "searchModels": "Search models",
       "loadingModels": "Loading models…",
       "noModelMatch": "No matching models found",
+      "noModels": "Keine Modelle verfügbar",
+      "freeZone": "Kostenlose Modelle",
       "thinking": "Thinking",
       "thinkingOn": "Thinking on",
       "thinkingOff": "Thinking off",

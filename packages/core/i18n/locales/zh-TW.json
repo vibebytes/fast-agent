@@ -71,6 +71,7 @@
       "stop": "Stop",
       "disconnect": "Disconnect",
       "notConfigured": "Not configured",
+      "cancel": "取消",
       "unknown": "Unknown",
       "exact": "Exact",
       "estimated": "Estimated",
@@ -764,6 +765,11 @@
         "formAutoApprove": "略過核准提示",
         "formAutoApproveHint": "對此伺服器的模型與頁面呼叫不需確認即執行。",
         "formMcpApps": "MCP Apps（互動頁面）",
+        "apps": {
+          "title": "介面檢視",
+          "description": "帶 ui:// 頁面的工具；開啟後固定在右側工作區，同一頁面只開一個分頁。",
+          "open": "開啟檢視"
+        },
         "formMcpAppsHint": "允許此伺服器在右側面板開啟 UI 頁面。僅限本機伺服器。",
         "formTransport": "Transport",
         "transportStdio": "Local process (stdio)",
@@ -1072,6 +1078,8 @@
       "searchModels": "Search models",
       "loadingModels": "Loading models…",
       "noModelMatch": "No matching models found",
+      "noModels": "沒有可用模型",
+      "freeZone": "免費模型",
       "thinking": "Thinking",
       "thinkingOn": "Thinking on",
       "thinkingOff": "Thinking off",

@@ -146,6 +146,7 @@
       "stop": "停止",
       "disconnect": "断开连接",
       "notConfigured": "未配置",
+      "cancel": "取消",
       "unknown": "未知",
       "exact": "精确",
       "estimated": "估算",
@@ -855,6 +856,11 @@
         "formAutoApprove": "跳过审批弹窗",
         "formAutoApproveHint": "模型与该服务的页面调用不再逐次询问。",
         "formMcpApps": "MCP Apps（交互页面）",
+        "apps": {
+          "title": "界面视图",
+          "description": "带 ui:// 页面的工具；打开后固定在右侧工作区，同一页面只开一个标签。",
+          "open": "打开视图"
+        },
         "formMcpAppsHint": "允许该服务在右侧面板打开 UI 页面；仅本地服务可用。",
         "importTitle": "导入 MCP 配置",
         "importDescription": "粘贴标准 MCP JSON（mcpServers 格式）。",
@@ -1085,6 +1091,8 @@
       "searchModelsPlaceholder": "搜索模型名称、ID 或提供商…",
       "loadingModels": "正在加载模型…",
       "noModelMatch": "未找到匹配的模型",
+      "noModels": "没有可用模型",
+      "freeZone": "免费模型",
       "noModelHint": "尝试使用其他关键词，或前往设置配置新模型",
       "manageModels": "配置模型与提供商",
       "modelCount": "共 {{count}} 个可用模型",

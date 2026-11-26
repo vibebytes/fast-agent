@@ -71,6 +71,7 @@
       "stop": "Stop",
       "disconnect": "Disconnect",
       "notConfigured": "Not configured",
+      "cancel": "キャンセル",
       "unknown": "Unknown",
       "exact": "Exact",
       "estimated": "Estimated",
@@ -764,6 +765,11 @@
         "formAutoApprove": "承認プロンプトを省略",
         "formAutoApproveHint": "このサーバーへのモデルとページからの呼び出しは確認なしで実行されます。",
         "formMcpApps": "MCP Apps（インタラクティブページ）",
+        "apps": {
+          "title": "アプリビュー",
+          "description": "ui:// ページを持つツール。開くと右側のワークベンチに固定され、ページごとに 1 つのタブで開きます。",
+          "open": "ビューを開く"
+        },
         "formMcpAppsHint": "このサーバーが右パネルで UI ページを開けるようにします。ローカルサーバーのみ。",
         "formTransport": "Transport",
         "transportStdio": "Local process (stdio)",
@@ -1072,6 +1078,8 @@
       "searchModels": "Search models",
       "loadingModels": "Loading models…",
       "noModelMatch": "No matching models found",
+      "noModels": "利用可能なモデルがありません",
+      "freeZone": "無料モデル",
       "thinking": "Thinking",
       "thinkingOn": "Thinking on",
       "thinkingOff": "Thinking off",

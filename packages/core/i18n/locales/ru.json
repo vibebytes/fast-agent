@@ -71,6 +71,7 @@
       "stop": "Stop",
       "disconnect": "Disconnect",
       "notConfigured": "Not configured",
+      "cancel": "Отмена",
       "unknown": "Unknown",
       "exact": "Exact",
       "estimated": "Estimated",
@@ -764,6 +765,11 @@
         "formAutoApprove": "Пропускать запросы подтверждения",
         "formAutoApproveHint": "Вызовы этого сервера от модели и со страниц выполняются без подтверждения.",
         "formMcpApps": "MCP Apps (интерактивная страница)",
+        "apps": {
+          "title": "Представления приложения",
+          "description": "Инструменты со страницей ui://. При открытии она закрепляется справа в рабочей области, для каждой страницы — одна вкладка.",
+          "open": "Открыть представление"
+        },
         "formMcpAppsHint": "Разрешить этому серверу открывать страницу UI в правой панели. Только локальные серверы.",
         "formTransport": "Transport",
         "transportStdio": "Local process (stdio)",
@@ -1072,6 +1078,8 @@
       "searchModels": "Search models",
       "loadingModels": "Loading models…",
       "noModelMatch": "No matching models found",
+      "noModels": "Нет доступных моделей",
+      "freeZone": "Бесплатные модели",
       "thinking": "Thinking",
       "thinkingOn": "Thinking on",
       "thinkingOff": "Thinking off",

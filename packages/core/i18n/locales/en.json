@@ -146,6 +146,7 @@
       "stop": "Stop",
       "disconnect": "Disconnect",
       "notConfigured": "Not configured",
+      "cancel": "Cancel",
       "unknown": "Unknown",
       "exact": "Exact",
       "estimated": "Estimated",
@@ -855,6 +856,11 @@
         "formAutoApprove": "Skip approval prompts",
         "formAutoApproveHint": "Model and page calls to this server run without asking first.",
         "formMcpApps": "MCP Apps (interactive page)",
+        "apps": {
+          "title": "App views",
+          "description": "Tools that expose a ui:// page. Opening one pins it to the right workbench, and each page opens a single tab.",
+          "open": "Open view"
+        },
         "formMcpAppsHint": "Let this server open a UI page in the right panel. Local servers only.",
         "importTitle": "Import MCP config",
         "importDescription": "Paste standard MCP JSON (mcpServers format).",
@@ -1085,6 +1091,8 @@
       "searchModelsPlaceholder": "Search model name, ID or provider…",
       "loadingModels": "Loading models…",
       "noModelMatch": "No matching models found",
+      "noModels": "No models available",
+      "freeZone": "Free models",
       "noModelHint": "Try different keywords or configure new models in Settings",
       "manageModels": "Configure Models & Providers",
       "modelCount": "{{count}} models available",

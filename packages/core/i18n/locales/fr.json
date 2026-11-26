@@ -71,6 +71,7 @@
       "stop": "Stop",
       "disconnect": "Disconnect",
       "notConfigured": "Not configured",
+      "cancel": "Annuler",
       "unknown": "Unknown",
       "exact": "Exact",
       "estimated": "Estimated",
@@ -764,6 +765,11 @@
         "formAutoApprove": "Ignorer les demandes d'approbation",
         "formAutoApproveHint": "Les appels du modèle et des pages vers ce serveur s'exécutent sans confirmation.",
         "formMcpApps": "MCP Apps (page interactive)",
+        "apps": {
+          "title": "Vues de l'application",
+          "description": "Outils exposant une page ui://. À l'ouverture, elle s'épingle dans l'espace de travail de droite ; une seule vue par page.",
+          "open": "Ouvrir la vue"
+        },
         "formMcpAppsHint": "Autorise ce serveur à ouvrir une page UI dans le panneau droit. Serveurs locaux uniquement.",
         "formTransport": "Transport",
         "transportStdio": "Local process (stdio)",
@@ -1072,6 +1078,8 @@
       "searchModels": "Search models",
       "loadingModels": "Loading models…",
       "noModelMatch": "No matching models found",
+      "noModels": "Aucun modèle disponible",
+      "freeZone": "Modèles gratuits",
       "thinking": "Thinking",
       "thinkingOn": "Thinking on",
       "thinkingOff": "Thinking off",
