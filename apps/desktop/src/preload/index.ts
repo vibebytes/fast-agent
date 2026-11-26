@@ -123,14 +123,14 @@ const api = {
 	removeRule: (projectId: string, ruleId: string) => invoke('rules:remove', projectId, ruleId),
 	setRuleEnabled: (projectId: string, ruleId: string, enabled: boolean) =>
 		invoke('rules:setEnabled', projectId, ruleId, enabled),
-	listReviewChanges: (projectId: string, checkpointId?: string | null, sessionId?: string | null) =>
-		invoke('review:list', projectId, checkpointId, sessionId),
+	listReviewChanges: (projectId: string, checkpointId?: string | null, sessionId?: string | null, offset?: number, limit?: number) =>
+		invoke('review:list', projectId, checkpointId, sessionId, offset, limit),
 	getReviewChange: (projectId: string, changeId: string) =>
 		invoke('review:change', projectId, changeId),
-	listReviewDiff: (projectId: string, sinceRevision?: number) =>
-		invoke('review:diff', projectId, sinceRevision),
-	getFileReviewDiff: (projectId: string, path: string) =>
-		invoke('review:fileDiff', projectId, path),
+	listReviewDiff: (projectId: string, sinceRevision?: number, sessionId?: string | null) =>
+		invoke('review:diff', projectId, sinceRevision, sessionId),
+	getFileReviewDiff: (projectId: string, path: string, sessionId?: string | null) =>
+		invoke('review:fileDiff', projectId, path, sessionId),
 	keepReviewChanges: (projectId: string, changeIds: string[], revision: number) =>
 		invoke('review:keep', projectId, changeIds, revision),
 	previewRevert: (

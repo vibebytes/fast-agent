@@ -345,12 +345,12 @@ export function createDesktopHost(deps: DesktopHostDeps): ProductInvokeMap {
 		'rules:setEnabled': (projectId: string, ruleId: string, enabled: boolean) =>
 			hub.setRuleEnabled(projectId, ruleId, enabled),
 
-		'review:list': (projectId: string, checkpointId?: string | null, sessionId?: string | null) =>
-			hub.listReviewChanges(projectId, checkpointId, sessionId),
+		'review:list': (projectId: string, checkpointId?: string | null, sessionId?: string | null, offset?: number, limit?: number) =>
+			hub.listReviewChanges(projectId, checkpointId, sessionId, offset, limit),
 		'review:change': (projectId: string, changeId: string) => hub.getReviewChange(projectId, changeId),
-		'review:diff': (projectId: string, sinceRevision?: number) =>
-			hub.listReviewDiff(projectId, sinceRevision),
-		'review:fileDiff': (projectId: string, path: string) => hub.getFileReviewDiff(projectId, path),
+		'review:diff': (projectId: string, sinceRevision?: number, sessionId?: string | null) =>
+			hub.listReviewDiff(projectId, sinceRevision, sessionId),
+		'review:fileDiff': (projectId: string, path: string, sessionId?: string | null) => hub.getFileReviewDiff(projectId, path, sessionId),
 		'review:keep': (projectId: string, changeIds: string[], revision: number) =>
 			hub.keepReviewChanges(projectId, changeIds, revision),
 		'review:preview': (projectId, input) => hub.previewRevert(projectId, input),

@@ -1,4 +1,5 @@
 import {useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore} from 'react';
+import {appendPage, pendingCount} from './agentReview';
 import {useTranslation} from 'react-i18next';
 import type {
 	FileReviewDiff,
@@ -60,6 +61,12 @@ export type AgentReview = {
 	redo: (restoreId: string) => Promise<boolean>;
 	/** Experimental switch. Off means review commands are closed even when the checkpoint backend is git. */
 	reviewDiffOn: boolean;
+	/** True while more pages of this session's changes exist beyond the loaded window. */
+	hasMore: boolean;
+	/** Append the next newest-first page of changes (20 per page). */
+	loadMore: () => Promise<void>;
+	/** A page append is in flight. */
+	loadingMore: boolean;
 };
 
 /** i18n key when the engine refuses review because the experimental switch is off. */
@@ -87,7 +94,7 @@ export function reviewDiffGate(reviewDiffOn: boolean, list: ReviewList | null): 
 	pull: boolean;
 	explain: boolean;
 } {
-	const pending = list != null ? pendingChanges(list).length : 0;
+	const pending = list != null ? pendingCount(list) : 0;
 	return {
 		pull: pullsReviewDiff(reviewDiffOn, pending),
 		explain: shouldExplainReviewDiffOff(reviewDiffOn, list != null && !list.available)
@@ -132,6 +139,7 @@ export function useAgentReview(projectId: string | null, sessionId: string | nul
 	const [diff, setDiff] = useState<ReviewDiffSnapshot | null>(null);
 	const diffHeld = useRef<ReviewDiffSnapshot | null>(null);
 	diffHeld.current = diff;
+	const listHeld = useRef<ReviewList | null>(null);
 	// Render-phase swap: the first frame after a task switch must already carry
 	// that session's cached list — a one-commit stale list rebuilt every
 	// transcript row's renderItem cache and re-rendered all sections twice.
@@ -140,6 +148,7 @@ export function useAgentReview(projectId: string | null, sessionId: string | nul
 		setDiff(null);
 	}
 	const list = shown.list;
+	listHeld.current = list;
 	const setList = useCallback(
 		(next: ReviewList | ((prev: ReviewList) => ReviewList)) => {
 			setShown(prev => ({
@@ -178,7 +187,10 @@ export function useAgentReview(projectId: string | null, sessionId: string | nul
 			void (async () => {
 				let list: ReviewList | null = null;
 				try {
-					const answer = await window.fastIde.listReviewChanges(projectId, null, sessionId);
+					// Re-fetch exactly the window the client already holds so a poll or
+					// review_changed refresh never collapses scroll-loaded pages back to page 1.
+					const loaded = Math.max(listHeld.current?.changes.length ?? 0, 20);
+					const answer = await window.fastIde.listReviewChanges(projectId, null, sessionId, 0, loaded);
 					if (seq !== readSeq.current) return;
 					if (answer.ok) {
 						list = answer.list;
@@ -216,7 +228,7 @@ export function useAgentReview(projectId: string | null, sessionId: string | nul
 					return;
 				}
 				try {
-					const diffAnswer = await window.fastIde.listReviewDiff(projectId, since);
+					const diffAnswer = await window.fastIde.listReviewDiff(projectId, since, sessionId);
 					if (seq !== readSeq.current) return;
 					if (diffAnswer.ok) {
 						setDiff(prev => mergeReviewDiff(mode === 'incremental' ? prev : null, diffAnswer.diff));
@@ -346,15 +358,34 @@ export function useAgentReview(projectId: string | null, sessionId: string | nul
 	const fileDiff = useCallback(
 		async (path: string) => {
 			if (!projectId) return null;
-			const answer = await window.fastIde.getFileReviewDiff(projectId, path);
+			const answer = await window.fastIde.getFileReviewDiff(projectId, path, sessionId);
 			if (answer.ok) return answer.file;
 			if (shouldExplainReviewDiffOff(reviewDiffOn, refusalAction(answer) === 'unavailable')) {
 				setNotice(t(reviewDiffUnavailableKey));
 			}
 			return null;
 		},
-		[projectId, reviewDiffOn, t]
+		[projectId, sessionId, reviewDiffOn, t]
 	);
+
+	const [loadingMore, setLoadingMore] = useState(false);
+	const loadMore = useCallback(async () => {
+		if (!projectId || loadingMore) return;
+		const current = listHeld.current;
+		if (!current?.hasMore) return;
+		// Invalidate any in-flight refresh so its (older-window) answer cannot overwrite this append.
+		readSeq.current++;
+		setLoadingMore(true);
+		try {
+			const offset = current.changes.length;
+			const answer = await window.fastIde.listReviewChanges(projectId, null, sessionId, offset, 20);
+			if (answer.ok) {
+				setList(prev => appendPage(prev, answer.list));
+			}
+		} finally {
+			setLoadingMore(false);
+		}
+	}, [projectId, sessionId, loadingMore]);
 
 	return {
 		list,
@@ -370,7 +401,10 @@ export function useAgentReview(projectId: string | null, sessionId: string | nul
 		keep,
 		planUndo,
 		applyUndo,
-		redo
+		redo,
+		hasMore: list.hasMore ?? false,
+		loadMore,
+		loadingMore
 	};
 }
 

@@ -1730,7 +1730,10 @@
       "statePending": "pending",
       "stateReverted": "reverted",
       "stateKept": "kept",
-      "stateConflict": "conflict"
+      "stateConflict": "conflict",
+      "enableDiff": "Diff 활성화",
+      "loadingMore": "불러오는 중…",
+      "scrollForMore": "스크롤하여 더 보기"
     },
     "notify": {
       "approvalTitle": "Approval needed",

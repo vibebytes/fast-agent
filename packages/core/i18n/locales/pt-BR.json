@@ -1730,7 +1730,10 @@
       "statePending": "pending",
       "stateReverted": "reverted",
       "stateKept": "kept",
-      "stateConflict": "conflict"
+      "stateConflict": "conflict",
+      "enableDiff": "Ativar Diff",
+      "loadingMore": "Carregando mais…",
+      "scrollForMore": "Role para carregar mais"
     },
     "notify": {
       "approvalTitle": "Approval needed",

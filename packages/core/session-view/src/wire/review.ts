@@ -78,6 +78,10 @@ export type ReviewList = {
 	revision: number;
 	changes: ReviewChange[];
 	available: boolean;
+	/** True while more pages of this session's changes exist beyond the loaded window. */
+	hasMore?: boolean;
+	/** Daemon's pending total for the whole session — the diff gate must not depend on the loaded page. */
+	totalPending?: number;
 	/**
 	 * Where each checkpoint sits in the conversation, so a transcript row can offer "restore to this
 	 * message". Matched by `runId`, which is what a transcript row is keyed by.

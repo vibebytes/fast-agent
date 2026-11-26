@@ -10,8 +10,8 @@ import {blockedNotice, rememberReviewStats, reviewRowChangeIds, reviewRows, type
 import {CheckpointNotice} from '../review/CheckpointNotice';
 import {UndoConfirm} from '../review/UndoConfirm';
 import {useUndoFlow} from '../review/useUndoFlow';
-import type {AgentReview} from '../review/useAgentReview';
-import {basename} from '../session/path';
+import {reviewDiffUnavailableKey, type AgentReview} from '../review/useAgentReview';
+import {basename, pathLabel} from '../session/path';
 
 const KindLetter: Record<ReviewRow['kind'], {letter: string; labelKey: string; className: string}> = {
 	added: {letter: 'A', labelKey: 'shell.changes.kindAdded', className: 'text-emerald-600 dark:text-emerald-400'},
@@ -57,6 +57,7 @@ function InlineDiffCard({
 	const add = fileDiff && (fileDiff.additions > 0 || fileDiff.deletions > 0) ? fileDiff.additions : row.add;
 	const del = fileDiff && (fileDiff.additions > 0 || fileDiff.deletions > 0) ? fileDiff.deletions : row.del;
 
+	const label = pathLabel(row.path);
 	const kindInfo = KindLetter[row.kind];
 	const decidable = row.state === 'pending' && Boolean(row.changeId) && review.list.available;
 
@@ -105,7 +106,8 @@ function InlineDiffCard({
 								: undefined
 						}
 					>
-						{row.path}
+						{label.dir ? <span className="text-muted-foreground">{label.dir}/</span> : null}
+						<span className="font-semibold text-foreground">{label.name}</span>
 					</span>
 					<span className="flex shrink-0 items-center gap-0.5 font-mono text-[10px] font-semibold tabular-nums">
 						{add > 0 ? (
@@ -324,7 +326,7 @@ export function ChangesPane({
 			</div>
 
 			<CheckpointNotice available={review.list.available} reviewDiffOn={review.reviewDiffOn} />
-			{review.notice ? (
+			{review.notice && review.notice !== t(reviewDiffUnavailableKey) ? (
 				<p className="shrink-0 border-b px-3 py-1 text-[11px] text-destructive">{review.notice}</p>
 			) : null}
 
@@ -332,7 +334,15 @@ export function ChangesPane({
 			 * Native overflow, not Radix ScrollArea: its viewport child is display:table,
 			 * so cards shrink-to-content instead of filling the rail as it is dragged.
 			 */}
-			<div className="min-h-0 min-w-0 flex-1 overflow-x-auto overflow-y-auto">
+			<div
+				className="min-h-0 min-w-0 flex-1 overflow-x-auto overflow-y-auto"
+				onScroll={e => {
+					const el = e.currentTarget;
+					if (el.scrollTop + el.clientHeight >= el.scrollHeight - 40 && review.hasMore && !review.loadingMore) {
+						void review.loadMore?.();
+					}
+				}}
+			>
 				{rows.length === 0 ? (
 					<div className="p-4 text-sm text-muted-foreground">
 						<p className="mb-1 font-medium text-foreground">{t('shell.changes.emptyTitle')}</p>
@@ -354,6 +364,12 @@ export function ChangesPane({
 					</div>
 				)}
 			</div>
+
+			{review.loadingMore ? (
+				<p className="shrink-0 px-3 py-1.5 text-[11px] text-muted-foreground">{t('shell.changes.loadingMore')}</p>
+			) : review.hasMore ? (
+				<p className="shrink-0 px-3 py-1.5 text-[11px] text-muted-foreground">{t('shell.changes.scrollForMore')}</p>
+			) : null}
 
 			{undo.plan ? (
 				<UndoConfirm

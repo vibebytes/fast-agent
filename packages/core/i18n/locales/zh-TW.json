@@ -1752,7 +1752,10 @@
       "statePending": "pending",
       "stateReverted": "reverted",
       "stateKept": "kept",
-      "stateConflict": "conflict"
+      "stateConflict": "conflict",
+      "enableDiff": "啟用 Diff",
+      "loadingMore": "載入中…",
+      "scrollForMore": "向下捲動載入更多"
     },
     "notify": {
       "approvalTitle": "Approval needed",

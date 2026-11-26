@@ -296,7 +296,9 @@ export type FastIdeApi = {
 	listReviewChanges: (
 		projectId: string,
 		checkpointId?: string | null,
-		sessionId?: string | null
+		sessionId?: string | null,
+		offset?: number,
+		limit?: number
 	) => Promise<{ok: true; list: ReviewList} | ReviewRefusal>;
 	getReviewChange: (
 		projectId: string,
@@ -304,11 +306,13 @@ export type FastIdeApi = {
 	) => Promise<{ok: true; change: ReviewChangeDetail} | ReviewRefusal>;
 	listReviewDiff: (
 		projectId: string,
-		sinceRevision?: number
+		sinceRevision?: number,
+		sessionId?: string | null
 	) => Promise<{ok: true; diff: ReviewDiffSnapshot} | ReviewRefusal>;
 	getFileReviewDiff: (
 		projectId: string,
-		path: string
+		path: string,
+		sessionId?: string | null
 	) => Promise<{ok: true; file: FileReviewDiff} | ReviewRefusal>;
 	keepReviewChanges: (
 		projectId: string,

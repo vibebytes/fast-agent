@@ -1804,7 +1804,10 @@
       "statePending": "pending",
       "stateReverted": "reverted",
       "stateKept": "kept",
-      "stateConflict": "conflict"
+      "stateConflict": "conflict",
+      "enableDiff": "Enable Diff",
+      "loadingMore": "Loading more…",
+      "scrollForMore": "Scroll for more"
     }
   },
   "errors": {

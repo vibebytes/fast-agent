@@ -1804,7 +1804,10 @@
       "statePending": "待审",
       "stateReverted": "已撤销",
       "stateKept": "已保留",
-      "stateConflict": "冲突"
+      "stateConflict": "冲突",
+      "enableDiff": "启用 Diff",
+      "loadingMore": "加载中…",
+      "scrollForMore": "向下滚动加载更多"
     }
   },
   "errors": {

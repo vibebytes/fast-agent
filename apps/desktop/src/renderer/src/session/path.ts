@@ -16,3 +16,12 @@ export function dayGreeting(): string {
 	if (hour < 18) return 'Afternoon';
 	return 'Evening';
 }
+
+/** Split a workspace-relative path into a readable file name and a shortened directory. */
+export function pathLabel(path: string): {name: string; dir: string} {
+	const parts = path.split(/[/\\]/).filter(Boolean);
+	const name = parts[parts.length - 1] ?? path;
+	const dir = parts.slice(0, -1);
+	if (dir.length <= 2) return {name, dir: dir.join('/')};
+	return {name, dir: `${dir[0]}/…/${dir[dir.length - 1]}`};
+}

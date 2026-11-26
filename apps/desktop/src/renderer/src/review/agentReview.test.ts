@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import {appendPage, pendingCount} from './agentReview.js';
 import {webcrypto} from 'node:crypto';
 import type {ReviewChange, ReviewFile, ReviewList} from '@fast-ide/session-view';
 import {
@@ -210,14 +211,15 @@ test('rows come from the daemon, with live stats filled in and unrecorded paths 
 	];
 	const rows = reviewRows(listOf([row({id: 'chg-a', path: 'a.txt'})]), live);
 
-	assert.deepEqual(rows.map(r => r.path), ['a.txt', 'z.txt']);
+	// Newest-first: the capturing row is the newest write, the daemon page is `created_at DESC`.
+	assert.deepEqual(rows.map(r => r.path), ['z.txt', 'a.txt']);
 	assert.deepEqual(
 		rows.map(r => [r.state, r.changeId, r.add]),
 		[
-			['pending', 'chg-a', 3],
 			// Written but not yet recorded: shown so the list does not lag the run, but with no id there
 			// is nothing to decide on yet.
-			['capturing', undefined, 5]
+			['capturing', undefined, 5],
+			['pending', 'chg-a', 3]
 		]
 	);
 });
@@ -403,4 +405,30 @@ test('gitBlobId matches what git itself would name the bytes', async () => {
 	assert.equal(await gitBlobId(''), 'e69de29bb2d1d6434b8b29ae775ad8c2e48c5391');
 	// Multi-byte content hashes over UTF-8 byte length, not string length.
 	assert.notEqual(await gitBlobId('变更\n'), await gitBlobId('cc\n'));
+});
+
+test('reviewRows keeps the daemon newest-first order and lists capturing rows first', () => {
+	const list = listOf([
+		row({id: 'new', path: 'z.ts'}),
+		row({id: 'old', path: 'a.ts'})
+	]);
+	const rows = reviewRows(list, [{id: 'live-1', path: 'm.ts', add: 3, del: 1, status: 'done'}]);
+	assert.deepEqual(rows.map(r => r.path), ['m.ts', 'z.ts', 'a.ts']);
+});
+
+test('pendingCount prefers the daemon session total over the loaded page', () => {
+	const list = {...listOf([row({id: 'p'}), row({id: 'k', state: {kind: 'kept'}})]), totalPending: 7};
+	assert.equal(pendingCount(list), 7);
+	assert.equal(pendingCount(listOf([row({id: 'p'})])), 1);
+	assert.equal(pendingCount(listOf([])), 0);
+});
+
+test('appendPage accumulates changes and updates hasMore', () => {
+	const prev = {...listOf([row({id: 'a'}), row({id: 'b'})]), hasMore: true};
+	const next = {...listOf([row({id: 'c'})]), hasMore: false};
+	const merged = appendPage(prev, next);
+	assert.deepEqual(merged.changes.map(c => c.id), ['a', 'b', 'c']);
+	assert.equal(merged.hasMore, false);
+	assert.equal(merged.revision, prev.revision);
+	assert.equal(merged.available, prev.available);
 });

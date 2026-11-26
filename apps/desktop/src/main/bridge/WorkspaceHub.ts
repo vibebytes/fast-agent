@@ -923,17 +923,17 @@ export class WorkspaceHub {
 	async setRuleEnabled(projectId: string, ruleId: string, enabled: boolean) {
 		return this.checkout.setRuleEnabled(projectId, ruleId, enabled);
 	}
-	async listReviewChanges(projectId: string, checkpointId?: string | null, sessionId?: string | null) {
-		return this.review.listReviewChanges(projectId, checkpointId, sessionId);
+	async listReviewChanges(projectId: string, checkpointId?: string | null, sessionId?: string | null, offset?: number, limit?: number) {
+		return this.review.listReviewChanges(projectId, checkpointId, sessionId, offset, limit);
 	}
 	async getReviewChange(projectId: string, changeId: string) {
 		return this.review.getReviewChange(projectId, changeId);
 	}
-	async listReviewDiff(projectId: string, sinceRevision?: number) {
-		return this.review.listReviewDiff(projectId, sinceRevision);
+	async listReviewDiff(projectId: string, sinceRevision?: number, sessionId?: string | null) {
+		return this.review.listReviewDiff(projectId, sinceRevision, sessionId);
 	}
-	async getFileReviewDiff(projectId: string, path: string) {
-		return this.review.getFileReviewDiff(projectId, path);
+	async getFileReviewDiff(projectId: string, path: string, sessionId?: string | null) {
+		return this.review.getFileReviewDiff(projectId, path, sessionId);
 	}
 	async keepReviewChanges(projectId: string, changeIds: string[], revision: number) {
 		return this.review.keepReviewChanges(projectId, changeIds, revision);

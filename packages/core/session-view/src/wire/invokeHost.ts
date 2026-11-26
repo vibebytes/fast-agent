@@ -395,7 +395,7 @@ export type InvokeHost = {
 	 * path, so the renderer cannot ask the daemon to write outside it.
 	 */
 	'review:list': {
-		args: [projectId: string, checkpointId?: string | null, sessionId?: string | null];
+		args: [projectId: string, checkpointId?: string | null, sessionId?: string | null, offset?: number, limit?: number];
 		result: {ok: true; list: ReviewList} | ReviewRefusal;
 	};
 	/** File contents for one row — kept off the list so blobs load only for the file being viewed. */
@@ -408,7 +408,7 @@ export type InvokeHost = {
 	 * One round trip replaces the per-row detail storm the card stream used to make.
 	 */
 	'review:diff': {
-		args: [projectId: string, sinceRevision?: number];
+		args: [projectId: string, sinceRevision?: number, sessionId?: string | null];
 		result: {ok: true; diff: ReviewDiffSnapshot} | ReviewRefusal;
 	};
 	/**
@@ -416,7 +416,7 @@ export type InvokeHost = {
 	 * The path selects among this checkout's undecided review rows.
 	 */
 	'review:fileDiff': {
-		args: [projectId: string, path: string];
+		args: [projectId: string, path: string, sessionId?: string | null];
 		result: {ok: true; file: FileReviewDiff} | ReviewRefusal;
 	};
 	/** Accept the agent's edits. `revision` is the list the user decided against. */

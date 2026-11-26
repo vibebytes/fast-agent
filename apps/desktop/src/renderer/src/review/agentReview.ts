@@ -327,11 +327,14 @@ export function reviewRows(
 			reason: group.reason
 		};
 	});
+	// Newest-first: live writes are newer than every captured row, and the daemon page is
+	// already `ORDER BY created_at DESC` — re-sorting by path here would undo that ordering.
+	const liveRows: ReviewRow[] = [];
 	for (const file of live) {
 		// Same flexible match as stats — otherwise `README.md` (live) + `agent/README.md` (daemon)
 		// would list the path twice, once as capturing with no Keep/Undo.
 		if (list.changes.some(change => reviewPathsMatch(change.path, file.path))) continue;
-		rows.push({
+		liveRows.push({
 			id: file.id,
 			path: file.path,
 			kind: file.del > 0 && file.add === 0 ? 'deleted' : file.add > 0 && file.del === 0 ? 'added' : 'modified',
@@ -340,7 +343,7 @@ export function reviewRows(
 			del: file.del
 		});
 	}
-	return rows.sort((a, b) => a.path.localeCompare(b.path));
+	return [...liveRows, ...rows];
 }
 
 export function reviewPathsMatch(a: string, b: string): boolean {
@@ -500,4 +503,18 @@ export function refusalAction(refusal: ReviewRefusal): RefusalAction {
 	if (refusal.revision !== undefined) return 'resync';
 	if (refusal.movedPaths?.length) return 're-preview';
 	return 'report';
+}
+
+/** Pending count for the diff gate: daemon session total wins over the loaded page count. */
+export function pendingCount(list: ReviewList): number {
+	return list.totalPending ?? pendingChanges(list).length;
+}
+
+/** Append a newly fetched page to the accumulated review list (newest-first paging). */
+export function appendPage(prev: ReviewList, next: ReviewList): ReviewList {
+	return {
+		...prev,
+		changes: [...prev.changes, ...next.changes],
+		hasMore: next.hasMore
+	};
 }

@@ -28,7 +28,9 @@ export type WorkspaceReview = {
 	listReviewChanges: (
 		projectId: string,
 		checkpointId?: string | null,
-		sessionId?: string | null
+		sessionId?: string | null,
+		offset?: number,
+		limit?: number
 	) => Promise<{ok: true; list: ReviewList} | ReviewRefusal>;
 	getReviewChange: (
 		projectId: string,
@@ -36,11 +38,13 @@ export type WorkspaceReview = {
 	) => Promise<{ok: true; change: ReviewChangeDetail} | ReviewRefusal>;
 	listReviewDiff: (
 		projectId: string,
-		sinceRevision?: number
+		sinceRevision?: number,
+		sessionId?: string | null
 	) => Promise<{ok: true; diff: ReviewDiffSnapshot} | ReviewRefusal>;
 	getFileReviewDiff: (
 		projectId: string,
-		path: string
+		path: string,
+		sessionId?: string | null
 	) => Promise<{ok: true; file: FileReviewDiff} | ReviewRefusal>;
 	keepReviewChanges: (
 		projectId: string,
@@ -71,7 +75,12 @@ export function createReview(lane: ReviewLane): WorkspaceReview {
 	const tails = new Map<string, Promise<void>>();
 	const listInflight = new Map<
 		string,
-		{promise: Promise<{ok: true; list: ReviewList} | ReviewRefusal>; token: string; projectId: string}
+		{
+			promise: Promise<{ok: true; list: ReviewList} | ReviewRefusal>;
+			token: string;
+			projectId: string;
+			base: boolean;
+		}
 	>();
 
 	const reviewOp = (
@@ -150,12 +159,16 @@ export function createReview(lane: ReviewLane): WorkspaceReview {
 	};
 
 	return {
-		listReviewChanges(projectId, checkpointId, sessionId) {
-			const key = `${projectId}\0${sessionId ?? ''}\0${checkpointId ?? ''}`;
+		listReviewChanges(projectId, checkpointId, sessionId, offset, limit) {
+			const key = `${projectId}\0${sessionId ?? ''}\0${checkpointId ?? ''}\0${offset ?? 0}\0${limit ?? 0}`;
 			const existing = listInflight.get(key);
 			if (existing) return existing.promise;
+			// Only a base list (offset 0) supersedes another base list: paged loadMore requests are
+			// independent queries and must survive a concurrent refresh. Replies correlate by
+			// requestId, so out-of-order answers cannot cross-wire between pages.
+			const base = (offset ?? 0) === 0;
 			for (const [other, entry] of listInflight) {
-				if (entry.projectId !== projectId) continue;
+				if (entry.projectId !== projectId || !entry.base || !base) continue;
 				lane.cancel(entry.token);
 				listInflight.delete(other);
 			}
@@ -169,10 +182,12 @@ export function createReview(lane: ReviewLane): WorkspaceReview {
 				promise: Promise<{ok: true; list: ReviewList} | ReviewRefusal>;
 				token: string;
 				projectId: string;
+				base: boolean;
 			} = {
 				promise: Promise.resolve({ok: false, notice: 'send failed'}),
 				token: waited.token,
-				projectId
+				projectId,
+				base: (offset ?? 0) === 0
 			};
 			const run = (async (): Promise<{ok: true; list: ReviewList} | ReviewRefusal> => {
 				const slot = await lane.ensureSlot(projectId);
@@ -190,7 +205,9 @@ export function createReview(lane: ReviewLane): WorkspaceReview {
 					workspaceId: slot.hash,
 					requestId,
 					...(checkpointId ? {checkpointId} : {}),
-					...(sessionId ? {sessionId} : {})
+					...(sessionId ? {sessionId} : {}),
+					...(offset !== undefined ? {offset} : {}),
+					...(limit !== undefined ? {limit} : {})
 				});
 				if (!sent) {
 					lane.cancel(waited.token);
@@ -230,11 +247,12 @@ export function createReview(lane: ReviewLane): WorkspaceReview {
 			const change = answer.review.change as ReviewChangeDetail | null | undefined;
 			return change ? {ok: true, change} : {ok: false, notice: 'Change no longer in the review list'};
 		},
-		async listReviewDiff(projectId, sinceRevision) {
+		async listReviewDiff(projectId, sinceRevision, sessionId) {
 			const answer = await reviewOp(projectId, 'ListReviewDiff', hash => ({
 				type: 'ListReviewDiff',
 				workspaceId: hash,
-				...(sinceRevision !== undefined ? {sinceRevision} : {})
+				...(sinceRevision !== undefined ? {sinceRevision} : {}),
+				...(sessionId ? {sessionId} : {})
 			}));
 			if (!answer.ok) return answer;
 			const diff = answer.review.diff as ReviewDiffSnapshot | null | undefined;
@@ -242,11 +260,12 @@ export function createReview(lane: ReviewLane): WorkspaceReview {
 				? {ok: true, diff}
 				: {ok: false, notice: 'The review diff is not available for this checkout'};
 		},
-		async getFileReviewDiff(projectId, path) {
+		async getFileReviewDiff(projectId, path, sessionId) {
 			const answer = await reviewOp(projectId, 'GetFileReviewDiff', hash => ({
 				type: 'GetFileReviewDiff',
 				workspaceId: hash,
-				path
+				path,
+				...(sessionId ? {sessionId} : {})
 			}));
 			if (!answer.ok) return answer;
 			const file = answer.review.file as FileReviewDiff | null | undefined;

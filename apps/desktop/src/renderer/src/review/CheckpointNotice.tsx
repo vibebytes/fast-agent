@@ -3,6 +3,8 @@ import {useTranslation} from 'react-i18next';
 import {Button} from '@fast-ide/ui/components/button';
 import {CircleAlert, Info} from 'lucide-react';
 import {reviewDiffUnavailableKey} from './useAgentReview';
+import {reviewDiffPatch} from '../settings/reviewDiffForm';
+import {useSettings} from '../settings/useSettings';
 
 const IntroKey = 'fast-ide.checkpointIntroSeen';
 
@@ -22,6 +24,8 @@ export function CheckpointNotice({
 	reviewDiffOn: boolean;
 }) {
 	const {t} = useTranslation();
+	const settings = useSettings(true);
+	const [enabling, setEnabling] = useState(false);
 	const [seen, setSeen] = useState(() => {
 		try {
 			return window.localStorage.getItem(IntroKey) === 'yes';
@@ -50,6 +54,22 @@ export function CheckpointNotice({
 						</>
 					)}
 				</p>
+				{closedBySwitch ? (
+					<Button
+						type="button"
+						variant="outline"
+						size="xs"
+						className="h-6 shrink-0 px-2 text-[11px]"
+						disabled={enabling}
+						onClick={() => {
+							setEnabling(true);
+							const body = reviewDiffPatch(true);
+							void settings.patch(body.namespace, body.patch).finally(() => setEnabling(false));
+						}}
+					>
+						{t('shell.changes.enableDiff')}
+					</Button>
+				) : null}
 			</div>
 		);
 	}
