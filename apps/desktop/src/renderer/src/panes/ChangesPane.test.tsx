@@ -4,7 +4,7 @@ import {JSDOM} from 'jsdom';
 import React, {act} from 'react';
 import {createRoot} from 'react-dom/client';
 import {ChangesPane} from './ChangesPane';
-import {GitDiffPane, gitDiffPresentation} from './GitDiffPane';
+import {GitDiffPane} from './GitDiffPane';
 import type {GitFileDiffResult, GitStatus} from '@fast-ide/session-view';
 
 function setup(diff: GitFileDiffResult) {
@@ -94,7 +94,7 @@ test('repository groups collapse and expand without losing files', async () => {
 	env.dom.window.close();
 });
 
-test('Git diff tab requests sides only and renders binary and truncated states', async () => {
+test('Git diff tab requests hunks and renders binary and truncated states', async () => {
 	const tab = {id: 'git', kind: 'diff' as const, title: 'a.txt', repoPath: 'nested', filePath: 'a.txt'};
 	const binaryEnv = setup({
 		ok: true,
@@ -104,7 +104,7 @@ test('Git diff tab requests sides only and renders binary and truncated states',
 		binaryEnv.root.render(<GitDiffPane tab={tab} />);
 		await Promise.resolve();
 	});
-	assert.deepEqual(binaryEnv.calls, [['nested', 'a.txt', false]]);
+	assert.deepEqual(binaryEnv.calls, [['nested', 'a.txt', true]]);
 	assert.match(binaryEnv.container.textContent ?? '', /shell\.changes\.scmBinary/);
 	await act(async () => binaryEnv.root.unmount());
 	binaryEnv.dom.window.close();
@@ -122,27 +122,25 @@ test('Git diff tab requests sides only and renders binary and truncated states',
 	truncatedEnv.dom.window.close();
 });
 
-test('presentation uses Monaco sides and falls back to legacy hunks', () => {
-	assert.deepEqual(
-		gitDiffPresentation({
-			path: 'a.txt',
+test('Git diff tab renders daemon hunks directly when available', async () => {
+	const env = setup({
+		ok: true,
+		file: {
+			path: '.gitignore',
 			additions: 1,
 			deletions: 1,
-			hunks: [],
-			original: 'HEAD text',
-			modified: 'worktree text'
-		}),
-		{kind: 'monaco', original: 'HEAD text', modified: 'worktree text'}
-	);
-	assert.deepEqual(
-		gitDiffPresentation({
-			path: 'a.txt',
-			additions: 1,
-			deletions: 0,
-			hunks: [{header: '@@ -0,0 +1 @@', lines: ['+legacy']}],
-			original: null,
-			modified: null
-		}),
-		{kind: 'hunks'}
-	);
+			hunks: [{header: '@@ -1 +1 @@', lines: ['-old', '+new']}],
+			original: 'old',
+			modified: 'new'
+		}
+	});
+	const tab = {id: 'git', kind: 'diff' as const, title: '.gitignore', repoPath: 'site', filePath: '.gitignore'};
+	await act(async () => {
+		env.root.render(<GitDiffPane tab={tab} />);
+		await Promise.resolve();
+	});
+	assert.deepEqual(env.calls, [['site', '.gitignore', true]]);
+	assert.match(env.container.textContent ?? '', /\+new/);
+	await act(async () => env.root.unmount());
+	env.dom.window.close();
 });

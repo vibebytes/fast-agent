@@ -95,7 +95,7 @@ export function RailTabBody({
 			);
 		case 'diff':
 			return tab.repoPath !== undefined ? (
-				<GitDiffPane tab={tab} refreshToken={diffRefresh} />
+				<GitDiffPane tab={tab} refreshToken={diffRefresh} active={active ?? false} />
 			) : (
 				<ReviewDiffPane
 					tab={tab}

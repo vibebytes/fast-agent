@@ -1239,6 +1239,7 @@
       "browserHint": "Embedded web page",
       "changes": "Changes",
       "changesHint": "Git / agent diffs",
+      "diff": "차이",
       "canvas": "Canvas",
       "canvasHint": "Freeform canvas",
       "context": "Context",

@@ -1304,6 +1304,7 @@
       "browserHint": "内嵌网页",
       "changes": "变更",
       "changesHint": "Git / 智能体差异",
+      "diff": "差异",
       "canvas": "画布",
       "canvasHint": "自由画布",
       "context": "上下文",
