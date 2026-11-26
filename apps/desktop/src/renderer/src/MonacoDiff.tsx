@@ -1,9 +1,11 @@
-import {useMemo} from 'react';
+import {useId, useMemo} from 'react';
 import {DiffEditor} from '@monaco-editor/react';
 import {cn} from '@fast-ide/ui/lib/utils';
 // Also pulls in the `loader.config({monaco})` that binds the bundled monaco, so the diff editor and
 // the code editor share one instance instead of the wrapper fetching a second copy from the CDN.
 import {languageFromPath, useIsDark} from './MonacoEditor';
+import {revealFirstDiffWhenReady} from './diffReveal';
+import {diffModelPaths} from './diffModelPaths';
 
 /**
  * A read-only diff of two recorded states of one file.
@@ -24,6 +26,7 @@ export function MonacoDiff({
 }) {
 	const dark = useIsDark();
 	const language = useMemo(() => languageFromPath(path), [path]);
+	const modelPaths = diffModelPaths(useId());
 
 	return (
 		<div className={cn('min-h-0 min-w-0 flex-1 overflow-hidden', className)}>
@@ -31,6 +34,9 @@ export function MonacoDiff({
 				height="100%"
 				language={language}
 				theme={dark ? 'vs-dark' : 'vs'}
+				onMount={revealFirstDiffWhenReady}
+				originalModelPath={modelPaths.originalModelPath}
+				modifiedModelPath={modelPaths.modifiedModelPath}
 				original={original}
 				modified={modified}
 				options={{

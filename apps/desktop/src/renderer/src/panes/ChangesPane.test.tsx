@@ -73,6 +73,27 @@ test('nested repository rows preserve the repository path', async () => {
 	env.dom.window.close();
 });
 
+test('repository groups collapse and expand without losing files', async () => {
+	const env = setup({ok: true, file: null});
+	await act(async () => {
+		env.root.render(<ChangesPane status={status} onOpenDiff={() => {}} />);
+	});
+	const header = env.container.querySelector('[data-testid="git-repo-nested"]')!;
+	assert.ok(env.container.querySelector('[data-testid="git-change-nested:b.txt"]'));
+	await act(async () => {
+		header.dispatchEvent(new env.dom.window.MouseEvent('click', {bubbles: true}));
+	});
+	assert.equal(header.getAttribute('aria-expanded'), 'false');
+	assert.equal(env.container.querySelector('[data-testid="git-change-nested:b.txt"]'), null);
+	await act(async () => {
+		header.dispatchEvent(new env.dom.window.MouseEvent('click', {bubbles: true}));
+	});
+	assert.equal(header.getAttribute('aria-expanded'), 'true');
+	assert.ok(env.container.querySelector('[data-testid="git-change-nested:b.txt"]'));
+	await act(async () => env.root.unmount());
+	env.dom.window.close();
+});
+
 test('Git diff tab requests sides only and renders binary and truncated states', async () => {
 	const tab = {id: 'git', kind: 'diff' as const, title: 'a.txt', repoPath: 'nested', filePath: 'a.txt'};
 	const binaryEnv = setup({

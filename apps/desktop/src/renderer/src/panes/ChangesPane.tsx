@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type {
   GitFileChange,
@@ -104,6 +104,15 @@ export function ChangesPane({
     ];
   }, [status]);
   const fileCount = repos.reduce((count, repo) => count + repo.files.length, 0);
+  const [collapsedRepos, setCollapsedRepos] = useState<Set<string>>(() => new Set());
+  const toggleRepo = (path: string) => {
+    setCollapsedRepos((previous) => {
+      const next = new Set(previous);
+      if (next.has(path)) next.delete(path);
+      else next.add(path);
+      return next;
+    });
+  };
 
   return (
     <div className="flex h-full min-h-0 w-full min-w-0 flex-col bg-background">
@@ -141,27 +150,44 @@ export function ChangesPane({
           </div>
         ) : (
           <div className="flex flex-col gap-3">
-            {repos.map((repo) => (
-              <section key={repo.path} className="flex flex-col gap-1.5">
-                <header className="flex items-center gap-1.5 px-1 text-[11px]">
-                  <span className="truncate font-semibold">{repo.name}</span>
-                  <span className="truncate text-muted-foreground">
-                    {repo.branch}
-                  </span>
-                  <span className="ml-auto text-muted-foreground">
-                    {repo.files.length}
-                  </span>
-                </header>
-                {repo.files.map((file) => (
-                  <GitChangeRow
-                    key={`${repo.path}:${file.path}`}
-                    repo={repo}
-                    file={file}
-                    onOpenDiff={onOpenDiff}
-                  />
-                ))}
-              </section>
-            ))}
+            {repos.map((repo) => {
+              const collapsed = collapsedRepos.has(repo.path);
+              return (
+                <section key={repo.path} className="flex flex-col gap-1.5">
+                  <button
+                    type="button"
+                    data-testid={`git-repo-${repo.path}`}
+                    aria-expanded={!collapsed}
+                    className="flex w-full items-center gap-1.5 rounded px-1 py-0.5 text-left text-[11px] hover:bg-muted/40"
+                    onClick={() => toggleRepo(repo.path)}
+                  >
+                    <ChevronRight
+                      className={cn(
+                        "size-3.5 shrink-0 text-muted-foreground transition-transform",
+                        !collapsed && "rotate-90",
+                      )}
+                    />
+                    <span className="truncate font-semibold">{repo.name}</span>
+                    <span className="truncate text-muted-foreground">
+                      {repo.branch}
+                    </span>
+                    <span className="ml-auto text-muted-foreground">
+                      {repo.files.length}
+                    </span>
+                  </button>
+                  {!collapsed
+                    ? repo.files.map((file) => (
+                        <GitChangeRow
+                          key={`${repo.path}:${file.path}`}
+                          repo={repo}
+                          file={file}
+                          onOpenDiff={onOpenDiff}
+                        />
+                      ))
+                    : null}
+                </section>
+              );
+            })}
           </div>
         )}
       </div>
