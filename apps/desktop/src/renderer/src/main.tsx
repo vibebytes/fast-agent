@@ -6,6 +6,7 @@ import {DEFAULT_PALETTE_ID, PALETTE_THEMES} from '@fast-ide/ui/themes/catalog';
 import {Bootstrap} from './Bootstrap';
 import {i18n} from './i18n/setup';
 import {markTabProfile} from './performanceTrace';
+import './monacoEnvironment';
 import '@fast-ide/ui/globals.css';
 
 /** Whole-app commit attribution: `app − (transcript-panes + composer)` = chrome cost. */

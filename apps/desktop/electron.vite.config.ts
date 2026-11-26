@@ -1,14 +1,7 @@
 import {resolve} from 'node:path';
-import {createRequire} from 'node:module';
 import {defineConfig, externalizeDepsPlugin} from 'electron-vite';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
-
-const require = createRequire(import.meta.url);
-// CJS default export
-const monacoEditorPlugin = require('vite-plugin-monaco-editor').default as (
-	options?: Record<string, unknown>
-) => import('vite').Plugin;
 
 const uiRoot = resolve(__dirname, '../../packages/web/ui');
 const sessionViewRoot = resolve(__dirname, '../../packages/core/session-view');
@@ -119,13 +112,6 @@ export default defineConfig({
 				}
 			}
 		},
-		plugins: [
-			react(),
-			tailwindcss(),
-			// vite-plugin-monaco-editor resolves a different vite copy than electron-vite.
-			monacoEditorPlugin({
-				languageWorkers: ['editorWorkerService', 'typescript', 'json', 'html', 'css']
-			}) as never
-		]
+		plugins: [react(), tailwindcss()]
 	}
 });
