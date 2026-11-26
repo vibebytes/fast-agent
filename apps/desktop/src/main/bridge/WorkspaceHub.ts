@@ -991,8 +991,8 @@ export class WorkspaceHub {
 	async gitWorkspaceStatus(force?: boolean) {
 		return this.checkout.gitWorkspaceStatus(force);
 	}
-	async gitWorkspaceFileDiff(repoPath: string, relativePath: string): Promise<GitFileDiffResult> {
-		return this.checkout.gitWorkspaceFileDiff(repoPath, relativePath);
+	async gitWorkspaceFileDiff(repoPath: string, relativePath: string, includeHunks?: boolean): Promise<GitFileDiffResult> {
+		return this.checkout.gitWorkspaceFileDiff(repoPath, relativePath, includeHunks);
 	}
 	private applyAvailable(rows: EngineWireRow[]): void {
 		this.lastPickerEngineIds = pickerEngineIds(rows);

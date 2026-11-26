@@ -4,12 +4,11 @@ import {JSDOM} from 'jsdom';
 import React, {act} from 'react';
 import {createRoot} from 'react-dom/client';
 import {ChangesPane} from './ChangesPane';
+import {GitDiffPane, gitDiffPresentation} from './GitDiffPane';
 import type {GitFileDiffResult, GitStatus} from '@fast-ide/session-view';
 
 function setup(diff: GitFileDiffResult) {
-	const dom = new JSDOM('<!doctype html><html><body><div id="root"></div></body></html>', {
-		url: 'http://localhost/'
-	});
+	const dom = new JSDOM('<!doctype html><html><body><div id="root"></div></body></html>', {url: 'http://localhost/'});
 	const g = globalThis as Record<string, unknown>;
 	g.window = dom.window;
 	g.document = dom.window.document;
@@ -19,10 +18,10 @@ function setup(diff: GitFileDiffResult) {
 	}
 	g.getComputedStyle = dom.window.getComputedStyle.bind(dom.window);
 	g.IS_REACT_ACT_ENVIRONMENT = true;
-	const calls: Array<[string, string]> = [];
+	const calls: Array<[string, string, boolean | undefined]> = [];
 	(dom.window as unknown as Record<string, unknown>).fastIde = {
-		gitFileDiff: async (repoPath: string, relativePath: string) => {
-			calls.push([repoPath, relativePath]);
+		gitFileDiff: async (repoPath: string, relativePath: string, includeHunks?: boolean) => {
+			calls.push([repoPath, relativePath, includeHunks]);
 			return diff;
 		}
 	};
@@ -41,85 +40,88 @@ const status: GitStatus = {
 	]
 };
 
-test('renders repository groups without review data and loads a diff on click', async () => {
-	const env = setup({
-		ok: true,
-		file: {
-			path: 'a.txt',
-			additions: 1,
-			deletions: 1,
-			hunks: [{header: '@@ -1 +1 @@', lines: ['-old', '+new']}]
-		}
-	});
+test('file rows open Git diff tabs without fetching inline diffs', async () => {
+	const env = setup({ok: true, file: null});
+	const opened: Array<[string, string]> = [];
 	await act(async () => {
-		env.root.render(<ChangesPane status={status} onOpenFile={() => {}} />);
+		env.root.render(<ChangesPane status={status} onOpenDiff={(repo, path) => opened.push([repo, path])} />);
 	});
 	assert.match(env.container.textContent ?? '', /root-repo/);
 	assert.match(env.container.textContent ?? '', /nested-repo/);
-	const toggle = env.container.querySelector('[data-testid="git-change-:a.txt"]');
-	assert.ok(toggle, 'file row should be clickable');
+	const toggle = env.container.querySelector('[data-testid="git-change-:a.txt"]')!;
 	await act(async () => {
 		toggle.dispatchEvent(new env.dom.window.MouseEvent('click', {bubbles: true}));
-		await Promise.resolve();
 	});
-	assert.deepEqual(env.calls, [['', 'a.txt']]);
-	assert.match(env.container.textContent ?? '', /\+new/);
+	assert.deepEqual(opened, [['', 'a.txt']]);
+	assert.deepEqual(env.calls, []);
 	await act(async () => env.root.unmount());
 	env.dom.window.close();
 });
 
-test('opens a nested repository file with its workspace-relative path', async () => {
+test('nested repository rows preserve the repository path', async () => {
 	const env = setup({ok: true, file: null});
-	const opened: string[] = [];
+	const opened: Array<[string, string]> = [];
 	await act(async () => {
-		env.root.render(<ChangesPane status={status} onOpenFile={path => opened.push(path)} />);
+		env.root.render(<ChangesPane status={status} onOpenDiff={(repo, path) => opened.push([repo, path])} />);
 	});
-	const open = env.container.querySelector('[data-testid="git-open-nested:b.txt"]');
-	assert.ok(open, 'nested file name should be clickable');
+	const open = env.container.querySelector('[data-testid="git-open-nested:b.txt"]')!;
 	await act(async () => {
 		open.dispatchEvent(new env.dom.window.MouseEvent('click', {bubbles: true}));
 	});
-	assert.deepEqual(opened, ['nested/b.txt']);
+	assert.deepEqual(opened, [['nested', 'b.txt']]);
 	await act(async () => env.root.unmount());
 	env.dom.window.close();
 });
 
-test('renders binary and truncated diff states', async () => {
+test('Git diff tab requests sides only and renders binary and truncated states', async () => {
+	const tab = {id: 'git', kind: 'diff' as const, title: 'a.txt', repoPath: 'nested', filePath: 'a.txt'};
 	const binaryEnv = setup({
 		ok: true,
 		file: {path: 'a.txt', additions: 0, deletions: 0, hunks: [], binary: true}
 	});
 	await act(async () => {
-		binaryEnv.root.render(<ChangesPane status={status} onOpenFile={() => {}} />);
-	});
-	const binaryToggle = binaryEnv.container.querySelector('[data-testid="git-change-:a.txt"]')!;
-	await act(async () => {
-		binaryToggle.dispatchEvent(new binaryEnv.dom.window.MouseEvent('click', {bubbles: true}));
+		binaryEnv.root.render(<GitDiffPane tab={tab} />);
 		await Promise.resolve();
 	});
+	assert.deepEqual(binaryEnv.calls, [['nested', 'a.txt', false]]);
 	assert.match(binaryEnv.container.textContent ?? '', /shell\.changes\.scmBinary/);
 	await act(async () => binaryEnv.root.unmount());
 	binaryEnv.dom.window.close();
 
 	const truncatedEnv = setup({
 		ok: true,
-		file: {
-			path: 'a.txt',
-			additions: 1,
-			deletions: 0,
-			hunks: [{header: '@@ -0,0 +1 @@', lines: ['+partial']}],
-			truncated: true
-		}
+		file: {path: 'a.txt', additions: 0, deletions: 0, hunks: [], truncated: true}
 	});
 	await act(async () => {
-		truncatedEnv.root.render(<ChangesPane status={status} onOpenFile={() => {}} />);
-	});
-	const truncatedToggle = truncatedEnv.container.querySelector('[data-testid="git-change-:a.txt"]')!;
-	await act(async () => {
-		truncatedToggle.dispatchEvent(new truncatedEnv.dom.window.MouseEvent('click', {bubbles: true}));
+		truncatedEnv.root.render(<GitDiffPane tab={tab} />);
 		await Promise.resolve();
 	});
 	assert.match(truncatedEnv.container.textContent ?? '', /shell\.changes\.scmTruncated/);
 	await act(async () => truncatedEnv.root.unmount());
 	truncatedEnv.dom.window.close();
+});
+
+test('presentation uses Monaco sides and falls back to legacy hunks', () => {
+	assert.deepEqual(
+		gitDiffPresentation({
+			path: 'a.txt',
+			additions: 1,
+			deletions: 1,
+			hunks: [],
+			original: 'HEAD text',
+			modified: 'worktree text'
+		}),
+		{kind: 'monaco', original: 'HEAD text', modified: 'worktree text'}
+	);
+	assert.deepEqual(
+		gitDiffPresentation({
+			path: 'a.txt',
+			additions: 1,
+			deletions: 0,
+			hunks: [{header: '@@ -0,0 +1 @@', lines: ['+legacy']}],
+			original: null,
+			modified: null
+		}),
+		{kind: 'hunks'}
+	);
 });

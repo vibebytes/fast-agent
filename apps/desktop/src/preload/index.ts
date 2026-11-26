@@ -47,8 +47,8 @@ const api = {
 	createBlankProject: (name?: string) => invoke('project:createBlank', name),
 	getProject: () => invoke('project:get'),
 	gitStatus: (force?: boolean) => invoke('project:gitStatus', force),
-	gitFileDiff: (repoPath: string, relativePath: string) =>
-		invoke('project:gitFileDiff', repoPath, relativePath),
+	gitFileDiff: (repoPath: string, relativePath: string, includeHunks?: boolean) =>
+		invoke('project:gitFileDiff', repoPath, relativePath, includeHunks),
 	focusProject: (projectId: string) => invoke('project:focus', projectId),
 	closeProject: (projectId: string) => invoke('project:close', projectId),
 	showProjectInFolder: (projectId: string) => invoke('project:showInFolder', projectId),

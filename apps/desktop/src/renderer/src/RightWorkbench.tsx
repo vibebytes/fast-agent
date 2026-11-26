@@ -36,7 +36,7 @@ import {type CloseDirtyChoice, type ConflictChoice} from './documentMerge';
 import type {EditorCursorStatus, MonacoEditorHandle} from './MonacoEditor';
 import {ErrorBoundary} from './ErrorBoundary';
 import type {ReviewRow} from './review/agentReview';
-import {openReviewDiff} from './review/openReviewDiff';
+import {openGitDiff, openReviewDiff} from './review/openReviewDiff';
 import type {AgentReview} from './review/useAgentReview';
 import {RailTabBody} from './railBody';
 import {mcpAppBus, parseAppEvent} from './mcpApp/store';
@@ -63,6 +63,7 @@ import {useSurfaces} from './surfaces/useSurfaces';
 import {
 	createRailTab,
 	diffTabId,
+	gitDiffTabId,
 	filesTab,
 	FILES_TAB_ID,
 	mcpAppTab,
@@ -474,6 +475,13 @@ function RightWorkbenchImpl({
 		setActiveId(id);
 	}
 
+	function openGitFileDiffTab(repoPath: string, filePath: string) {
+		const id = gitDiffTabId(repoPath, filePath);
+		setEverActive(prev => (prev.has(id) ? prev : new Set(prev).add(id)));
+		setTabs(prev => openGitDiff({tabs: prev, activeId: id}, repoPath, filePath).tabs);
+		setActiveId(id);
+	}
+
 	// Track which App nonce we already applied. Do **not** clear App's openDiffRequest on
 	// success — Strict Mode remounts wipe rail state while a cleared request cannot re-open.
 	const handledDiffNonce = useRef<number | null>(
@@ -843,6 +851,7 @@ function RightWorkbenchImpl({
 										project={project}
 										onPatch={patch => patchTab(tab.id, patch)}
 										onOpenFile={path => void openFileTab(path, undefined, undefined, true)}
+										onOpenGitDiff={openGitFileDiffTab}
 										onEditorStatus={tab.id === active?.id ? onEditorStatus : undefined}
 										activeFilePath={lastDocumentPath}
 										gitFiles={gitFiles}

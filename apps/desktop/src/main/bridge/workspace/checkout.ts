@@ -65,7 +65,7 @@ export type WorkspaceCheckout = {
 	) => Promise<DeleteWorkspaceFileResult>;
 	createWorkspaceDir: (relativePath: string) => Promise<CreateWorkspaceDirResult>;
 	gitWorkspaceStatus: (force?: boolean) => Promise<GitStatus | null>;
-	gitWorkspaceFileDiff: (repoPath: string, relativePath: string) => Promise<GitFileDiffResult>;
+	gitWorkspaceFileDiff: (repoPath: string, relativePath: string, includeHunks?: boolean) => Promise<GitFileDiffResult>;
 	listHostDir: (dirPath?: string) => Promise<HostDirResult>;
 	createHostDir: (parent: string, name: string) => Promise<HostDirCreateResult>;
 	listRules: (
@@ -377,13 +377,13 @@ export function createCheckout(lane: CheckoutLane): WorkspaceCheckout {
 				if (gitInFlight.get(key) === probe) gitInFlight.delete(key);
 			}
 		},
-		async gitWorkspaceFileDiff(repoPath, relativePath) {
+		async gitWorkspaceFileDiff(repoPath, relativePath, includeHunks) {
 			const ws = workspaceIdOr(msg => ({ok: false as const, error: msg}));
 			if (!ws.ok) return ws.err;
 			if (!lane.ready()) return {ok: false as const, error: 'Engine not ready'};
 			const requestId = randomUUID();
 			const {token, promise} = lane.waitRequest(requestId);
-			if (!lane.send({type: 'GetGitWorkspaceFileDiff', requestId, workspaceId: ws.id, repoPath, relativePath})) {
+			if (!lane.send({type: 'GetGitWorkspaceFileDiff', requestId, workspaceId: ws.id, repoPath, relativePath, includeHunks})) {
 				lane.cancel(token);
 				return {ok: false as const, error: 'Failed to send GetGitWorkspaceFileDiff'};
 			}

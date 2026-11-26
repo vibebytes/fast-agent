@@ -63,6 +63,8 @@ export type RailTab = {
 	editorEpoch?: number;
 	/** The agent change a `diff` tab is reviewing; its content is fetched, never stored here. */
 	changeId?: string;
+	/** Workspace-relative repository root for a Git SCM diff tab; empty for the root repository. */
+	repoPath?: string;
 	/** Cursor/view position requested by file-click links. */
 	targetPosition?: {line: number; endLine?: number; nonce: number};
 };
@@ -170,6 +172,20 @@ export function diffTab(changeId: string, filePath: string): RailTab {
 		title: filePath.split(/[/\\]/).pop() ?? filePath,
 		filePath,
 		changeId
+	};
+}
+
+export function gitDiffTabId(repoPath: string, filePath: string): string {
+	return `git-diff:${JSON.stringify([repoPath, filePath])}`;
+}
+
+export function gitDiffTab(repoPath: string, filePath: string): RailTab {
+	return {
+		id: gitDiffTabId(repoPath, filePath),
+		kind: 'diff',
+		title: filePath.split(/[/\\]/).pop() ?? filePath,
+		filePath,
+		repoPath
 	};
 }
 

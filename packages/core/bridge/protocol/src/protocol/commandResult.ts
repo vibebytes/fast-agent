@@ -99,6 +99,8 @@ export const commandResultSchema = z.object({
 						deletions: z.number(),
 						binary: z.boolean().optional(),
 						truncated: z.boolean().optional(),
+						original: z.string().nullish(),
+						modified: z.string().nullish(),
 						hunks: z.array(z.object({header: z.string(), lines: z.array(z.string())}))
 					})
 					.nullish()

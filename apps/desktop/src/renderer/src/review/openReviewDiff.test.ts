@@ -1,10 +1,11 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import type {ReviewChange, ReviewList} from '@fast-ide/session-view';
-import {diffTabId, FILES_TAB_ID, type RailTab} from '../railTabs.js';
+import {diffTabId, FILES_TAB_ID, gitDiffTabId, type RailTab} from '../railTabs.js';
 import {reviewRows} from './agentReview.js';
 import {
 	openReviewDiff,
+	openGitDiff,
 	reviewRowOpenTarget,
 	routeReviewRowOpen,
 	shouldApplyOpenDiffRequest,
@@ -149,4 +150,21 @@ test('strip open request applies once per nonce; clearing App state is unsafe', 
 	handledNonce = null;
 	onOpenChange(target.changeId, target.path);
 	assert.equal(state.activeId, diffTabId('chg-readme'));
+});
+
+test('git diff tabs are scoped by repository and file', () => {
+	const root = openGitDiff(initial(), '', 'a.txt');
+	const rootTab = root.tabs.find(t => t.id === root.activeId);
+	assert.equal(rootTab?.kind, 'diff');
+	assert.equal(rootTab?.repoPath, '');
+	assert.equal(rootTab?.filePath, 'a.txt');
+	assert.equal(rootTab?.changeId, undefined);
+
+	const nested = openGitDiff(root, 'nested', 'a.txt');
+	assert.notEqual(nested.activeId, root.activeId);
+	assert.equal(nested.activeId, gitDiffTabId('nested', 'a.txt'));
+	assert.equal(nested.tabs.filter(t => t.kind === 'diff').length, 2);
+
+	const reopened = openGitDiff(nested, 'nested', 'a.txt');
+	assert.equal(reopened.tabs.filter(t => t.kind === 'diff').length, 2);
 });

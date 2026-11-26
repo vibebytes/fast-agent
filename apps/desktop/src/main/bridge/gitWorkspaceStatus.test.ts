@@ -152,6 +152,8 @@ async function hubWithGit(
 								path: cmd.relativePath,
 								additions: 1,
 								deletions: 1,
+								original: 'old',
+								modified: 'new',
 								hunks: [{header: '@@ -1 +1 @@', lines: ['-old', '+new']}]
 							}
 						}
@@ -234,13 +236,16 @@ test('maps repository snapshots and requests a working-tree file diff', async ()
 	});
 	const status = await hub.gitWorkspaceStatus();
 	assert.equal(status?.repos?.[0]?.name, 'project');
-	const result = await hub.gitWorkspaceFileDiff('', 'a.txt');
+	const result = await hub.gitWorkspaceFileDiff('', 'a.txt', false);
 	assert.equal(result.ok, true);
 	if (result.ok) {
 		assert.equal(result.file?.additions, 1);
+		assert.equal(result.file?.original, 'old');
+		assert.equal(result.file?.modified, 'new');
 		assert.equal(result.file?.hunks[0]?.lines[1], '+new');
 	}
-	assert.ok(commands.some(c => c.type === 'GetGitWorkspaceFileDiff'));
+	const diffCommand = commands.find(c => c.type === 'GetGitWorkspaceFileDiff');
+	assert.equal(diffCommand?.type === 'GetGitWorkspaceFileDiff' && diffCommand.includeHunks, false);
 	hub.closeAll();
 });
 

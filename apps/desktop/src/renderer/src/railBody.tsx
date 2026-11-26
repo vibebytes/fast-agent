@@ -8,6 +8,7 @@ import {ChangesPane} from './panes/ChangesPane';
 import {ContextPane} from './panes/ContextPane';
 import {DocumentPane} from './panes/DocumentPane';
 import {FilesPane} from './panes/FilesPane';
+import {GitDiffPane} from './panes/GitDiffPane';
 import {ReviewDiffPane} from './panes/ReviewDiffPane';
 import {TerminalPane} from './panes/TerminalPane';
 import {McpAppView} from './mcpApp/McpAppView';
@@ -33,6 +34,7 @@ export function RailTabBody({
 	review,
 	diffRefresh,
 	onOpenDiff,
+	onOpenGitDiff,
 	onRefreshGit,
 	focusSessionId,
 	onOpenLivingSession,
@@ -54,6 +56,7 @@ export function RailTabBody({
 	review: AgentReview;
 	diffRefresh: number;
 	onOpenDiff: (row: ReviewRow) => void;
+	onOpenGitDiff: (repoPath: string, path: string) => void;
 	onRefreshGit?: () => void;
 	focusSessionId?: string | null;
 	onOpenLivingSession?: (sessionId: string, projectId?: string) => void;
@@ -86,12 +89,14 @@ export function RailTabBody({
 			return (
 				<ChangesPane
 					status={gitStatus ?? null}
-					onOpenFile={onOpenFile}
+					onOpenDiff={onOpenGitDiff}
 					onRefresh={onRefreshGit}
 				/>
 			);
 		case 'diff':
-			return (
+			return tab.repoPath !== undefined ? (
+				<GitDiffPane tab={tab} refreshToken={diffRefresh} />
+			) : (
 				<ReviewDiffPane
 					tab={tab}
 					review={review}

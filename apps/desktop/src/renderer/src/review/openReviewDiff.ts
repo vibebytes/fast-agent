@@ -1,4 +1,4 @@
-import {diffTab, diffTabId, type RailTab} from '../railTabs';
+import {diffTab, diffTabId, gitDiffTab, gitDiffTabId, type RailTab} from '../railTabs';
 import type {ReviewRow} from './agentReview';
 
 /** Right-rail tab strip state the open-diff action mutates. */
@@ -17,6 +17,12 @@ export function openReviewDiff(state: RailTabsState, changeId: string, path: str
 	if (!changeId) return state;
 	const id = diffTabId(changeId);
 	const tabs = state.tabs.some(t => t.id === id) ? state.tabs : [...state.tabs, diffTab(changeId, path)];
+	return {tabs, activeId: id};
+}
+
+export function openGitDiff(state: RailTabsState, repoPath: string, path: string): RailTabsState {
+	const id = gitDiffTabId(repoPath, path);
+	const tabs = state.tabs.some(t => t.id === id) ? state.tabs : [...state.tabs, gitDiffTab(repoPath, path)];
 	return {tabs, activeId: id};
 }
 

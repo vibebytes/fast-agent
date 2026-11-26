@@ -66,6 +66,8 @@ export type GitFileDiff = {
 	hunks: Array<{header: string; lines: string[]}>;
 	binary?: boolean;
 	truncated?: boolean;
+	original?: string | null;
+	modified?: string | null;
 };
 
 export type GitFileDiffResult =

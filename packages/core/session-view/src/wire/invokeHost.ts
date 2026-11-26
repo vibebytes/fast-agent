@@ -62,7 +62,7 @@ export type InvokeHost = {
 	'project:get': {args: []; result: ProjectGetResult};
 	'project:gitStatus': {args: [force?: boolean]; result: GitStatus | null};
 	'project:gitFileDiff': {
-		args: [repoPath: string, relativePath: string];
+		args: [repoPath: string, relativePath: string, includeHunks?: boolean];
 		result: GitFileDiffResult;
 	};
 	'project:focus': {args: [projectId: string]; result: boolean};

@@ -315,6 +315,7 @@ export type CheckoutCommand =
 			workspaceId: string;
 			repoPath: string;
 			relativePath: string;
+			includeHunks?: boolean;
 			tenantId?: string;
 	  }
 
@@ -472,6 +473,7 @@ export const checkoutCommandSchemas = [
 		workspaceId: z.string(),
 		repoPath: z.string(),
 		relativePath: z.string(),
+		includeHunks: z.boolean().optional(),
 		tenantId: z.string().optional()
 	})
 ] as const

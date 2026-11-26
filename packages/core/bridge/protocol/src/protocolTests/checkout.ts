@@ -46,7 +46,8 @@ test('bridgeCommandSchema round-trips workspace FS host commands', () => {
 			requestId: 'r5-diff',
 			workspaceId: 'abcdef123456',
 			repoPath: 'nested',
-			relativePath: 'a.txt'
+			relativePath: 'a.txt',
+			includeHunks: false
 		},
 		{type: 'ListHostDir', requestId: 'r6'},
 		{type: 'ListHostDir', requestId: 'r7', path: '/home/kai'},
@@ -97,7 +98,9 @@ test('command_result git payload is optional and parses', () => {
 				deletions: 0,
 				hunks: [],
 				binary: true,
-				truncated: true
+				truncated: true,
+				original: 'old',
+				modified: 'new'
 			}
 		}
 	});
