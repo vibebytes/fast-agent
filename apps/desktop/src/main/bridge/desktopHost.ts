@@ -230,6 +230,8 @@ export function createDesktopHost(deps: DesktopHostDeps): ProductInvokeMap {
 		},
 
 		'project:gitStatus': async (force?: boolean) => hub.gitWorkspaceStatus(force),
+		'project:gitFileDiff': async (repoPath: string, relativePath: string) =>
+			hub.gitWorkspaceFileDiff(repoPath, relativePath),
 
 		'project:focus': (projectId: string) => {
 			const ok = hub.focusProject(projectId);

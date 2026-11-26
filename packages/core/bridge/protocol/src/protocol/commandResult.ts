@@ -76,7 +76,32 @@ export const commandResultSchema = z.object({
 							kind: z.enum(['modified', 'added', 'deleted'])
 						})
 					)
-					.optional()
+					.optional(),
+				repos: z
+					.array(
+						z.object({
+							path: z.string(),
+							name: z.string(),
+							branch: z.string(),
+							files: z.array(
+								z.object({
+									path: z.string(),
+									kind: z.enum(['modified', 'added', 'deleted'])
+								})
+							)
+						})
+					)
+					.optional(),
+				file: z
+					.object({
+						path: z.string(),
+						additions: z.number(),
+						deletions: z.number(),
+						binary: z.boolean().optional(),
+						truncated: z.boolean().optional(),
+						hunks: z.array(z.object({header: z.string(), lines: z.array(z.string())}))
+					})
+					.nullish()
 			})
 			.optional(),
 		/** Structured Session display title (SetSessionTitle / auto-title). */

@@ -19,6 +19,7 @@ import type {
 	EdgesList,
 	EngineWireRow,
 	GetWorkspaceFileResult,
+	GitFileDiffResult,
 	GitStatus,
 	HostDirCreateResult,
 	HostDirResult,
@@ -60,6 +61,10 @@ export type InvokeHost = {
 	'project:createBlank': {args: [name?: string]; result: string | null};
 	'project:get': {args: []; result: ProjectGetResult};
 	'project:gitStatus': {args: [force?: boolean]; result: GitStatus | null};
+	'project:gitFileDiff': {
+		args: [repoPath: string, relativePath: string];
+		result: GitFileDiffResult;
+	};
 	'project:focus': {args: [projectId: string]; result: boolean};
 	'project:close': {args: [projectId: string]; result: boolean};
 	'project:showInFolder': {args: [projectId: string]; result: boolean};

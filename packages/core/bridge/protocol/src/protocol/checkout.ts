@@ -308,6 +308,15 @@ export type CheckoutCommand =
 			workspaceId: string;
 			tenantId?: string;
 	  }
+	/** Working-tree vs HEAD diff for one file in a discovered repository. */
+	| {
+			type: 'GetGitWorkspaceFileDiff';
+			requestId: string;
+			workspaceId: string;
+			repoPath: string;
+			relativePath: string;
+			tenantId?: string;
+	  }
 
 export const checkoutCommandSchemas = [
 	z.object({
@@ -455,6 +464,14 @@ export const checkoutCommandSchemas = [
 		type: z.literal('GitWorkspaceStatus'),
 		requestId: z.string(),
 		workspaceId: z.string(),
+		tenantId: z.string().optional()
+	}),
+	z.object({
+		type: z.literal('GetGitWorkspaceFileDiff'),
+		requestId: z.string(),
+		workspaceId: z.string(),
+		repoPath: z.string(),
+		relativePath: z.string(),
 		tenantId: z.string().optional()
 	})
 ] as const

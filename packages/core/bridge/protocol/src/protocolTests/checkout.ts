@@ -41,6 +41,13 @@ test('bridgeCommandSchema round-trips workspace FS host commands', () => {
 			relativePath: 'src/new-dir'
 		},
 		{type: 'GitWorkspaceStatus', requestId: 'r5', workspaceId: 'abcdef123456'},
+		{
+			type: 'GetGitWorkspaceFileDiff',
+			requestId: 'r5-diff',
+			workspaceId: 'abcdef123456',
+			repoPath: 'nested',
+			relativePath: 'a.txt'
+		},
 		{type: 'ListHostDir', requestId: 'r6'},
 		{type: 'ListHostDir', requestId: 'r7', path: '/home/kai'},
 		{type: 'CreateHostDir', requestId: 'r8', parent: '/home/kai', name: 'code'}
@@ -82,7 +89,16 @@ test('command_result git payload is optional and parses', () => {
 			available: true,
 			branch: 'main',
 			dirty: true,
-			files: [{path: 'a.txt', kind: 'modified'}]
+			files: [{path: 'a.txt', kind: 'modified'}],
+			repos: [{path: '', name: 'project', branch: 'main', files: [{path: 'a.txt', kind: 'modified'}]}],
+			file: {
+				path: 'a.txt',
+				additions: 0,
+				deletions: 0,
+				hunks: [],
+				binary: true,
+				truncated: true
+			}
 		}
 	});
 	assert.equal(withGit.type, 'command_result');
@@ -90,6 +106,7 @@ test('command_result git payload is optional and parses', () => {
 		assert.equal(withGit.git?.available, true);
 		assert.equal(withGit.git?.branch, 'main');
 		assert.equal(withGit.git?.files?.[0]?.kind, 'modified');
+		assert.equal(withGit.git?.repos?.[0]?.branch, 'main');
 	}
 	const without = bridgeEventSchema.parse({
 		type: 'command_result',

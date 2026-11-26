@@ -8,7 +8,7 @@ import {
 	useRef,
 	useState
 } from 'react';
-import type {GitFileChange} from '@fast-ide/session-view';
+import type {GitFileChange, GitStatus} from '@fast-ide/session-view';
 import {Button} from '@fast-ide/ui/components/button';
 import {
 	Command,
@@ -96,6 +96,7 @@ function RightWorkbenchImpl({
 	onOpenTeams,
 	onEditorStatus,
 	gitFiles,
+	gitStatus,
 	review,
 	onReviewDirtyPaths,
 	onRefreshGit
@@ -128,7 +129,8 @@ function RightWorkbenchImpl({
 	}) => void;
 	onEditorStatus?: (status: EditorCursorStatus | null) => void;
 	gitFiles?: GitFileChange[];
-	/** The checkout's agent change review — the Changes tab, the diff tabs and the tree overlay. */
+	gitStatus?: GitStatus | null;
+	/** Agent checkpoint review for the conversation drawer and diff tabs. */
 	review: AgentReview;
 	/** Document tabs whose buffer has diverged — Keep/Undo must confirm before covering them. */
 	onReviewDirtyPaths?: (paths: readonly string[]) => void;
@@ -838,13 +840,13 @@ function RightWorkbenchImpl({
 								>
 									<RailTabBody
 										tab={tab}
-										changes={changes}
 										project={project}
 										onPatch={patch => patchTab(tab.id, patch)}
 										onOpenFile={path => void openFileTab(path, undefined, undefined, true)}
 										onEditorStatus={tab.id === active?.id ? onEditorStatus : undefined}
 										activeFilePath={lastDocumentPath}
 										gitFiles={gitFiles}
+										gitStatus={gitStatus}
 										review={review}
 										diffRefresh={diffRefresh}
 										onOpenDiff={row => {

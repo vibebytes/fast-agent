@@ -746,8 +746,9 @@ export function App({store}: {store: WorkspaceStore}) {
 											onOpenLivingSession={openLivingSession}
 											onOpenTeams={openTeams}
 											onEditorStatus={publishEditorStatus}
-											gitFiles={gitStatus?.files}
-											review={reviewUi}
+										gitFiles={gitStatus?.files}
+										gitStatus={gitStatus}
+										review={reviewUi}
 											onReviewDirtyPaths={onReviewDirtyPaths}
 											onRefreshGit={refreshGitForce}
 										/>

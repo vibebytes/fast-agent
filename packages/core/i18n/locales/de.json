@@ -1733,7 +1733,15 @@
       "stateConflict": "conflict",
       "enableDiff": "Diff aktivieren",
       "loadingMore": "Lade mehr…",
-      "scrollForMore": "Scrollen für mehr"
+      "scrollForMore": "Scrollen für mehr",
+      "workingTree": "Working tree vs HEAD",
+      "refresh": "Refresh Git changes",
+      "scmUnavailable": "No Git repository in this workspace",
+      "scmEmptyTitle": "No uncommitted changes",
+      "scmEmptyHint": "Changes between the Git working tree and HEAD will appear here.",
+      "scmNoDiff": "No diff to display for this file",
+      "scmBinary": "Binary file; diff content is not displayed",
+      "scmTruncated": "Diff truncated to keep the UI responsive"
     },
     "notify": {
       "approvalTitle": "Approval needed",

@@ -1807,7 +1807,15 @@
       "stateConflict": "冲突",
       "enableDiff": "启用 Diff",
       "loadingMore": "加载中…",
-      "scrollForMore": "向下滚动加载更多"
+      "scrollForMore": "向下滚动加载更多",
+      "workingTree": "工作区 vs HEAD",
+      "refresh": "刷新 Git 变更",
+      "scmUnavailable": "当前工作区没有 Git 仓库",
+      "scmEmptyTitle": "暂无未提交变更",
+      "scmEmptyHint": "Git 工作区相对 HEAD 的修改会显示在这里。",
+      "scmNoDiff": "此文件没有可显示的 diff",
+      "scmBinary": "二进制文件，不显示 diff 内容",
+      "scmTruncated": "diff 内容过大，已截断以保持界面响应"
     }
   },
   "errors": {

@@ -11,6 +11,7 @@ import type {
 	EngineHostStatus,
 	GetWorkspaceFileResult,
 	GitStatus,
+	GitFileDiffResult,
 	ListWorkspaceDirResult,
 	MarketSkillRow,
 	ProjectSnapshot,
@@ -989,6 +990,9 @@ export class WorkspaceHub {
 	}
 	async gitWorkspaceStatus(force?: boolean) {
 		return this.checkout.gitWorkspaceStatus(force);
+	}
+	async gitWorkspaceFileDiff(repoPath: string, relativePath: string): Promise<GitFileDiffResult> {
+		return this.checkout.gitWorkspaceFileDiff(repoPath, relativePath);
 	}
 	private applyAvailable(rows: EngineWireRow[]): void {
 		this.lastPickerEngineIds = pickerEngineIds(rows);

@@ -2,6 +2,8 @@ import {randomUUID} from 'node:crypto';
 import type {
 	AmbientRule,
 	GetWorkspaceFileResult,
+	GitFileDiffResult,
+	GitRepoStatus,
 	GitStatus,
 	HostDirCreateResult,
 	HostDirResult,
@@ -63,6 +65,7 @@ export type WorkspaceCheckout = {
 	) => Promise<DeleteWorkspaceFileResult>;
 	createWorkspaceDir: (relativePath: string) => Promise<CreateWorkspaceDirResult>;
 	gitWorkspaceStatus: (force?: boolean) => Promise<GitStatus | null>;
+	gitWorkspaceFileDiff: (repoPath: string, relativePath: string) => Promise<GitFileDiffResult>;
 	listHostDir: (dirPath?: string) => Promise<HostDirResult>;
 	createHostDir: (parent: string, name: string) => Promise<HostDirCreateResult>;
 	listRules: (
@@ -142,6 +145,7 @@ export function createCheckout(lane: CheckoutLane): WorkspaceCheckout {
 						branch?: string;
 						dirty?: boolean;
 						files?: Array<{path: string; kind: 'modified' | 'added' | 'deleted'}>;
+						repos?: GitRepoStatus[];
 					};
 				}
 			).git;
@@ -153,7 +157,12 @@ export function createCheckout(lane: CheckoutLane): WorkspaceCheckout {
 			const branch = git.branch?.trim() ?? '';
 			if (!branch) return gitSoftKeep(key, gen);
 			const files = Array.isArray(git.files) ? git.files : [];
-			const snapshot: GitStatus = {branch, dirty: git.dirty === true || files.length > 0, files};
+			const snapshot: GitStatus = {
+				branch,
+				dirty: git.dirty === true || files.length > 0 || Boolean(git.repos?.some(r => r.files.length > 0)),
+				files,
+				...(git.repos ? {repos: git.repos} : {})
+			};
 			gitCacheWrite(key, gen, snapshot, false);
 			return snapshot;
 		} catch {
@@ -366,6 +375,26 @@ export function createCheckout(lane: CheckoutLane): WorkspaceCheckout {
 				return await probe;
 			} finally {
 				if (gitInFlight.get(key) === probe) gitInFlight.delete(key);
+			}
+		},
+		async gitWorkspaceFileDiff(repoPath, relativePath) {
+			const ws = workspaceIdOr(msg => ({ok: false as const, error: msg}));
+			if (!ws.ok) return ws.err;
+			if (!lane.ready()) return {ok: false as const, error: 'Engine not ready'};
+			const requestId = randomUUID();
+			const {token, promise} = lane.waitRequest(requestId);
+			if (!lane.send({type: 'GetGitWorkspaceFileDiff', requestId, workspaceId: ws.id, repoPath, relativePath})) {
+				lane.cancel(token);
+				return {ok: false as const, error: 'Failed to send GetGitWorkspaceFileDiff'};
+			}
+			try {
+				const event = await promise;
+				if (event.status === 'error' || event.status === 'rejected') {
+					return {ok: false as const, error: event.message || 'GetGitWorkspaceFileDiff failed'};
+				}
+				return {ok: true as const, file: event.git?.file ?? null};
+			} catch (error) {
+				return {ok: false as const, error: error instanceof Error ? error.message : String(error)};
 			}
 		},
 		async listHostDir(dirPath) {

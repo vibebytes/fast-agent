@@ -15,6 +15,12 @@ type GitReply =
 			mode: 'ready';
 			branch?: string;
 			files?: Array<{path: string; kind: 'modified' | 'added' | 'deleted'}>;
+			repos?: Array<{
+				path: string;
+				name: string;
+				branch: string;
+				files: Array<{path: string; kind: 'modified' | 'added' | 'deleted'}>;
+			}>;
 	  }
 	| {mode: 'not-git'}
 	| {mode: 'error'; message?: string};
@@ -123,7 +129,31 @@ async function hubWithGit(
 							available: true,
 							branch: r.branch ?? 'main',
 							dirty: files.length > 0,
-							files
+							files,
+							repos: r.repos
+						}
+					})}\n`
+				);
+			});
+		}
+		if (cmd.type === 'GetGitWorkspaceFileDiff') {
+			queueMicrotask(() => {
+				stdout.write(
+					`${JSON.stringify({
+						type: 'command_result',
+						name: 'GetGitWorkspaceFileDiff',
+						message: 'diff ready',
+						status: 'success',
+						requestId: cmd.requestId,
+						pathHash: cmd.workspaceId,
+						git: {
+							available: true,
+							file: {
+								path: cmd.relativePath,
+								additions: 1,
+								deletions: 1,
+								hunks: [{header: '@@ -1 +1 @@', lines: ['-old', '+new']}]
+							}
 						}
 					})}\n`
 				);
@@ -194,6 +224,23 @@ test('gitWorkspaceStatus maps Bridge git payload and respects fresh TTL', async 
 	assert.equal(forced?.branch, 'main');
 	assert.ok(commands.filter(c => c.type === 'GitWorkspaceStatus').length > sent);
 
+	hub.closeAll();
+});
+
+test('maps repository snapshots and requests a working-tree file diff', async () => {
+	const {hub, commands} = await hubWithGit({
+		mode: 'ready',
+		repos: [{path: '', name: 'project', branch: 'main', files: [{path: 'a.txt', kind: 'modified'}]}]
+	});
+	const status = await hub.gitWorkspaceStatus();
+	assert.equal(status?.repos?.[0]?.name, 'project');
+	const result = await hub.gitWorkspaceFileDiff('', 'a.txt');
+	assert.equal(result.ok, true);
+	if (result.ok) {
+		assert.equal(result.file?.additions, 1);
+		assert.equal(result.file?.hunks[0]?.lines[1], '+new');
+	}
+	assert.ok(commands.some(c => c.type === 'GetGitWorkspaceFileDiff'));
 	hub.closeAll();
 });
 

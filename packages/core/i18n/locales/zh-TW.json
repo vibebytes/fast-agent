@@ -1755,7 +1755,15 @@
       "stateConflict": "conflict",
       "enableDiff": "啟用 Diff",
       "loadingMore": "載入中…",
-      "scrollForMore": "向下捲動載入更多"
+      "scrollForMore": "向下捲動載入更多",
+      "workingTree": "工作區 vs HEAD",
+      "refresh": "重新整理 Git 變更",
+      "scmUnavailable": "目前工作區沒有 Git 儲存庫",
+      "scmEmptyTitle": "沒有未提交變更",
+      "scmEmptyHint": "Git 工作區相對 HEAD 的修改會顯示在這裡。",
+      "scmNoDiff": "此檔案沒有可顯示的 diff",
+      "scmBinary": "二進位檔案，不顯示 diff 內容",
+      "scmTruncated": "diff 內容過大，已截斷以維持介面回應速度"
     },
     "notify": {
       "approvalTitle": "Approval needed",

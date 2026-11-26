@@ -51,11 +51,34 @@ export type GitFileChange = {
 	kind: GitFileChangeKind;
 };
 
+export type GitRepoStatus = {
+	/** Workspace-relative repository root; empty for the workspace root. */
+	path: string;
+	name: string;
+	branch: string;
+	files: GitFileChange[];
+};
+
+export type GitFileDiff = {
+	path: string;
+	additions: number;
+	deletions: number;
+	hunks: Array<{header: string; lines: string[]}>;
+	binary?: boolean;
+	truncated?: boolean;
+};
+
+export type GitFileDiffResult =
+	| {ok: true; file: GitFileDiff | null}
+	| {ok: false; error: string};
+
 export type GitStatus = {
 	branch: string;
 	dirty: boolean;
 	/** Working-tree / index changes for file-tree decorations. */
 	files: GitFileChange[];
+	/** All repositories under the workspace, including nested ones. */
+	repos?: GitRepoStatus[];
 };
 
 export type DirEntry = {

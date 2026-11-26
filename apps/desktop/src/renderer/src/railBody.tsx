@@ -1,6 +1,6 @@
 import {lazy} from 'react';
-import type {GitFileChange} from '@fast-ide/session-view';
-import type {CodeChange, ProjectState} from './env';
+import type {GitFileChange, GitStatus} from '@fast-ide/session-view';
+import type {ProjectState} from './env';
 import type {EditorCursorStatus, MonacoEditorHandle} from './MonacoEditor';
 import {BrowserPane} from './panes/BrowserPane';
 import {CanvasPane} from './panes/CanvasPane';
@@ -23,13 +23,13 @@ const ScheduledJobsPane = lazy(() =>
 
 export function RailTabBody({
 	tab,
-	changes,
 	project,
 	onPatch,
 	onOpenFile,
 	onEditorStatus,
 	activeFilePath,
 	gitFiles,
+	gitStatus,
 	review,
 	diffRefresh,
 	onOpenDiff,
@@ -44,13 +44,13 @@ export function RailTabBody({
 	mintSurfaceToken
 }: {
 	tab: RailTab;
-	changes: CodeChange[];
 	project: ProjectState | null;
 	onPatch: (patch: Partial<RailTab>) => void;
 	onOpenFile: (relativePath: string) => void;
 	onEditorStatus?: (status: EditorCursorStatus | null) => void;
 	activeFilePath?: string | null;
 	gitFiles?: GitFileChange[];
+	gitStatus?: GitStatus | null;
 	review: AgentReview;
 	diffRefresh: number;
 	onOpenDiff: (row: ReviewRow) => void;
@@ -85,11 +85,9 @@ export function RailTabBody({
 		case 'changes':
 			return (
 				<ChangesPane
-					review={review}
-					changes={changes}
-					projectId={project?.id ?? null}
-					onOpenDiff={onOpenDiff}
+					status={gitStatus ?? null}
 					onOpenFile={onOpenFile}
+					onRefresh={onRefreshGit}
 				/>
 			);
 		case 'diff':
