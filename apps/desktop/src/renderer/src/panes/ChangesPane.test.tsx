@@ -2,32 +2,75 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import {JSDOM} from 'jsdom';
 import React, {act} from 'react';
-import {createRoot} from 'react-dom/client';
-import {ChangesPane} from './ChangesPane';
-import {GitDiffPane} from './GitDiffPane';
 import type {GitFileDiffResult, GitStatus} from '@fast-ide/session-view';
 
-function setup(diff: GitFileDiffResult) {
+type Panes = {
+	ChangesPane: typeof import('./ChangesPane').ChangesPane;
+	GitDiffPane: typeof import('./GitDiffPane').GitDiffPane;
+};
+
+let panes: Panes | null = null;
+
+/** Radix portals only mount when React DOM loads after the jsdom globals exist. */
+async function loadPanes(): Promise<Panes> {
+	if (!panes) {
+		const [{ChangesPane}, {GitDiffPane}] = await Promise.all([
+			import('./ChangesPane'),
+			import('./GitDiffPane')
+		]);
+		panes = {ChangesPane, GitDiffPane};
+	}
+	return panes;
+}
+
+async function setup(diff: GitFileDiffResult) {
 	const dom = new JSDOM('<!doctype html><html><body><div id="root"></div></body></html>', {url: 'http://localhost/'});
 	const g = globalThis as Record<string, unknown>;
 	g.window = dom.window;
 	g.document = dom.window.document;
 	Object.defineProperty(g, 'navigator', {value: dom.window.navigator, configurable: true});
-	for (const key of ['HTMLElement', 'Element', 'Node', 'SVGElement', 'Event', 'MouseEvent']) {
-		g[key] = (dom.window as unknown as Record<string, unknown>)[key];
+	const w = dom.window as unknown as Record<string, unknown>;
+	for (const key of [
+		'HTMLElement', 'Element', 'Node', 'SVGElement', 'Event', 'KeyboardEvent', 'MouseEvent', 'CustomEvent',
+		'HTMLInputElement', 'HTMLButtonElement', 'HTMLSelectElement', 'HTMLTextAreaElement', 'HTMLAnchorElement',
+		'HTMLIFrameElement', 'HTMLHtmlElement', 'HTMLBodyElement', 'HTMLDivElement', 'HTMLSpanElement',
+		'Range', 'NodeFilter', 'ShadowRoot', 'Document', 'DocumentFragment', 'DOMRect', 'DOMRectReadOnly'
+	]) {
+		const value = w[key];
+		if (value === undefined) continue;
+		g[key] = value;
+		w[key] = value;
 	}
 	g.getComputedStyle = dom.window.getComputedStyle.bind(dom.window);
+	g.requestAnimationFrame = (cb: (t: number) => void) => setTimeout(() => cb(0), 0);
+	g.cancelAnimationFrame = (id: ReturnType<typeof setTimeout>) => clearTimeout(id);
+	g.ResizeObserver = class {observe() {} unobserve() {} disconnect() {}};
+	w.ResizeObserver = g.ResizeObserver;
+	w.requestAnimationFrame = g.requestAnimationFrame;
+	w.cancelAnimationFrame = g.cancelAnimationFrame;
+	g.MutationObserver = dom.window.MutationObserver;
+	w.MutationObserver = g.MutationObserver;
+	dom.window.HTMLElement.prototype.scrollIntoView = () => {};
+	dom.window.HTMLElement.prototype.hasPointerCapture = () => false;
+	dom.window.HTMLElement.prototype.releasePointerCapture = () => {};
+	dom.window.HTMLElement.prototype.setPointerCapture = () => {};
 	g.IS_REACT_ACT_ENVIRONMENT = true;
 	const calls: Array<[string, string, boolean | undefined]> = [];
+	const revealed: string[] = [];
 	(dom.window as unknown as Record<string, unknown>).fastIde = {
 		gitFileDiff: async (repoPath: string, relativePath: string, includeHunks?: boolean) => {
 			calls.push([repoPath, relativePath, includeHunks]);
 			return diff;
+		},
+		showWorkspacePathInFolder: async (relativePath: string) => {
+			revealed.push(relativePath);
+			return true;
 		}
 	};
+	const {createRoot} = await import('react-dom/client');
 	const container = dom.window.document.getElementById('root')!;
 	const root = createRoot(container);
-	return {dom, root, container, calls};
+	return {dom, root, container, calls, revealed};
 }
 
 const status: GitStatus = {
@@ -41,7 +84,8 @@ const status: GitStatus = {
 };
 
 test('file rows open Git diff tabs without fetching inline diffs', async () => {
-	const env = setup({ok: true, file: null});
+	const env = await setup({ok: true, file: null});
+	const {ChangesPane} = await loadPanes();
 	const opened: Array<[string, string]> = [];
 	await act(async () => {
 		env.root.render(<ChangesPane status={status} onOpenDiff={(repo, path) => opened.push([repo, path])} />);
@@ -59,7 +103,8 @@ test('file rows open Git diff tabs without fetching inline diffs', async () => {
 });
 
 test('nested repository rows preserve the repository path', async () => {
-	const env = setup({ok: true, file: null});
+	const env = await setup({ok: true, file: null});
+	const {ChangesPane} = await loadPanes();
 	const opened: Array<[string, string]> = [];
 	await act(async () => {
 		env.root.render(<ChangesPane status={status} onOpenDiff={(repo, path) => opened.push([repo, path])} />);
@@ -74,7 +119,8 @@ test('nested repository rows preserve the repository path', async () => {
 });
 
 test('repository groups collapse and expand without losing files', async () => {
-	const env = setup({ok: true, file: null});
+	const env = await setup({ok: true, file: null});
+	const {ChangesPane} = await loadPanes();
 	await act(async () => {
 		env.root.render(<ChangesPane status={status} onOpenDiff={() => {}} />);
 	});
@@ -94,12 +140,49 @@ test('repository groups collapse and expand without losing files', async () => {
 	env.dom.window.close();
 });
 
+test('repository headers show the workspace-relative path, except at the root', async () => {
+	const env = await setup({ok: true, file: null});
+	const {ChangesPane} = await loadPanes();
+	await act(async () => {
+		env.root.render(<ChangesPane status={status} onOpenDiff={() => {}} />);
+	});
+	const nestedPath = env.container.querySelector('[data-testid="git-repo-path-nested"]');
+	assert.ok(nestedPath, 'nested repository should render its relative path');
+	assert.equal(nestedPath.textContent, 'nested');
+	assert.equal(env.container.querySelector('[data-testid="git-repo-path-"]'), null);
+	await act(async () => env.root.unmount());
+	env.dom.window.close();
+});
+
+test('repository context menu reveals the repository folder', async () => {
+	const env = await setup({ok: true, file: null});
+	const {ChangesPane} = await loadPanes();
+	await act(async () => {
+		env.root.render(<ChangesPane status={status} onOpenDiff={() => {}} />);
+	});
+	const header = env.container.querySelector('[data-testid="git-repo-nested"]')!;
+	await act(async () => {
+		header.dispatchEvent(new env.dom.window.MouseEvent('contextmenu', {bubbles: true, cancelable: true, clientX: 10, clientY: 10}));
+		await new Promise(resolve => setTimeout(resolve, 30));
+	});
+	const item = env.dom.window.document.querySelector('[data-testid="git-repo-reveal-nested"]');
+	assert.ok(item, 'context menu should offer reveal-in-folder');
+	await act(async () => {
+		item!.dispatchEvent(new env.dom.window.MouseEvent('click', {bubbles: true}));
+		await Promise.resolve();
+	});
+	assert.deepEqual(env.revealed, ['nested']);
+	await act(async () => env.root.unmount());
+	env.dom.window.close();
+});
+
 test('Git diff tab requests hunks and renders binary and truncated states', async () => {
 	const tab = {id: 'git', kind: 'diff' as const, title: 'a.txt', repoPath: 'nested', filePath: 'a.txt'};
-	const binaryEnv = setup({
+	const binaryEnv = await setup({
 		ok: true,
 		file: {path: 'a.txt', additions: 0, deletions: 0, hunks: [], binary: true}
 	});
+	const {GitDiffPane} = await loadPanes();
 	await act(async () => {
 		binaryEnv.root.render(<GitDiffPane tab={tab} />);
 		await Promise.resolve();
@@ -109,7 +192,7 @@ test('Git diff tab requests hunks and renders binary and truncated states', asyn
 	await act(async () => binaryEnv.root.unmount());
 	binaryEnv.dom.window.close();
 
-	const truncatedEnv = setup({
+	const truncatedEnv = await setup({
 		ok: true,
 		file: {path: 'a.txt', additions: 0, deletions: 0, hunks: [], truncated: true}
 	});
@@ -123,7 +206,7 @@ test('Git diff tab requests hunks and renders binary and truncated states', asyn
 });
 
 test('Git diff tab renders daemon hunks directly when available', async () => {
-	const env = setup({
+	const env = await setup({
 		ok: true,
 		file: {
 			path: '.gitignore',
@@ -134,6 +217,7 @@ test('Git diff tab renders daemon hunks directly when available', async () => {
 			modified: 'new'
 		}
 	});
+	const {GitDiffPane} = await loadPanes();
 	const tab = {id: 'git', kind: 'diff' as const, title: '.gitignore', repoPath: 'site', filePath: '.gitignore'};
 	await act(async () => {
 		env.root.render(<GitDiffPane tab={tab} />);

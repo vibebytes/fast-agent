@@ -5,8 +5,14 @@ import type {
   GitRepoStatus,
   GitStatus,
 } from "@fast-ide/session-view";
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuTrigger,
+} from "@fast-ide/ui/components/context-menu";
 import { cn } from "@fast-ide/ui/lib/utils";
-import { ChevronRight, FileText, RefreshCw } from "lucide-react";
+import { ChevronRight, FileText, FolderSymlink, RefreshCw } from "lucide-react";
 import { pathLabel } from "../session/path";
 
 const KindLetter: Record<
@@ -154,27 +160,51 @@ export function ChangesPane({
               const collapsed = collapsedRepos.has(repo.path);
               return (
                 <section key={repo.path} className="flex flex-col gap-1.5">
-                  <button
-                    type="button"
-                    data-testid={`git-repo-${repo.path}`}
-                    aria-expanded={!collapsed}
-                    className="flex w-full items-center gap-1.5 rounded px-1 py-0.5 text-left text-[11px] hover:bg-muted/40"
-                    onClick={() => toggleRepo(repo.path)}
-                  >
-                    <ChevronRight
-                      className={cn(
-                        "size-3.5 shrink-0 text-muted-foreground transition-transform",
-                        !collapsed && "rotate-90",
-                      )}
-                    />
-                    <span className="truncate font-semibold">{repo.name}</span>
-                    <span className="truncate text-muted-foreground">
-                      {repo.branch}
-                    </span>
-                    <span className="ml-auto text-muted-foreground">
-                      {repo.files.length}
-                    </span>
-                  </button>
+                  <ContextMenu>
+                    <ContextMenuTrigger asChild>
+                      <button
+                        type="button"
+                        data-testid={`git-repo-${repo.path}`}
+                        aria-expanded={!collapsed}
+                        className="flex w-full items-center gap-1.5 rounded px-1 py-0.5 text-left text-[11px] hover:bg-muted/40"
+                        onClick={() => toggleRepo(repo.path)}
+                      >
+                        <ChevronRight
+                          className={cn(
+                            "size-3.5 shrink-0 text-muted-foreground transition-transform",
+                            !collapsed && "rotate-90",
+                          )}
+                        />
+                        <span className="truncate font-semibold">{repo.name}</span>
+                        <span className="shrink-0 text-muted-foreground">
+                          {repo.branch}
+                        </span>
+                        {repo.path ? (
+                          <span
+                            data-testid={`git-repo-path-${repo.path}`}
+                            title={repo.path}
+                            className="min-w-0 flex-1 truncate text-muted-foreground/60"
+                          >
+                            {repo.path}
+                          </span>
+                        ) : null}
+                        <span className="ml-auto shrink-0 text-muted-foreground">
+                          {repo.files.length}
+                        </span>
+                      </button>
+                    </ContextMenuTrigger>
+                    <ContextMenuContent>
+                      <ContextMenuItem
+                        data-testid={`git-repo-reveal-${repo.path}`}
+                        onSelect={() =>
+                          void window.fastIde.showWorkspacePathInFolder(repo.path)
+                        }
+                      >
+                        <FolderSymlink className="size-3.5" />
+                        {t("shell.filesMenu.revealInFolder")}
+                      </ContextMenuItem>
+                    </ContextMenuContent>
+                  </ContextMenu>
                   {!collapsed
                     ? repo.files.map((file) => (
                         <GitChangeRow
