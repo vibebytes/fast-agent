@@ -186,7 +186,27 @@ export function applyFinalAnswer(
 	state: TranscriptState,
 	event: Extract<BridgeEvent, {type: 'final_answer'}>
 ): TranscriptState {
-	return patchAssistant(state, event.turnId, entry =>
-		entry.text.trim().length > 0 ? entry : pushAssistantSegment(entry, event.text, undefined, persistDelta(event))
-	);
+	return patchAssistant(state, event.turnId, entry => {
+		const live = entry.text;
+		if (live.trim().length === 0) {
+			return pushAssistantSegment(entry, event.text, undefined, persistDelta(event));
+		}
+		if (event.text.startsWith(live)) {
+			return pushAssistantSegment(entry, event.text, undefined, persistDelta(event));
+		}
+		const segments = entry.segments ?? [];
+		const last = segments.at(-1);
+		if (last && last.kind !== 'assistant' && !live.endsWith(event.text)) {
+			return pushAssistantSegment(entry, event.text, undefined, persistDelta(event));
+		}
+		if (
+			last?.kind === 'assistant' &&
+			event.text.length > last.text.length &&
+			event.text.startsWith(last.text)
+		) {
+			const suffix = event.text.slice(last.text.length);
+			return pushAssistantSegment(entry, suffix, last.unitId, persistDelta(event));
+		}
+		return entry;
+	});
 }

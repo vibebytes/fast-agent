@@ -921,3 +921,52 @@ test('run seal: late tool_started for the stopped run adds zero transcript rows'
 	assert.equal(JSON.stringify(state.entries[1]?.tools), toolsBefore, 'cancelled tool card untouched');
 	assert.equal(state.entries[1]?.status, 'cancelled');
 });
+
+test('final_answer appends post-tool answer segment even when pre-tool assistant text is non-empty', () => {
+	let state = createTranscriptState();
+	state = applyBridgeEvent(state, {
+		type: 'turn_started',
+		turnId: 'run-multi',
+		clientMessageId: 'msg-multi',
+		text: 'check status'
+	});
+	state = applyBridgeEvent(state, {
+		type: 'assistant_delta',
+		turnId: 'run-multi',
+		text: 'Checking git status first.'
+	});
+	state = applyBridgeEvent(state, {
+		type: 'tool_started',
+		turnId: 'run-multi',
+		id: 'tool-1',
+		tool: 'shell',
+		args: {command: 'git status'}
+	});
+	state = applyBridgeEvent(state, {
+		type: 'tool_finished',
+		turnId: 'run-multi',
+		id: 'tool-1',
+		tool: 'shell',
+		success: true,
+		fields: {}
+	});
+	state = applyBridgeEvent(state, {
+		type: 'final_answer',
+		turnId: 'run-multi',
+		text: 'All clean and verified.',
+		eventSeq: 10
+	});
+	state = applyBridgeEvent(state, {
+		type: 'turn_finished',
+		turnId: 'run-multi',
+		success: true
+	});
+	const assistant = state.entries.find(e => e.role === 'assistant');
+	assert.ok(assistant);
+	assert.equal(assistant?.text, 'Checking git status first.All clean and verified.');
+	const lastSegment = assistant?.segments?.at(-1);
+	assert.equal(lastSegment?.kind, 'assistant');
+	if (lastSegment?.kind === 'assistant') {
+		assert.equal(lastSegment.text, 'All clean and verified.');
+	}
+});

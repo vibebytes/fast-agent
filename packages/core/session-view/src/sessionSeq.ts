@@ -233,12 +233,33 @@ function flushHeld(state: SessionSeq, settle: BridgeEvent): OfferResult {
 	for (const [seq] of held) pending.delete(seq);
 	let next: SessionSeq = {...state, pending, restored: false};
 	const seed = [...held].reverse().find(([, ev]) => ev.type === 'final_answer' && seedText(ev).length > 0);
+	const heldAssistantUnits = new Set(
+		held
+			.filter(([, ev]) => ev.type === 'assistant_delta')
+			.map(([, ev]) => unitIdOf(ev))
+			.filter((u): u is string => u != null)
+	);
+	const multiUnitHeld = heldAssistantUnits.size > 1;
+	const lastAssistantUnit = [...held]
+		.reverse()
+		.map(([, ev]) => (ev.type === 'assistant_delta' ? unitIdOf(ev) : undefined))
+		.find((u): u is string => u != null);
 	const emit: BridgeEvent[] = [];
 	for (const [seq, ev] of held) {
 		if (seq > next.lastApplied) next = commit(next, ev, seq);
 		if (seed) {
-			if (ev === seed[1]) emit.push(ev);
-			continue;
+			if (ev === seed[1]) {
+				emit.push(ev);
+				continue;
+			}
+			if (ev.type === 'final_answer') {
+				continue;
+			}
+			if (ev.type === 'assistant_delta') {
+				if (!multiUnitHeld || unitIdOf(ev) === lastAssistantUnit) {
+					continue;
+				}
+			}
 		}
 		if (visible(ev)) emit.push(ev);
 	}

@@ -600,3 +600,51 @@ test('held persist deltas without turnId still flush on run-level settle', () =>
 	assert.deepEqual(texts(settled.emit), ['这份计划', 'turn_finished']);
 	assert.equal(settled.state.lastApplied, 3);
 });
+
+test('flushHeld preserves pre-step held deltas when final_answer only covers the post-tool step', () => {
+	let s = emptySessionSeq();
+	s = offer(s, turnDelta(1, 'step1 ', 'run-1')).state;
+	// seq 2 is a hole; seq 3..7 are held across a tool boundary (tool events are live chrome, so they emit immediately)
+	s = offer(s, {...turnDelta(3, 'mid-step ', 'run-1'), unitId: '2:1'} as BridgeEvent).state;
+	const tStart = offer(s, {
+		type: 'tool_started',
+		id: 'c1',
+		tool: 'shell',
+		args: {command: 'git status'},
+		turnId: 'run-1',
+		eventSeq: 4
+	} as BridgeEvent);
+	assert.deepEqual(tStart.emit.map(e => e.type), ['tool_started']);
+	s = tStart.state;
+	const tFinish = offer(s, {
+		type: 'tool_finished',
+		id: 'c1',
+		tool: 'shell',
+		success: true,
+		fields: {},
+		turnId: 'run-1',
+		eventSeq: 5
+	} as BridgeEvent);
+	assert.deepEqual(tFinish.emit.map(e => e.type), ['tool_finished']);
+	s = tFinish.state;
+	s = offer(s, {...turnDelta(6, 'final summary', 'run-1'), unitId: '3:1'} as BridgeEvent).state;
+	s = offer(s, {
+		type: 'final_answer',
+		text: 'final summary',
+		turnId: 'run-1',
+		eventSeq: 7
+	} as BridgeEvent).state;
+	const settled = offer(s, {
+		type: 'run_done',
+		runId: 'run-1',
+		turnId: 'run-1',
+		success: true,
+		summary: 'final summary',
+		eventSeq: 8
+	} as BridgeEvent);
+	assert.deepEqual(
+		settled.emit.map(e => e.type),
+		['assistant_delta', 'final_answer', 'run_done']
+	);
+	assert.deepEqual(texts(settled.emit), ['mid-step ', 'fa:final summary']);
+});
