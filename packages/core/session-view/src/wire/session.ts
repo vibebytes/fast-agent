@@ -133,6 +133,7 @@ export type MentionChip = {
 export type QueueItem = {
 	id: string;
 	text: string;
+	clientMessageId?: string;
 	/** Chips retained across enqueue → flush. */
 	mentions?: MentionChip[];
 };

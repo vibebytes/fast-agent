@@ -1,6 +1,6 @@
 import type {MentionChip} from './wire.js';
 
-export type FollowUpQueueItem = {id: string; text: string; mentions?: MentionChip[]};
+export type FollowUpQueueItem = {id: string; text: string; clientMessageId?: string; mentions?: MentionChip[]};
 
 export function parseMentionsJson(raw: string): MentionChip[] {
 	try {
@@ -22,6 +22,16 @@ export function parseMentionsJson(raw: string): MentionChip[] {
 	}
 }
 
+function dedupeFollowUpsByClientMessageId() {
+	const seen = new Set<string>();
+	return (item: FollowUpQueueItem): boolean => {
+		if (!item.clientMessageId) return true;
+		if (seen.has(item.clientMessageId)) return false;
+		seen.add(item.clientMessageId);
+		return true;
+	};
+}
+
 export function followUpQueueFrom(itemsJson: string): FollowUpQueueItem[] {
 	try {
 		const parsed = JSON.parse(itemsJson) as unknown;
@@ -33,15 +43,20 @@ export function followUpQueueFrom(itemsJson: string): FollowUpQueueItem[] {
 				id: m.id,
 				text: String(m.text ?? ''),
 				order: typeof m.order === 'number' ? m.order : 0,
+				...(typeof m.clientMessageId === 'string' && m.clientMessageId
+					? {clientMessageId: m.clientMessageId}
+					: {}),
 				...(typeof m.mentionsJson === 'string' && m.mentionsJson
 					? {mentions: parseMentionsJson(m.mentionsJson)}
 					: {})
 			}))
 			.filter(m => m.id.length > 0)
 			.sort((a, b) => a.order - b.order)
-			.map(({id, text, mentions}) => ({
+			.filter(dedupeFollowUpsByClientMessageId())
+			.map(({id, text, mentions, clientMessageId}) => ({
 				id,
 				text,
+				...(clientMessageId ? {clientMessageId} : {}),
 				...(mentions ? {mentions} : {})
 			}));
 	} catch (err) {

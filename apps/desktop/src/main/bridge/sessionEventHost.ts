@@ -154,10 +154,15 @@ export function createSessionEventHost(deps: SessionEventHostDeps) {
 		task: TaskRecord,
 		paused: boolean,
 		itemsJson: string,
-		notice?: string
+		notice?: string,
+		noticeItemId?: string,
+		noticeClientMessageId?: string
 	): void {
 		task.queuePaused = paused;
 		if (notice?.trim()) deps.setHelpNotice(notice.trim());
+		task.followUpNotice = notice?.trim()
+			? {text: notice.trim(), itemId: noticeItemId, clientMessageId: noticeClientMessageId}
+			: undefined;
 		task.queue = followUpQueueFrom(itemsJson);
 	}
 
@@ -424,12 +429,28 @@ export function createSessionEventHost(deps: SessionEventHostDeps) {
 			}
 		};
 
+		if (event.type === 'follow_up_drained') {
+			const clientMessageId =
+				'clientMessageId' in event && typeof event.clientMessageId === 'string'
+					? event.clientMessageId
+					: undefined;
+			task.queue = task.queue.filter(
+				item => item.id !== event.itemId && (!clientMessageId || item.clientMessageId !== clientMessageId)
+			);
+			deps.tasks.set(task.id, task);
+			return task;
+		}
+
 		if (event.type === 'follow_up_changed') {
 			applyFollowUpProjection(
 				task,
 				event.paused,
 				event.itemsJson,
-				'notice' in event && typeof event.notice === 'string' ? event.notice : undefined
+				'notice' in event && typeof event.notice === 'string' ? event.notice : undefined,
+				'noticeItemId' in event && typeof event.noticeItemId === 'string' ? event.noticeItemId : undefined,
+				'noticeClientMessageId' in event && typeof event.noticeClientMessageId === 'string'
+					? event.noticeClientMessageId
+					: undefined
 			);
 			deps.tasks.set(task.id, task);
 			return task;

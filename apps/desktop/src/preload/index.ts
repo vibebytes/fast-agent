@@ -257,6 +257,7 @@ const api = {
 		invoke('queue:reorder', fromIndex, toIndex),
 	editQueueItem: (itemId: string, text: string) => invoke('queue:edit', itemId, text),
 	setQueuePaused: (paused: boolean) => invoke('queue:pause', paused),
+	runQueuedHead: () => invoke('queue:runHead'),
 	interruptQueueItem: (itemId: string) => invoke('queue:interrupt', itemId),
 	dshSteer: (text: string) => invoke('dsh:steer', text),
 	dshGoalAct: (action: 'pause' | 'resume' | 'complete' | 'clear') => invoke('dshGoal:act', action),

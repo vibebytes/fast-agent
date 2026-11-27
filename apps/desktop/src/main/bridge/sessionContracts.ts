@@ -51,6 +51,7 @@ export type TaskRecord = {
 	autoTitlePending: boolean;
 	queue: QueueItem[];
 	queuePaused: boolean;
+	followUpNotice?: {text: string; itemId?: string; clientMessageId?: string};
 	dshCaps?: DshCaps;
 	dshQueue?: DshQueueItem[];
 	dshGoal?: DshGoalView;
@@ -182,6 +183,8 @@ export type TaskCommands = {
 	reorderQueue(fromIndex: number, toIndex: number): boolean;
 	editQueueItem(itemId: string, text: string): boolean;
 	setQueuePaused(paused: boolean): boolean;
+	/** Queue head「执行」→ FollowUpRunHead (non-destructive). */
+	runQueuedHead(): boolean;
 	/** Queue row「插话」→ InterruptWithMessage (+ remove item). */
 	interruptQueueItem(itemId: string): boolean;
 	dshSteer(text: string): boolean;

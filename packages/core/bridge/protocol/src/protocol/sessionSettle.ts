@@ -6,6 +6,16 @@ export const sessionSettleSchemas = [
 		paused: z.boolean(),
 		itemsJson: z.string(),
 		notice: z.string().optional(),
+		noticeItemId: z.string().optional(),
+		noticeClientMessageId: z.string().optional(),
+		sessionId: z.string().optional()
+	}),
+	z.object({
+		type: z.literal('follow_up_drained'),
+		itemId: z.string(),
+		runId: z.string(),
+		text: z.string(),
+		clientMessageId: z.string().optional(),
 		sessionId: z.string().optional()
 	}),
 	z.object({

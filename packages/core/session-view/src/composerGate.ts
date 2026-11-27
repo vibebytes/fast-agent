@@ -72,7 +72,8 @@ export function canFlushQueuedInput(opts: {
 export function composerGate(
 	transcript: TranscriptState,
 	sessionReady: boolean,
-	leaseExpired = false
+	leaseExpired = false,
+	procActive = false
 ): ComposerGate {
 	const hasPrompt =
 		transcript.approvals.length > 0 ||
@@ -81,7 +82,7 @@ export function composerGate(
 	const stopping = chromeAwaitingSettlement(transcript.chrome);
 	const hasRun =
 		!leaseExpired &&
-		(Boolean(chromeRunId(transcript.chrome)) ||
+		(procActive || Boolean(chromeRunId(transcript.chrome)) ||
 			transcript.entries.some(e => e.status === 'streaming'));
 
 	// Waiting for user (question / approval) is not model execution. Fast IDE Stop is

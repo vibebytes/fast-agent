@@ -133,6 +133,7 @@ export type SessionCmd =
 	| {type: 'FollowUpUpdate'; sessionId: string; itemId: string; text: string}
 	| {type: 'FollowUpReorder'; sessionId: string; fromIndex: number; toIndex: number}
 	| {type: 'FollowUpPause'; sessionId: string; paused: boolean}
+	| {type: 'FollowUpRunHead'; sessionId: string}
 	| {
 			type: 'InterruptWithMessage';
 			sessionId: string;

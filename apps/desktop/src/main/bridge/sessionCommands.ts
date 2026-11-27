@@ -167,6 +167,12 @@ export function createSessionCommands(deps: SessionCommandsDeps) {
 		return deps.send({type: 'EngineCall', method, sessionId: active.sessionId, payload: {}});
 	};
 
+	const runQueuedHead = (): boolean => {
+		const active = activeAttached();
+		if (!active) return false;
+		return deps.send({type: 'FollowUpRunHead', sessionId: active.sessionId});
+	};
+
 	const interruptQueueItem = (itemId: string): boolean => {
 		const active = activeAttached();
 		if (!active) return false;
@@ -388,6 +394,7 @@ export function createSessionCommands(deps: SessionCommandsDeps) {
 		setQueuePaused,
 		dshSteer,
 		dshGoalAct,
+		runQueuedHead,
 		interruptQueueItem,
 		cancelRunForTask,
 		cancelRun,

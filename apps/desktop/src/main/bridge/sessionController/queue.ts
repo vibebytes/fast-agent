@@ -669,3 +669,92 @@ test('dsh_caps is stored; queue:false does not route QueueMessage; Fast ignores 
 		false
 	);
 });
+
+test('runQueuedHead sends FollowUpRunHead and never InterruptWithMessage', () => {
+	const sent: BridgeCommand[] = [];
+	const controller = new SessionController({
+		clientId: 'cli',
+		send: cmd => {
+			sent.push(cmd);
+			return true;
+		}
+	});
+	const task = controller.createTask('T');
+	controller.acceptNewSession('sess-run-head', task.id);
+	controller.handleEvent({type: 'Attached', sessionId: 'sess-run-head', clientId: 'cli'});
+	controller.handleEvent(
+		withSid('sess-run-head', {
+			type: 'follow_up_changed',
+			paused: false,
+			itemsJson: JSON.stringify([{id: 'fu-1', text: 'queued', order: 0}])
+		})
+	);
+
+	sent.length = 0;
+	assert.equal(controller.runQueuedHead(), true);
+	assert.deepEqual(sent, [{type: 'FollowUpRunHead', sessionId: 'sess-run-head'}]);
+	assert.equal(sent.some(c => c.type === 'InterruptWithMessage'), false);
+});
+
+test('runQueuedHead returns false when the engine rejects and never falls back to Interrupt', () => {
+	const sent: BridgeCommand[] = [];
+	const controller = new SessionController({
+		clientId: 'cli',
+		send: cmd => {
+			sent.push(cmd);
+			return cmd.type !== 'FollowUpRunHead';
+		}
+	});
+	const task = controller.createTask('T');
+	controller.acceptNewSession('sess-old-engine', task.id);
+	controller.handleEvent({type: 'Attached', sessionId: 'sess-old-engine', clientId: 'cli'});
+	controller.handleEvent(
+		withSid('sess-old-engine', {
+			type: 'follow_up_changed',
+			paused: false,
+			itemsJson: JSON.stringify([{id: 'fu-1', text: 'queued', order: 0}])
+		})
+	);
+
+	assert.equal(controller.runQueuedHead(), false);
+	assert.ok(sent.some(c => c.type === 'FollowUpRunHead'));
+	assert.equal(sent.some(c => c.type === 'InterruptWithMessage'), false);
+});
+
+test('follow_up_drained reconciles by clientMessageId and follow_up_changed exposes notice', () => {
+	const controller = new SessionController({clientId: 'cli', send: () => true});
+	const task = controller.createTask('T');
+	controller.acceptNewSession('sess-drained', task.id);
+	controller.handleEvent({type: 'Attached', sessionId: 'sess-drained', clientId: 'cli'});
+	controller.handleEvent(
+		withSid('sess-drained', {
+			type: 'follow_up_changed',
+			paused: false,
+			notice: 'temporary busy',
+			noticeItemId: 'fu-old',
+			noticeClientMessageId: 'cmid-1',
+			itemsJson: JSON.stringify([
+				{id: 'fu-old', text: 'same', order: 0, clientMessageId: 'cmid-1'},
+				{id: 'fu-retry', text: 'same retry', order: 1, clientMessageId: 'cmid-1'},
+				{id: 'fu-other', text: 'other', order: 2, clientMessageId: 'cmid-2'}
+			])
+		})
+	);
+	assert.equal(controller.consumeHelpNotice(), 'temporary busy');
+	assert.deepEqual(controller.getActiveTask()?.followUpNotice, {
+		text: 'temporary busy',
+		itemId: 'fu-old',
+		clientMessageId: 'cmid-1'
+	});
+
+	controller.handleEvent(
+		withSid('sess-drained', {
+			type: 'follow_up_drained',
+			itemId: 'fu-old',
+			runId: 'run-new',
+			text: 'same',
+			clientMessageId: 'cmid-1'
+		} as never)
+	);
+	assert.deepEqual(controller.getActiveTask()?.queue.map(item => item.id), ['fu-other']);
+});

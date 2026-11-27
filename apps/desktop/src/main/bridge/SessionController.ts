@@ -254,7 +254,15 @@ export class SessionController implements TaskCommands, SessionLifecycle, TaskVi
 	gate(): ComposerGate {
 		const task = this.getActiveTask();
 		if (!task) return composerGate(createTranscriptState(), false);
-		return goalBusyGatePatch(task, composerGate(task.transcript, this.sessionReady()));
+		return goalBusyGatePatch(
+			task,
+			composerGate(
+				task.transcript,
+				this.sessionReady(),
+				false,
+				task.transcript.liveProcs?.some(p => p.status === 'running') === true
+			)
+		);
 	}
 
 	isRunActive(): boolean {
@@ -693,6 +701,8 @@ export class SessionController implements TaskCommands, SessionLifecycle, TaskVi
 
 	dshGoalAct = (action: 'pause' | 'resume' | 'complete' | 'clear'): boolean =>
 		this.commands.dshGoalAct(action);
+
+	runQueuedHead = (): boolean => this.commands.runQueuedHead();
 
 	interruptQueueItem = (itemId: string): boolean => this.commands.interruptQueueItem(itemId);
 

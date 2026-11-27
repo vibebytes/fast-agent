@@ -11,8 +11,8 @@ import {
 import {createTranscriptState, type TranscriptState} from './transcriptProjection.js';
 import {IDLE_RUN_CHROME, runChromeTransition} from './runChrome.js';
 
-function gate(partial: Partial<TranscriptState>, sessionReady = true): ComposerGate {
-	return composerGate({...createTranscriptState(), ...partial}, sessionReady);
+function gate(partial: Partial<TranscriptState>, sessionReady = true, procActive = false): ComposerGate {
+	return composerGate({...createTranscriptState(), ...partial}, sessionReady, false, procActive);
 }
 
 test('cancel settlement timeout is ~12s (≥ Engine hard timeout)', () => {
@@ -132,7 +132,7 @@ test('stopping → enqueue allowed, cancel stays, no direct submit, Composer unl
 	});
 });
 
-test('running proc alone does not occupy Composer BusyRoots', () => {
+test('running proc alone occupies Composer and allows enqueue but not direct submit', () => {
 	const g = gate({
 		liveProcs: [
 			{
@@ -142,11 +142,11 @@ test('running proc alone does not occupy Composer BusyRoots', () => {
 				startedAt: 1
 			}
 		]
-	});
-	assert.equal(g.runState, 'idle');
-	assert.equal(g.canSubmitNow, true);
-	assert.equal(g.canEnqueue, false);
-	assert.equal(g.canCancel, false);
+	}, true, true);
+	assert.equal(g.runState, 'running');
+	assert.equal(g.canSubmitNow, false);
+	assert.equal(g.canEnqueue, true);
+	assert.equal(g.canCancel, true);
 });
 
 test('stopping without activeRunId still Stopping', () => {

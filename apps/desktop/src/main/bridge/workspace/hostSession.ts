@@ -368,6 +368,12 @@ export function hostSession(input: {
 			return ok;
 		},
 
+		'queue:runHead': () => {
+			const ok = activeCommands(hub)?.runQueuedHead() ?? false;
+			publisher.publishWorkspace();
+			return ok;
+		},
+
 		'queue:interrupt': (itemId: string) => {
 			const ok = activeCommands(hub)?.interruptQueueItem(itemId) ?? false;
 			publisher.publishWorkspace();

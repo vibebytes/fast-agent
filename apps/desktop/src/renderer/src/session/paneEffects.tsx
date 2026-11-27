@@ -537,9 +537,10 @@ export function usePaneEffects(h: PaneEffectsHost) {
 	const runQueuedHead = useCallback(() => {
 		const item = queue[0];
 		if (!item || queuedAffordance !== 'run') return;
-		onInterrupt(item);
-		void window.fastIde.interruptQueueItem(item.id);
-	}, [queue, queuedAffordance, onInterrupt]);
+		void window.fastIde.runQueuedHead().then(ok => {
+			if (!ok) setErrorLine('The engine refused to run the queued head.');
+		});
+	}, [queue, queuedAffordance]);
 	/** Interrupt failed after the row was dropped — the queue row unhides
 	 *  itself; retire the optimistic bubble and surface why. */
 	const onInterruptError = useCallback((message: string) => {

@@ -123,6 +123,7 @@ export type InvokeSession = {
 	'queue:reorder': {args: [fromIndex: number, toIndex: number]; result: boolean};
 	'queue:edit': {args: [itemId: string, text: string]; result: boolean};
 	'queue:pause': {args: [paused: boolean]; result: boolean};
+	'queue:runHead': {args: []; result: boolean};
 	'queue:interrupt': {args: [itemId: string]; result: boolean};
 	'dsh:steer': {args: [text: string]; result: boolean};
 	'dshGoal:act': {args: [action: 'pause' | 'resume' | 'complete' | 'clear']; result: boolean};

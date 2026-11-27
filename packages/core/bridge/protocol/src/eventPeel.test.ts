@@ -32,7 +32,7 @@ test('reportInvalidEngineLine routes terminal parse failures to onTerminal', () 
 		onLog: m => logs.push(m)
 	});
 	assert.deepEqual(terminals, [`${TERMINAL_PARSE_FAILURE_PREFIX} run_cancelled`]);
-	assert.deepEqual(logs, []);
+	assert.equal(logs.length, 0);
 
 	reportInvalidEngineLine('{"type":"assistant_delta","text":1}', {
 		onTerminal: m => terminals.push(m),

@@ -29,6 +29,15 @@ test('followUpQueueFrom tolerates garbage json', () => {
 	assert.deepEqual(followUpQueueFrom('42'), []);
 });
 
+test('followUpQueueFrom preserves clientMessageId and dedupes retries', () => {
+	const q = followUpQueueFrom(JSON.stringify([
+		{id: 'fu-old', text: 'same', order: 0, clientMessageId: 'cmid-1'},
+		{id: 'fu-retry', text: 'same', order: 1, clientMessageId: 'cmid-1'},
+		{id: 'fu-other', text: 'other', order: 2, clientMessageId: 'cmid-2'}
+	]));
+	assert.deepEqual(q, [{id: 'fu-old', text: 'same', clientMessageId: 'cmid-1'}, {id: 'fu-other', text: 'other', clientMessageId: 'cmid-2'}]);
+});
+
 test('parseMentionsJson keeps chip fields and drops bad rows', () => {
 	const chips = parseMentionsJson(
 		'[{"kind":"file","locator":"a.ts","displayName":"A","ref":"@/a.ts"},{"kind":"","locator":"x"}]'

@@ -674,6 +674,7 @@ export type FastIdeApi = {
 	reorderQueue: (fromIndex: number, toIndex: number) => Promise<boolean>;
 	editQueueItem: (itemId: string, text: string) => Promise<boolean>;
 	setQueuePaused: (paused: boolean) => Promise<boolean>;
+	runQueuedHead: () => Promise<boolean>;
 	interruptQueueItem: (itemId: string) => Promise<boolean>;
 	dshSteer: (text: string) => Promise<boolean>;
 	dshGoalAct: (action: 'pause' | 'resume' | 'complete' | 'clear') => Promise<boolean>;
